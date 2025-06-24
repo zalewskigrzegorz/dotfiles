@@ -1,0 +1,59 @@
+# NOTE:
+# This is my hand tailored config file for ghostty.
+
+# Custom theme: Dracula 
+window-theme = dark 
+palette = 0=#22212C
+palette = 1=#FF9580
+palette = 2=#8AFF80
+palette = 3=#FFFF80
+palette = 4=#9580FF
+palette = 5=#FF80BF
+palette = 6=#80FFEA
+palette = 7=#F8F8F2
+palette = 8=#504C67
+palette = 9=#FFAA99
+palette = 10=#A2FF99
+palette = 11=#FFFF99
+palette = 12=#AA99FF
+palette = 13=#FF99CC
+palette = 14=#99FFEE
+palette = 15=#FFFFFF
+background = #22212C
+foreground = #F8F8F2
+cursor-color = #7970A9
+cursor-text = #7970A9
+selection-background = #454158
+selection-foreground = #F8F8F2
+
+# Fonts
+font-size = 16
+
+# monospace
+font-feature = "liga"
+font-feature = "calt"
+font-family = "Iosevka Nerd Font"
+font-variation = wght=300
+font-variation = wdth=100
+
+# italics
+
+font-family-italic = "Iosevka Nerd Font Italic"
+font-variation-italic = wght=200
+font-family-bold-italic = "Maple Mono"
+font-variation-bold-italic = wght=800
+
+window-title-font-family = "FantasqueSansMono Nerd Font, monospace"
+macos-titlebar-style = native
+macos-titlebar-proxy-icon = hidden
+macos-icon = holographic
+macos-icon-frame = beige
+macos-option-as-alt = false
+clipboard-read = allow
+clipboard-write = allow
+copy-on-select = false
+confirm-close-surface = false
+quit-after-last-window-closed = true
+
+# Quake terminal
+keybind = global:cmd+f2=toggle_quick_terminal
