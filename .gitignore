@@ -1,0 +1,69 @@
+.DS_Store
+tmux/plugins/
+raycast
+fzf
+history.txt
+
+# Sensitive files and directories
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*_rsa
+*_dsa
+*_ecdsa
+*_ed25519
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+known_hosts*
+authorized_keys*
+
+# API keys and secrets
+.env
+.env.local
+.env.*.local
+.secrets
+*secret*
+*token*
+*password*
+config.json
+settings.json
+
+# SSH and GPG
+.ssh/
+.gnupg/
+*.gpg
+*.asc
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.cache/
+cache/
+
+# Application specific sensitive dirs
+op/
+1password/
+keychain/
+wallet/
+credentials/
+
+# History files
+.*_history
+.zsh_history
+.bash_history
+.python_history
+
+# macOS specific
+.Trashes
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
