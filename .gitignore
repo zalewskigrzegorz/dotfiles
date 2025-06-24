@@ -1,16 +1,33 @@
+# macOS
 .DS_Store
-tmux/plugins/
-raycast
-fzf
-history.txt
+.Trashes
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
 
-# Sensitive files and directories
+# Backups
+backups/
+
+# Sensitive configs (automatically managed by import script)
+raycast/
+op/
+1password/
+keychain/
+wallet/
+credentials/
+ssh/
+
+# SSH and GPG keys
+.ssh/
+.gnupg/
 *.key
 *.pem
 *.p12
 *.pfx
 *.crt
 *.cer
+*.gpg
+*.asc
 *_rsa
 *_dsa
 *_ecdsa
@@ -22,48 +39,30 @@ id_ed25519*
 known_hosts*
 authorized_keys*
 
-# API keys and secrets
-.env
-.env.local
-.env.*.local
+# Environment and secrets
+.env*
 .secrets
 *secret*
 *token*
 *password*
-config.json
-settings.json
-
-# SSH and GPG
-.ssh/
-.gnupg/
-*.gpg
-*.asc
-
-# Logs and temporary files
-*.log
-*.tmp
-*.temp
-*.swp
-*.swo
-*~
-.cache/
-cache/
-
-# Application specific sensitive dirs
-op/
-1password/
-keychain/
-wallet/
-credentials/
 
 # History files
 .*_history
 .zsh_history
 .bash_history
 .python_history
+history.txt
 
-# macOS specific
-.Trashes
-.fseventsd
-.Spotlight-V100
-.TemporaryItems
+# Cache and temporary files
+.cache/
+cache/
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Application plugins (managed separately)
+tmux/plugins/
+fzf
