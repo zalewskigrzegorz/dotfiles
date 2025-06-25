@@ -2,7 +2,7 @@ command_timeout = 1000
 # Dracula configuration
 palette = "dracula"
 
-[palettes.dracula-pro]
+[palettes.dracula]
 background = "#22212C"
 current_line = "#44475a"
 foreground = "#F8F8F2"
