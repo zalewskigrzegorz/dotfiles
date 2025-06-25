@@ -45,6 +45,7 @@ authorized_keys*
 *secret*
 *token*
 *password*
+.config/nushell/autoload/private.nu
 
 # History files
 .*_history
@@ -64,5 +65,5 @@ cache/
 *~
 
 # Application plugins (managed separately)
-tmux/plugins/
+.config/tmux/plugins/
 fzf

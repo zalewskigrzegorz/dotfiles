@@ -1,0 +1,64 @@
+command_timeout = 1000
+# Dracula configuration
+palette = "dracula"
+
+[palettes.dracula-pro]
+background = "#22212C"
+current_line = "#44475a"
+foreground = "#F8F8F2"
+comment = "#7970a9"
+cyan = "#80FFEA"
+green = "#8AFF80"
+orange = "#FFCA80"
+pink = "#FF80BF"
+purple = "#9580FF"
+red = "#FF9580"
+yellow = "#FFFF80"
+teal = "#80FFEA"
+
+
+# Enhanced minimal configuration
+format = """
+$directory\
+$shell\
+$sudo\
+$git_branch\
+$git_status\
+$nodejs\
+$cmd_duration\
+$line_break\
+$character
+"""
+
+# Make prompt more minimal
+[character]
+success_symbol = "[🦄](cyan)"
+error_symbol = "[🚨](red)"
+
+[directory]
+style = "teal"
+truncation_length = 3
+truncate_to_repo = true
+
+[git_branch]
+format = "[$symbol$branch]($style) "
+style = "cyan"
+
+[git_status]
+format = '([\[$all_status$ahead_behind\]]($style) )'
+style = "pink"
+
+[nodejs]
+format = "[$symbol($version )]($style)"
+style = "green"
+
+[cmd_duration]
+min_time = 2_000
+show_milliseconds = false
+format = "[$duration]($style) "
+style = "yellow"
+
+# Disable modules that add clutter
+
+[kubernetes]
+disabled = true
