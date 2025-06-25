@@ -1,0 +1,21 @@
+# Tmux - Terminal multiplexer shortcuts
+# Override tmux to always use XDG config location
+
+# Create tmux alias that always uses our config file
+alias tmux = ^tmux -f $env.TMUX_CONFIG
+
+# Create new tmux session
+def tn [name?: string = "main"] { tmux new-session -s $name }
+
+# Attach to tmux session
+def ta [name?: string] { 
+    if ($name | is-empty) { tmux attach } else { tmux attach -t $name }
+}
+
+# List tmux sessions
+def tl [] { tmux list-sessions }
+
+# Kill tmux session or server
+def tk [name?: string] { 
+    if ($name | is-empty) { tmux kill-server } else { tmux kill-session -t $name }
+} 

@@ -30,5 +30,27 @@ stow .
 
 **`apply-symlinks.nu`** - Shows which configs are linked (🔗), new (🆕), or need backup (📦). Creates timestamped backups in `backups/` before running stow.
 
+**`fix-macos-path.nu`** - Generates a macOS LaunchAgent plist file to set XDG environment variables system-wide. This fixes GUI apps that don't respect XDG config directories on macOS.
+
+## macOS XDG Environment Fix
+
+Many GUI apps on macOS don't respect XDG config directories and save configs in `~/Library/Application Support`. To fix this system-wide:
+
+```bash
+# Generate and install the LaunchAgent
+nu fix-macos-path.nu
+
+# Activate it (will run on every login)
+launchctl load ~/Library/LaunchAgents/me.greg.environment.plist
+```
+
+This sets the following environment variables for all GUI applications:
+- `XDG_CONFIG_HOME` → `~/.config`
+- `XDG_CACHE_HOME` → `~/.cache`
+- `XDG_DATA_HOME` → `~/.local/share`
+- `XDG_STATE_HOME` → `~/.local/state`
+- `XDG_RUNTIME_DIR` → `~/.local/run`
+- `XDG_BIN_HOME` → `~/.local/bin`
+
 ## Security
 Pre-commit hook with gitleaks prevents committing secrets. Sensitive configs (raycast, ssh, etc.) are automatically added to `.gitignore`.
