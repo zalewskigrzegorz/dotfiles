@@ -26,6 +26,8 @@ $git_branch\
 $git_status\
 $nodejs\
 $cmd_duration\
+$jobs\
+$cmd_duration\
 $line_break\
 $character
 """
@@ -52,13 +54,21 @@ style = "pink"
 format = "[$symbol($version )]($style)"
 style = "green"
 
+[jobs]
+symbol = ' '
+style = 'red'
+number_threshold = 1
+format = '[$symbol]($style)'
+
 [cmd_duration]
-min_time = 2_000
-show_milliseconds = false
-format = "[$duration]($style) "
-style = "yellow"
+min_time = 500
+style = 'fg:gray'
+format = '[$duration]($style)'
 
 # Disable modules that add clutter
 
 [kubernetes]
+disabled = true
+
+[aws]
 disabled = true
