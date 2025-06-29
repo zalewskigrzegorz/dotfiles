@@ -18,3 +18,19 @@ $env.PROMPT_INDICATOR = "❯ "
 $env.PROMPT_INDICATOR_VI_INSERT = "❯ "
 $env.PROMPT_INDICATOR_VI_NORMAL = "❮ "
 $env.PROMPT_MULTILINE_INDICATOR = "├─ "
+
+# Create the transient (minimal) prompt shown on previous commands
+# Uses only Starship's `character` module for a compact arrow
+# Ref: https://www.nushell.sh/book/configuration.html#transient-prompt
+
+def create_transient_prompt [] {
+    ""
+}
+
+# Enable Nushell's transient prompt support
+$env.TRANSIENT_PROMPT_COMMAND = { || create_transient_prompt }
+$env.TRANSIENT_PROMPT_INDICATOR = "❯ "
+$env.TRANSIENT_PROMPT_INDICATOR_VI_INSERT = "❯ "
+$env.TRANSIENT_PROMPT_INDICATOR_VI_NORMAL = "❮ "
+# Blank to remove the tree icon on wrapped lines in command history
+$env.TRANSIENT_PROMPT_MULTILINE_INDICATOR = ""
