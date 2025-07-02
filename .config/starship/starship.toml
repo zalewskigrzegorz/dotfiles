@@ -14,8 +14,7 @@ pink = "#FF80BF"
 purple = "#9580FF"
 red = "#FF9580"
 yellow = "#FFFF80"
-teal = "#80FFEA"
-
+teal = "#008080"
 
 # Enhanced minimal configuration
 format = """
@@ -38,7 +37,7 @@ success_symbol = "[🦄](cyan)"
 error_symbol = "[🚨](red)"
 
 [directory]
-style = "teal"
+style = "purple"
 truncation_length = 3
 truncate_to_repo = true
 

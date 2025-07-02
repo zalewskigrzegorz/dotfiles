@@ -26,6 +26,14 @@ cursor-text = #7970A9
 selection-background = #454158
 selection-foreground = #F8F8F2
 
+# Window settings
+window-padding-x = 5
+window-padding-y = 5
+window-width = 213
+window-height = 65
+window-position-x = 0
+window-position-y = 0
+
 # Fonts
 font-size = 16
 
@@ -57,3 +65,6 @@ quit-after-last-window-closed = true
 
 # Quake terminal
 keybind = global:cmd+f2=toggle_quick_terminal
+
+# Enable macos notifications
+desktop-notifications = true
