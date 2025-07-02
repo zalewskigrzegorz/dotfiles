@@ -67,3 +67,6 @@ cache/
 # Application plugins (managed separately)
 .config/tmux/plugins/
 fzf
+
+#ignored ecause the configuration does not work with environment variables.
+.config/gh-dash/config.yml
