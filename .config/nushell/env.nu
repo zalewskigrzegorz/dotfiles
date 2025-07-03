@@ -45,6 +45,7 @@ $env.PATH = ($env.PATH | split row (char esep) | prepend [
     "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin"
     "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin"
     "/Library/Apple/usr/bin"
+    $"($home)/bin"
 ])
 
 # PNPM config
