@@ -16,7 +16,6 @@ use std "path add"
 
 # PATH configurations  
 let home = $env.HOME
-use std "path add"
 # path add $"($home)/.asdf/shims"
 # path add $"($home)/.asdf/bin"
 # path add $"($home)/Library/Application Support/carapace/bin"
@@ -57,7 +56,7 @@ $env.STARSHIP_CONFIG = ($env.HOME | path join ".config/starship" "starship.toml"
 $env.TMUX_CONFIG = ($env.HOME | path join ".config/tmux" "tmux.conf")
 
 # Carapace config
-$env.CARAPACE_BRIDGES = 'zsh,fish,bash'
+$env.CARAPACE_BRIDGES = 'zsh,fish,bash,nushell'
 
 # Set nvim to use nushell
 $env.NVIM_SHELL = "/opt/homebrew/bin/nu"
