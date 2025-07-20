@@ -10,7 +10,7 @@ after-login-command = []
 # 'after-startup-command' is run after 'after-login-command'
 # Available commands : https://nikitabobko.github.io/AeroSpace/commands
 after-startup-command = [
-  'exec-and-forget /opt/homebrew/opt/sketchybar/bin/sketchybar',
+  'exec-and-forget sketchybar >> $HOME/Code/dotfiles/logs/sketchybar.log 2>&1',
   'exec-and-forget /opt/homebrew/bin/borders',
 ]
 
@@ -20,7 +20,13 @@ start-at-login = true
 exec-on-workspace-change = [
   '/bin/bash',
   '-c',
-  '/opt/homebrew/opt/sketchybar/bin/sketchybar --trigger aerospace_workspace_change AEROSPACE_FOCUSED_WORKSPACE=$AEROSPACE_FOCUSED_WORKSPACE AEROSPACE_PREV_WORKSPACE=$AEROSPACE_PREV_WORKSPACE',
+  'sketchybar --trigger aerospace_workspace_change FOCUSED_WORKSPACE=$AEROSPACE_FOCUSED_WORKSPACE FOCUSED_DISPLAY=$(aerospace list-monitors --focused | awk "{print $1}")',
+]
+
+# Notify Sketchybar about focuse change
+# See https://nikitabobko.github.io/AeroSpace/guide#on-focus-changed-callbacks
+on-focus-changed = [
+  'exec-and-forget sketchybar --trigger aerospace_focus_change FOCUSED_WORKSPACE=$AEROSPACE_FOCUSED_WORKSPACE',
 ]
 
 # Normalizations. See: https://nikitabobko.github.io/AeroSpace/guide#normalization
@@ -60,16 +66,16 @@ preset = 'qwerty'
 # monitor force strategy
 [workspace-to-monitor-force-assignment]
 # Core workspaces on external (when available)
-comunication = 'C34H89x'
+chat = 'C34H89x'
 web = 'C34H89x'
 code = 'C34H89x'
-terminal = 'C34H89x'
+term = 'C34H89x'
 media = 'C34H89x'
 test = 'C34H89x'
 misc = 'C34H89x'
-# 8 = 'C34H89x'
-# 9 = 'C34H89x'
-# 0 = 'C34H89x'
+mail = 'C34H89x'
+notes = 'C34H89x'
+mac = 'Built-in'
 
 # Gaps between windows (inner-*) and between monitor edges (outer-*).
 # Possible values:
@@ -82,10 +88,10 @@ misc = 'C34H89x'
 [gaps]
 inner.horizontal = 8
 inner.vertical = 8
-outer.left = 8
-outer.bottom = 8
-outer.top = 40       # sketchybar
-outer.right = 8
+outer.left = 5
+outer.bottom = 5
+outer.top = [{ monitor."Built-in" = 10 }, { monitor.'C34H89x' = 45 }, 24]
+outer.right = 5
 
 # 'main' binding mode declaration
 # See: https://nikitabobko.github.io/AeroSpace/guide#binding-modes
@@ -114,33 +120,36 @@ ctrl-minus = 'resize smart -50'
 ctrl-equal = 'resize smart +50'
 
 # Workspace switching
-ctrl-1 = 'workspace comunication'
+ctrl-1 = 'workspace chat'
 ctrl-2 = 'workspace web'
-ctrl-3 = 'workspace terminal'
+ctrl-3 = 'workspace term'
 ctrl-4 = 'workspace code'
 ctrl-5 = 'workspace media'
 ctrl-6 = 'workspace test'
 ctrl-7 = 'workspace misc'
-ctrl-8 = 'workspace 8'
-ctrl-9 = 'workspace 9'
-ctrl-0 = 'workspace 0'
+ctrl-8 = 'workspace notes'
+ctrl-9 = 'workspace mail'
+ctrl-0 = 'workspace mac'
 
 # Move to workspace
-ctrl-shift-1 = 'move-node-to-workspace comunication'
+ctrl-shift-1 = 'move-node-to-workspace chat'
 ctrl-shift-2 = 'move-node-to-workspace web'
-ctrl-shift-3 = 'move-node-to-workspace terminal'
+ctrl-shift-3 = 'move-node-to-workspace term'
 ctrl-shift-4 = 'move-node-to-workspace code'
 ctrl-shift-5 = 'move-node-to-workspace media'
 ctrl-shift-6 = 'move-node-to-workspace test'
 ctrl-shift-7 = 'move-node-to-workspace misc'
-ctrl-shift-8 = 'move-node-to-workspace 8'
-ctrl-shift-9 = 'move-node-to-workspace 9'
-ctrl-shift-0 = 'move-node-to-workspace 0'
+ctrl-shift-8 = 'move-node-to-workspace notes'
+ctrl-shift-9 = 'move-node-to-workspace mail'
+ctrl-shift-0 = 'move-node-to-workspace mac'
 
 # Other controls
 ctrl-tab = 'workspace-back-and-forth'
 ctrl-shift-tab = 'move-workspace-to-monitor --wrap-around next'
-ctrl-shift-space = 'mode service'
+ctrl-shift-space = [
+  'mode service',
+  'exec-and-forget sketchybar --trigger aerospace_enter_service_mode',
+]
 
 ctrl-t = 'mode terminal' # tempolary manual switch to terminal mode
 
@@ -167,64 +176,100 @@ ctrl-minus = 'resize smart -50'
 ctrl-equal = 'resize smart +50'
 
 # Workspace switching
-ctrl-1 = 'workspace comunication'
+ctrl-1 = 'workspace chat'
 ctrl-2 = 'workspace web'
-ctrl-3 = 'workspace terminal'
+ctrl-3 = 'workspace term'
 ctrl-4 = 'workspace code'
 ctrl-5 = 'workspace media'
 ctrl-6 = 'workspace test'
 ctrl-7 = 'workspace misc'
-ctrl-8 = 'workspace 8'
-ctrl-9 = 'workspace 9'
-ctrl-0 = 'workspace 0'
+ctrl-8 = 'workspace notes'
+ctrl-9 = 'workspace mail'
+ctrl-0 = 'workspace mac'
 
 # Move to workspace
-ctrl-shift-1 = 'move-node-to-workspace comunication'
+ctrl-shift-1 = 'move-node-to-workspace chat'
 ctrl-shift-2 = 'move-node-to-workspace web'
-ctrl-shift-3 = 'move-node-to-workspace terminal'
+ctrl-shift-3 = 'move-node-to-workspace term'
 ctrl-shift-4 = 'move-node-to-workspace code'
 ctrl-shift-5 = 'move-node-to-workspace media'
 ctrl-shift-6 = 'move-node-to-workspace test'
 ctrl-shift-7 = 'move-node-to-workspace misc'
-ctrl-shift-8 = 'move-node-to-workspace 8'
-ctrl-shift-9 = 'move-node-to-workspace 9'
-ctrl-shift-0 = 'move-node-to-workspace 0'
+ctrl-shift-8 = 'move-node-to-workspace notes'
+ctrl-shift-9 = 'move-node-to-workspace mail'
+ctrl-shift-0 = 'move-node-to-workspace mac'
 
 # Other controls
 ctrl-tab = 'workspace-back-and-forth'
 ctrl-shift-tab = 'move-workspace-to-monitor --wrap-around next'
-ctrl-shift-space = 'mode service'
+ctrl-shift-space = [
+  'mode service',
+  'exec-and-forget sketchybar --trigger aerospace_enter_service_mode',
+]
 ctrl-t = 'mode main'                                            # tempolary manual switch to back to normal mode
 
 # 'service' binding mode declaration.
 # See: https://nikitabobko.github.io/AeroSpace/guide#binding-modes
 [mode.service.binding]
-esc = ['reload-config', 'mode main']
-r = ['flatten-workspace-tree', 'mode main'] # reset layout
+esc = [
+  'reload-config',
+  'mode main',
+  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+]
+r = [
+  'flatten-workspace-tree',
+  'mode main',
+  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+] # reset layout
 f = [
   'layout floating tiling',
-  'mode main',
+  'mode main', 
+  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
 ] # Toggle between floating and tiling layout
-backspace = ['close-all-windows-but-current', 'mode main']
-a = ['exec-and-forget nu ~/.config/aerospace/reset-apps.nu', 'mode main']
+backspace = [
+  'close-all-windows-but-current',
+  'mode main',
+  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+]
+a = [
+  'exec-and-forget nu ~/.config/aerospace/reset-apps.nu',
+  'mode main',
+  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+]
 
-ctrl-shift-h = ['join-with left', 'mode main']
-ctrl-shift-j = ['join-with down', 'mode main']
-ctrl-shift-k = ['join-with up', 'mode main']
-ctrl-shift-l = ['join-with right', 'mode main']
+ctrl-shift-h = [
+  'join-with left',
+  'mode main',
+  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+]
+ctrl-shift-j = [
+  'join-with down',
+  'mode main',
+  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+]
+ctrl-shift-k = [
+  'join-with up',
+  'mode main',
+  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+]
+ctrl-shift-l = [
+  'join-with right',
+  'mode main',
+  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+]
 
 # Automation when windows open
 [[on-window-detected]]
 if.app-name-regex-substring = 'Discord'
-run = 'move-node-to-workspace comunication'
+run = 'move-node-to-workspace chat'
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'Slack'
-run = 'move-node-to-workspace comunication'
+run = 'move-node-to-workspace chat'
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'ChatMate for WhatsApp'
-run = 'move-node-to-workspace comunication'
+run = 'move-node-to-workspace chat'
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'Arc'
@@ -240,14 +285,26 @@ run = 'move-node-to-workspace code'
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'Firefox Developer Edition'
-run = 'move-node-to-workspace code'
+run = 'move-node-to-workspace test'
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'Ghostty'
-run = 'move-node-to-workspace terminal'
+run = 'move-node-to-workspace term'
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'Spotify'
 run = 'move-node-to-workspace media'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'NotePlan'
+run = 'move-node-to-workspace notes'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Canary Mail'
+run = 'move-node-to-workspace mail'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Notion Calendar'
+run = 'move-node-to-workspace mail'
 
 #It should be easy way to swich modes basic on focused window.
