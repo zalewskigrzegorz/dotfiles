@@ -214,7 +214,7 @@ ctrl-t = 'mode main'                                            # tempolary manu
 esc = [
   'reload-config',
   'mode main',
-  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+  'exec-and-forget sketchybar --reload',
 ]
 r = [
   'flatten-workspace-tree',
