@@ -147,19 +147,39 @@ for i, workspace in ipairs(workspace_order) do
     space:subscribe("aerospace_workspace_change", function(env)
         local selected = env.FOCUSED_WORKSPACE == workspace
         local color = selected and focused_color or workspace_color
-        space:set({
-            icon = {
-                highlight = selected,
-                color = color
-            },
-            label = {
-                highlight = selected,
-                color = color
-            },
-            background = {
-                border_color = color
-            }
-        })
+        
+        sbar.animate("tanh", 15, function()
+            space:set({
+                icon = {
+                    highlight = selected,
+                    color = color
+                },
+                label = {
+                    highlight = selected,
+                    color = color
+                },
+                background = {
+                    border_color = color,
+                    border_width = selected and 3 or 1  
+                }
+            })
+        end)
+        
+        if selected then
+            sbar.animate("sin", 30, function()
+                space:set({
+                    background = {
+                        color = colors.with_alpha(color, 0.1)
+                    }
+                })
+            end)
+        else
+            space:set({
+                background = {
+                    color = colors.transparent
+                }
+            })
+        end
     end)
 
     space:subscribe("mouse.clicked", function(env)
