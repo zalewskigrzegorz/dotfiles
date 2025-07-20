@@ -2,6 +2,7 @@ return {
     plus = "􀅼",
     loading = "􀖇",
     apple = "",
+    unicorn = "󱗃",
     rebel = "",
     empire = "",
     gear = "􀍟",
