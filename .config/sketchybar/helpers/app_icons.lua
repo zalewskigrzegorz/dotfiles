@@ -212,6 +212,26 @@ return {
     ["Benji"] = ":bear:",
     ["Microsoft Outlook"] = ":microsoft_outlook:",
     ["ChatGPT"] = ":openai:",
-    ["default"] = ":default:"
+    ["Notion Calendar"] = ":calendar:",
+    ["Ghostty"] = ":terminal:",
+    ["ChatMate Pro for WhatsApp"] = ":whats_app:",
+    ["spotify_player"] = ":spotify:",
+    ["CleanShot X"] = ":color_picker:", 
+    ["Stream Deck"] = ":gear:",
+    ["Bazecor"] = ":keyboard_maestro:",
+    ["NotePlan"] = ":notes:",
+    ["default"] = ":default:",
+
 }
-  
+
+-- Useful command to check exact app names for icon mapping:
+-- aerospace list-windows --all --json | from json | uniq 
+-- sketchybar --query item.1 | from json | get label.value
+-- 
+-- Usage:
+-- 1. Run the command above to see all app names
+-- 2. Add mapping: ["Exact App Name"] = ":icon_name:",
+-- 3. Reload: sketchybar --reload
+-- 
+-- To check if an icon exists, look for similar patterns in this file
+-- or test by reloading - if you see literal text like ":fake_icon:", it doesn't exist
