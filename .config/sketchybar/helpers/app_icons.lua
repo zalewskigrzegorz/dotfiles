@@ -220,6 +220,7 @@ return {
     ["Stream Deck"] = ":gear:",
     ["Bazecor"] = ":keyboard_maestro:",
     ["NotePlan"] = ":notes:",
+    ["Raycast"] = ":book:",
     ["default"] = ":default:",
 
 }
