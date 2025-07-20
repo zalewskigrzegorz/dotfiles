@@ -1,0 +1,12 @@
+#!/bin/bash
+
+options=(
+  style=round
+  width=8.0 # Increased width for better visibility
+  hidpi=on
+  active_color=0xff9580FF
+  inactive_color=0xff22212C # Dracula background - very subtle, almost invisible
+  blacklist=DeskMinder,sketchybar
+)
+
+borders "${options[@]}"
