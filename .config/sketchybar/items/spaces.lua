@@ -195,7 +195,36 @@ for i, workspace in ipairs(workspace_order) do
                 }
             })
         else
-            sbar.exec("aerospace workspace " .. workspace)
+            -- Get windows in this workspace and cycle through them
+            sbar.exec("aerospace list-windows --workspace " .. workspace .. " --format '%{window-id}' --json", function(windows)
+                if windows and #windows > 0 then
+                    -- Get current focused window
+                    sbar.exec("aerospace list-windows --focused --format '%{window-id}' --json", function(focused)
+                        local current_window_id = focused and focused[1] and focused[1]["window-id"]
+                        local next_window_id = nil
+                        
+                        -- Find next window to focus (cycle through)
+                        for i, window in ipairs(windows) do
+                            if window["window-id"] == current_window_id then
+                                -- Focus next window, or first if we're at the end
+                                next_window_id = windows[i + 1] and windows[i + 1]["window-id"] or windows[1]["window-id"]
+                                break
+                            end
+                        end
+                        
+                        -- If current window not in this workspace, focus first window
+                        if not next_window_id then
+                            next_window_id = windows[1]["window-id"]
+                        end
+                        
+                        -- Focus the window
+                        sbar.exec("aerospace focus --window-id " .. next_window_id)
+                    end)
+                else
+                    -- No windows, just switch to workspace
+                    sbar.exec("aerospace workspace " .. workspace)
+                end
+            end)
         end
     end)
 
