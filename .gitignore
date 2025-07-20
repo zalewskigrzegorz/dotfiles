@@ -67,6 +67,8 @@ cache/
 # Application plugins (managed separately)
 .config/tmux/plugins/
 fzf
+# don't ignore pull script
+!fzf/pull.nu
 
 #ignored ecause the configuration does not work with environment variables.
 .config/gh-dash/config.yml
@@ -74,3 +76,4 @@ fzf
 .config/lnav/
 
 .config/atuin/atuin-receipt.json
+.config/spotify-player/clientid
