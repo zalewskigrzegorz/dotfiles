@@ -249,6 +249,11 @@ fallback_channel = "files"
 "git-log" = ["git log", "git show"]
 "docker-images" = ["docker run"]
 "git-repos" = ["nvim", "code", "hx", "git clone"]
+"tmux" = ["tmux attach", "ta"]
+"pnpm" = ["pnpm", "p"]
+"nomad" = ["nomad job", "nomad alloc"]
+"basti" = ["basti connect"]
+"work" = ["cd /Users/greg/Code/Redocly"]
 
 
 [shell_integration.keybindings]
