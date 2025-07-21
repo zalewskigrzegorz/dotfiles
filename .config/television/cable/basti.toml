@@ -1,0 +1,10 @@
+[metadata]
+name = "basti"
+description = "Select basti connection targets"
+requirements = ["yq"]
+
+[source]
+command = ["if [ -f .basti.yaml ]; then cat .basti.yaml | yq eval '.connections | keys | .[]' 2>/dev/null; fi"]
+
+[preview]
+command = "if [ -f .basti.yaml ]; then cat .basti.yaml | yq eval '.connections.\"{}\"' 2>/dev/null | head -10; else echo 'No .basti.yaml found'; fi" 
