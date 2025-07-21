@@ -206,16 +206,11 @@ ctrl-shift-space = [
   'mode service',
   'exec-and-forget sketchybar --trigger aerospace_enter_service_mode',
 ]
-ctrl-t = 'mode main'                                            # tempolary manual switch to back to normal mode
 
 # 'service' binding mode declaration.
 # See: https://nikitabobko.github.io/AeroSpace/guide#binding-modes
 [mode.service.binding]
-esc = [
-  'reload-config',
-  'mode main',
-  'exec-and-forget sketchybar --reload',
-]
+esc = ['reload-config', 'mode main', 'exec-and-forget sketchybar --reload']
 r = [
   'flatten-workspace-tree',
   'mode main',
@@ -223,11 +218,19 @@ r = [
 ] # reset layout
 f = [
   'layout floating tiling',
-  'mode main', 
+  'mode main',
   'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
 ] # Toggle between floating and tiling layout
 backspace = [
   'close-all-windows-but-current',
+  'mode main',
+  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+]
+t = [
+  'mode terminal',
+  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+]
+m = [
   'mode main',
   'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
 ]
@@ -271,9 +274,10 @@ run = 'move-node-to-workspace chat'
 if.app-name-regex-substring = 'ChatMate for WhatsApp'
 run = 'move-node-to-workspace chat'
 
-[[on-window-detected]]
-if.app-name-regex-substring = 'Arc'
-run = 'move-node-to-workspace web'
+# Disable since arc litle is also moved to this worekspace
+#[[on-window-detected]]
+#if.app-name-regex-substring = 'Arc'
+#run = 'move-node-to-workspace web'
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'Cursor'
@@ -306,5 +310,13 @@ run = 'move-node-to-workspace mail'
 [[on-window-detected]]
 if.app-name-regex-substring = 'Notion Calendar'
 run = 'move-node-to-workspace mail'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Boom'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'CleanShot X'
+run = 'layout floating'
 
 #It should be easy way to swich modes basic on focused window.

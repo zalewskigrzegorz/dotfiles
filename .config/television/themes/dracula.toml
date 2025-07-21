@@ -1,0 +1,32 @@
+# Dracula PRO Theme for Television
+# Generated based on official Dracula PRO theme files.
+
+# General
+background = '#22212C'
+border_fg = '#7970A9'
+text_fg = '#F8F8F2'
+dimmed_text_fg = '#7970A9'
+
+# Input
+input_text_fg = '#FF80BF'
+result_count_fg = '#FF80BF'
+
+# Results
+result_name_fg = '#8AFF80'
+result_line_number_fg = '#FFFF80'
+result_value_fg = '#9580FF'
+selection_fg = '#F8F8F2'
+selection_bg = '#454158'
+match_fg = '#FFCA80'
+
+# Preview
+preview_title_fg = '#80FFEA'
+
+# Modes
+channel_mode_fg = '#22212C'
+channel_mode_bg = '#FF80BF'
+remote_control_mode_fg = '#22212C'
+remote_control_mode_bg = '#8AFF80'
+send_to_channel_mode_fg = '#22212C'
+send_to_channel_mode_bg = '#80FFEA'
+
