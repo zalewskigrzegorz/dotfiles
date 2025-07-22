@@ -28,8 +28,8 @@ let home = $env.HOME
 $env.PATH = ($env.PATH | split row (char esep) | prepend [
     "/opt/homebrew/opt/asdf/libexec/bin"
     $"($home)/.asdf/shims"
+    $"($home)/.asdf/installs"
     $"($home)/Library/Application Support/carapace/bin"
-    $"($home)/.asdf/bin"
     $"($home)/Library/pnpm"
     "/opt/homebrew/opt/openjdk/bin"
     "/opt/homebrew/bin"
