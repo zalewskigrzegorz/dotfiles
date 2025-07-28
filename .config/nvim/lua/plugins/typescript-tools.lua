@@ -17,13 +17,13 @@ return {
     opts = {
       settings = {
         tsserver_file_preferences = {
-          includeInlayParameterNameHints = "all",
+          includeInlayParameterNameHints = "none",
           includeInlayParameterNameHintsWhenArgumentMatchesName = false,
-          includeInlayFunctionParameterTypeHints = true,
-          includeInlayVariableTypeHints = true,
-          includeInlayPropertyDeclarationTypeHints = true,
-          includeInlayFunctionLikeReturnTypeHints = true,
-          includeInlayEnumMemberValueHints = true,
+          includeInlayFunctionParameterTypeHints = false,
+          includeInlayVariableTypeHints = false,
+          includeInlayPropertyDeclarationTypeHints = false,
+          includeInlayFunctionLikeReturnTypeHints = false,
+          includeInlayEnumMemberValueHints = false,
         },
       },
     },
