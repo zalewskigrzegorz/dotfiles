@@ -1,5 +1,18 @@
 # Nomad - HashiCorp Nomad job management
 
+# Login to nomad connected via basti on localhost.
+def nomad-login [] {
+  # open browser on http://localhost:4647/ui/settings/tokens
+  ^open http://localhost:4647/ui/settings/tokens
+  echo "Please login to Nomad and copy the token with this command"
+  echo "copy(localStorage.getItem('nomadTokenSecret'))"
+  "copy(localStorage.getItem('nomadTokenSecret'))" | pbcopy
+  echo "The command has been copied to your clipboard!"
+  echo "Paste it in the browser console and paste the result below"
+  let token = (input "Enter the token: ")
+  echo $"NOMAD_TOKEN will be set to ($token)"
+  $token
+}
 # Pull logs from all allocations of a Nomad job and save to temp file
 # Saves logs as JSONL format for efficient querying
 def nomad-pull-logs [
@@ -9,6 +22,25 @@ def nomad-pull-logs [
     # Set default environment if not present
     if ($env.NOMAD_ADDR? == null) {
         $env.NOMAD_ADDR = "http://localhost:4647"
+    }
+    if ($env.NOMAD_TOKEN? == null) {
+        let token = (nomad-login)
+        $env.NOMAD_TOKEN = $token
+    }
+
+    # Check if we can connect to Nomad
+    let nomad_check = (nomad status | complete)
+    print $"Debug: exit_code is ($nomad_check.exit_code)"
+    
+    if ($nomad_check.exit_code != 0) {
+        print "❌ Cannot connect to Nomad"
+        let token = (nomad-login)
+        
+        # Use with-env to ensure the environment variable is available for external commands
+        with-env {NOMAD_TOKEN: $token} {
+            let nomad_check2 = (nomad status | complete)
+            print $"Debug: with-env check exit_code is ($nomad_check2.exit_code)"
+        }
     }
 
     # Remove existing file if it exists
