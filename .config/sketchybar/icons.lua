@@ -2,12 +2,12 @@ return {
     plus = "􀅼",
     loading = "􀖇",
     apple = "",
-    unicorn = "󱗃",
+    unicorn = "🦄",
     rebel = "",
     empire = "",
     gear = "􀍟",
     cpu = "􀫥",
-    nuke = "",
+    nuke = "💀",
     clipboard = "􀉄",
 
     switch = {
