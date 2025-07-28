@@ -5,6 +5,9 @@ local app_icons = require("helpers.app_icons")
 
 local spaces = {}
 
+-- Cache for app notifications to avoid excessive calls
+local app_notifications = {}
+
 -- Define workspace order matching Aerospace keyboard layout
 local workspace_order = {
     "chat",   -- ctrl-1
@@ -55,6 +58,35 @@ local function split(str, sep)
         table.insert(result, each)
     end
     return result
+end
+
+-- Function to update app notifications cache
+local function update_app_notifications()
+    sbar.exec("$CONFIG_DIR/helpers/get_app_notifications.nu", function(result)
+        -- Clear previous notifications
+        app_notifications = {}
+        
+        if result and result ~= "" then
+            -- Parse the result: app_name:notification_indicator
+            for line in result:gmatch("[^\r\n]+") do
+                local app_name, notification = line:match("([^:]+):(.+)")
+                if app_name and notification then
+                    app_notifications[app_name] = notification
+                end
+            end
+        end
+    end)
+end
+
+-- Function to get notification indicator for an app
+local function get_notification_indicator(app_name)
+    local notification = app_notifications[app_name]
+    if notification then
+        -- Remove quotes if present and return the actual notification content
+        notification = notification:gsub('"', '')
+        return notification  -- Return actual notification (numbers, badges, etc.)
+    end
+    return ""
 end
 
 for i, workspace in ipairs(workspace_order) do
@@ -110,7 +142,14 @@ for i, workspace in ipairs(workspace_order) do
             local app_name = app["app-name"]
             local lookup = app_icons[app_name]
             local icon = ((lookup == nil) and app_icons["default"] or lookup)
-            icon_line = icon_line .. " " .. icon
+            local notification = get_notification_indicator(app_name)
+            
+            -- Add notification indicator if present
+            if notification ~= "" then
+                icon_line = icon_line .. " " .. icon .. notification
+            else
+                icon_line = icon_line .. " " .. icon
+            end
         end
 
         if no_app then
@@ -244,6 +283,9 @@ local space_window_observer = sbar.add("item", {
 
 -- Handles the small icon indicator for spaces / menus changes
 space_window_observer:subscribe("space_windows_change", function(env)
+    -- Update notifications when windows change
+    update_app_notifications()
+    
     for i, workspace in ipairs(workspace_order) do
         sbar.exec("aerospace list-windows --workspace " .. workspace .. " --format '%{app-name}' --json ", function(apps)
             local icon_line = ""
@@ -253,7 +295,14 @@ space_window_observer:subscribe("space_windows_change", function(env)
                 local app_name = app["app-name"]
                 local lookup = app_icons[app_name]
                 local icon = ((lookup == nil) and app_icons["default"] or lookup)
-                icon_line = icon_line .. " " .. icon
+                local notification = get_notification_indicator(app_name)
+                
+                -- Add notification indicator if present
+                if notification ~= "" then
+                    icon_line = icon_line .. " " .. icon .. notification
+                else
+                    icon_line = icon_line .. " " .. icon
+                end
             end
 
             if no_app then
@@ -270,6 +319,9 @@ space_window_observer:subscribe("space_windows_change", function(env)
 end)
 
 space_window_observer:subscribe("aerospace_focus_change", function(env)
+    -- Update notifications when focus changes
+    update_app_notifications()
+    
     for i, workspace in ipairs(workspace_order) do
         sbar.exec("aerospace list-windows --workspace " .. workspace .. " --format '%{app-name}' --json ", function(apps)
             local icon_line = ""
@@ -279,7 +331,14 @@ space_window_observer:subscribe("aerospace_focus_change", function(env)
                 local app_name = app["app-name"]
                 local lookup = app_icons[app_name]
                 local icon = ((lookup == nil) and app_icons["default"] or lookup)
-                icon_line = icon_line .. " " .. icon
+                local notification = get_notification_indicator(app_name)
+                
+                -- Add notification indicator if present
+                if notification ~= "" then
+                    icon_line = icon_line .. " " .. icon .. notification
+                else
+                    icon_line = icon_line .. " " .. icon
+                end
             end
 
             if no_app then
@@ -295,4 +354,48 @@ space_window_observer:subscribe("aerospace_focus_change", function(env)
     end
 end)
 
+-- Add periodic notification checking (every 45 seconds)
+local notification_updater = sbar.add("item", {
+    drawing = false,
+    updates = true,
+    update_freq = 45
+})
+
+-- Subscribe to multiple events for comprehensive notification updates
+notification_updater:subscribe({"routine", "front_app_switched", "system_woke"}, function()
+    update_app_notifications()
+    
+    -- Refresh all workspace labels with updated notifications
+    for i, workspace in ipairs(workspace_order) do
+        sbar.exec("aerospace list-windows --workspace " .. workspace .. " --format '%{app-name}' --json ", function(apps)
+            local icon_line = ""
+            local no_app = true
+            for j, app in ipairs(apps) do
+                no_app = false
+                local app_name = app["app-name"]
+                local lookup = app_icons[app_name]
+                local icon = ((lookup == nil) and app_icons["default"] or lookup)
+                local notification = get_notification_indicator(app_name)
+                
+                -- Add notification indicator if present
+                if notification ~= "" then
+                    icon_line = icon_line .. " " .. icon .. notification
+                else
+                    icon_line = icon_line .. " " .. icon
+                end
+            end
+
+            if no_app then
+                icon_line = " —"
+            end
+
+            spaces[i]:set({
+                label = icon_line
+            })
+        end)
+    end
+end)
+
+-- Initial notification update
+update_app_notifications()
 
