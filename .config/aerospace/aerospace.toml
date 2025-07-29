@@ -12,6 +12,7 @@ after-login-command = []
 after-startup-command = [
   'exec-and-forget sketchybar >> $HOME/Code/dotfiles/logs/sketchybar.log 2>&1',
   'exec-and-forget /opt/homebrew/bin/borders',
+  'exec-and-forget /opt/homebrew/bin/svim',
 ]
 
 # Start AeroSpace at login
