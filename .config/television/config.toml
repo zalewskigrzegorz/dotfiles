@@ -253,13 +253,13 @@ fallback_channel = "files"
 "pnpm" = ["pnpm", "p"]
 "nomad" = ["nomad job", "nomad alloc"]
 "basti" = ["basti connect"]
-"work" = ["cd /Users/greg/Code/Redocly"]
 
+"zoxide" = ["z"]
 
 [shell_integration.keybindings]
 # controls which key binding should trigger tv
 # for shell autocomplete
 "smart_autocomplete" = "ctrl-t"
 # controls which keybinding should trigger tv
-# for command history
+# for command history command history is handled by atuin
 # "command_history" = "ctrl-r"

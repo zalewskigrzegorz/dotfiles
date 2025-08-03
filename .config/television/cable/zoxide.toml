@@ -1,0 +1,10 @@
+[metadata]
+name = "zoxide"
+description = "A channel to select from zoxide"
+requirements = ["zoxide"]
+
+[source]
+command = ["zoxide query -l"]
+
+[preview]
+command = "echo \"Score: $(zoxide query -s '{}' 2>/dev/null || echo 'Not found')\" && echo && ls -la --color=always '{}'"

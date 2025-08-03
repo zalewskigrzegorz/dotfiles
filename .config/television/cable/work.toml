@@ -1,9 +1,0 @@
-[metadata]
-name = "work"
-description = "Select work projects"
-
-[source]
-command = ["find /Users/greg/Code/Redocly -maxdepth 1 -type d -not -path '/Users/greg/Code/Redocly' -exec basename {} \\; 2>/dev/null"]
-
-[preview]
-command = "if [ -d '/Users/greg/Code/Redocly/{}' ]; then ls -la '/Users/greg/Code/Redocly/{}' | head -10; else echo 'Project directory not found'; fi" 
