@@ -251,9 +251,9 @@ fallback_channel = "files"
 "git-repos" = ["nvim", "code", "hx", "git clone"]
 "tmux" = ["tmux attach", "ta"]
 "pnpm" = ["pnpm", "p"]
+"nx" = ["pnpm nx"]
 "nomad" = ["nomad job", "nomad alloc"]
 "basti" = ["basti connect"]
-
 "zoxide" = ["z"]
 
 [shell_integration.keybindings]
