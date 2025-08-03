@@ -104,6 +104,8 @@ outer.right = 5
 ctrl-slash = 'layout tiles horizontal vertical'
 ctrl-comma = 'layout accordion horizontal vertical'
 
+# full screen
+ctrl-f = 'macos-native-fullscreen'
 # Focus controls
 ctrl-h = 'focus left'
 ctrl-j = 'focus down'
@@ -152,13 +154,15 @@ ctrl-shift-space = [
   'exec-and-forget sketchybar --trigger aerospace_enter_service_mode',
 ]
 
-ctrl-t = 'mode terminal' # tempolary manual switch to terminal mode
 
 [mode.terminal.binding]
 
 # Layout controls
 ctrl-slash = 'layout tiles horizontal vertical'
 ctrl-comma = 'layout accordion horizontal vertical'
+
+# full screen
+ctrl-f = 'macos-native-fullscreen'
 
 # Focus controls will be controlled by tmux
 # ctrl-h = 'focus left'
