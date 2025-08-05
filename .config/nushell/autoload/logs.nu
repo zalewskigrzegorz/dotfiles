@@ -35,4 +35,19 @@ def apilogs [] {
 # Get parsed error logs from PM2
 def apierrors [] {
     pm2-parse (pm2-logs).error
-} 
+}
+
+def "from safe-json" [] {
+    lines | each { |line|
+        let trimmed = $line | str trim
+        if not ($trimmed | is-empty) and ($trimmed | str starts-with "{") {
+            try {
+                $trimmed | from json
+            } catch {
+                null
+            }
+        } else {
+            null
+        }
+    } | compact
+}
