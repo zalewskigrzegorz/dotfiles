@@ -4,7 +4,7 @@
 $env.EDITOR = "nvim"
 $env.VISUAL = "nvim"
 $env.SHELL = "/opt/homebrew/bin/nu"
-
+$env.NX_TUI = true
 
 # Config settings
 $env.config.show_banner = false

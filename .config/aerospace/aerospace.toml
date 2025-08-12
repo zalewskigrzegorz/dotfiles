@@ -9,10 +9,11 @@ after-login-command = []
 # You can use it to add commands that run after AeroSpace startup.
 # 'after-startup-command' is run after 'after-login-command'
 # Available commands : https://nikitabobko.github.io/AeroSpace/commands
+
 after-startup-command = [
   'exec-and-forget sketchybar >> $HOME/Code/dotfiles/logs/sketchybar.log 2>&1',
-  'exec-and-forget /opt/homebrew/bin/borders',
-  'exec-and-forget /opt/homebrew/bin/svim',
+  'exec-and-forget /opt/homebrew/bin/borders >> $HOME/Code/dotfiles/logs/borders.log 2>&1',
+  'exec-and-forget /opt/homebrew/bin/svim >> $HOME/Code/dotfiles/logs/svim.log 2>&1',
 ]
 
 # Start AeroSpace at login
@@ -243,6 +244,9 @@ a = [
   'exec-and-forget nu ~/.config/aerospace/reset-apps.nu',
   'mode main',
   'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+]
+x = [
+  'exec-and-forget nu ~/.config/aerospace/restart.nu',
 ]
 
 ctrl-shift-h = [
