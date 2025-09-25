@@ -1,4 +1,5 @@
 # Dotfiles
+<img width="1552" height="1018" alt="image" src="https://github.com/user-attachments/assets/3c5141c4-a650-42c2-8747-5f8dc25443e8" />
 
 Personal dotfiles managed with [GNU Stow](https://www.gnu.org/software/stow/) and automated with [Nushell](https://www.nushell.sh/) scripts.
 
