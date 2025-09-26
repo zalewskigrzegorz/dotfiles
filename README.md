@@ -68,7 +68,10 @@ Pre-commit hook with gitleaks prevents committing secrets. Sensitive configs (ra
 
 - [x] fuzzy search in hidden files in vim
 - [x] file search in hidden files in vim
-- [ ] configure sketchybar
+- [x] configure sketchybar
+  - [x] configure notifications counter on sketchybar
+  - [x] configure svim mode display on sketchybar
+- [ ] configuration fixes for Tahoe 
 - [ ] change tmux navigator vim plugin to work with aerospace detection
-- [ ] add a script to quickly add new line to nav
+- [ ] add a script to quickly add new entry to navi cheatsheet
 
