@@ -60,3 +60,7 @@ $env.CARAPACE_BRIDGES = 'zsh,fish,bash,nushell'
 
 # Set nvim to use nushell
 $env.NVIM_SHELL = "/opt/homebrew/bin/nu"
+
+# bit
+$env.PATH = ($env.PATH | split row (char esep) | append /Users/greg/bin )
+# bit end

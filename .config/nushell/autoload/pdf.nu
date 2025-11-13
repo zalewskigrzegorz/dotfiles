@@ -40,8 +40,7 @@ def move-pdfs [] {
         "11" => "11.listopad",
         "12" => "12.grudzień"
     }
-
-    let target_dir = ($env.USER_HOME | path join "Google Drive/My Drive/faktury" $year $month_polish "ipbox/potwierdzenia")
+    let target_dir = ($env.USER_HOME | path join "Library/CloudStorage/GoogleDrive-maksim009@gmail.com//My Drive/faktury" $year $month_polish "ipbox/potwierdzenia")
 
     print $"📁 Target directory: ($target_dir)"
 
