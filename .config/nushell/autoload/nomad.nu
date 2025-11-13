@@ -19,29 +19,88 @@ def nomad-pull-logs [
     job?: string = "api",  # Job name to get logs from (defaults to "api")
     --output (-o): string = "/tmp/nomad-logs.jsonl"  # Output file path
 ] {
+    # Change to the required directory
+    cd /Users/greg/Code/Redocly/redocly
+    
     # Set default environment if not present
     if ($env.NOMAD_ADDR? == null) {
         $env.NOMAD_ADDR = "http://localhost:4647"
     }
-    if ($env.NOMAD_TOKEN? == null) {
-        let token = (nomad-login)
-        $env.NOMAD_TOKEN = $token
+    
+    # Get or prompt for token
+    let initial_token = $env.NOMAD_TOKEN?
+    let token = if ($initial_token == null or ($initial_token | is-empty)) {
+        print "🔑 No NOMAD_TOKEN found, prompting for login..."
+        let new_token = (nomad-login)
+        $env.NOMAD_TOKEN = $new_token
+        $new_token
+    } else {
+        $initial_token
     }
 
-    # Check if we can connect to Nomad
-    let nomad_check = (nomad status | complete)
-    print $"Debug: exit_code is ($nomad_check.exit_code)"
+    # Check if we can connect to Nomad with the token
+    let nomad_check = (with-env {NOMAD_TOKEN: $token} {
+        nomad status | complete
+    })
     
-    if ($nomad_check.exit_code != 0) {
-        print "❌ Cannot connect to Nomad"
-        let token = (nomad-login)
-        
-        # Use with-env to ensure the environment variable is available for external commands
-        with-env {NOMAD_TOKEN: $token} {
-            let nomad_check2 = (nomad status | complete)
-            print $"Debug: with-env check exit_code is ($nomad_check2.exit_code)"
+    let final_token = if ($nomad_check.exit_code != 0) {
+        # Show the actual error
+        let error_output = if ($nomad_check.stderr | is-empty) {
+            $nomad_check.stdout
+        } else {
+            $nomad_check.stderr
         }
+        
+        # Exit code 126 usually means command not executable (e.g., asdf version not set)
+        if ($nomad_check.exit_code == 126) {
+            let error_msg = [
+                "❌ Nomad command cannot be executed (exit code 126). This usually means:"
+                "  - No version is set in asdf (try: asdf local nomad 1.8.2)"
+                "  - Command permissions issue"
+                ""
+                $"Error output: ($error_output)"
+            ] | str join (char newline)
+            error make {msg: $error_msg}
+        }
+        
+        # Exit code 1 might be auth issue, but let's show the error
+        let exit_code_str = ($nomad_check.exit_code | into string)
+        print $"⚠️  Nomad command failed (exit code " + $exit_code_str + "): " + $error_output
+        print "❌ Cannot connect to Nomad with current token, prompting for new token..."
+        let new_token = (nomad-login)
+        $env.NOMAD_TOKEN = $new_token
+        
+        # Verify new token works
+        let nomad_check2 = (with-env {NOMAD_TOKEN: $new_token} {
+            nomad status | complete
+        })
+        
+        if ($nomad_check2.exit_code != 0) {
+            let error_output2 = if ($nomad_check2.stderr | is-empty) {
+                $nomad_check2.stdout
+            } else {
+                $nomad_check2.stderr
+            }
+            let exit_code2_str = ($nomad_check2.exit_code | into string)
+            let error_msg = [
+                "❌ Failed to connect to Nomad even with new token (exit code " + $exit_code2_str + ")."
+                ""
+                "Error: " + $error_output2
+                ""
+                "Please check:"
+                "  - Your connection to Nomad server"
+                "  - Token validity"
+                "  - Nomad command availability (asdf version set?)"
+            ] | str join (char newline)
+            error make {msg: $error_msg}
+        }
+        $new_token
+    } else {
+        $token
     }
+
+    # Set token in environment for subsequent commands
+    $env.NOMAD_TOKEN = $final_token
 
     # Remove existing file if it exists
     if ($output | path exists) {
@@ -51,9 +110,31 @@ def nomad-pull-logs [
     print $"🔄 Pulling logs for job '($job)' from Nomad..."
 
     # Get all allocations and their logs
-    let result = (nomad job allocs -namespace api -json $job | from json | each { |alloc|
+    let allocs_result = (with-env {NOMAD_TOKEN: $final_token} {
+        nomad job allocs -namespace api -json $job | complete
+    })
+    
+    if ($allocs_result.exit_code != 0) {
+        let error_msg = if ($allocs_result.stderr | is-empty) {
+            $allocs_result.stdout
+        } else {
+            $allocs_result.stderr
+        }
+        error make {msg: $"❌ Error retrieving allocations: ($error_msg)"}
+    }
+    
+    let allocations = ($allocs_result.stdout | from json)
+    
+    if ($allocations | is-empty) {
+        print $"⚠️  No allocations found for job '($job)'"
+        return
+    }
+
+    let result = ($allocations | each { |alloc|
         print $"  📥 Getting logs from allocation ($alloc.ID | str substring 0..8)..."
-        let log_lines = (nomad alloc logs -namespace api $alloc.ID api | lines)
+        let log_lines = (with-env {NOMAD_TOKEN: $final_token} {
+            nomad alloc logs -namespace api $alloc.ID api | lines
+        })
 
         let parsed_logs = ($log_lines | each { |line|
             try {
