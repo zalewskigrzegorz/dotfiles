@@ -171,6 +171,7 @@ def nomad-pull-logs [
 
 # Query logs from previously saved Nomad logs file
 # Use standard nushell filtering on the returned data
+# Returns a normalized table where all records have consistent columns
 def nomad-logs [
     --file (-f): string = "/tmp/nomad-logs.jsonl"  # Log file to query from
 ] {
@@ -179,11 +180,31 @@ def nomad-logs [
     }
 
     # Load and parse all log entries
-    open $file | lines | each { |line|
+    let records = (open $file | lines | each { |line|
         try {
             $line | from json
         } catch {
             null
         }
-    } | compact
+    } | compact)
+    
+    if ($records | is-empty) {
+        return []
+    }
+    
+    # Collect all unique column names from all records (more efficient)
+    let all_columns = ($records | reduce -f [] { |record, acc|
+        let record_cols = ($record | columns)
+        $acc | append $record_cols | uniq
+    })
+    
+    # Build defaults template with all columns set to null
+    let defaults_template = ($all_columns | reduce -f {} { |col, acc|
+        $acc | insert $col null
+    })
+    
+    # Normalize all records: start with defaults (all columns), then merge record values
+    $records | each { |record|
+        $defaults_template | merge $record
+    }
 } 
