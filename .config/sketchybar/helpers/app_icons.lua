@@ -134,6 +134,7 @@ return {
 	["Affinity Designer"] = ":affinity_designer:",
 	["Live"] = ":ableton:",
 	["Arc"] = ":arc:",
+	["Comet"] = ":comet:",
 	["Chromium"] = ":google_chrome:",
 	["Google Chrome"] = ":google_chrome:",
 	["Google Chrome Canary"] = ":google_chrome:",
