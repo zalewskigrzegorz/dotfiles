@@ -9,11 +9,11 @@
 # Split window vertically (custom binding)  
 <prefix> + -
 
-# Navigate to previous window (custom)
-<prefix> + h
+# Navigate to previous window
+<prefix> + p
 
-# Navigate to next window (custom)
-<prefix> + l
+# Navigate to next window
+<prefix> + n
 
 # Select pane up (vim-like)
 <prefix> + k
