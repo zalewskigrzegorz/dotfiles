@@ -1,0 +1,14 @@
+{
+	"mcpServers": {
+		"nushell": {
+			"command": "/Users/greg/.cargo/bin/mcp-server-nu",
+			"args": [
+				"--nu-config",
+				"/Users/greg/Library/Application Support/nushell/config.nu",
+				"--nu-env-config",
+				"/Users/greg/Library/Application Support/nushell/env.nu"
+			],
+			"env": {}
+		}
+	}
+}

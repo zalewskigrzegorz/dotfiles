@@ -245,9 +245,7 @@ a = [
   'mode main',
   'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
 ]
-x = [
-  'exec-and-forget nu ~/.config/aerospace/restart.nu',
-]
+x = ['exec-and-forget nu ~/.config/aerospace/restart.nu']
 
 ctrl-shift-h = [
   'join-with left',
@@ -317,6 +315,11 @@ if.app-name-regex-substring = 'Canary Mail'
 run = 'move-node-to-workspace mail'
 
 [[on-window-detected]]
+if.app-name-regex-substring = 'Spark Mail'
+run = 'move-node-to-workspace mail'
+
+
+[[on-window-detected]]
 if.app-name-regex-substring = 'Notion Calendar'
 run = 'move-node-to-workspace mail'
 
@@ -326,6 +329,10 @@ run = 'layout floating'
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'CleanShot X'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'kindaVim'
 run = 'layout floating'
 
 #It should be easy way to swich modes basic on focused window.

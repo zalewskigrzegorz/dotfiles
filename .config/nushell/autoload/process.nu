@@ -33,7 +33,8 @@ export def kill-vitest [] {
             kill -9 $pid
             print $"✓ Killed Vitest process (PID: $pid)"
         } catch {|err|
-            print $"✗ Failed to kill process (PID: $pid): ($err)"
+            let err_msg = try { $err.msg } catch { $err | describe }
+            print $"✗ Failed to kill process PID ($pid): ($err_msg)"
         }
     }
     
@@ -62,7 +63,9 @@ export def kill-process [
     }
     
     # Get process details for display
-    print $"Found ($pids | length) process(es):"
+    let count = ($pids | length)
+    let plural = if $count == 1 { "process" } else { "processes" }
+    print $"Found ($count) ($plural):"
     for $pid in $pids {
         let proc_info = (ps | where pid == $pid | first)
         if ($proc_info | is-not-empty) {
@@ -81,7 +84,8 @@ export def kill-process [
             let sig_name = if $force { "SIGKILL" } else { "SIGTERM" }
             print $"✓ Sent ($sig_name) to process (PID: $pid)"
         } catch {|err|
-            print $"✗ Failed to kill process (PID: $pid): ($err)"
+            let err_msg = try { $err.msg } catch { $err | describe }
+            print $"✗ Failed to kill process PID ($pid): ($err_msg)"
         }
     }
     
@@ -148,7 +152,8 @@ export def watch-vitest [
                 }
             }
             
-            print $"⚠️  Found ($count) Vitest process(es) using ($total_cpu | math round --precision 1)% CPU"
+            let plural = if $count == 1 { "process" } else { "processes" }
+            print $"⚠️  Found ($count) Vitest ($plural) using ($total_cpu | math round --precision 1)% CPU"
             
             if $auto_kill {
                 process kill-vitest

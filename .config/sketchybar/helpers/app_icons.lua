@@ -159,6 +159,8 @@ return {
 	["Blender"] = ":blender:",
 	["Affinity Publisher"] = ":affinity_publisher:",
 	["Spark Desktop"] = ":spark:",
+	["Spark Mail"] = ":spark:",
+	["Spark"] = ":spark:",
 	["Zeplin"] = ":zeplin:",
 	["Replit"] = ":replit:",
 	["Podcasts"] = ":podcasts:",

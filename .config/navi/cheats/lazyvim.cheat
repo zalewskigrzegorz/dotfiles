@@ -1,0 +1,256 @@
+ference
+]]
+
+% lazyvim, neovim, diagnostics
+
+# Next diagnostic
+]d
+
+# Previous diagnostic
+[d
+
+# Document diagnostics
+<leader>sd
+
+# Workspace diagnostics
+<leader>sD
+
+% lazyvim, neovim, code-actions
+
+# Rename symbols
+<leader>cr
+
+# Format code
+<leader>cf
+
+# Code actions
+<leader>ca
+
+% lazyvim, neovim, indentation
+
+# Indent right
+>
+
+# Indent left
+<
+
+# Auto-indent as per language
+=
+
+# Indent current paragraph
+=ip
+
+# Auto-indent entire file
+gg=G
+
+% lazyvim, neovim, search
+
+# Search and Replace
+<leader>sr
+
+# Find Config files
+<leader>fc
+
+# Find files (Root dir)
+<leader>ff
+
+# Grep (Root dir)
+<leader>/
+
+# Grep (CWD)
+<leader>sG
+
+# Symbol search
+<leader>ss
+
+# Command history
+<leader>sc
+
+# Search word under cursor
+<leader>sw
+
+# Search all keymaps
+<leader>sk
+
+# Search TODO|WARNING
+<leader>st
+
+% lazyvim, neovim, git, fzf-lua
+
+# Commit log texts search
+<leader>gc
+
+# Status (file search)
+<leader>gs
+
+# Git explorer (Neotree)
+<leader>ge
+
+# Current file history
+<leader>gf
+
+% lazyvim, neovim, lazygit
+
+# Open LazyGit window
+<leader>gg
+
+# Switch to recent repo
+<C-r>
+
+# Filter files by status
+<C-b>
+
+# Git pull
+p
+
+# Git push
+P
+
+# Stage
+<space>
+
+# Stage all
+a
+
+# Commit
+c
+
+# Stash
+s
+
+# Undo
+z
+
+# Redo
+<C-z>
+
+# Add to .gitignore
+i
+
+# Quit
+q
+% lazyvim, neovim, ui, ux
+
+# Change colorscheme with preview
+<leader>uC
+
+# Enable code block dimming
+<leader>uD
+
+# Toggle line number
+<leader>ul
+
+# Toggle relative number
+<leader>uL
+
+# Toggle word wrap
+<leader>uw
+
+# Toggle Terminal window
+<C-/>
+
+# Open Neotree file explorer
+:Neotree
+
+% lazyvim, neovim, text-objects
+
+# Select inner word
+viw
+
+# Select inner quotes
+vi"
+
+# Select inner curly braces
+vi{
+
+# Select inner paragraph
+vip
+
+# Select around square brackets
+va[
+
+# Delete around paragraph
+dap
+
+% lazyvim, neovim, code-folding
+
+# Open all folds
+zR
+
+# Open all folds (alternative)
+zi
+
+# Close all folds
+zM
+
+# Toggle fold
+za
+
+# Toggle all folds under cursor
+zA
+
+# Close fold
+zc
+
+# Open fold
+zo
+
+# Open all folds under cursor
+zO
+
+% lazyvim, neovim, marks, bookmarks
+
+# View all marks
+<leader>sm
+
+# Set local mark
+m<mark_letter>
+
+# Jump to mark
+'<mark_letter>
+
+# Jump to last position
+''
+
+# Jump to exact position
+`<mark_letter>
+
+# Delete lowercase marks (a-z)
+:delmarks a-z
+
+# Delete specific marks
+:delmarks <marks>
+
+# Delete all marks except A-Z,0-9
+:delmarks!
+
+$ mark_letter: echo "a b c d e f g h i j k l m n o p q r s t u v w x y z" | tr ' ' '\n'
+$ marks: echo "ax by cz" | tr ' ' '\n'
+
+% lazyvim, neovim, lsp, functions, symbols
+
+# Show attached LSP info
+:LspInfo
+
+# Document symbols
+<leader>cs
+
+# Find all references
+gr
+
+# Go to definition
+gd
+
+# Go to declaration
+gD
+
+# Goto Type definition
+gy
+
+# Show docstring/type hints
+K
+
+# Previous reference
+[[
+
+# Next re
