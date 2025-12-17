@@ -29,6 +29,11 @@ $windows
 | each { |win| aerospace move-node-to-workspace mail --window-id $win.window-id }
 
 $windows 
+| where app-name =~ "(?i)spark mail" 
+| each { |win| aerospace move-node-to-workspace mail --window-id $win.window-id }
+
+
+$windows 
 | where app-name =~ "(?i)spotify" 
 | each { |win| aerospace move-node-to-workspace media --window-id $win.window-id }
 

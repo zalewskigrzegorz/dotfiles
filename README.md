@@ -6,6 +6,12 @@ Personal dotfiles managed with [GNU Stow](https://www.gnu.org/software/stow/) an
 
 - `stow`, `nushell`, `fzf`, `gitleaks` (install via homebrew)
 
+## Configuration
+
+### MCP Server Configuration
+
+The `nushell-mcp.json` file uses `~` for home directory paths. If your MCP client doesn't support tilde expansion, you'll need to replace `~` with your actual home directory path (e.g., `/Users/yourusername`) after installation.
+
 ## Usage
 
 ### Import configs from ~/.config

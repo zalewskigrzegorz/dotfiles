@@ -1,0 +1,595 @@
+% kindavim, navigation, vim, macos
+
+# Move left
+h
+
+# Move down
+j
+
+# Move up
+k
+
+# Move right
+l
+
+# Move forward one word
+w
+
+# Move forward one WORD (space separated)
+W
+
+# Move backward one word
+b
+
+# Move backward one WORD (space separated)
+B
+
+# Move to end of word
+e
+
+# Move to end of WORD (space separated)
+E
+
+# Move to end of word (backward)
+ge
+
+# Move to end of WORD (backward)
+gE
+
+# Move to beginning of line
+0
+
+# Move to first non-blank character of line
+^
+
+# Move to end of line
+$
+
+# Move to first non-blank character of line (visual)
+g^
+
+# Move to end of line (visual/inclusive)
+g$
+
+# Move to last non-blank character of line
+g_
+
+# Go to first line of file
+gg
+
+# Go to last line of file
+G
+
+# Go to line number
+<line_number>G
+
+# Move to middle of screen line
+gm
+
+# Move to top of screen
+H
+
+# Move to middle of screen
+M
+
+# Move to bottom of screen
+L
+
+# Find character forward
+f <char>
+
+# Find character backward
+F <char>
+
+# Till character forward
+t <char>
+
+# Till character backward
+T <char>
+
+# Repeat last f/F/t/T
+;
+
+# Repeat last f/F/t/T (reverse direction)
+,
+
+# Scroll down half page
+<Ctrl-d>
+
+# Scroll up half page
+<Ctrl-u>
+
+# Scroll down full page
+<Ctrl-f>
+
+# Scroll up full page
+<Ctrl-b>
+
+# Scroll cursor to top
+zt
+
+# Scroll cursor to middle
+zz
+
+# Scroll cursor to bottom
+zb
+
+# Search forward
+/ <query>
+
+# Search backward
+? <query>
+
+# Repeat search (next match)
+n
+
+# Repeat search (previous match)
+N
+
+# Find matching bracket/parenthesis
+%
+
+% kindavim, editing, text
+
+# Enter Insert Mode (before cursor)
+i
+
+# Enter Insert Mode (at beginning of line)
+I
+
+# Enter Insert Mode (after cursor)
+a
+
+# Enter Insert Mode (at end of line)
+A
+
+# Open new line below
+o
+
+# Open new line above
+O
+
+# Delete character under cursor
+x
+
+# Delete character before cursor
+X
+
+# Replace single character
+r <char>
+
+# Delete line
+dd
+
+# Delete to end of line
+D
+
+# Delete word
+dw
+
+# Delete to end of word
+de
+
+# Delete backward word
+db
+
+# Delete to end of WORD
+dE
+
+# Delete backward WORD
+dB
+
+# Change line (delete and enter insert mode)
+cc
+
+# Change to end of line
+C
+
+# Change word
+cw
+
+# Change to end of word
+ce
+
+# Change backward word
+cb
+
+# Change to end of WORD
+cE
+
+# Change backward WORD
+cB
+
+# Yank (copy) line
+yy
+
+# Yank to end of line
+Y
+
+# Paste after cursor
+p
+
+# Paste before cursor
+P
+
+# Undo
+u
+
+# Redo
+<Ctrl-r>
+
+# Join lines
+J
+
+# Switch case (upper/lower)
+~
+
+# Indent line right
+>>
+
+# Indent line left
+<<
+
+# Repeat last change
+.
+
+# Delete inside word
+diw
+
+# Delete around word
+daw
+
+# Delete inside parentheses
+di(
+
+# Delete around parentheses
+da(
+
+# Delete inside braces
+di{
+
+# Delete around braces
+da{
+
+# Delete inside brackets
+di[
+
+# Delete around brackets
+da[
+
+# Delete inside quotes (double)
+di"
+
+# Delete around quotes (double)
+da"
+
+# Delete inside quotes (single)
+di'
+
+# Delete around quotes (single)
+da'
+
+# Change inside word
+ciw
+
+# Change around word
+caw
+
+# Change inside parentheses
+ci(
+
+# Change around parentheses
+ca(
+
+# Change inside braces
+ci{
+
+# Change around braces
+ca{
+
+# Change inside brackets
+ci[
+
+# Change around brackets
+ca[
+
+# Change inside quotes (double)
+ci"
+
+# Change around quotes (double)
+ca"
+
+# Change inside quotes (single)
+ci'
+
+# Change around quotes (single)
+ca'
+
+# Yank inside word
+yiw
+
+# Yank around word
+yaw
+
+# Yank inside parentheses
+yi(
+
+# Yank around parentheses
+ya(
+
+# Yank inside braces
+yi{
+
+# Yank around braces
+ya{
+
+# Yank inside brackets
+yi[
+
+# Yank around brackets
+ya[
+
+# Yank inside quotes (double)
+yi"
+
+# Yank around quotes (double)
+ya"
+
+# Yank inside quotes (single)
+yi'
+
+# Yank around quotes (single)
+ya'
+
+% kindavim, visual, selection
+
+# Start Visual Mode (character wise)
+v
+
+# Start Visual Mode (line wise)
+V
+
+# Select inside word
+viw
+
+# Select around word
+vaw
+
+# Select inside parentheses
+vi(
+
+# Select around parentheses
+va(
+
+# Select inside braces
+vi{
+
+# Select around braces
+va{
+
+# Select inside brackets
+vi[
+
+# Select around brackets
+va[
+
+# Select inside quotes (double)
+vi"
+
+# Select around quotes (double)
+va"
+
+# Select inside quotes (single)
+vi'
+
+# Select around quotes (single)
+va'
+
+# Select inside backticks
+vi`
+
+# Select around backticks
+va`
+
+# Select inside angle brackets
+vi<
+
+# Select around angle brackets
+va<
+
+# Select inside angle brackets (alternative)
+vi>
+
+# Select around angle brackets (alternative)
+va>
+
+# Select paragraph
+vip
+
+# Select around paragraph
+vap
+
+# Select sentence
+vis
+
+# Select around sentence
+vas
+
+# Select WORD
+viW
+
+# Select around WORD
+vaW
+
+% kindavim, window, tabs, application
+
+# Save (Command+S)
+:w
+
+# Quit (Command+W)
+:q
+
+# Save and Quit
+:wq
+
+# Force Quit
+:q!
+
+# Next Tab
+gt
+
+# Previous Tab
+gT
+
+# Go to tab number
+<number>gt
+
+# Close Tab
+<Command-W>
+
+# New Tab
+<Command-T>
+
+% kindavim, accessibility, strategy
+
+# Enforce Keyboard Strategy (hold while moving)
+# Useful when in text input but want to scroll UI instead
+<fn>
+
+# Quit kindaVim processing (Escape)
+<Esc>
+
+# kV automatically detects Accessibility Strategy for text manipulation
+# Press fn while moving to force Keyboard Strategy even when text is accessible
+# Useful for: scrolling UI (scrollbars) instead of text/caret
+# Useful for: moving between inputs in custom UI apps (Things 3, Logseq)
+
+% kindavim, counts, repeating
+
+# Repeat command N times
+<number><command>
+
+# Examples:
+# 5j - Move down 5 lines
+# 3dw - Delete 3 words
+# 10x - Delete 10 characters
+# 2dd - Delete 2 lines
+# 4>> - Indent 4 lines right
+
+% kindavim, text objects, advanced
+
+# Text object: word
+iw (inside word)
+aw (around word)
+
+# Text object: WORD (space separated)
+iW (inside WORD)
+aW (around WORD)
+
+# Text object: sentence
+is (inside sentence)
+as (around sentence)
+
+# Text object: paragraph
+ip (inside paragraph)
+ap (around paragraph)
+
+# Text object: parentheses
+i( or ib (inside parentheses)
+a( or ab (around parentheses)
+
+# Text object: braces
+i{ or iB (inside braces)
+a{ or aB (around braces)
+
+# Text object: brackets
+i[ (inside brackets)
+a[ (around brackets)
+
+# Text object: angle brackets
+i< (inside angle brackets)
+a< (around angle brackets)
+
+# Text object: quotes
+i" (inside double quotes)
+a" (around double quotes)
+i' (inside single quotes)
+a' (around single quotes)
+i` (inside backticks)
+a` (around backticks)
+
+% kindavim, operators, commands
+
+# Operator: Delete
+d
+
+# Operator: Change
+c
+
+# Operator: Yank (copy)
+y
+
+# Operator: Indent right
+>
+
+# Operator: Indent left
+<
+
+# Operator: Switch case
+~
+
+# Operator: Format (if supported)
+gq
+
+# Combine operator + motion/text object
+# Examples:
+# diw - Delete inside word
+# ci" - Change inside double quotes
+# yap - Yank around paragraph
+# >} - Indent to next paragraph
+
+% kindavim, marks, jumps
+
+# Set mark at current position
+m <letter>
+
+# Jump to mark
+' <letter>
+
+# Jump to mark (line and column)
+` <letter>
+
+# Jump to beginning of line of mark
+''
+
+# Jump to previous position
+``
+
+# Jump to last edit location
+`.
+
+% kindavim, registers
+
+# Use register for yank/delete
+"<register><command>
+
+# Examples:
+# "ayy - Yank line to register a
+# "ap - Paste from register a
+# "add - Delete line to register a
+
+# System clipboard register
+"*
+
+# System clipboard register (alternative)
+"+
+
+# Last yanked text
+"0
+
+# Last deleted text
+"1
+
+# Black hole register (delete without saving)
+"_
+

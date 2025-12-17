@@ -1,0 +1,55 @@
+% tmux, custom, config
+
+# Reload tmux configuration
+<prefix> + r
+
+# Split window horizontally (custom binding)
+<prefix> + |
+
+# Split window vertically (custom binding)  
+<prefix> + -
+
+# Navigate to previous window
+<prefix> + p
+
+# Navigate to next window
+<prefix> + n
+
+# Select pane up (vim-like)
+<prefix> + k
+
+# Select pane down (vim-like)
+<prefix> + j
+
+# Select pane left (vim-like)
+<prefix> + h
+
+# Select pane right (vim-like)
+<prefix> + l
+
+# Resize pane up (vim-like)
+<prefix> + K
+
+# Resize pane down (vim-like)
+<prefix> + J
+
+# Resize pane left (vim-like)
+<prefix> + H
+
+# Resize pane right (vim-like)
+<prefix> + L
+
+# Open Navi cheatsheets in split
+<prefix> + Ctrl-g
+
+# Enter copy mode and begin selection (vi mode)
+<prefix> + [ then v
+
+# Copy selection to clipboard (vi mode)
+y (in copy mode)
+
+# Search with copycat plugin
+<prefix> + /
+
+$ prefix: echo "Ctrl-b (default prefix key)"
+
