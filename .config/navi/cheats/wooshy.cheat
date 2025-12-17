@@ -1,0 +1,175 @@
+% wooshy, macos, keyboard, navigation, app-launcher
+
+# Wooshy - Keyboard Navigation for macOS
+# Navigate entire macOS UI using keyboard shortcuts
+
+% wooshy, activation, trigger
+
+# Activate Wooshy
+# Default trigger 
+cmd+/
+
+# Common triggers:
+# Option+Space
+# Command+Space (if not used by Spotlight)
+# Fn+Space
+# Custom key combination
+
+% wooshy, search, filtering
+
+# Activate Wooshy and start searching
+cmd+/
+
+# Search UI elements
+# Type a few letters to search through UI elements' metadata:
+# - Labels, titles, values
+# - Tooltips, placeholders
+# - Types
+# Supports fuzzy matching and role search
+# Example: Type "log but" to find "Log in" button
+
+# Clear search
+Escape
+Backspace (to clear typed text)
+
+% wooshy, navigation, results
+
+# Navigate search results (Standard)
+# Next item
+Tab
+Down Arrow
+ctrl+n
+
+# Previous item
+Shift+Tab
+Up Arrow
+ctrl+p
+
+# First item
+cmd+Up Arrow
+
+# Last item
+cmd+Down Arrow
+
+# Halfway up
+ctrl+Up Arrow
+
+# Halfway down
+ctrl+Down Arrow
+
+% wooshy, navigation, kindavim
+
+# Navigate search results (with kindaVim enabled)
+# Next item
+j
+Down Arrow
+ctrl+j
+ctrl+n
+
+# Previous item
+k
+Up Arrow
+ctrl+p
+
+# First item
+gg
+
+# Last item
+G
+
+# Halfway up
+ctrl+b
+ctrl+u
+
+# Halfway down
+ctrl+f
+ctrl+d
+
+% wooshy, click, actions
+
+# Click actions on Primary Target
+# Left click
+Return
+Enter
+
+# Right click
+ctrl+Return
+
+# Option click
+option+Return
+
+# Shift click
+shift+Return
+
+# Command click
+cmd+Return
+
+# Double left click
+fn+Return
+ctrl+option+cmd+Return
+
+# Click at current mouse position
+# (If input is empty and no Primary Target selected)
+Return
+Enter
+
+% wooshy, copy, text
+
+# Copy visible text of Primary Target
+cmd+c
+
+# Copy metadata of Primary Target
+# (URL for links, status for checkboxes, tabs, radiobuttons, etc.)
+cmd+ctrl+c
+cmd+option+c
+cmd+shift+c
+
+# Note: Add any modifier (ctrl, option, or shift) to cmd+c to copy metadata
+
+% wooshy, mouse, movement
+
+# Just move the mouse (without clicking)
+# Move mouse pointer to target location
+shift+cmd+Return
+
+# Equivalent to running mouse over target without clicking
+
+% wooshy, inspector, debugging
+
+# The Inspector 🕵️‍♂️
+# Use Inspector to see UI element details
+# Shows: labels, titles, values, tooltips, placeholders, types
+# Helps understand what Wooshy can target
+
+% wooshy, cancel, close
+
+# Cancel / Close Wooshy
+Escape
+Esc
+
+% wooshy, integrations, notifications
+
+# Distributed Notifications
+# Listen for Wooshy activation
+# Notification: WooshyInputDidAppear
+# Sent when Wooshy input is activated
+
+# Listen for Wooshy deactivation
+# Notification: WooshyInputDidDisappear
+# Sent when Wooshy input is deactivated
+
+# Use these notifications for custom workflows and integrations
+
+% wooshy, tips, usage
+
+# Tip: Wooshy searches through UI elements' metadata
+# Tip: Use fuzzy matching - type partial words (e.g., "log but" for "Log in" button)
+# Tip: Use role search to find elements by type
+# Tip: Primary Target is the highlighted/selected element
+# Tip: Combine with window managers like AeroSpace/Yabai for complete keyboard control
+# Tip: Works with kindaVim for vim-style navigation
+# Tip: Use Inspector to understand what elements Wooshy can target
+# Tip: Empty input + Return clicks at current mouse position
+
+# Documentation: https://docs.wooshy.app/
+

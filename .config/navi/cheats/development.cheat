@@ -1,0 +1,97 @@
+% development, git, pnpm, coding, shortcuts, nushell
+
+# Start Redocly project
+up
+
+# Stop Redocly project  
+down
+
+# Run install script in Redocly project
+install
+
+# GitHub Copilot suggest
+ai
+
+# GitHub Copilot explain
+aii
+
+# Parse and display PM2 output logs as JSON
+apilogs
+
+# Parse and display PM2 error logs as JSON
+apierrors
+
+# Get PM2 log file paths
+pm2-logs
+
+# Delete merged git branches (interactive)
+delete-branches
+
+# Check which teams need to review PR files
+check-team-review-files <pr_number>
+
+# Check which teams need to review current branch PR
+check-team-review-files
+
+# Find and open file with fzf + nvim
+v
+
+# Create new tmux session
+tn <session_name>
+
+# Create new tmux session with default name
+tn
+
+# Attach to tmux session
+ta <session_name>
+
+# Attach to any tmux session
+ta
+
+# List tmux sessions
+tl
+
+# Kill tmux session
+tk <session_name>
+
+# Kill tmux server
+tk
+
+# Custom fzf with arguments
+f <fzf_args>
+
+# Navi shortcuts helper
+n
+
+# Pull logs from Nomad job to JSONL file
+nomad-pull-logs <job_name> -o <output_file>
+
+# Pull logs from default api job
+nomad-pull-logs
+
+# Query saved Nomad logs
+nomad-logs -f <log_file>
+
+# Query saved Nomad logs from default location
+nomad-logs
+
+# Connect to basti target
+basti connect <target>
+
+# Initialize basti
+basti init
+
+# Cleanup basti resources
+basti cleanup
+
+# Move 2 newest PDFs to last month's accounting folder
+move-pdfs
+
+$ pr_number: echo "Enter PR number or leave empty for auto-detect"
+$ session_name: tmux list-sessions -F "#S" 2>/dev/null || echo "main"
+$ job_name: echo "api"
+$ target: if [ -f .basti.yaml ]; then cat .basti.yaml | grep -A 100 "connections:" | grep "^  [a-zA-Z]" | sed 's/://g' | sed 's/^  //g'; fi
+$ output_file: echo "/tmp/nomad-logs.jsonl"
+$ log_file: echo "/tmp/nomad-logs.jsonl"
+$ fzf_args: echo "--preview 'cat {}'"
+

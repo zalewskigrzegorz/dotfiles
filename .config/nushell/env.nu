@@ -61,6 +61,12 @@ $env.CARAPACE_BRIDGES = 'zsh,fish,bash,nushell'
 # Set nvim to use nushell
 $env.NVIM_SHELL = "/opt/homebrew/bin/nu"
 
+# Navi cheatsheets config - use dotfiles location
+$env.NAVI_PATH = [
+    ($env.HOME | path join ".config" "navi" "cheats")
+    ($env.HOME | path join ".local" "share" "navi" "cheats" "public")
+]
+
 # bit
 $env.PATH = ($env.PATH | split row (char esep) | append /Users/greg/bin )
 # bit end

@@ -138,8 +138,14 @@ for i, workspace in ipairs(workspace_order) do
         local icon_line = ""
         local no_app = true
         for j, app in ipairs(apps) do
-            no_app = false
             local app_name = app["app-name"]
+            
+            -- Ignore kindaVim from workspace icons
+            if app_name == "kindaVim" then
+                goto continue
+            end
+            
+            no_app = false
             local lookup = app_icons[app_name]
             local icon = ((lookup == nil) and app_icons["default"] or lookup)
             local notification = get_notification_indicator(app_name)
@@ -150,6 +156,8 @@ for i, workspace in ipairs(workspace_order) do
             else
                 icon_line = icon_line .. " " .. icon
             end
+            
+            ::continue::
         end
 
         if no_app then
@@ -291,8 +299,14 @@ space_window_observer:subscribe("space_windows_change", function(env)
             local icon_line = ""
             local no_app = true
             for j, app in ipairs(apps) do
-                no_app = false
                 local app_name = app["app-name"]
+                
+                -- Ignore kindaVim from workspace icons
+                if app_name == "kindaVim" then
+                    goto continue
+                end
+                
+                no_app = false
                 local lookup = app_icons[app_name]
                 local icon = ((lookup == nil) and app_icons["default"] or lookup)
                 local notification = get_notification_indicator(app_name)
@@ -303,6 +317,8 @@ space_window_observer:subscribe("space_windows_change", function(env)
                 else
                     icon_line = icon_line .. " " .. icon
                 end
+                
+                ::continue::
             end
 
             if no_app then
@@ -327,8 +343,14 @@ space_window_observer:subscribe("aerospace_focus_change", function(env)
             local icon_line = ""
             local no_app = true
             for j, app in ipairs(apps) do
-                no_app = false
                 local app_name = app["app-name"]
+                
+                -- Ignore kindaVim from workspace icons
+                if app_name == "kindaVim" then
+                    goto continue
+                end
+                
+                no_app = false
                 local lookup = app_icons[app_name]
                 local icon = ((lookup == nil) and app_icons["default"] or lookup)
                 local notification = get_notification_indicator(app_name)
@@ -339,6 +361,8 @@ space_window_observer:subscribe("aerospace_focus_change", function(env)
                 else
                     icon_line = icon_line .. " " .. icon
                 end
+                
+                ::continue::
             end
 
             if no_app then
@@ -371,8 +395,14 @@ notification_updater:subscribe({"routine", "front_app_switched", "system_woke"},
             local icon_line = ""
             local no_app = true
             for j, app in ipairs(apps) do
-                no_app = false
                 local app_name = app["app-name"]
+                
+                -- Ignore kindaVim from workspace icons
+                if app_name == "kindaVim" then
+                    goto continue
+                end
+                
+                no_app = false
                 local lookup = app_icons[app_name]
                 local icon = ((lookup == nil) and app_icons["default"] or lookup)
                 local notification = get_notification_indicator(app_name)
@@ -383,6 +413,8 @@ notification_updater:subscribe({"routine", "front_app_switched", "system_woke"},
                 else
                     icon_line = icon_line .. " " .. icon
                 end
+                
+                ::continue::
             end
 
             if no_app then
