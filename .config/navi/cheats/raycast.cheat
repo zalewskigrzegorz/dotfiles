@@ -1,0 +1,77 @@
+% raycast, shortcuts, macos
+
+# Open Raycast (leader)
+⌘ + Space
+
+# Open AI Chat
+⌥ + Insert
+
+# Send Selection to AI Chat
+⇧⌘ + Insert
+
+# Open Arc browser
+⌘ + A
+
+# Open Cursor editor
+⌘ + C
+
+# Open DataGrip database tool
+⌘ + D
+
+# Open Firefox Developer Edition
+⌘ + B
+
+# Open Ghostty terminal
+⌘ + T
+
+# Open Slack
+⌘ + S
+
+# Open browsing window management
+⌘ + F
+
+# Open Slack channel
+^ + F13
+
+# Open meeting window layout
+⌘ + M
+
+# Open work window layout
+⌘ + W
+
+% raycast, commands, search-aliases
+
+# Open Bazecor keyboard configurator
+# Type in Raycast: keyboard
+keyboard
+
+# Open Beyond Compare diff tool
+# Type in Raycast: diff
+diff
+
+# Open Insomnia API client
+# Type in Raycast: api
+api
+
+# Open Insta360 Link Controller camera tool
+# Type in Raycast: cam
+cam
+
+# Search in Arc browser
+# Type in Raycast: arc
+arc
+
+# Paste recent screenshot
+# Type in Raycast: pscr
+pscr
+
+# Search screenshots
+# Type in Raycast: scr
+scr
+
+# Access clipboard history
+# Navigate to Clipboard History extension in Raycast
+
+# Command palette search
+⌘ + ~
+
