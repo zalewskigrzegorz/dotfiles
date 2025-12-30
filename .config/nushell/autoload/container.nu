@@ -69,8 +69,8 @@ export def use-docker [] {
     # - /var/run/docker.sock (requires root)
     # - Or socket forwarding via Docker Desktop
     # Leave DOCKER_HOST unset to use Docker's default detection
-    if "DOCKER_HOST" in $env { hide-env DOCKER_HOST }
-    if "CONTAINER_HOST" in $env { hide-env CONTAINER_HOST }
+    hide DOCKER_HOST
+    hide CONTAINER_HOST
     
     print $"✓ Switched to Docker"
     print $"  USE_PODMAN: ($env.USE_PODMAN)"

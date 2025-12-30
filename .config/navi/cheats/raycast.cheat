@@ -1,77 +1,56 @@
-% raycast, shortcuts, macos
+% ## Tags: % ## Tags: % raycast, shortcuts, macos
 
-# Open Raycast (leader)
-⌘ + Space
+# ### # ### # Open Raycast (leader)
 
-# Open AI Chat
-⌥ + Insert
+# ### # ### # Open AI Chat
 
-# Send Selection to AI Chat
-⇧⌘ + Insert
+# ### # ### # Send Selection to AI Chat
 
-# Open Arc browser
-⌘ + A
+# ### # ### # Open Arc browser
 
-# Open Cursor editor
-⌘ + C
+# ### # ### # Open Cursor editor
 
-# Open DataGrip database tool
-⌘ + D
+# ### # ### # Open DataGrip database tool
 
-# Open Firefox Developer Edition
-⌘ + B
+# ### # ### # Open Firefox Developer Edition
 
-# Open Ghostty terminal
-⌘ + T
+# ### # ### # Open Ghostty terminal
 
-# Open Slack
-⌘ + S
+# ### # ### # Open Slack
 
-# Open browsing window management
-⌘ + F
+# ### # ### # Open browsing window management
 
-# Open Slack channel
-^ + F13
+# ### # ### # Open Slack channel
 
-# Open meeting window layout
-⌘ + M
+# ### # ### # Open meeting window layout
 
-# Open work window layout
-⌘ + W
+# ### # ### # Open work window layout
 
-% raycast, commands, search-aliases
+% ## Tags: % ## Tags: % raycast, commands, search-aliases
 
-# Open Bazecor keyboard configurator
-# Type in Raycast: keyboard
-keyboard
+# ### # ### # Open Bazecor keyboard configurator
+# ### # ### # Type in Raycast: keyboard
 
-# Open Beyond Compare diff tool
-# Type in Raycast: diff
-diff
+# ### # ### # Open Beyond Compare diff tool
+# ### # ### # Type in Raycast: diff
 
-# Open Insomnia API client
-# Type in Raycast: api
-api
+# ### # ### # Open Insomnia API client
+# ### # ### # Type in Raycast: api
 
-# Open Insta360 Link Controller camera tool
-# Type in Raycast: cam
-cam
+# ### # ### # Open Insta360 Link Controller camera tool
+# ### # ### # Type in Raycast: cam
 
-# Search in Arc browser
-# Type in Raycast: arc
-arc
+# ### # ### # Search in Arc browser
+# ### # ### # Type in Raycast: arc
 
-# Paste recent screenshot
-# Type in Raycast: pscr
-pscr
+# ### # ### # Paste recent screenshot
+# ### # ### # Type in Raycast: pscr
 
-# Search screenshots
-# Type in Raycast: scr
-scr
+# ### # ### # Search screenshots
+# ### # ### # Type in Raycast: scr
 
-# Access clipboard history
-# Navigate to Clipboard History extension in Raycast
+# ### # ### # Access clipboard history
+# ### # ### # Navigate to Clipboard History extension in Raycast
 
-# Command palette search
-⌘ + ~
+# ### # ### # Command palette search
 
