@@ -7,7 +7,6 @@
 
 # Activate Wooshy
 # Default trigger 
-cmd+/
 
 # Common triggers:
 # Option+Space
@@ -18,7 +17,6 @@ cmd+/
 % wooshy, search, filtering
 
 # Activate Wooshy and start searching
-cmd+/
 
 # Search UI elements
 # Type a few letters to search through UI elements' metadata:
@@ -29,100 +27,61 @@ cmd+/
 # Example: Type "log but" to find "Log in" button
 
 # Clear search
-Escape
-Backspace (to clear typed text)
 
 % wooshy, navigation, results
 
 # Navigate search results (Standard)
 # Next item
-Tab
-Down Arrow
-ctrl+n
 
 # Previous item
-Shift+Tab
-Up Arrow
-ctrl+p
 
 # First item
-cmd+Up Arrow
 
 # Last item
-cmd+Down Arrow
 
 # Halfway up
-ctrl+Up Arrow
 
 # Halfway down
-ctrl+Down Arrow
 
 % wooshy, navigation, kindavim
 
 # Navigate search results (with kindaVim enabled)
 # Next item
-j
-Down Arrow
-ctrl+j
-ctrl+n
 
 # Previous item
-k
-Up Arrow
-ctrl+p
 
 # First item
-gg
 
 # Last item
-G
 
 # Halfway up
-ctrl+b
-ctrl+u
 
 # Halfway down
-ctrl+f
-ctrl+d
 
 % wooshy, click, actions
 
 # Click actions on Primary Target
 # Left click
-Return
-Enter
 
 # Right click
-ctrl+Return
 
 # Option click
-option+Return
 
 # Shift click
-shift+Return
 
 # Command click
-cmd+Return
 
 # Double left click
-fn+Return
-ctrl+option+cmd+Return
 
 # Click at current mouse position
 # (If input is empty and no Primary Target selected)
-Return
-Enter
 
 % wooshy, copy, text
 
 # Copy visible text of Primary Target
-cmd+c
 
 # Copy metadata of Primary Target
 # (URL for links, status for checkboxes, tabs, radiobuttons, etc.)
-cmd+ctrl+c
-cmd+option+c
-cmd+shift+c
 
 # Note: Add any modifier (ctrl, option, or shift) to cmd+c to copy metadata
 
@@ -130,7 +89,6 @@ cmd+shift+c
 
 # Just move the mouse (without clicking)
 # Move mouse pointer to target location
-shift+cmd+Return
 
 # Equivalent to running mouse over target without clicking
 
@@ -144,8 +102,6 @@ shift+cmd+Return
 % wooshy, cancel, close
 
 # Cancel / Close Wooshy
-Escape
-Esc
 
 % wooshy, integrations, notifications
 

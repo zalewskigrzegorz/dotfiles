@@ -1,254 +1,182 @@
-% lazyvim, neovim, diagnostics
+% ## Tags: % ## Tags: % lazyvim, neovim, diagnostics
 
-# Next diagnostic
-]d
+# ### # ### # Next diagnostic
 
-# Previous diagnostic
-[d
+# ### # ### # Previous diagnostic
 
-# Document diagnostics
-<leader>sd
+# ### # ### # Document diagnostics
 
-# Workspace diagnostics
-<leader>sD
+# ### # ### # Workspace diagnostics
 
-% lazyvim, neovim, code-actions
+% ## Tags: % ## Tags: % lazyvim, neovim, code-actions
 
-# Rename symbols
-<leader>cr
+# ### # ### # Rename symbols
 
-# Format code
-<leader>cf
+# ### # ### # Format code
 
-# Code actions
-<leader>ca
+# ### # ### # Code actions
 
-% lazyvim, neovim, indentation
+% ## Tags: % ## Tags: % lazyvim, neovim, indentation
 
-# Indent right
->
+# ### # ### # Indent right
 
-# Indent left
-<
+# ### # ### # Indent left
 
-# Auto-indent as per language
-=
+# ### # ### # Auto-indent as per language
 
-# Indent current paragraph
-=ip
+# ### # ### # Indent current paragraph
 
-# Auto-indent entire file
-gg=G
+# ### # ### # Auto-indent entire file
 
-% lazyvim, neovim, search
+% ## Tags: % ## Tags: % lazyvim, neovim, search
 
-# Search and Replace
-<leader>sr
+# ### # ### # Search and Replace
 
-# Find Config files
-<leader>fc
+# ### # ### # Find Config files
 
-# Find files (Root dir)
-<leader>ff
+# ### # ### # Find files (Root dir)
 
-# Grep (Root dir)
-<leader>/
+# ### # ### # Grep (Root dir)
 
-# Grep (CWD)
-<leader>sG
+# ### # ### # Grep (CWD)
 
-# Symbol search
-<leader>ss
+# ### # ### # Symbol search
 
-# Command history
-<leader>sc
+# ### # ### # Command history
 
-# Search word under cursor
-<leader>sw
+# ### # ### # Search word under cursor
 
-# Search all keymaps
-<leader>sk
+# ### # ### # Search all keymaps
 
-# Search TODO|WARNING
-<leader>st
+# ### # ### # Search TODO|WARNING
 
-% lazyvim, neovim, git, fzf-lua
+% ## Tags: % ## Tags: % lazyvim, neovim, git, fzf-lua
 
-# Commit log texts search
-<leader>gc
+# ### # ### # Commit log texts search
 
-# Status (file search)
-<leader>gs
+# ### # ### # Status (file search)
 
-# Git explorer (Neotree)
-<leader>ge
+# ### # ### # Git explorer (Neotree)
 
-# Current file history
-<leader>gf
+# ### # ### # Current file history
 
-% lazyvim, neovim, lazygit
+% ## Tags: % ## Tags: % lazyvim, neovim, lazygit
 
-# Open LazyGit window
-<leader>gg
+# ### # ### # Open LazyGit window
 
-# Switch to recent repo
-<C-r>
+# ### # ### # Switch to recent repo
 
-# Filter files by status
-<C-b>
+# ### # ### # Filter files by status
 
-# Git pull
-p
+# ### # ### # Git pull
 
-# Git push
-P
+# ### # ### # Git push
 
-# Stage
-<space>
+# ### # ### # Stage
 
-# Stage all
-a
+# ### # ### # Stage all
 
-# Commit
-c
+# ### # ### # Commit
 
-# Stash
-s
+# ### # ### # Stash
 
-# Undo
-z
+# ### # ### # Undo
 
-# Redo
-<C-z>
+# ### # ### # Redo
 
-# Add to .gitignore
-i
+# ### # ### # Add to .gitignore
 
-# Quit
-q
-% lazyvim, neovim, ui, ux
+# ### # ### # Quit
+% ## Tags: % ## Tags: % lazyvim, neovim, ui, ux
 
-# Change colorscheme with preview
-<leader>uC
+# ### # ### # Change colorscheme with preview
 
-# Enable code block dimming
-<leader>uD
+# ### # ### # Enable code block dimming
 
-# Toggle line number
-<leader>ul
+# ### # ### # Toggle line number
 
-# Toggle relative number
-<leader>uL
+# ### # ### # Toggle relative number
 
-# Toggle word wrap
-<leader>uw
+# ### # ### # Toggle word wrap
 
-# Toggle Terminal window
-<C-/>
+# ### # ### # Toggle Terminal window
 
-# Open Neotree file explorer
-:Neotree
+# ### # ### # Open Neotree file explorer
 
-% lazyvim, neovim, text-objects
+% ## Tags: % ## Tags: % lazyvim, neovim, mode-switching, custom-keymaps
 
-# Select inner word
-viw
+# ### # ### # Exit insert mode (alternative to Escape)
 
-# Select inner quotes
-vi"
+# ### # ### # Close window or buffer (in normal mode)
+# ### # ### # Closes window if multiple windows exist, otherwise closes buffer
 
-# Select inner curly braces
-vi{
+% ## Tags: % ## Tags: % lazyvim, neovim, text-objects
 
-# Select inner paragraph
-vip
+# ### # ### # Select inner word
 
-# Select around square brackets
-va[
+# ### # ### # Select inner quotes
 
-# Delete around paragraph
-dap
+# ### # ### # Select inner curly braces
 
-% lazyvim, neovim, code-folding
+# ### # ### # Select inner paragraph
 
-# Open all folds
-zR
+# ### # ### # Select around square brackets
 
-# Open all folds (alternative)
-zi
+# ### # ### # Delete around paragraph
 
-# Close all folds
-zM
+% ## Tags: % ## Tags: % lazyvim, neovim, code-folding
 
-# Toggle fold
-za
+# ### # ### # Open all folds
 
-# Toggle all folds under cursor
-zA
+# ### # ### # Open all folds (alternative)
 
-# Close fold
-zc
+# ### # ### # Close all folds
 
-# Open fold
-zo
+# ### # ### # Toggle fold
 
-# Open all folds under cursor
-zO
+# ### # ### # Toggle all folds under cursor
 
-% lazyvim, neovim, marks, bookmarks
+# ### # ### # Close fold
 
-# View all marks
-<leader>sm
+# ### # ### # Open fold
 
-# Set local mark
-m<mark_letter>
+# ### # ### # Open all folds under cursor
 
-# Jump to mark
-'<mark_letter>
+% ## Tags: % ## Tags: % lazyvim, neovim, marks, bookmarks
 
-# Jump to last position
-''
+# ### # ### # View all marks
 
-# Jump to exact position
-`<mark_letter>
+# ### # ### # Set local mark
 
-# Delete lowercase marks (a-z)
-:delmarks a-z
+# ### # ### # Jump to mark
 
-# Delete specific marks
-:delmarks <marks>
+# ### # ### # Jump to last position
 
-# Delete all marks except A-Z,0-9
-:delmarks!
+# ### # ### # Jump to exact position
 
-$ mark_letter: echo "a b c d e f g h i j k l m n o p q r s t u v w x y z" | tr ' ' '\n'
-$ marks: echo "ax by cz" | tr ' ' '\n'
+# ### # ### # Delete lowercase marks (a-z)
 
-% lazyvim, neovim, lsp, functions, symbols
+# ### # ### # Delete specific marks
 
-# Show attached LSP info
-:LspInfo
+# ### # ### # Delete all marks except A-Z,0-9
 
-# Document symbols
-<leader>cs
 
-# Find all references
-gr
+% ## Tags: % ## Tags: % lazyvim, neovim, lsp, functions, symbols
 
-# Go to definition
-gd
+# ### # ### # Show attached LSP info
 
-# Go to declaration
-gD
+# ### # ### # Document symbols
 
-# Goto Type definition
-gy
+# ### # ### # Find all references
 
-# Show docstring/type hints
-K
+# ### # ### # Go to definition
 
-# Previous reference
-[[
+# ### # ### # Go to declaration
 
-# Next reference
-]]
+# ### # ### # Goto Type definition
+
+# ### # ### # Show docstring/type hints
+
+# ### # ### # Previous reference
+
+# ### # ### # Next reference
