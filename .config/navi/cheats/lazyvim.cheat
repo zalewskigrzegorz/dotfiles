@@ -1,4 +1,4 @@
-% ## Tags: % ## Tags: % lazyvim, neovim, diagnostics
+% lazyvim, neovim, diagnostics
 
 # ### # ### # Next diagnostic
 
@@ -8,7 +8,7 @@
 
 # ### # ### # Workspace diagnostics
 
-% ## Tags: % ## Tags: % lazyvim, neovim, code-actions
+% lazyvim, neovim, code-actions
 
 # ### # ### # Rename symbols
 
@@ -16,7 +16,7 @@
 
 # ### # ### # Code actions
 
-% ## Tags: % ## Tags: % lazyvim, neovim, indentation
+% lazyvim, neovim, indentation
 
 # ### # ### # Indent right
 
@@ -28,7 +28,7 @@
 
 # ### # ### # Auto-indent entire file
 
-% ## Tags: % ## Tags: % lazyvim, neovim, search
+% lazyvim, neovim, search
 
 # ### # ### # Search and Replace
 
@@ -50,7 +50,7 @@
 
 # ### # ### # Search TODO|WARNING
 
-% ## Tags: % ## Tags: % lazyvim, neovim, git, fzf-lua
+% lazyvim, neovim, git, fzf-lua
 
 # ### # ### # Commit log texts search
 
@@ -60,7 +60,7 @@
 
 # ### # ### # Current file history
 
-% ## Tags: % ## Tags: % lazyvim, neovim, lazygit
+% lazyvim, neovim, lazygit
 
 # ### # ### # Open LazyGit window
 
@@ -87,7 +87,7 @@
 # ### # ### # Add to .gitignore
 
 # ### # ### # Quit
-% ## Tags: % ## Tags: % lazyvim, neovim, ui, ux
+% lazyvim, neovim, ui, ux
 
 # ### # ### # Change colorscheme with preview
 
@@ -103,14 +103,14 @@
 
 # ### # ### # Open Neotree file explorer
 
-% ## Tags: % ## Tags: % lazyvim, neovim, mode-switching, custom-keymaps
+% lazyvim, neovim, mode-switching, custom-keymaps
 
 # ### # ### # Exit insert mode (alternative to Escape)
 
 # ### # ### # Close window or buffer (in normal mode)
 # ### # ### # Closes window if multiple windows exist, otherwise closes buffer
 
-% ## Tags: % ## Tags: % lazyvim, neovim, text-objects
+% lazyvim, neovim, text-objects
 
 # ### # ### # Select inner word
 
@@ -124,7 +124,7 @@
 
 # ### # ### # Delete around paragraph
 
-% ## Tags: % ## Tags: % lazyvim, neovim, code-folding
+% lazyvim, neovim, code-folding
 
 # ### # ### # Open all folds
 
@@ -142,7 +142,7 @@
 
 # ### # ### # Open all folds under cursor
 
-% ## Tags: % ## Tags: % lazyvim, neovim, marks, bookmarks
+% lazyvim, neovim, marks, bookmarks
 
 # ### # ### # View all marks
 
@@ -161,7 +161,7 @@
 # ### # ### # Delete all marks except A-Z,0-9
 
 
-% ## Tags: % ## Tags: % lazyvim, neovim, lsp, functions, symbols
+% lazyvim, neovim, lsp, functions, symbols
 
 # ### # ### # Show attached LSP info
 

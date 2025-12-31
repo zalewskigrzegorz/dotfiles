@@ -1,4 +1,4 @@
-% ## Tags: % ## Tags: % kindavim, navigation, vim, macos
+% kindavim, navigation, vim, macos
 
 # ### # ### # Move left
 
@@ -85,9 +85,8 @@
 # ### # ### # Repeat search (previous match)
 
 # ### # ### # Find matching bracket/parenthesis
-% ## Tags: % ## Tags: %
 
-% ## Tags: % ## Tags: % kindavim, editing, text
+% kindavim, editing, text
 
 # ### # ### # Enter Insert Mode (before cursor)
 
@@ -229,7 +228,7 @@
 
 # ### # ### # Yank around quotes (single)
 
-% ## Tags: % ## Tags: % kindavim, visual, selection
+% kindavim, visual, selection
 
 # ### # ### # Start Visual Mode (character wise)
 
@@ -283,7 +282,7 @@
 
 # ### # ### # Select around WORD
 
-% ## Tags: % ## Tags: % kindavim, window, tabs, application
+% kindavim, window, tabs, application
 
 # ### # ### # Save (Command+S)
 
@@ -303,7 +302,7 @@
 
 # ### # ### # New Tab
 
-% ## Tags: % ## Tags: % kindavim, accessibility, strategy
+% kindavim, accessibility, strategy
 
 # ### # ### # Enforce Keyboard Strategy (hold while moving)
 # ### # ### # Useful when in text input but want to scroll UI instead
@@ -315,7 +314,7 @@
 # ### # ### # Useful for: scrolling UI (scrollbars) instead of text/caret
 # ### # ### # Useful for: moving between inputs in custom UI apps (Things 3, Logseq)
 
-% ## Tags: % ## Tags: % kindavim, counts, repeating
+% kindavim, counts, repeating
 
 # ### # ### # Repeat command N times
 
@@ -326,7 +325,7 @@
 # ### # ### # 2dd - Delete 2 lines
 # ### # ### # 4>> - Indent 4 lines right
 
-% ## Tags: % ## Tags: % kindavim, text objects, advanced
+% kindavim, text objects, advanced
 
 # ### # ### # Text object: word
 
@@ -346,7 +345,7 @@
 
 # ### # ### # Text object: quotes
 
-% ## Tags: % ## Tags: % kindavim, operators, commands
+% kindavim, operators, commands
 
 # ### # ### # Operator: Delete
 
@@ -369,7 +368,7 @@
 # ### # ### # yap - Yank around paragraph
 # ### # ### # >} - Indent to next paragraph
 
-% ## Tags: % ## Tags: % kindavim, marks, jumps
+% kindavim, marks, jumps
 
 # ### # ### # Set mark at current position
 
@@ -383,7 +382,7 @@
 
 # ### # ### # Jump to last edit location
 
-% ## Tags: % ## Tags: % kindavim, registers
+% kindavim, registers
 
 # ### # ### # Use register for yank/delete
 
