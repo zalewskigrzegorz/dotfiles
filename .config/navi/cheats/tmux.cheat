@@ -1,55 +1,37 @@
 % tmux, custom, config
 
-# Reload tmux configuration
-<prefix> + r
+# ### # ### # Reload tmux configuration
 
-# Split window horizontally (custom binding)
-<prefix> + |
+# ### # ### # Split window horizontally (custom binding)
 
-# Split window vertically (custom binding)  
-<prefix> + -
+# ### # ### # Split window vertically (custom binding)
 
-# Navigate to previous window
-<prefix> + p
+# ### # ### # Navigate to previous window
 
-# Navigate to next window
-<prefix> + n
+# ### # ### # Navigate to next window
 
-# Select pane up (vim-like)
-<prefix> + k
+# ### # ### # Select pane up (vim-like)
 
-# Select pane down (vim-like)
-<prefix> + j
+# ### # ### # Select pane down (vim-like)
 
-# Select pane left (vim-like)
-<prefix> + h
+# ### # ### # Select pane left (vim-like)
 
-# Select pane right (vim-like)
-<prefix> + l
+# ### # ### # Select pane right (vim-like)
 
-# Resize pane up (vim-like)
-<prefix> + K
+# ### # ### # Resize pane up (vim-like)
 
-# Resize pane down (vim-like)
-<prefix> + J
+# ### # ### # Resize pane down (vim-like)
 
-# Resize pane left (vim-like)
-<prefix> + H
+# ### # ### # Resize pane left (vim-like)
 
-# Resize pane right (vim-like)
-<prefix> + L
+# ### # ### # Resize pane right (vim-like)
 
-# Open Navi cheatsheets in split
-<prefix> + Ctrl-g
+# ### # ### # Open Navi cheatsheets in split
 
-# Enter copy mode and begin selection (vi mode)
-<prefix> + [ then v
+# ### # ### # Enter copy mode and begin selection (vi mode)
 
-# Copy selection to clipboard (vi mode)
-y (in copy mode)
+# ### # ### # Copy selection to clipboard (vi mode)
 
-# Search with copycat plugin
-<prefix> + /
+# ### # ### # Search with copycat plugin
 
-$ prefix: echo "Ctrl-b (default prefix key)"
 
