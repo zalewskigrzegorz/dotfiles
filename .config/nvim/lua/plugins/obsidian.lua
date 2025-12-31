@@ -1,11 +1,25 @@
+-- Get Obsidian vault path from environment variable or use default
+local function get_obsidian_vault_path()
+  local env_path = vim.env.OBSIDIAN_VAULT_PATH
+  if env_path and env_path ~= "" then
+    return vim.fn.expand(env_path)
+  end
+  -- Default to iCloud Obsidian vault on macOS
+  local home = vim.fn.expand("~")
+  return home .. "/Library/Mobile Documents/iCloud~md~obsidian/Documents/Knowlage"
+end
+
+local vault_path = get_obsidian_vault_path()
+
 return {
   "epwalsh/obsidian.nvim",
   version = "*", -- recommended, use latest release instead of latest commit
   lazy = true,
   -- Load for markdown files or specifically for files in your Obsidian vault
+  -- Neovim autocommand patterns handle file paths directly
   event = {
-    "BufReadPre /Users/greg/Library/Mobile Documents/iCloud~md~obsidian/Documents/Knowlage/**.md",
-    "BufNewFile /Users/greg/Library/Mobile Documents/iCloud~md~obsidian/Documents/Knowlage/**.md",
+    "BufReadPre " .. vault_path .. "/**.md",
+    "BufNewFile " .. vault_path .. "/**.md",
   },
   -- Fallback to loading for all markdown files if the above doesn't work
   ft = "markdown",
@@ -20,7 +34,7 @@ return {
     workspaces = {
       {
         name = "personal",
-        path = "/Users/greg/Library/Mobile Documents/iCloud~md~obsidian/Documents/Knowlage",
+        path = vault_path,
         -- Optional, override certain settings.
         -- overrides = {
         --   notes_subdir = "notes",

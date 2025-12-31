@@ -21,7 +21,6 @@ def get-script-path [] {
                 msg: "sync-navi-obsidian.nu not found"
                 label: {
                     text: "Please ensure the dotfiles repository is accessible"
-                    span: (metadata $fallback_path | get span)
                 }
             }
         }
