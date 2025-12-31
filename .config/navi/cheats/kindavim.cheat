@@ -1,595 +1,403 @@
 % kindavim, navigation, vim, macos
 
-# Move left
-h
+# ### # ### # Move left
 
-# Move down
-j
+# ### # ### # Move down
 
-# Move up
-k
+# ### # ### # Move up
 
-# Move right
-l
+# ### # ### # Move right
 
-# Move forward one word
-w
+# ### # ### # Move forward one word
 
-# Move forward one WORD (space separated)
-W
+# ### # ### # Move forward one WORD (space separated)
 
-# Move backward one word
-b
+# ### # ### # Move backward one word
 
-# Move backward one WORD (space separated)
-B
+# ### # ### # Move backward one WORD (space separated)
 
-# Move to end of word
-e
+# ### # ### # Move to end of word
 
-# Move to end of WORD (space separated)
-E
+# ### # ### # Move to end of WORD (space separated)
 
-# Move to end of word (backward)
-ge
+# ### # ### # Move to end of word (backward)
 
-# Move to end of WORD (backward)
-gE
+# ### # ### # Move to end of WORD (backward)
 
-# Move to beginning of line
-0
+# ### # ### # Move to beginning of line
 
-# Move to first non-blank character of line
-^
+# ### # ### # Move to first non-blank character of line
 
-# Move to end of line
-$
+# ### # ### # Move to end of line
 
-# Move to first non-blank character of line (visual)
-g^
+# ### # ### # Move to first non-blank character of line (visual)
 
-# Move to end of line (visual/inclusive)
-g$
+# ### # ### # Move to end of line (visual/inclusive)
 
-# Move to last non-blank character of line
-g_
+# ### # ### # Move to last non-blank character of line
 
-# Go to first line of file
-gg
+# ### # ### # Go to first line of file
 
-# Go to last line of file
-G
+# ### # ### # Go to last line of file
 
-# Go to line number
-<line_number>G
+# ### # ### # Go to line number
 
-# Move to middle of screen line
-gm
+# ### # ### # Move to middle of screen line
 
-# Move to top of screen
-H
+# ### # ### # Move to top of screen
 
-# Move to middle of screen
-M
+# ### # ### # Move to middle of screen
 
-# Move to bottom of screen
-L
+# ### # ### # Move to bottom of screen
 
-# Find character forward
-f <char>
+# ### # ### # Find character forward
 
-# Find character backward
-F <char>
+# ### # ### # Find character backward
 
-# Till character forward
-t <char>
+# ### # ### # Till character forward
 
-# Till character backward
-T <char>
+# ### # ### # Till character backward
 
-# Repeat last f/F/t/T
-;
+# ### # ### # Repeat last f/F/t/T
 
-# Repeat last f/F/t/T (reverse direction)
-,
+# ### # ### # Repeat last f/F/t/T (reverse direction)
 
-# Scroll down half page
-<Ctrl-d>
+# ### # ### # Scroll down half page
 
-# Scroll up half page
-<Ctrl-u>
+# ### # ### # Scroll up half page
 
-# Scroll down full page
-<Ctrl-f>
+# ### # ### # Scroll down full page
 
-# Scroll up full page
-<Ctrl-b>
+# ### # ### # Scroll up full page
 
-# Scroll cursor to top
-zt
+# ### # ### # Scroll cursor to top
 
-# Scroll cursor to middle
-zz
+# ### # ### # Scroll cursor to middle
 
-# Scroll cursor to bottom
-zb
+# ### # ### # Scroll cursor to bottom
 
-# Search forward
-/ <query>
+# ### # ### # Search forward
 
-# Search backward
-? <query>
+# ### # ### # Search backward
 
-# Repeat search (next match)
-n
+# ### # ### # Repeat search (next match)
 
-# Repeat search (previous match)
-N
+# ### # ### # Repeat search (previous match)
 
-# Find matching bracket/parenthesis
-%
+# ### # ### # Find matching bracket/parenthesis
 
 % kindavim, editing, text
 
-# Enter Insert Mode (before cursor)
-i
+# ### # ### # Enter Insert Mode (before cursor)
 
-# Enter Insert Mode (at beginning of line)
-I
+# ### # ### # Enter Insert Mode (at beginning of line)
 
-# Enter Insert Mode (after cursor)
-a
+# ### # ### # Enter Insert Mode (after cursor)
 
-# Enter Insert Mode (at end of line)
-A
+# ### # ### # Enter Insert Mode (at end of line)
 
-# Open new line below
-o
+# ### # ### # Open new line below
 
-# Open new line above
-O
+# ### # ### # Open new line above
 
-# Delete character under cursor
-x
+# ### # ### # Delete character under cursor
 
-# Delete character before cursor
-X
+# ### # ### # Delete character before cursor
 
-# Replace single character
-r <char>
+# ### # ### # Replace single character
 
-# Delete line
-dd
+# ### # ### # Delete line
 
-# Delete to end of line
-D
+# ### # ### # Delete to end of line
 
-# Delete word
-dw
+# ### # ### # Delete word
 
-# Delete to end of word
-de
+# ### # ### # Delete to end of word
 
-# Delete backward word
-db
+# ### # ### # Delete backward word
 
-# Delete to end of WORD
-dE
+# ### # ### # Delete to end of WORD
 
-# Delete backward WORD
-dB
+# ### # ### # Delete backward WORD
 
-# Change line (delete and enter insert mode)
-cc
+# ### # ### # Change line (delete and enter insert mode)
 
-# Change to end of line
-C
+# ### # ### # Change to end of line
 
-# Change word
-cw
+# ### # ### # Change word
 
-# Change to end of word
-ce
+# ### # ### # Change to end of word
 
-# Change backward word
-cb
+# ### # ### # Change backward word
 
-# Change to end of WORD
-cE
+# ### # ### # Change to end of WORD
 
-# Change backward WORD
-cB
+# ### # ### # Change backward WORD
 
-# Yank (copy) line
-yy
+# ### # ### # Yank (copy) line
 
-# Yank to end of line
-Y
+# ### # ### # Yank to end of line
 
-# Paste after cursor
-p
+# ### # ### # Paste after cursor
 
-# Paste before cursor
-P
+# ### # ### # Paste before cursor
 
-# Undo
-u
+# ### # ### # Undo
 
-# Redo
-<Ctrl-r>
+# ### # ### # Redo
 
-# Join lines
-J
+# ### # ### # Join lines
 
-# Switch case (upper/lower)
-~
+# ### # ### # Switch case (upper/lower)
 
-# Indent line right
->>
+# ### # ### # Indent line right
 
-# Indent line left
-<<
+# ### # ### # Indent line left
 
-# Repeat last change
-.
+# ### # ### # Repeat last change
 
-# Delete inside word
-diw
+# ### # ### # Delete inside word
 
-# Delete around word
-daw
+# ### # ### # Delete around word
 
-# Delete inside parentheses
-di(
+# ### # ### # Delete inside parentheses
 
-# Delete around parentheses
-da(
+# ### # ### # Delete around parentheses
 
-# Delete inside braces
-di{
+# ### # ### # Delete inside braces
 
-# Delete around braces
-da{
+# ### # ### # Delete around braces
 
-# Delete inside brackets
-di[
+# ### # ### # Delete inside brackets
 
-# Delete around brackets
-da[
+# ### # ### # Delete around brackets
 
-# Delete inside quotes (double)
-di"
+# ### # ### # Delete inside quotes (double)
 
-# Delete around quotes (double)
-da"
+# ### # ### # Delete around quotes (double)
 
-# Delete inside quotes (single)
-di'
+# ### # ### # Delete inside quotes (single)
 
-# Delete around quotes (single)
-da'
+# ### # ### # Delete around quotes (single)
 
-# Change inside word
-ciw
+# ### # ### # Change inside word
 
-# Change around word
-caw
+# ### # ### # Change around word
 
-# Change inside parentheses
-ci(
+# ### # ### # Change inside parentheses
 
-# Change around parentheses
-ca(
+# ### # ### # Change around parentheses
 
-# Change inside braces
-ci{
+# ### # ### # Change inside braces
 
-# Change around braces
-ca{
+# ### # ### # Change around braces
 
-# Change inside brackets
-ci[
+# ### # ### # Change inside brackets
 
-# Change around brackets
-ca[
+# ### # ### # Change around brackets
 
-# Change inside quotes (double)
-ci"
+# ### # ### # Change inside quotes (double)
 
-# Change around quotes (double)
-ca"
+# ### # ### # Change around quotes (double)
 
-# Change inside quotes (single)
-ci'
+# ### # ### # Change inside quotes (single)
 
-# Change around quotes (single)
-ca'
+# ### # ### # Change around quotes (single)
 
-# Yank inside word
-yiw
+# ### # ### # Yank inside word
 
-# Yank around word
-yaw
+# ### # ### # Yank around word
 
-# Yank inside parentheses
-yi(
+# ### # ### # Yank inside parentheses
 
-# Yank around parentheses
-ya(
+# ### # ### # Yank around parentheses
 
-# Yank inside braces
-yi{
+# ### # ### # Yank inside braces
 
-# Yank around braces
-ya{
+# ### # ### # Yank around braces
 
-# Yank inside brackets
-yi[
+# ### # ### # Yank inside brackets
 
-# Yank around brackets
-ya[
+# ### # ### # Yank around brackets
 
-# Yank inside quotes (double)
-yi"
+# ### # ### # Yank inside quotes (double)
 
-# Yank around quotes (double)
-ya"
+# ### # ### # Yank around quotes (double)
 
-# Yank inside quotes (single)
-yi'
+# ### # ### # Yank inside quotes (single)
 
-# Yank around quotes (single)
-ya'
+# ### # ### # Yank around quotes (single)
 
 % kindavim, visual, selection
 
-# Start Visual Mode (character wise)
-v
+# ### # ### # Start Visual Mode (character wise)
 
-# Start Visual Mode (line wise)
-V
+# ### # ### # Start Visual Mode (line wise)
 
-# Select inside word
-viw
+# ### # ### # Select inside word
 
-# Select around word
-vaw
+# ### # ### # Select around word
 
-# Select inside parentheses
-vi(
+# ### # ### # Select inside parentheses
 
-# Select around parentheses
-va(
+# ### # ### # Select around parentheses
 
-# Select inside braces
-vi{
+# ### # ### # Select inside braces
 
-# Select around braces
-va{
+# ### # ### # Select around braces
 
-# Select inside brackets
-vi[
+# ### # ### # Select inside brackets
 
-# Select around brackets
-va[
+# ### # ### # Select around brackets
 
-# Select inside quotes (double)
-vi"
+# ### # ### # Select inside quotes (double)
 
-# Select around quotes (double)
-va"
+# ### # ### # Select around quotes (double)
 
-# Select inside quotes (single)
-vi'
+# ### # ### # Select inside quotes (single)
 
-# Select around quotes (single)
-va'
+# ### # ### # Select around quotes (single)
 
-# Select inside backticks
-vi`
+# ### # ### # Select inside backticks
 
-# Select around backticks
-va`
+# ### # ### # Select around backticks
 
-# Select inside angle brackets
-vi<
+# ### # ### # Select inside angle brackets
 
-# Select around angle brackets
-va<
+# ### # ### # Select around angle brackets
 
-# Select inside angle brackets (alternative)
-vi>
+# ### # ### # Select inside angle brackets (alternative)
 
-# Select around angle brackets (alternative)
-va>
+# ### # ### # Select around angle brackets (alternative)
 
-# Select paragraph
-vip
+# ### # ### # Select paragraph
 
-# Select around paragraph
-vap
+# ### # ### # Select around paragraph
 
-# Select sentence
-vis
+# ### # ### # Select sentence
 
-# Select around sentence
-vas
+# ### # ### # Select around sentence
 
-# Select WORD
-viW
+# ### # ### # Select WORD
 
-# Select around WORD
-vaW
+# ### # ### # Select around WORD
 
 % kindavim, window, tabs, application
 
-# Save (Command+S)
-:w
+# ### # ### # Save (Command+S)
 
-# Quit (Command+W)
-:q
+# ### # ### # Quit (Command+W)
 
-# Save and Quit
-:wq
+# ### # ### # Save and Quit
 
-# Force Quit
-:q!
+# ### # ### # Force Quit
 
-# Next Tab
-gt
+# ### # ### # Next Tab
 
-# Previous Tab
-gT
+# ### # ### # Previous Tab
 
-# Go to tab number
-<number>gt
+# ### # ### # Go to tab number
 
-# Close Tab
-<Command-W>
+# ### # ### # Close Tab
 
-# New Tab
-<Command-T>
+# ### # ### # New Tab
 
 % kindavim, accessibility, strategy
 
-# Enforce Keyboard Strategy (hold while moving)
-# Useful when in text input but want to scroll UI instead
-<fn>
+# ### # ### # Enforce Keyboard Strategy (hold while moving)
+# ### # ### # Useful when in text input but want to scroll UI instead
 
-# Quit kindaVim processing (Escape)
-<Esc>
+# ### # ### # Quit kindaVim processing (Escape)
 
-# kV automatically detects Accessibility Strategy for text manipulation
-# Press fn while moving to force Keyboard Strategy even when text is accessible
-# Useful for: scrolling UI (scrollbars) instead of text/caret
-# Useful for: moving between inputs in custom UI apps (Things 3, Logseq)
+# ### # ### # kV automatically detects Accessibility Strategy for text manipulation
+# ### # ### # Press fn while moving to force Keyboard Strategy even when text is accessible
+# ### # ### # Useful for: scrolling UI (scrollbars) instead of text/caret
+# ### # ### # Useful for: moving between inputs in custom UI apps (Things 3, Logseq)
 
 % kindavim, counts, repeating
 
-# Repeat command N times
-<number><command>
+# ### # ### # Repeat command N times
 
-# Examples:
-# 5j - Move down 5 lines
-# 3dw - Delete 3 words
-# 10x - Delete 10 characters
-# 2dd - Delete 2 lines
-# 4>> - Indent 4 lines right
+# ### # ### # Examples:
+# ### # ### # 5j - Move down 5 lines
+# ### # ### # 3dw - Delete 3 words
+# ### # ### # 10x - Delete 10 characters
+# ### # ### # 2dd - Delete 2 lines
+# ### # ### # 4>> - Indent 4 lines right
 
 % kindavim, text objects, advanced
 
-# Text object: word
-iw (inside word)
-aw (around word)
+# ### # ### # Text object: word
 
-# Text object: WORD (space separated)
-iW (inside WORD)
-aW (around WORD)
+# ### # ### # Text object: WORD (space separated)
 
-# Text object: sentence
-is (inside sentence)
-as (around sentence)
+# ### # ### # Text object: sentence
 
-# Text object: paragraph
-ip (inside paragraph)
-ap (around paragraph)
+# ### # ### # Text object: paragraph
 
-# Text object: parentheses
-i( or ib (inside parentheses)
-a( or ab (around parentheses)
+# ### # ### # Text object: parentheses
 
-# Text object: braces
-i{ or iB (inside braces)
-a{ or aB (around braces)
+# ### # ### # Text object: braces
 
-# Text object: brackets
-i[ (inside brackets)
-a[ (around brackets)
+# ### # ### # Text object: brackets
 
-# Text object: angle brackets
-i< (inside angle brackets)
-a< (around angle brackets)
+# ### # ### # Text object: angle brackets
 
-# Text object: quotes
-i" (inside double quotes)
-a" (around double quotes)
-i' (inside single quotes)
-a' (around single quotes)
-i` (inside backticks)
-a` (around backticks)
+# ### # ### # Text object: quotes
 
 % kindavim, operators, commands
 
-# Operator: Delete
-d
+# ### # ### # Operator: Delete
 
-# Operator: Change
-c
+# ### # ### # Operator: Change
 
-# Operator: Yank (copy)
-y
+# ### # ### # Operator: Yank (copy)
 
-# Operator: Indent right
->
+# ### # ### # Operator: Indent right
 
-# Operator: Indent left
-<
+# ### # ### # Operator: Indent left
 
-# Operator: Switch case
-~
+# ### # ### # Operator: Switch case
 
-# Operator: Format (if supported)
-gq
+# ### # ### # Operator: Format (if supported)
 
-# Combine operator + motion/text object
-# Examples:
-# diw - Delete inside word
-# ci" - Change inside double quotes
-# yap - Yank around paragraph
-# >} - Indent to next paragraph
+# ### # ### # Combine operator + motion/text object
+# ### # ### # Examples:
+# ### # ### # diw - Delete inside word
+# ### # ### # ci" - Change inside double quotes
+# ### # ### # yap - Yank around paragraph
+# ### # ### # >} - Indent to next paragraph
 
 % kindavim, marks, jumps
 
-# Set mark at current position
-m <letter>
+# ### # ### # Set mark at current position
 
-# Jump to mark
-' <letter>
+# ### # ### # Jump to mark
 
-# Jump to mark (line and column)
-` <letter>
+# ### # ### # Jump to mark (line and column)
 
-# Jump to beginning of line of mark
-''
+# ### # ### # Jump to beginning of line of mark
 
-# Jump to previous position
-``
+# ### # ### # Jump to previous position
 
-# Jump to last edit location
-`.
+# ### # ### # Jump to last edit location
 
 % kindavim, registers
 
-# Use register for yank/delete
-"<register><command>
+# ### # ### # Use register for yank/delete
 
-# Examples:
-# "ayy - Yank line to register a
-# "ap - Paste from register a
-# "add - Delete line to register a
+# ### # ### # Examples:
+# ### # ### # "ayy - Yank line to register a
+# ### # ### # "ap - Paste from register a
+# ### # ### # "add - Delete line to register a
 
-# System clipboard register
-"*
+# ### # ### # System clipboard register
 
-# System clipboard register (alternative)
-"+
+# ### # ### # System clipboard register (alternative)
 
-# Last yanked text
-"0
+# ### # ### # Last yanked text
 
-# Last deleted text
-"1
+# ### # ### # Last deleted text
 
-# Black hole register (delete without saving)
-"_
+# ### # ### # Black hole register (delete without saving)
 

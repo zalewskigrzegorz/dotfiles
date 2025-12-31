@@ -38,7 +38,7 @@ $windows
 | each { |win| aerospace move-node-to-workspace media --window-id $win.window-id }
 
 $windows 
-| where app-name =~ "(?i)noteplan" 
+| where app-name =~ "(?i)noteplan|Obsidian" 
 | each { |win| aerospace move-node-to-workspace notes --window-id $win.window-id }
 
 $windows 

@@ -311,12 +311,16 @@ if.app-name-regex-substring = 'NotePlan'
 run = 'move-node-to-workspace notes'
 
 [[on-window-detected]]
+if.app-name-regex-substring = 'Obsidian'
+run = 'move-node-to-workspace notes'
+
+[[on-window-detected]]
 if.app-name-regex-substring = 'Canary Mail'
 run = 'move-node-to-workspace mail'
 
-[[on-window-detected]]
-if.app-name-regex-substring = 'Spark Mail'
-run = 'move-node-to-workspace mail'
+#[[on-window-detected]]
+#if.app-name-regex-substring = 'Spark Mail'
+#run = 'move-node-to-workspace mail'
 
 
 [[on-window-detected]]

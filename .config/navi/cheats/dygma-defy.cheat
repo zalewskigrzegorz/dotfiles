@@ -1,91 +1,91 @@
 % dygma, defy, keyboard, layers, shortcuts
 
-# Dygma Defy Layer Navigation
-# Access Layer 1 (Function): Hold Fn key
-# Access Layer 2 (Numbers): Hold Num key (if configured)
-# Access Layer 3 (Symbols): Hold Sym key (if configured)
-# Sticky layer: Double-tap layer key
-# Return to base layer: Release layer key or tap base layer
+# ### # ### # Dygma Defy Layer Navigation
+# ### # ### # Access Layer 1 (Function): Hold Fn key
+# ### # ### # Access Layer 2 (Numbers): Hold Num key (if configured)
+# ### # ### # Access Layer 3 (Symbols): Hold Sym key (if configured)
+# ### # ### # Sticky layer: Double-tap layer key
+# ### # ### # Return to base layer: Release layer key or tap base layer
 
-# Base Layer (QWERTY)
-# Standard QWERTY layout
-# Special thumb keys: Space, Enter, Backspace, Delete
-# Modifier keys: Shift, Ctrl, Alt, Cmd (as configured)
+# ### # ### # Base Layer (QWERTY)
+# ### # ### # Standard QWERTY layout
+# ### # ### # Special thumb keys: Space, Enter, Backspace, Delete
+# ### # ### # Modifier keys: Shift, Ctrl, Alt, Cmd (as configured)
 
-# Function Layer (Layer 1)
-# F1-F12: Top row numbers become function keys
-# Media controls: Play/Pause, Next, Previous, Volume
-# Arrow keys: WASD or IJKL (depending on config)
-# Home/End/PgUp/PgDn: Navigation cluster
+# ### # ### # Function Layer (Layer 1)
+# ### # ### # F1-F12: Top row numbers become function keys
+# ### # ### # Media controls: Play/Pause, Next, Previous, Volume
+# ### # ### # Arrow keys: WASD or IJKL (depending on config)
+# ### # ### # Home/End/PgUp/PgDn: Navigation cluster
 
-# Number Layer (Layer 2) - If configured
-# Numpad layout: Right side becomes numeric keypad
-# Math operators: +, -, *, /, =
-# Decimal point and Enter
+# ### # ### # Number Layer (Layer 2) - If configured
+# ### # ### # Numpad layout: Right side becomes numeric keypad
+# ### # ### # Math operators: +, -, *, /, =
+# ### # ### # Decimal point and Enter
 
-# Symbol Layer (Layer 3) - If configured  
-# Special characters: @, #, $, %, ^, &, *, etc.
-# Brackets: (), [], {}, <>
-# Programming symbols: |, \, `, ~
+# ### # ### # Symbol Layer (Layer 3) - If configured
+# ### # ### # Special characters: @, #, $, %, ^, &, *, etc.
+# ### # ### # Brackets: (), [], {}, <>
+# ### # ### # Programming symbols: |, \, `, ~
 
-# Thumb Cluster Shortcuts
-# Left thumb: Space (tap), Layer modifier (hold)
-# Right thumb: Enter (tap), Backspace (hold)
-# Inner thumbs: Additional modifiers or layer access
+# ### # ### # Thumb Cluster Shortcuts
+# ### # ### # Left thumb: Space (tap), Layer modifier (hold)
+# ### # ### # Right thumb: Enter (tap), Backspace (hold)
+# ### # ### # Inner thumbs: Additional modifiers or layer access
 
-# Custom Shortcuts (Configure in Bazecor)
-# Leader key sequences: Set up custom key combinations
-# Macros: Record and playback key sequences
-# Mouse keys: Control mouse cursor with keyboard
-# One-shot modifiers: Sticky Shift, Ctrl, Alt
+# ### # ### # Custom Shortcuts (Configure in Bazecor)
+# ### # ### # Leader key sequences: Set up custom key combinations
+# ### # ### # Macros: Record and playback key sequences
+# ### # ### # Mouse keys: Control mouse cursor with keyboard
+# ### # ### # One-shot modifiers: Sticky Shift, Ctrl, Alt
 
-# Gaming Mode (if configured)
-# Disable Cmd key to prevent accidental app switching
-# Optimized key placement for gaming
-# Macro keys for game-specific actions
+# ### # ### # Gaming Mode (if configured)
+# ### # ### # Disable Cmd key to prevent accidental app switching
+# ### # ### # Optimized key placement for gaming
+# ### # ### # Macro keys for game-specific actions
 
-# Bazecor Software Configuration
-# Download: https://github.com/Dygmalab/Bazecor
-# Flash firmware: Connect keyboard and click Flash
-# Backup layout: Export current configuration
-# Import layout: Load saved configuration
-# Test keys: Use key tester to verify layout
+# ### # ### # Bazecor Software Configuration
+# ### # ### # Download: https://github.com/Dygmalab/Bazecor
+# ### # ### # Flash firmware: Connect keyboard and click Flash
+# ### # ### # Backup layout: Export current configuration
+# ### # ### # Import layout: Load saved configuration
+# ### # ### # Test keys: Use key tester to verify layout
 
-# LED Control (if RGB model)
-# Brightness: Fn + LED keys
-# Color themes: Cycle through preset themes
-# Per-key lighting: Configure individual key colors
-# Layer indication: Different colors for different layers
+# ### # ### # LED Control (if RGB model)
+# ### # ### # Brightness: Fn + LED keys
+# ### # ### # Color themes: Cycle through preset themes
+# ### # ### # Per-key lighting: Configure individual key colors
+# ### # ### # Layer indication: Different colors for different layers
 
-# Maintenance & Tips
-# Clean keys: Remove keycaps and clean regularly
-# Firmware updates: Check Bazecor for updates
-# Key remapping: Any key can be mapped to any function
-# Layer stacking: Multiple layers can be active simultaneously
+# ### # ### # Maintenance & Tips
+# ### # ### # Clean keys: Remove keycaps and clean regularly
+# ### # ### # Firmware updates: Check Bazecor for updates
+# ### # ### # Key remapping: Any key can be mapped to any function
+# ### # ### # Layer stacking: Multiple layers can be active simultaneously
 
-# Common Customizations
-# Swap Caps Lock: Make it Ctrl or Escape
-# Home row mods: Add modifiers to home row keys
-# Combo keys: Create key combinations for shortcuts
-# Tap-hold: Different actions for tap vs hold
+# ### # ### # Common Customizations
+# ### # ### # Swap Caps Lock: Make it Ctrl or Escape
+# ### # ### # Home row mods: Add modifiers to home row keys
+# ### # ### # Combo keys: Create key combinations for shortcuts
+# ### # ### # Tap-hold: Different actions for tap vs hold
 
-# Troubleshooting
-# Key not working: Check Bazecor configuration
-# Layout reset: Reflash default firmware
-# Connection issues: Try different USB cable/port
-# Sync issues: Re-pair wireless connection (if wireless)
+# ### # ### # Troubleshooting
+# ### # ### # Key not working: Check Bazecor configuration
+# ### # ### # Layout reset: Reflash default firmware
+# ### # ### # Connection issues: Try different USB cable/port
+# ### # ### # Sync issues: Re-pair wireless connection (if wireless)
 
-# Pro Tips for Efficiency
-# Use thumb keys more: Reduce pinky strain
-# Layer-tap: Quick access to symbols and numbers
-# Leader sequences: Complex shortcuts with simple keys
-# Muscle memory: Practice new layouts gradually
+# ### # ### # Pro Tips for Efficiency
+# ### # ### # Use thumb keys more: Reduce pinky strain
+# ### # ### # Layer-tap: Quick access to symbols and numbers
+# ### # ### # Leader sequences: Complex shortcuts with simple keys
+# ### # ### # Muscle memory: Practice new layouts gradually
 
-# Example Custom Shortcuts (configure these in Bazecor)
-# Cmd+Shift+4: Screenshot (could be single key)
-# Cmd+Space: Spotlight (could be thumb combo)
-# Alt+Tab: App switching (could be layer+key)
-# Ctrl+C/V: Copy/paste (optimize placement)
+# ### # ### # Example Custom Shortcuts (configure these in Bazecor)
+# ### # ### # Cmd+Shift+4: Screenshot (could be single key)
+# ### # ### # Cmd+Space: Spotlight (could be thumb combo)
+# ### # ### # Alt+Tab: App switching (could be layer+key)
+# ### # ### # Ctrl+C/V: Copy/paste (optimize placement)
 
-# TODO: Add your actual Dygma Defy layer mappings
-# Edit this file to match your specific configuration 
+# ### # ### # TODO: Add your actual Dygma Defy layer mappings
+# ### # ### # Edit this file to match your specific configuration

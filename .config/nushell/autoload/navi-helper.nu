@@ -1,6 +1,28 @@
 # Navi Cheatsheet Helper
 # Quick way to add new commands to your Navi cheatsheets
 
+# Normalize malformed tag lines in cheat files
+# Fixes patterns like "% ## Tags: % ## Tags: % tags" to "% tags"
+def normalize-tags [content: string] {
+    $content | lines | each { |line|
+        if ($line | str starts-with "%") {
+            # Remove malformed patterns: "% ## Tags: % ## Tags: %" or "% ## Tags: %"
+            mut normalized_line = $line
+            # Fix double pattern first
+            if ($normalized_line | str contains "% ## Tags: % ## Tags: %") {
+                $normalized_line = ($normalized_line | str replace "% ## Tags: % ## Tags: % " "% " | str replace "% ## Tags: % ## Tags: %" "% ")
+            }
+            # Fix single pattern
+            if ($normalized_line | str contains "% ## Tags: %") {
+                $normalized_line = ($normalized_line | str replace "% ## Tags: % " "% " | str replace "% ## Tags: %" "% ")
+            }
+            $normalized_line | str trim
+        } else {
+            $line
+        }
+    } | str join "\n"
+}
+
 # Add a new command to a Navi cheatsheet
 # Usage: navi-add "description" "command" [cheatsheet_file]
 # Example: navi-add "List all tmux sessions" "tmux ls" tmux
@@ -26,6 +48,15 @@ export def "navi-add" [
         }
         $"% ($tags)" | save -f $cheat_file
         print $"Created new cheatsheet file: ($cheat_file)"
+    } else {
+        # Normalize malformed tags if file exists
+        let content = (open $cheat_file)
+        let normalized = (normalize-tags $content)
+        # Only save and notify if tags were actually changed
+        if ($content | str trim) != ($normalized | str trim) {
+            $normalized | save -f $cheat_file
+            print $"✅ Fixed malformed tags in ($cheat_file)"
+        }
     }
     
     # Append the new command
@@ -141,4 +172,3 @@ export def "navi-search" [
     }
     | flatten
 }
-
