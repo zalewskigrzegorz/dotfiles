@@ -31,3 +31,5 @@ echo "To stop: pkill -f kindavim_watcher.sh"
 
 
 
+
+

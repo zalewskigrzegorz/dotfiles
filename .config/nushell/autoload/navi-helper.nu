@@ -141,30 +141,3 @@ export def "navi-search" [
     }
     | flatten
 }
-
-# Sync Navi cheats with Obsidian
-# Synchronizes navi cheat files (.cheat) with Obsidian markdown files (.md)
-# Usage: navi-sync [--mode: all|to-obsidian|from-obsidian]
-export def "navi-sync" [
-    --mode: string = "all"  # Sync mode: "all" (bidirectional), "to-obsidian", or "from-obsidian"
-] {
-    # Get the script path
-    let config_dir = ($nu.config-path | path dirname)
-    let script_path = ($config_dir | path join ".." ".." ".." "sync-navi-obsidian.nu" | path expand)
-    
-    if not ($script_path | path exists) {
-        # Fallback: try common locations
-        let home = $env.HOME
-        let fallback_path = ($home | path join "Code" "dotfiles" "sync-navi-obsidian.nu")
-        if ($fallback_path | path exists) {
-            nu $fallback_path --mode $mode
-        } else {
-            print $"❌ Error: sync-navi-obsidian.nu not found"
-            print "Please ensure the dotfiles repository is accessible."
-            return
-        }
-    } else {
-        nu $script_path --mode $mode
-    }
-}
-

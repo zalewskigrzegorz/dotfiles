@@ -7,14 +7,25 @@ local map = LazyVim.safe_keymap_set
 -- Use jj to exit insert mode
 map("i", "jj", "<Esc>", { desc = "Exit insert mode", remap = false })
 
--- Repurpose Escape to close window/buffer intelligently
-map("n", "<Esc>", function()
-  if vim.fn.winnr("$") > 1 then
+-- Close window/buffer safely (only when no unsaved changes)
+-- Closes window if multiple windows exist, otherwise closes buffer only if unmodified
+map("n", "<leader>q", function()
+  local win_count = vim.fn.winnr("$")
+  local buf = vim.api.nvim_get_current_buf()
+  local is_modified = vim.api.nvim_buf_get_option(buf, "modified")
+  
+  if win_count > 1 then
+    -- Multiple windows: use :q which respects unsaved changes
     vim.cmd("q")
   else
-    vim.cmd("bdelete")
+    -- Single window: only close buffer if it's not modified
+    if is_modified then
+      vim.notify("Buffer has unsaved changes. Save first or use :q!", vim.log.levels.WARN)
+    else
+      vim.cmd("bdelete")
+    end
   end
-end, { desc = "Close window or buffer", remap = false })
+end, { desc = "Close window or unmodified buffer", remap = false })
 
 -- Existing keymap
 map("n", "<leader>ff", "<cmd>lua require'telescope.builtin'.find_files({ find_command = {'rg', '--files', '--hidden', '-g', '!.git' }})<cr>", { desc = "Find files" })
