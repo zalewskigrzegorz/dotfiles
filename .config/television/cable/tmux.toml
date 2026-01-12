@@ -4,8 +4,8 @@ description = "Select tmux sessions"
 requirements = ["tmux"]
 
 [source]
-command = ["tmux list-sessions -F '#{session_name}' 2>/dev/null || echo ''"]
+command = "bash -c 'tmux list-sessions -F \"#{session_name}\" 2>/dev/null || echo \"\"'"
 
 [preview]
-command = "tmux list-sessions -F 'Session: #{session_name}\nCreated: #{session_created}\nAttached: #{session_attached}\nWindows: #{session_windows}' | grep -A3 'Session: {}'"
+command = "bash -c 'tmux list-sessions -F \"Session: #{session_name}\\nCreated: #{session_created}\\nAttached: #{session_attached}\\nWindows: #{session_windows}\" | grep -A3 \"Session: {}\"'"
 

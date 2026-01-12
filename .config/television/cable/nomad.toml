@@ -4,7 +4,7 @@ description = "Select Nomad jobs"
 requirements = ["nomad", "jq"]
 
 [source]
-command = ["nomad job status -json 2>/dev/null | jq -r '.[].ID' || echo ''"]
+command = "bash -c 'nomad job status -json 2>/dev/null | jq -r \".[].ID\" || echo \"\"'"
 
 [preview]
-command = "nomad job status {} 2>/dev/null || echo 'Job details not available'" 
+command = "bash -c 'nomad job status \"{}\" 2>/dev/null || echo \"Job details not available\"'" 
