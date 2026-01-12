@@ -51,6 +51,76 @@ local workspace_colors = {
 }
 
 local current_workspace = get_current_workspace()
+
+-- Simple throttling to prevent excessive calls within short time window
+local last_update_time = 0
+local UPDATE_THROTTLE_MS = 50 -- Minimum time between updates (50ms)
+
+-- Helper function to update all workspaces from a single query
+local function update_all_workspaces_from_single_query()
+    -- Single query to get all windows with workspace info
+    sbar.exec("aerospace list-windows --all --format '%{workspace}%{app-name}' --json", function(all_windows)
+        if not all_windows or type(all_windows) ~= "table" then
+            return
+        end
+        
+        -- Group windows by workspace
+        local windows_by_workspace = {}
+        for i, window in ipairs(all_windows) do
+            if type(window) == "table" then
+                local workspace = window["workspace"]
+                local app_name = window["app-name"]
+                if workspace and app_name then
+                    if not windows_by_workspace[workspace] then
+                        windows_by_workspace[workspace] = {}
+                    end
+                    table.insert(windows_by_workspace[workspace], app_name)
+                end
+            end
+        end
+        
+        -- Update each workspace label
+        for i, workspace in ipairs(workspace_order) do
+            local apps = windows_by_workspace[workspace] or {}
+            local icon_line = ""
+            local no_app = true
+            
+            for j, app_name in ipairs(apps) do
+                -- Ignore kindaVim from workspace icons
+                if app_name == "kindaVim" then
+                    goto continue
+                end
+                
+                no_app = false
+                local lookup = app_icons[app_name]
+                local icon = ((lookup == nil) and app_icons["default"] or lookup)
+                local notification = get_notification_indicator(app_name)
+                
+                -- Add notification indicator if present
+                if notification ~= "" then
+                    icon_line = icon_line .. " " .. icon .. notification
+                else
+                    icon_line = icon_line .. " " .. icon
+                end
+                
+                ::continue::
+            end
+            
+            if no_app then
+                icon_line = " —"
+            end
+            
+            if spaces[i] then
+                sbar.animate("tanh", 10, function()
+                    spaces[i]:set({
+                        label = icon_line
+                    })
+                end)
+            end
+        end
+    end)
+end
+
 local function split(str, sep)
     local result = {}
     local regex = ("([^%s]+)"):format(sep)
@@ -133,43 +203,6 @@ for i, workspace in ipairs(workspace_order) do
 
     spaces[i] = space
 
-    -- Define the icons for open apps on each space initially
-    sbar.exec("aerospace list-windows --workspace " .. workspace .. " --format '%{app-name}' --json ", function(apps)
-        local icon_line = ""
-        local no_app = true
-        for j, app in ipairs(apps) do
-            local app_name = app["app-name"]
-            
-            -- Ignore kindaVim from workspace icons
-            if app_name == "kindaVim" then
-                goto continue
-            end
-            
-            no_app = false
-            local lookup = app_icons[app_name]
-            local icon = ((lookup == nil) and app_icons["default"] or lookup)
-            local notification = get_notification_indicator(app_name)
-            
-            -- Add notification indicator if present
-            if notification ~= "" then
-                icon_line = icon_line .. " " .. icon .. notification
-            else
-                icon_line = icon_line .. " " .. icon
-            end
-            
-            ::continue::
-        end
-
-        if no_app then
-            icon_line = " —"
-        end
-
-        sbar.animate("tanh", 10, function()
-            space:set({
-                label = icon_line
-            })
-        end)
-    end)
 
     -- Padding space between each item
     sbar.add("item", "item." .. i .. "padding", {
@@ -291,91 +324,58 @@ local space_window_observer = sbar.add("item", {
 
 -- Handles the small icon indicator for spaces / menus changes
 space_window_observer:subscribe("space_windows_change", function(env)
+    -- Throttle updates to prevent excessive calls
+    local current_time = os.time() * 1000
+    if (current_time - last_update_time) < UPDATE_THROTTLE_MS then
+        return
+    end
+    last_update_time = current_time
+    
     -- Update notifications when windows change
     update_app_notifications()
     
-    for i, workspace in ipairs(workspace_order) do
-        sbar.exec("aerospace list-windows --workspace " .. workspace .. " --format '%{app-name}' --json ", function(apps)
-            local icon_line = ""
-            local no_app = true
-            for j, app in ipairs(apps) do
-                local app_name = app["app-name"]
-                
-                -- Ignore kindaVim from workspace icons
-                if app_name == "kindaVim" then
-                    goto continue
-                end
-                
-                no_app = false
-                local lookup = app_icons[app_name]
-                local icon = ((lookup == nil) and app_icons["default"] or lookup)
-                local notification = get_notification_indicator(app_name)
-                
-                -- Add notification indicator if present
-                if notification ~= "" then
-                    icon_line = icon_line .. " " .. icon .. notification
-                else
-                    icon_line = icon_line .. " " .. icon
-                end
-                
-                ::continue::
-            end
-
-            if no_app then
-                icon_line = " —"
-            end
-
-            sbar.animate("tanh", 10, function()
-                spaces[i]:set({
-                    label = icon_line
-                })
-            end)
-        end)
-    end
+    -- Single query for all workspaces
+    update_all_workspaces_from_single_query()
 end)
 
 space_window_observer:subscribe("aerospace_focus_change", function(env)
+    -- Throttle updates to prevent excessive calls
+    local current_time = os.time() * 1000
+    if (current_time - last_update_time) < UPDATE_THROTTLE_MS then
+        return
+    end
+    last_update_time = current_time
+    
     -- Update notifications when focus changes
     update_app_notifications()
     
-    for i, workspace in ipairs(workspace_order) do
-        sbar.exec("aerospace list-windows --workspace " .. workspace .. " --format '%{app-name}' --json ", function(apps)
-            local icon_line = ""
-            local no_app = true
-            for j, app in ipairs(apps) do
-                local app_name = app["app-name"]
-                
-                -- Ignore kindaVim from workspace icons
-                if app_name == "kindaVim" then
-                    goto continue
-                end
-                
-                no_app = false
-                local lookup = app_icons[app_name]
-                local icon = ((lookup == nil) and app_icons["default"] or lookup)
-                local notification = get_notification_indicator(app_name)
-                
-                -- Add notification indicator if present
-                if notification ~= "" then
-                    icon_line = icon_line .. " " .. icon .. notification
-                else
-                    icon_line = icon_line .. " " .. icon
-                end
-                
-                ::continue::
-            end
+    -- Single query for all workspaces
+    update_all_workspaces_from_single_query()
+end)
 
-            if no_app then
-                icon_line = " —"
-            end
-
-            sbar.animate("tanh", 10, function()
-                spaces[i]:set({
-                    label = icon_line
-                })
-            end)
-        end)
+-- Subscribe to window move events to refresh when windows are moved between workspaces
+space_window_observer:subscribe("window_created", function(env)
+    -- Throttle updates to prevent excessive calls
+    local current_time = os.time() * 1000
+    if (current_time - last_update_time) < UPDATE_THROTTLE_MS then
+        return
     end
+    last_update_time = current_time
+    
+    -- Single query for all workspaces
+    update_all_workspaces_from_single_query()
+end)
+
+space_window_observer:subscribe("window_destroyed", function(env)
+    -- Throttle updates to prevent excessive calls
+    local current_time = os.time() * 1000
+    if (current_time - last_update_time) < UPDATE_THROTTLE_MS then
+        return
+    end
+    last_update_time = current_time
+    
+    -- Single query for all workspaces
+    update_all_workspaces_from_single_query()
 end)
 
 -- Add periodic notification checking (every 45 seconds)
@@ -430,4 +430,10 @@ end)
 
 -- Initial notification update
 update_app_notifications()
+
+-- Initial load of all workspaces using single query
+-- Delay to ensure all spaces are initialized first
+sbar.exec("sleep 0.1", function()
+    update_all_workspaces_from_single_query()
+end)
 
