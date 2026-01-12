@@ -4,7 +4,7 @@ description = "Select pnpm scripts from package.json"
 requirements = ["jq"]
 
 [source]
-command = ["if [ -f package.json ]; then cat package.json | jq -r '.scripts // {} | keys[]' 2>/dev/null; fi"]
+command = "bash -c 'export PATH=\"$HOME/.asdf/shims:$HOME/Library/pnpm:$PATH\" && if [ -f package.json ]; then cat package.json | jq -r \"if .scripts then .scripts | keys[] else empty end\" 2>/dev/null; fi'"
 
 [preview]
-command = "if [ -f package.json ]; then cat package.json | jq -r '.scripts.\"{}\" // \"No script found\"'; else echo 'No package.json found'; fi" 
+command = "bash -c 'export PATH=\"$HOME/.asdf/shims:$HOME/Library/pnpm:$PATH\" && if [ -f package.json ]; then cat package.json | jq -r \".scripts.\\\"{}\\\" // \\\"No script found\\\"\" 2>/dev/null; else echo \"No package.json found\"; fi'" 

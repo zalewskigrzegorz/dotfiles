@@ -1,0 +1,9 @@
+[metadata]
+name = "bash-history"
+description = "A channel to select from your bash history"
+requirements = ["bash"]
+
+[source]
+command = "bash -c 'if [ -n \"$HISTFILE\" ]; then histfile=\"$HISTFILE\"; else histfile=\"$HOME/.bash_history\"; fi; sed \"1!G;h;$!d\" \"$histfile\"'"
+display = "{split:;:1..}"
+output = "{split:;:1..}"
