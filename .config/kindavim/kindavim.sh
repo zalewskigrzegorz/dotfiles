@@ -8,13 +8,12 @@ KINDAVIM_ENV_FILE="$HOME/Library/Application Support/kindaVim/environment.json"
 # Check if kindaVim process is actually running
 if ! pgrep -x "kindaVim" > /dev/null; then
     # kindaVim is not running, clear mode
-    sketchybar --trigger kindavim_update MODE=""
+    /opt/homebrew/bin/sketchybar --trigger kindavim_update MODE=""
     exit 0
 fi
 
 # Read the current mode from kindaVim's environment file
-# Note: kindaVim only writes persistent modes (normal, insert, visual) to environment.json
-# Transient modes (command, replace) are not written to the file and cannot be detected
+# kindaVim now writes all modes (normal, insert, visual, command, replace) to environment.json
 if [ -f "$KINDAVIM_ENV_FILE" ]; then
     # Extract mode from JSON (e.g., {"mode":"insert"} -> insert)
     MODE=$(cat "$KINDAVIM_ENV_FILE" | grep -o '"mode":"[^"]*"' | cut -d'"' -f4)
@@ -30,6 +29,12 @@ if [ -f "$KINDAVIM_ENV_FILE" ]; then
         "visual")
             MODE="V"
             ;;
+        "command")
+            MODE="C"
+            ;;
+        "replace")
+            MODE="R"
+            ;;
         *)
             # Unknown mode - default to empty
             MODE=""
@@ -37,9 +42,9 @@ if [ -f "$KINDAVIM_ENV_FILE" ]; then
     esac
     
     # Send event to sketchybar
-    sketchybar --trigger kindavim_update MODE="$MODE"
+    /opt/homebrew/bin/sketchybar --trigger kindavim_update MODE="$MODE"
 else
     # No kindaVim active, clear mode
-    sketchybar --trigger kindavim_update MODE=""
+    /opt/homebrew/bin/sketchybar --trigger kindavim_update MODE=""
 fi
 

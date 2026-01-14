@@ -24,7 +24,7 @@ if command -v fswatch &> /dev/null; then
             update_sketchybar
         else
             # kindaVim stopped, clear mode
-            sketchybar --trigger kindavim_update MODE=""
+            /opt/homebrew/bin/sketchybar --trigger kindavim_update MODE=""
         fi
     done
 else
@@ -45,7 +45,7 @@ else
             fi
         else
             # kindaVim is not running, clear mode
-            sketchybar --trigger kindavim_update MODE=""
+            /opt/homebrew/bin/sketchybar --trigger kindavim_update MODE=""
             LAST_MODIFIED=""
         fi
         sleep 0.3

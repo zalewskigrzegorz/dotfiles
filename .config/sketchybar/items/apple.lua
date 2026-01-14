@@ -146,8 +146,7 @@ end)
 -- end)
 
 -- Vim mode events - kindaVim (ACTIVE)
--- Note: kindaVim only exposes persistent modes (N, I, V) via environment.json
--- Transient modes (C, R) are not available and cannot be displayed
+-- kindaVim now exposes all modes (N, I, V, C, R) via environment.json
 apple:subscribe("kindavim_update", function(env)
 	local mode = env.MODE or ""
 
