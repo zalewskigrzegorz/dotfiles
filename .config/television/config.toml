@@ -270,6 +270,7 @@ fallback_channel = "files"
 "nomad" = ["nomad job", "nomad alloc"]
 "basti" = ["basti connect", "basti-nomad"]
 "zoxide" = ["z", "zoxide"]
+"pm2" = ["pnpm pm2 logs", "pnpm pm2 stop", "pnpm pm2 restart", "pnpm pm2 start", "pnpm pm2 delete", "pnpm pm2 reload", "pnpm pm2 describe", "pm2 logs", "pm2 stop", "pm2 restart", "pm2 start", "pm2 delete", "pm2 reload", "pm2 describe"]
 
 [shell_integration.keybindings]
 # controls which key binding should trigger tv
