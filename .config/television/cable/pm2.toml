@@ -1,0 +1,11 @@
+[metadata]
+name = "pm2"
+description = "Select PM2 processes by name or ID"
+requirements = ["pnpm", "jq"]
+
+[source]
+command = "bash -c 'export PATH=\"$HOME/.asdf/shims:$HOME/Library/pnpm:$PATH\" && pnpm pm2 jlist 2>/dev/null | jq -r \".[] | \\\"[\\(.pm_id)] \\(.name)\\\"\"'"
+output = "{split: :1}"
+
+[preview]
+command = "bash -c 'export PATH=\"$HOME/.asdf/shims:$HOME/Library/pnpm:$PATH\" && pnpm pm2 jlist 2>/dev/null | jq -r \".[] | select(.name == \\\"{}\\\") | \\\"ID: \\(.pm_id)\\nName: \\(.name)\\nStatus: \\(.pm2_env.status)\\nUptime: \\(.pm2_env.pm_uptime)\\nRestarts: \\(.pm2_env.restart_time)\\nCPU: \\(.monit.cpu)%\\nMemory: \\(.monit.memory/1024/1024 | floor)MB\\nMode: \\(.pm2_env.exec_mode)\\n\"'"
