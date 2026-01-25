@@ -68,5 +68,5 @@ $env.NAVI_PATH = [
 ]
 
 # bit
-$env.PATH = ($env.PATH | split row (char esep) | append $"($home)/bin" )
+$env.PATH = ($env.PATH | split row (char esep) | append /Users/greg/bin )
 # bit end

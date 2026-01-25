@@ -2,7 +2,7 @@
 # Override tmux to always use XDG config location
 
 # Create tmux alias that always uses our config file
-alias tmux = ^tmux -f ($env.TMUX_CONFIG? | default ($nu.home-path | path join ".config" "tmux" "tmux.conf"))
+alias tmux = ^tmux -f ($env.TMUX_CONFIG? | default ($env.HOME | path join ".config" "tmux" "tmux.conf"))
 
 # Helper function to get tmux sessions
 def "tmux sessions" [] {
