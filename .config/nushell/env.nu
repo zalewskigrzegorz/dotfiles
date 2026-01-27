@@ -3,6 +3,9 @@
 # Editor
 $env.EDITOR = "nvim"
 $env.VISUAL = "nvim"
+
+# Logging
+$env.LOG_FORMAT = "json"
 $env.SHELL = "/opt/homebrew/bin/nu"
 $env.NX_TUI = true
 
