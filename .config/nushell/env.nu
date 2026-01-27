@@ -26,6 +26,7 @@ let home = $env.HOME
 # path add "/Applications/Docker.app/Contents/Resources/bin"
 
 $env.PATH = ($env.PATH | split row (char esep) | prepend [
+    "/Applications/Cursor.app/Contents/Resources/app/bin"
     "/opt/homebrew/opt/asdf/libexec/bin"
     $"($home)/.asdf/shims"
     $"($home)/.asdf/installs"
