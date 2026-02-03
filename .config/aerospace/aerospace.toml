@@ -68,15 +68,15 @@ preset = 'qwerty'
 # monitor force strategy
 [workspace-to-monitor-force-assignment]
 # Core workspaces on external (when available)
-chat = 'C34H89x'
-web = 'C34H89x'
-code = 'C34H89x'
-term = 'C34H89x'
-media = 'C34H89x'
-test = 'C34H89x'
-misc = 'C34H89x'
-mail = 'C34H89x'
-notes = 'C34H89x'
+chat = 'DELL U3225QE'
+web = 'DELL U3225QE'
+code = 'DELL U3225QE'
+term = 'DELL U3225QE'
+media = 'DELL U3225QE'
+test = 'DELL U3225QE'
+misc = 'DELL U3225QE'
+mail = 'DELL U3225QE'
+notes = 'DELL U3225QE'
 mac = 'Built-in'
 
 # Gaps between windows (inner-*) and between monitor edges (outer-*).
@@ -92,7 +92,7 @@ inner.horizontal = 8
 inner.vertical = 8
 outer.left = 5
 outer.bottom = 5
-outer.top = [{ monitor."Built-in" = 10 }, { monitor.'C34H89x' = 45 }, 24]
+outer.top = [{ monitor."Built-in" = 10 }, { monitor.'DELL U3225QE' = 45 }, 24]
 outer.right = 5
 
 # 'main' binding mode declaration
