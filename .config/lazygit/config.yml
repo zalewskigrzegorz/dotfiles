@@ -1,5 +1,9 @@
+git:
+  paging:
+    colorArg: always
+    pager: delta --paging=never
 gui:
-# DRACULA
+  # DRACULA
   theme:
     activeBorderColor:
       - "#FF79C6"
