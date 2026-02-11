@@ -4,7 +4,7 @@ description = "Select pnpm scripts from package.json"
 requirements = ["jq"]
 
 [source]
-command = "bash -c 'export PATH=\"$HOME/.asdf/shims:$HOME/Library/pnpm:$PATH\" && if [ -f package.json ]; then cat package.json | jq -r \"if .scripts then .scripts | keys[] else empty end\" 2>/dev/null; fi'"
+command = "bash -c 'export PATH=\"$HOME/.asdf/shims:$HOME/Library/pnpm:$PATH\" && dir=\"${PWD:-$(pwd)}\" && while [ \"$dir\" != \"/\" ]; do if [ -f \"$dir/package.json\" ]; then cat \"$dir/package.json\" | jq -r \"if .scripts then .scripts | keys[] else empty end\" 2>/dev/null; break; fi; dir=\"$(dirname \"$dir\")\"; done'"
 
 [preview]
-command = "bash -c 'export PATH=\"$HOME/.asdf/shims:$HOME/Library/pnpm:$PATH\" && if [ -f package.json ]; then cat package.json | jq -r \".scripts.\\\"{}\\\" // \\\"No script found\\\"\" 2>/dev/null; else echo \"No package.json found\"; fi'" 
+command = "bash -c 'export PATH=\"$HOME/.asdf/shims:$HOME/Library/pnpm:$PATH\" && dir=\"${PWD:-$(pwd)}\" && while [ \"$dir\" != \"/\" ]; do if [ -f \"$dir/package.json\" ]; then cat \"$dir/package.json\" | jq -r \".scripts.\\\"{}\\\" // \\\"No script found\\\"\" 2>/dev/null; break; fi; dir=\"$(dirname \"$dir\")\"; done'" 
