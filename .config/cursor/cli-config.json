@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(ls)",
+      "Shell(find)",
+      "Shell(grep)"
+    ],
+    "deny": []
+  },
+  "version": 1,
+  "editor": {
+    "vimMode": false,
+    "defaultBehavior": "agent"
+  },
+  "model": {
+    "modelId": "default",
+    "displayModelId": "auto",
+    "displayName": "Auto",
+    "displayNameShort": "Auto",
+    "aliases": [
+      "auto"
+    ]
+  },
+  "hasChangedDefaultModel": false,
+  "privacyCache": {
+    "ghostMode": true,
+    "privacyMode": 2,
+    "updatedAt": 1758210274892
+  },
+  "network": {
+    "useHttp1ForAgent": false
+  }
+}

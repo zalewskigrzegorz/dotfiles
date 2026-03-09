@@ -65,7 +65,7 @@ def nomad-pull-logs [
         
         # Exit code 1 might be auth issue, but let's show the error
         let exit_code_str = ($nomad_check.exit_code | into string)
-        print $"⚠️  Nomad command failed (exit code " + $exit_code_str + "): " + $error_output
+        print ("⚠️  Nomad command failed (exit code " + $exit_code_str + "): " + $error_output)
         print "❌ Cannot connect to Nomad with current token, prompting for new token..."
         let new_token = (nomad-login)
         $env.NOMAD_TOKEN = $new_token
