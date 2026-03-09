@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Sync agent-skills from dotfiles to ~/.cursor/skills (copy, no symlinks).
+# Wywołuje: skills update (local→store) + skills sync (store→cursor); fallback: rsync.
+
+set -e
+
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
+SOURCE="${DOTFILES}/agent-skills"
+TARGET="${HOME}/.cursor/skills"
+
+if [[ ! -d "$SOURCE" ]]; then
+  echo "No agent-skills directory at $SOURCE — nothing to sync."
+  exit 0
+fi
+
+mkdir -p "$TARGET"
+
+sync_with_skills() {
+  skills update
+  skills sync
+}
+
+sync_with_rsync() {
+  echo "Using rsync fallback (skills-cli not available or failed)."
+  rsync -a --delete "$SOURCE/" "$TARGET/"
+}
+
+if command -v skills &>/dev/null; then
+  if sync_with_skills; then
+    :
+  else
+    echo "skills sync failed; falling back to rsync."
+    sync_with_rsync
+  fi
+else
+  sync_with_rsync
+fi
+
+echo ""
+echo "Synced skills in ~/.cursor/skills:"
+ls -1 "$TARGET" 2>/dev/null || echo "  (none)"
+for d in "$TARGET"/*/; do
+  [[ -d "$d" ]] || continue
+  name=$(basename "$d")
+  echo "  - $name"
+done

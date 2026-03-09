@@ -143,23 +143,34 @@ def main [] {
         rm -rf $claude_home
     }
     
-    # Run stow (pomiń .claude jeśli niekompletne – tymczasowo ukryj, żeby nie zepsuć ~/.claude)
+    # Run stow (pomiń .claude jeśli niekompletne; zawsze pomiń .cursor – kopiujemy tylko settings.json)
     mut need_restore_claude = false
     if $has_claude and (not $claude_complete) {
         print "⚠️  Pomijam .claude (brak hooks/peon-ping w repo) – nie nadpisuję ~/.claude"
         ^mv .claude .claude.no-stow
         $need_restore_claude = true
     }
+    mut need_restore_cursor = false
+    if (".cursor" | path exists) {
+        ^mv .cursor .cursor.no-stow
+        $need_restore_cursor = true
+    }
     print "🔗 Running stow to create symlinks..."
     let stow_result = (do -i { ^stow . } | complete)
     if $need_restore_claude {
         ^mv .claude.no-stow .claude
+    }
+    if $need_restore_cursor {
+        ^mv .cursor.no-stow .cursor
     }
     
     if $stow_result.exit_code != 0 {
         print $"❌ Stow failed: ($stow_result.stderr)"
         if $need_restore_claude {
             ^mv .claude.no-stow .claude
+        }
+        if $need_restore_cursor {
+            ^mv .cursor.no-stow .cursor
         }
         print $"💡 Backups are available in ($backup_dir)/ for manual restoration if needed."
         return
@@ -195,6 +206,14 @@ def main [] {
         print "🎉 All configs successfully symlinked!"
         print $"💡 Backups saved in ($backup_dir)/"
         print "💡 You can delete backups once you've verified everything works"
+    }
+
+    # Copy Cursor settings (empty hooks - peon-ping lives in ~/.claude only, avoids double events)
+    if (".cursor/settings.json" | path exists) {
+        let cursor_settings = ("~/.cursor/settings.json" | path expand)
+        mkdir ($cursor_settings | path dirname)
+        cp -f .cursor/settings.json $cursor_settings
+        print "  ✅ Cursor settings.json (empty hooks) copied to ~/.cursor/"
     }
 
     # Sync Cursor agent-skills (copy, no symlinks) if source exists

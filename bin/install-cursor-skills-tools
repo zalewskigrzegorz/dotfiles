@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# Install Bun and @dhruvwill/skills-cli for Cursor skills sync.
+# Idempotent: safe to run when already installed.
+# Only runs on macOS with Homebrew.
+
+set -e
+
+if [[ "$(uname -s)" != Darwin ]]; then
+  echo "Skipping Cursor skills tools install (not macOS)."
+  exit 0
+fi
+
+if ! command -v brew &>/dev/null; then
+  echo "Skipping Cursor skills tools install (Homebrew not found)."
+  exit 0
+fi
+
+# Bun
+if ! command -v bun &>/dev/null; then
+  echo "Installing Bun..."
+  brew tap oven-sh/bun
+  brew install bun
+else
+  echo "Bun already installed."
+fi
+
+# skills-cli
+if ! command -v skills &>/dev/null; then
+  echo "Installing @dhruvwill/skills-cli..."
+  bun install -g @dhruvwill/skills-cli
+else
+  echo "skills-cli already installed ($(skills --version 2>/dev/null || true))."
+fi
+
+# Resolve DOTFILES (script lives in dotfiles/bin)
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
+AGENT_SKILLS="${DOTFILES}/agent-skills"
+
+if [[ ! -d "$AGENT_SKILLS" ]]; then
+  echo "Note: $AGENT_SKILLS not found; skip configuring skills-cli."
+  exit 0
+fi
+
+# Ensure skills-cli config has our source and cursor target
+SKILLS_DIR="${HOME}/.skills"
+CONFIG="${SKILLS_DIR}/config.json"
+mkdir -p "$SKILLS_DIR"
+
+if ! command -v skills &>/dev/null; then
+  exit 0
+fi
+
+# Add local source if not present
+if ! skills source list 2>/dev/null | grep -q 'dotfiles-skills'; then
+  echo "Adding skills source: dotfiles-skills -> $AGENT_SKILLS"
+  skills source add "$AGENT_SKILLS" --local --name dotfiles-skills
+else
+  echo "Skills source 'dotfiles-skills' already configured."
+fi
+
+# Add cursor target if not present
+if ! skills target list 2>/dev/null | grep -q 'cursor'; then
+  echo "Adding skills target: cursor -> ~/.cursor/skills"
+  skills target add cursor
+else
+  echo "Skills target 'cursor' already configured."
+fi
+
+echo "Cursor skills tools ready."
+echo "  Sync skillów:  skills update && skills sync"
+echo "  Albo:          dot skills sync   (to samo + lista zsynchronizowanych)"

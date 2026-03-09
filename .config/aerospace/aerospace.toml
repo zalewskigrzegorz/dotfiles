@@ -11,9 +11,9 @@ after-login-command = []
 # Available commands : https://nikitabobko.github.io/AeroSpace/commands
 
 after-startup-command = [
+  'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher >> $HOME/Code/dotfiles/logs/sketchybar-watcher.log 2>&1',
   'exec-and-forget sketchybar >> $HOME/Code/dotfiles/logs/sketchybar.log 2>&1',
   'exec-and-forget /opt/homebrew/bin/borders >> $HOME/Code/dotfiles/logs/borders.log 2>&1',
-  'exec-and-forget /opt/homebrew/bin/svim >> $HOME/Code/dotfiles/logs/svim.log 2>&1',
 ]
 
 # Start AeroSpace at login
@@ -22,13 +22,13 @@ start-at-login = true
 exec-on-workspace-change = [
   '/bin/bash',
   '-c',
-  'sketchybar --trigger aerospace_workspace_change FOCUSED_WORKSPACE=$AEROSPACE_FOCUSED_WORKSPACE FOCUSED_DISPLAY=$(aerospace list-monitors --focused | awk "{print $1}")',
+  '$HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event workspace FOCUSED_WORKSPACE=$AEROSPACE_FOCUSED_WORKSPACE FOCUSED_DISPLAY=$(aerospace list-monitors --focused | awk "{print $1}")',
 ]
 
-# Notify Sketchybar about focuse change
+# Notify watcher about focus change (watcher updates sketchybar)
 # See https://nikitabobko.github.io/AeroSpace/guide#on-focus-changed-callbacks
 on-focus-changed = [
-  'exec-and-forget sketchybar --trigger aerospace_focus_change FOCUSED_WORKSPACE=$AEROSPACE_FOCUSED_WORKSPACE',
+  'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event focus FOCUSED_WORKSPACE=$AEROSPACE_FOCUSED_WORKSPACE',
 ]
 
 # Normalizations. See: https://nikitabobko.github.io/AeroSpace/guide#normalization
@@ -152,7 +152,7 @@ ctrl-tab = 'workspace-back-and-forth'
 ctrl-shift-tab = 'move-workspace-to-monitor --wrap-around next'
 ctrl-shift-space = [
   'mode service',
-  'exec-and-forget sketchybar --trigger aerospace_enter_service_mode',
+  'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event enter_service',
 ]
 
 
@@ -210,62 +210,67 @@ ctrl-tab = 'workspace-back-and-forth'
 ctrl-shift-tab = 'move-workspace-to-monitor --wrap-around next'
 ctrl-shift-space = [
   'mode service',
-  'exec-and-forget sketchybar --trigger aerospace_enter_service_mode',
+  'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event enter_service',
 ]
 
 # 'service' binding mode declaration.
 # See: https://nikitabobko.github.io/AeroSpace/guide#binding-modes
 [mode.service.binding]
-esc = ['reload-config', 'mode main', 'exec-and-forget sketchybar --reload']
+esc = ['reload-config', 'mode main', 'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event leave_service', 'exec-and-forget sketchybar --reload']
 r = [
   'flatten-workspace-tree',
   'mode main',
-  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+  'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event leave_service',
 ] # reset layout
 f = [
   'layout floating tiling',
   'mode main',
-  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+  'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event leave_service',
 ] # Toggle between floating and tiling layout
 backspace = [
   'close-all-windows-but-current',
   'mode main',
-  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+  'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event leave_service',
 ]
 t = [
   'mode terminal',
-  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+  'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event leave_service',
 ]
 m = [
   'mode main',
-  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+  'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event leave_service',
 ]
 a = [
   'exec-and-forget nu ~/.config/aerospace/reset-apps.nu',
   'mode main',
-  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+  'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event leave_service',
+]
+b = [
+  'exec-and-forget nu ~/.config/aerospace/rebuild-watcher.nu',
+  'mode main',
+  'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event leave_service',
 ]
 x = ['exec-and-forget nu ~/.config/aerospace/restart.nu']
 
 ctrl-shift-h = [
   'join-with left',
   'mode main',
-  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+  'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event leave_service',
 ]
 ctrl-shift-j = [
   'join-with down',
   'mode main',
-  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+  'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event leave_service',
 ]
 ctrl-shift-k = [
   'join-with up',
   'mode main',
-  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+  'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event leave_service',
 ]
 ctrl-shift-l = [
   'join-with right',
   'mode main',
-  'exec-and-forget sketchybar --trigger aerospace_leave_service_mode',
+  'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event leave_service',
 ]
 
 # Automation when windows open
@@ -318,14 +323,33 @@ run = 'move-node-to-workspace notes'
 if.app-name-regex-substring = 'Canary Mail'
 run = 'move-node-to-workspace mail'
 
-#[[on-window-detected]]
-#if.app-name-regex-substring = 'Spark Mail'
-#run = 'move-node-to-workspace mail'
+[[on-window-detected]]
+if.app-name-regex-substring = 'Spark Mail'
+run = 'move-node-to-workspace mail'
 
+[[on-window-detected]]
+if.app-name-regex-substring = 'Comet'
+run = 'move-node-to-workspace web'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'DataGrip'
+run = 'move-node-to-workspace code'
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'Notion Calendar'
 run = 'move-node-to-workspace mail'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Fantastical'
+run = 'move-node-to-workspace mail'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Calendar'
+run = 'move-node-to-workspace mail'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Notion'
+run = 'move-node-to-workspace notes'
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'Boom'
