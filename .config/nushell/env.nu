@@ -30,6 +30,7 @@ let home = $env.HOME
 
 $env.PATH = ($env.PATH | split row (char esep) | prepend [
     "/Applications/Cursor.app/Contents/Resources/app/bin"
+    $"($home)/.bun/bin"
     "/opt/homebrew/opt/asdf/libexec/bin"
     $"($home)/.asdf/shims"
     $"($home)/.asdf/installs"
@@ -70,6 +71,10 @@ $env.NAVI_PATH = [
     ($env.HOME | path join ".config" "navi" "cheats")
     ($env.HOME | path join ".local" "share" "navi" "cheats" "public")
 ]
+
+# Dotfiles bin (dot, sync-cursor-skills) — globalne komendy
+$env.DOTFILES = ($env.HOME | path join "Code" "dotfiles")
+$env.PATH = ($env.PATH | split row (char esep) | prepend ($env.DOTFILES | path join "bin"))
 
 # bit
 $env.PATH = ($env.PATH | split row (char esep) | append /Users/greg/bin )
