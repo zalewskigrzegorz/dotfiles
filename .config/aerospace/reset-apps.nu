@@ -27,7 +27,7 @@ $windows | where app-name =~ "(?i)^calendar$"
 $windows | where { |w| ($w.app-name | str downcase) =~ "notion" and ($w.app-name | str downcase) !~ "notion calendar" }
 | each { |win| aerospace move-node-to-workspace notes --window-id $win.window-id }
 
-$windows | where app-name =~ "(?i)spotify"
+$windows | where app-name =~ "(?i)spotify|endel"
 | each { |win| aerospace move-node-to-workspace media --window-id $win.window-id }
 
 $windows | where app-name =~ "(?i)noteplan|obsidian"

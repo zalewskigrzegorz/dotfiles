@@ -10,7 +10,9 @@ brew install sketchybar
 brew install --cask sf-symbols
 brew install --cask homebrew/cask-fonts/font-sf-mono
 brew install --cask homebrew/cask-fonts/font-sf-pro
+brew install --cask font-fira-code-nerd-font  # For workspace labels; has 6000+ icons
 
+# App icons (required for workspace bar)
 curl -L https://github.com/kvndrsslr/sketchybar-app-font/releases/latest/download/sketchybar-app-font.ttf -o $HOME/Library/Fonts/sketchybar-app-font.ttf
 
 # SbarLua

@@ -67,16 +67,19 @@ preset = 'qwerty'
 
 # monitor force strategy
 [workspace-to-monitor-force-assignment]
-# Core workspaces on external (when available)
-chat = 'DELL U3225QE'
-web = 'DELL U3225QE'
-code = 'DELL U3225QE'
-term = 'DELL U3225QE'
-media = 'DELL U3225QE'
-test = 'DELL U3225QE'
-misc = 'DELL U3225QE'
-mail = 'DELL U3225QE'
-notes = 'DELL U3225QE'
+# Core workspaces on whichever external is connected (Dell vs Samsung swap often).
+# Patterns are tried in order; first substring match against list-monitors wins.
+# Run: aerospace list-monitors  — add another string here if you get a new display name.
+# Keys 1–5 → Dell first; 6–9 → ultrawide first. Second pattern = fallback when only one external.
+chat = ['DELL U3225QE', 'C34H89x']
+term = ['DELL U3225QE', 'C34H89x']
+code = ['DELL U3225QE', 'C34H89x']
+misc = ['DELL U3225QE', 'C34H89x']
+notes = ['DELL U3225QE', 'C34H89x']
+web = ['C34H89x', 'DELL U3225QE']
+media = ['C34H89x', 'DELL U3225QE']
+test = ['C34H89x', 'DELL U3225QE']
+mail = ['C34H89x', 'DELL U3225QE']
 mac = 'Built-in'
 
 # Gaps between windows (inner-*) and between monitor edges (outer-*).
@@ -92,7 +95,7 @@ inner.horizontal = 8
 inner.vertical = 8
 outer.left = 5
 outer.bottom = 5
-outer.top = [{ monitor."Built-in" = 10 }, { monitor.'DELL U3225QE' = 45 }, 24]
+outer.top = [{ monitor."Built-in" = 10 }, { monitor.'DELL U3225QE' = 45 }, { monitor.'C34H89x' = 45 }, 24]
 outer.right = 5
 
 # 'main' binding mode declaration
@@ -123,29 +126,31 @@ ctrl-shift-l = 'move right'
 ctrl-minus = 'resize smart -50'
 ctrl-equal = 'resize smart +50'
 
-# Workspace switching
+# Workspace switching (1–5 Dell-side, 6–9 ultrawide, 0 built-in)
 ctrl-1 = 'workspace chat'
-ctrl-2 = 'workspace web'
-ctrl-3 = 'workspace term'
-ctrl-4 = 'workspace code'
-ctrl-5 = 'workspace media'
-ctrl-6 = 'workspace test'
-ctrl-7 = 'workspace misc'
-ctrl-8 = 'workspace notes'
+ctrl-2 = 'workspace term'
+ctrl-3 = 'workspace code'
+ctrl-4 = 'workspace misc'
+ctrl-5 = 'workspace notes'
+ctrl-6 = 'workspace web'
+ctrl-7 = 'workspace media'
+ctrl-8 = 'workspace test'
 ctrl-9 = 'workspace mail'
 ctrl-0 = 'workspace mac'
 
 # Move to workspace
 ctrl-shift-1 = 'move-node-to-workspace chat'
-ctrl-shift-2 = 'move-node-to-workspace web'
-ctrl-shift-3 = 'move-node-to-workspace term'
-ctrl-shift-4 = 'move-node-to-workspace code'
-ctrl-shift-5 = 'move-node-to-workspace media'
-ctrl-shift-6 = 'move-node-to-workspace test'
-ctrl-shift-7 = 'move-node-to-workspace misc'
-ctrl-shift-8 = 'move-node-to-workspace notes'
+ctrl-shift-2 = 'move-node-to-workspace term'
+ctrl-shift-3 = 'move-node-to-workspace code'
+ctrl-shift-4 = 'move-node-to-workspace misc'
+ctrl-shift-5 = 'move-node-to-workspace notes'
+ctrl-shift-6 = 'move-node-to-workspace web'
+ctrl-shift-7 = 'move-node-to-workspace media'
+ctrl-shift-8 = 'move-node-to-workspace test'
 ctrl-shift-9 = 'move-node-to-workspace mail'
 ctrl-shift-0 = 'move-node-to-workspace mac'
+
+ctrl-alt-b = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-flip-window/aerospace-flip-window'
 
 # Other controls
 ctrl-tab = 'workspace-back-and-forth'
@@ -181,29 +186,31 @@ ctrl-shift-l = 'move right'
 ctrl-minus = 'resize smart -50'
 ctrl-equal = 'resize smart +50'
 
-# Workspace switching
+# Workspace switching (1–5 Dell-side, 6–9 ultrawide, 0 built-in)
 ctrl-1 = 'workspace chat'
-ctrl-2 = 'workspace web'
-ctrl-3 = 'workspace term'
-ctrl-4 = 'workspace code'
-ctrl-5 = 'workspace media'
-ctrl-6 = 'workspace test'
-ctrl-7 = 'workspace misc'
-ctrl-8 = 'workspace notes'
+ctrl-2 = 'workspace term'
+ctrl-3 = 'workspace code'
+ctrl-4 = 'workspace misc'
+ctrl-5 = 'workspace notes'
+ctrl-6 = 'workspace web'
+ctrl-7 = 'workspace media'
+ctrl-8 = 'workspace test'
 ctrl-9 = 'workspace mail'
 ctrl-0 = 'workspace mac'
 
 # Move to workspace
 ctrl-shift-1 = 'move-node-to-workspace chat'
-ctrl-shift-2 = 'move-node-to-workspace web'
-ctrl-shift-3 = 'move-node-to-workspace term'
-ctrl-shift-4 = 'move-node-to-workspace code'
-ctrl-shift-5 = 'move-node-to-workspace media'
-ctrl-shift-6 = 'move-node-to-workspace test'
-ctrl-shift-7 = 'move-node-to-workspace misc'
-ctrl-shift-8 = 'move-node-to-workspace notes'
+ctrl-shift-2 = 'move-node-to-workspace term'
+ctrl-shift-3 = 'move-node-to-workspace code'
+ctrl-shift-4 = 'move-node-to-workspace misc'
+ctrl-shift-5 = 'move-node-to-workspace notes'
+ctrl-shift-6 = 'move-node-to-workspace web'
+ctrl-shift-7 = 'move-node-to-workspace media'
+ctrl-shift-8 = 'move-node-to-workspace test'
 ctrl-shift-9 = 'move-node-to-workspace mail'
 ctrl-shift-0 = 'move-node-to-workspace mac'
+
+ctrl-alt-b = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-flip-window/aerospace-flip-window'
 
 # Other controls
 ctrl-tab = 'workspace-back-and-forth'
@@ -309,6 +316,10 @@ run = 'move-node-to-workspace term'
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'Spotify'
+run = 'move-node-to-workspace media'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Endel'
 run = 'move-node-to-workspace media'
 
 [[on-window-detected]]
