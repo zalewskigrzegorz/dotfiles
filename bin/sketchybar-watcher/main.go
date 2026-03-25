@@ -36,7 +36,7 @@ var (
 )
 
 var workspaceOrder = []string{
-	"chat", "web", "term", "code", "media", "test", "misc", "notes", "mail", "mac",
+	"chat", "term", "code", "misc", "notes", "web", "media", "test", "mail", "mac",
 }
 
 var workspaceColors = map[string]string{
@@ -48,12 +48,15 @@ var workspaceColors = map[string]string{
 var appIcons = map[string]string{
 	"Cursor": ":cursor:", "Visual Studio Code": ":code:", "Ghostty": ":terminal:",
 	"Discord": ":discord:", "Slack": ":slack:", "Spotify": ":spotify:",
-	"Firefox": ":firefox:", "Safari": ":safari:", "Arc": ":arc:", "Comet": ":comet:",
+	"Firefox": ":firefox:", "Firefox Developer Edition": ":firefox_developer_edition:", "Safari": ":safari:", "Arc": ":arc:", "Comet": ":comet:",
 	"Notes": ":notes:", "Obsidian": ":obsidian:", "NotePlan": ":notes:", "Notion": ":notion:",
 	"Mail": ":mail:", "Canary Mail": ":mail:", "Spark Mail": ":spark:", "Finder": ":finder:",
 	"iTerm": ":iterm:", "Terminal": ":terminal:", "kitty": ":kitty:",
 	"DataGrip": ":datagrip:",
 	"Notion Calendar": ":calendar:", "Fantastical": ":calendar:", "Calendar": ":calendar:",
+	"Raycast": ":raycast:", "Endel": ":music:",
+	"Setapp": ":setapp:", "System Settings": ":gear:", "System Preferences": ":gear:",
+	"Boom": ":phone:", "Stream Deck": ":keyboard:",
 }
 
 const (

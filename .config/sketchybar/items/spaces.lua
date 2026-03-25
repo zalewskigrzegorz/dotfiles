@@ -5,8 +5,8 @@ local settings = require("settings")
 -- Workspace labels and highlight state are updated by sketchybar-watcher via --set (no Lua logic)
 
 local workspace_order = {
-    "chat",   "web",    "term",   "code",   "media",
-    "test",   "misc",   "notes",   "mail",   "mac"
+    "chat", "term", "code", "misc", "notes",
+    "web", "media", "test", "mail", "mac"
 }
 
 local workspace_icons = {
@@ -59,6 +59,22 @@ for i, workspace in ipairs(workspace_order) do
     })
 
     sbar.add("item", "item." .. i .. "padding", { script = "", width = settings.items.gap })
+
+    if i == 5 then
+        sbar.add("item", "workspace.dell_ultra_sep", {
+            label = {
+                string = "│",
+                font = { family = settings.font.text, size = 14.0 },
+                color = colors.dark_grey,
+                padding_left = 4,
+                padding_right = 4
+            },
+            icon = { drawing = false },
+            background = { drawing = false },
+            padding_left = 2,
+            padding_right = 2
+        })
+    end
 
     local space_popup = sbar.add("item", {
         position = "popup." .. space.name,
