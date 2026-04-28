@@ -1,0 +1,10 @@
+[metadata]
+name = "unit-tests"
+description = "Select unit test directories, specs, or individual tests"
+requirements = ["rg", "fd"]
+
+[source]
+command = "bash -lc 'bash \"$HOME/.config/television/cable/unit-tests-source.sh\"'"
+
+[preview]
+command = "bash -lc 'root=\"$PWD\"; while [ \"$root\" != \"/\" ] && [ ! -f \"$root/apps/api/vitest.config.ts\" ] && [ ! -f \"$root/apps/api/jest.config.ts\" ] && [ ! -f \"$root/vitest.config.ts\" ] && [ ! -f \"$root/jest.config.ts\" ]; do root=$(dirname \"$root\"); done; if [ -f \"$root/apps/api/package.json\" ] && { [ -f \"$root/apps/api/vitest.config.ts\" ] || [ -f \"$root/apps/api/jest.config.ts\" ]; }; then test_dir=\"$root/apps/api\"; else test_dir=\"$root\"; fi; kind=$(printf \"%s\" \"{}\" | cut -f1); file=$(printf \"%s\" \"{}\" | cut -f2); title=$(printf \"%s\" \"{}\" | cut -f3-); prepare=\"\"; if python3 - \"$test_dir/package.json\" <<\"PY\"; then prepare=\"pnpm run prepare-mocks && \"; fi\nimport json\nimport sys\nfrom pathlib import Path\npackage = Path(sys.argv[1])\nraise SystemExit(0 if \"prepare-mocks\" in json.loads(package.read_text()).get(\"scripts\", {}) else 1)\nPY\nif [ -f \"$test_dir/jest.config.ts\" ] || [ -f \"$test_dir/jest.config.js\" ]; then runner=\"jest\"; base=\"pnpm exec jest\"; name_flag=\"--testNamePattern\"; else runner=\"vitest\"; base=\"pnpm exec vitest run --passWithNoTests\"; name_flag=\"-t\"; fi; if [ \"$kind\" = \"test\" ]; then printf \"%s%s %q %s %q\\n\\n\" \"$prepare\" \"$base\" \"$file\" \"$name_flag\" \"$title\"; else printf \"%s%s %q\\n\\n\" \"$prepare\" \"$base\" \"$file\"; fi; if [ -d \"$test_dir/$file\" ]; then rg --files \"$test_dir/$file\" -g \"*.spec.ts\" -g \"*.test.ts\" -g \"*.spec.tsx\" -g \"*.test.tsx\" -g \"*.spec.js\" -g \"*.test.js\" | sed \"s#^$test_dir/##\"; else bat -n --color=always \"$test_dir/$file\" 2>/dev/null || sed -n \"1,220p\" \"$test_dir/$file\" 2>/dev/null; fi'"
