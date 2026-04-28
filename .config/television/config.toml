@@ -267,6 +267,7 @@ fallback_channel = "files"
 "tmux" = ["tmux attach", "ta"]
 "pnpm" = ["pnpm", "p"]
 "nx" = ["pnpm nx"]
+"playwright-tests" = ["pwt", "pnpm exec playwright test", "pnpm playwright test"]
 "nomad" = ["nomad job", "nomad alloc", "nomad-pull-logs"]
 "basti" = ["basti connect", "basti-nomad"]
 "zoxide" = ["z", "zoxide"]
