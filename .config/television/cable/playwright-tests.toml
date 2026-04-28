@@ -1,0 +1,10 @@
+[metadata]
+name = "playwright-tests"
+description = "Select Playwright specs or individual tests"
+requirements = ["rg", "fd"]
+
+[source]
+command = "bash -lc 'bash \"$HOME/.config/television/cable/playwright-tests-source.sh\"'"
+
+[preview]
+command = "bash -c 'kind=$(printf \"%s\" \"{}\" | cut -f1); file=$(printf \"%s\" \"{}\" | cut -f2); title=$(printf \"%s\" \"{}\" | cut -f3-); if [ \"$kind\" = \"test\" ]; then printf \"pnpm exec playwright test %q -g %q\\n\\n\" \"$file\" \"$title\"; else printf \"pnpm exec playwright test %q\\n\\n\" \"$file\"; fi; bat -n --color=always \"$file\" 2>/dev/null || sed -n \"1,220p\" \"$file\" 2>/dev/null'"
