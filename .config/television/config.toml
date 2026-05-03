@@ -278,5 +278,5 @@ fallback_channel = "files"
 # for shell autocomplete
 "smart_autocomplete" = "ctrl-t"
 # controls which keybinding should trigger tv
-# for command history command history is handled by atuin
+# for command history; Nushell handles this via fzf-history.nu
 # "command_history" = "ctrl-r"
