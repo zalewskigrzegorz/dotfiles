@@ -19,7 +19,7 @@ def tv_smart_autocomplete [] {
     }
 }
 
-# Alt+T for smart autocomplete; Atuin handles history (Ctrl+R)
+# Alt+T for smart autocomplete; fzf-history.nu handles history (Ctrl+R)
 export-env {
     $env.config = (
         $env.config

@@ -31,7 +31,6 @@
 #     "top",
 #     "btop",
 #     "watch",
-#     "atuin",
 #     "nu",
 #     "lazygit",
 #     "lazydocker",
