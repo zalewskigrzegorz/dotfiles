@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ -d /home/linuxbrew/.linuxbrew/bin ]]; then
+  PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
+fi
+if [[ -d /opt/homebrew/bin ]]; then
+  PATH="/opt/homebrew/bin:$PATH"
+fi
+export PATH
+
+secret_dir="${DOTFILES_SECRET_DIR:-$HOME/.local/state/dotfiles/secrets}"
+private_config="${DOTFILES_GITLEAKS_PRIVATE_CONFIG:-$secret_dir/gitleaks-private.toml}"
+
+gitleaks detect --source . --config .gitleaks.toml "$@"
+
+if [[ ! -f "$private_config" ]]; then
+  echo "Skipping private gitleaks rules; not found: $private_config" >&2
+  echo "Run sync to restore private files from 1Password." >&2
+  exit 0
+fi
+
+gitleaks detect --source . --config "$private_config" "$@"

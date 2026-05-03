@@ -1,0 +1,56 @@
+# Files that are part of the repository, not the target home directory.
+.gitignore
+LICENSE
+README.md
+brew/**
+docs/**
+legacy/**
+logs/**
+backups/**
+backups
+scripts/**
+bootstrap.sh
+statuses/**
+statuses
+project-update.md
+*-slack-board-update.nu
+work/**
+private/**
+
+# Generated application state and secrets.
+.config/cursor/chats/**
+.config/raycast/**
+.config/zed/.tmp*
+.config/zed/embeddings/**
+.config/zed/prompts/**
+.config/lnav/**
+.config/atuin/atuin-receipt.json
+.config/spotify-player/clientid
+.claude/hooks/peon-ping/.last_update_check
+.claude/hooks/peon-ping/.relay.pid
+.claude/hooks/peon-ping/.sound.pid
+.claude/hooks/peon-ping/.state.json
+.claude/hooks/peon-ping/.update_available
+
+{{- $profile := "workstation" -}}
+{{- with (index . "profile") -}}
+{{- $profile = . -}}
+{{- end }}
+{{ if eq $profile "homelab" -}}
+# The homelab is headless: apply only CLI/shell config.
+.config/aerospace/**
+.config/borders/**
+.config/cursor/**
+.config/flipperdevices.com/**
+.config/ghostty/**
+.config/sketchybar/**
+.config/spotify-player/**
+.config/svim/**
+.config/zed/**
+.cursor/**
+.claude/**
+nushell-mcp.json
+bin/aerospace-flip-window/**
+bin/sketchybar-watcher/**
+bin/sketchybar-watcher-bin
+{{ end -}}

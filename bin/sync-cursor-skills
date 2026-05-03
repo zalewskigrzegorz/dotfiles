@@ -5,7 +5,7 @@
 set -e
 
 DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
-SOURCE="${DOTFILES}/agent-skills"
+SOURCE="${DOTFILES}/dot_cursor/skills"
 TARGET="${HOME}/.cursor/skills"
 
 if [[ ! -d "$SOURCE" ]]; then

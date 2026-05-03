@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+{{ if eq .chezmoi.os "darwin" -}}
+plist_dir="$HOME/Library/LaunchAgents"
+plist_file="$plist_dir/me.greg.environment.plist"
+
+mkdir -p "$plist_dir"
+
+cat > "$plist_file" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+"http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>me.greg.environment</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>-c</string>
+        <string>
+            launchctl setenv XDG_CONFIG_HOME "$HOME/.config" &&
+            launchctl setenv XDG_CACHE_HOME "$HOME/.cache" &&
+            launchctl setenv XDG_DATA_HOME "$HOME/.local/share" &&
+            launchctl setenv XDG_STATE_HOME "$HOME/.local/state" &&
+            launchctl setenv XDG_RUNTIME_DIR "$HOME/.local/run" &&
+            launchctl setenv XDG_BIN_HOME "$HOME/.local/bin"
+        </string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>ServiceIPC</key>
+    <false/>
+</dict>
+</plist>
+PLIST
+
+if launchctl list | grep -q "me.greg.environment"; then
+  launchctl unload "$plist_file" || true
+fi
+launchctl load "$plist_file"
+{{ else -}}
+exit 0
+{{ end -}}

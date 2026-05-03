@@ -1,79 +1,97 @@
 # Dotfiles
 
-Personal dotfiles managed with [GNU Stow](https://www.gnu.org/software/stow/) and automated with [Nushell](https://www.nushell.sh/) scripts.
+Personal dotfiles managed with [chezmoi](https://www.chezmoi.io/) and bootstrapped with Homebrew/Linuxbrew.
 
-## Prerequisites
+## Profiles
 
-- `stow`, `nushell`, `fzf`, `gitleaks` (install via homebrew)
+- `workstation` - macOS desktop/laptop with GUI apps, casks, Aerospace, SketchyBar, Cursor, Zed and Claude config.
+- `homelab` - headless Debian/Ubuntu with CLI and shell config only. No casks, GUI apps, fonts, window manager or status bar tooling.
 
-## Configuration
+The active profile is stored in `~/.config/chezmoi/chezmoi.toml`:
 
-### MCP Server Configuration
-
-The `nushell-mcp.json` file uses `~` for home directory paths. If your MCP client doesn't support tilde expansion, you'll need to replace `~` with your actual home directory path (e.g., `/Users/yourusername`) after installation.
-
-## Usage
-
-### Import configs from ~/.config
-
-```bash
-nu import-config.nu
+```toml
+[data]
+profile = "homelab"
+setapp = false
 ```
 
-Interactive script that lets you select configs with fzf, copies them to the repo, and handles sensitive configs automatically.
+Set `setapp = true` on a macOS workstation to include the Setapp cask.
 
-### Apply symlinks
-
-```bash
-nu apply-symlinks.nu
-```
-
-Shows status of all configs, creates backups, and runs `stow .` to create symlinks.
-
-### Manual
+Setapp manages its own apps after login. Track expected apps in `docs/setapp-apps.md` and check them with:
 
 ```bash
-stow .
+scripts/list-setapp-apps.sh
+scripts/check-setapp-apps.sh
 ```
 
-## Scripts
+## Bootstrap
 
-**`import-config.nu`** - Finds configs in `~/.config` that aren't already managed, lets you multi-select with fzf, copies them to `.config/`, and optionally runs the symlink script.
-
-**`apply-symlinks.nu`** - Shows which configs are linked (🔗), new (🆕), or need backup (📦). Creates timestamped backups in `backups/` before running stow.
-
-**`fix-macos-path.nu`** - Generates a macOS LaunchAgent plist file to set XDG environment variables system-wide. This fixes GUI apps that don't respect XDG config directories on macOS.
-
-## macOS XDG Environment Fix
-
-Many GUI apps on macOS don't respect XDG config directories and save configs in `~/Library/Application Support`. To fix this system-wide:
+From this checkout:
 
 ```bash
-# Generate and install the LaunchAgent
-nu fix-macos-path.nu
-
-# Activate it (will run on every login)
-launchctl load ~/Library/LaunchAgents/me.greg.environment.plist
+./bootstrap.sh workstation
+./bootstrap.sh homelab
 ```
 
-This sets the following environment variables for all GUI applications:
+On a new machine, set `DOTFILES_REPO` if the default SSH URL is not available:
 
-- `XDG_CONFIG_HOME` → `~/.config`
-- `XDG_CACHE_HOME` → `~/.cache`
-- `XDG_DATA_HOME` → `~/.local/share`
-- `XDG_STATE_HOME` → `~/.local/state`
-- `XDG_RUNTIME_DIR` → `~/.local/run`
-- `XDG_BIN_HOME` → `~/.local/bin`
+```bash
+DOTFILES_REPO=git@github.com:zalewskigrzegorz/dotfiles.git ./bootstrap.sh homelab
+```
 
-## Security
+`bootstrap.sh` installs `chezmoi` if needed, writes the profile config, runs `chezmoi init`, then `chezmoi apply`.
 
-Pre-commit hook with gitleaks prevents committing secrets. Sensitive configs (raycast, ssh, etc.) are automatically added to `.gitignore`.
+## Apply Updates
 
-### TODO
+```bash
+git pull
+sync
+```
 
-- [x] fuzzy search in hidden files in vim
-- [x] file search in hidden files in vim
-- [x] configure sketchybar
-- [ ] change tmux navigator vim plugin to work with aerospace detection
-- [ ] add a script to quickly add new line to nav
+If `lazygit` has auto-migrated `~/.config/lazygit/config.yml`, chezmoi may ask whether to overwrite it. Either answer **yes** once, or run `chezmoi apply --force` to take the version from this repo.
 
+### Homelab: secrets after apply
+
+`sync` runs `chezmoi apply`, which runs `run_after_05-restore-private-files.sh` and restores private files from 1Password:
+
+1. Install `op` (`brew install 1password-cli` or via `brew bundle` from the Linux Brewfile).
+2. Reload the shell (`exec nu` or new SSH session) so `PATH` includes Linuxbrew.
+3. Run `git pull`, then `sync`. If `op` has an account but no active session, `sync` starts `op signin` and uses that session for the restore.
+
+If no 1Password account is configured, run `op account add` once. On a headless server, export `OP_SERVICE_ACCOUNT_TOKEN` before `sync`; if a TTY is available, `sync` can also prompt for that token.
+
+Until `op` is on `PATH` and authenticated, `sync` will apply public dotfiles and skip only the private restore.
+
+### tmux: window icons / names missing
+
+Tab labels with icons come from TPM plugin `tmux-nerd-font-window-name` plus `~/.config/tmux/tmux-nerd-font-window-name.yml`. After a fresh machine or chezmoi migration:
+
+1. Run `chezmoi apply` once so `run_once_after_45-install-tmux-plugins.sh` can clone TPM and install plugins (or inside tmux press **prefix + capital I** to install TPM plugins manually).
+2. Restart tmux (or `tmux source-file ~/.config/tmux/tmux.conf`).
+3. Your terminal profile must use a **Nerd Font** (otherwise icons render as empty boxes or disappear).
+
+Package installation is driven by `~/.Brewfile`, rendered from `dot_Brewfile.tmpl`. The first apply installs Homebrew/Linuxbrew when missing, but `brew bundle` is opt-in while the app list is being reviewed:
+
+```bash
+brew bundle --global
+# or
+DOTFILES_RUN_BREW_BUNDLE=1 chezmoi apply
+```
+
+## Stow Migration
+
+This repo used to be managed with GNU Stow. Before the first `chezmoi apply` on an existing host, remove legacy symlinks that point back into this repo:
+
+```bash
+legacy/migrate-stow-links-to-chezmoi.sh
+legacy/migrate-stow-links-to-chezmoi.sh --apply
+```
+
+The script removes only symlinks whose targets are inside the current dotfiles checkout. It does not touch real files or directories.
+
+## Reference
+
+- Brew snapshot: `docs/brew-snapshot-20260503.md`
+- Stow link inventory: `docs/stow-links-before-chezmoi.md`
+- Dotfiles inventory: `docs/dotfiles-inventory.md`
+- Legacy Stow scripts: `legacy/`

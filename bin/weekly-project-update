@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+secret_dir="${DOTFILES_SECRET_DIR:-$HOME/.local/state/dotfiles/secrets}"
+script="${DOTFILES_WEEKLY_PROJECT_UPDATE_SCRIPT:-$secret_dir/weekly-slack-board-update.nu}"
+
+if [[ ! -f "$script" ]]; then
+  cat >&2 <<EOF
+Weekly project update script was not found:
+  $script
+
+Set DOTFILES_WEEKLY_PROJECT_UPDATE_SCRIPT or restore the local secret file.
+EOF
+  exit 1
+fi
+
+exec nu "$script" "$@"

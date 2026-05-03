@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if command -v brew >/dev/null 2>&1; then
+  exit 0
+fi
+
+{{ if eq .chezmoi.os "linux" -}}
+if command -v apt-get >/dev/null 2>&1; then
+  if sudo -n true 2>/dev/null; then
+    sudo apt-get update
+    sudo apt-get install -y build-essential procps curl file git
+  else
+    echo "Homebrew/Linuxbrew needs Debian packages: build-essential procps curl file git" >&2
+    echo "Run: sudo apt-get update && sudo apt-get install -y build-essential procps curl file git" >&2
+  fi
+fi
+{{ end -}}
+
+NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+if [[ -x /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
