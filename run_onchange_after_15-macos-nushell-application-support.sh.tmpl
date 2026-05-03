@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+{{ if eq .chezmoi.os "darwin" -}}
+config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+nushell_config="$config_home/nushell"
+app_support="$HOME/Library/Application Support/nushell"
+
+mkdir -p "$app_support"
+
+for name in config.nu env.nu autoload vendor; do
+  target="$nushell_config/$name"
+  link="$app_support/$name"
+
+  if [[ -e "$target" || -L "$target" ]]; then
+    if [[ -L "$link" || ! -e "$link" ]]; then
+      rm -f "$link"
+      ln -s "$target" "$link"
+    fi
+  fi
+done
+{{ else -}}
+exit 0
+{{ end -}}

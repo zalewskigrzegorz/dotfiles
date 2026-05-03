@@ -34,7 +34,7 @@ fi
 
 # Resolve DOTFILES (script lives in dotfiles/bin)
 DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
-AGENT_SKILLS="${DOTFILES}/agent-skills"
+AGENT_SKILLS="${DOTFILES}/dot_cursor/skills"
 
 if [[ ! -d "$AGENT_SKILLS" ]]; then
   echo "Note: $AGENT_SKILLS not found; skip configuring skills-cli."

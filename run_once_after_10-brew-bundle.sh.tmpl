@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ -x /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+
+if ! command -v brew >/dev/null 2>&1; then
+  echo "brew not found; skipping brew bundle" >&2
+  exit 0
+fi
+
+if [[ "${DOTFILES_RUN_BREW_BUNDLE:-0}" != "1" ]]; then
+  echo "Skipping brew bundle. Review ~/.Brewfile, then run:"
+  echo "  DOTFILES_RUN_BREW_BUNDLE=1 chezmoi apply"
+  echo "or:"
+  echo "  brew bundle --global"
+  exit 0
+fi
+
+if [[ ! -f "$HOME/.Brewfile" ]]; then
+  echo "$HOME/.Brewfile not found; skipping brew bundle" >&2
+  exit 0
+fi
+
+brew bundle --global

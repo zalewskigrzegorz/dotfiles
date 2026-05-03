@@ -42,10 +42,23 @@ authorized_keys*
 # Environment and secrets
 .env*
 .secrets
+.chezmoidata/private*.toml
 *secret*
+!docs/secrets.md
 *token*
 *password*
 .config/nushell/autoload/private.nu
+dot_config/nushell/autoload/private.nu
+dot_config/nushell/autoload/private.nu.tmpl
+private.nu
+private.nu.tmpl
+!dot_config/nushell/autoload/private.nu.tmpl
+!dot_config/nushell/autoload/private_private.nu.tmpl
+*-slack-board-update.nu
+project-update.md
+statuses/
+work/
+private/
 
 # History files
 .*_history
@@ -66,13 +79,32 @@ cache/
 
 # Application plugins (managed separately)
 .config/tmux/plugins/
+dot_config/tmux/plugins/
 fzf
 # don't ignore pull script
 !fzf/pull.nu
 
 #ignored ecause the configuration does not work with environment variables.
 .config/gh-dash/config.yml
+dot_config/gh-dash/config.yml
 
 .config/lnav/
+dot_config/lnav/
 
 .config/spotify-player/clientid
+dot_config/spotify-player/clientid
+
+# Generated app state
+.config/cursor/chats/
+dot_config/cursor/chats/
+.config/zed/embeddings/
+.config/zed/prompts/
+dot_config/zed/embeddings/
+dot_config/zed/prompts/
+.config/zed/.tmp*
+dot_config/zed/.tmp*
+dot_claude/hooks/peon-ping/.last_update_check
+dot_claude/hooks/peon-ping/.relay.pid
+dot_claude/hooks/peon-ping/.sound.pid
+dot_claude/hooks/peon-ping/.state.json
+dot_claude/hooks/peon-ping/.update_available

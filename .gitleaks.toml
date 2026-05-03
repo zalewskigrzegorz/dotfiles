@@ -1,0 +1,20 @@
+title = "dotfiles gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "grafana-service-account-token"
+description = "Grafana service account token"
+regex = '''glsa_[A-Za-z0-9_-]{20,}'''
+keywords = ["glsa_"]
+
+[[rules]]
+id = "project-update-dump"
+description = "Local work status dump should not be committed"
+path = '''(^|/)project-update\.md$|(^|/)statuses/'''
+
+[allowlist]
+paths = [
+  '''^docs/dotfiles-inventory\.md$''',
+]

@@ -1,0 +1,12 @@
+# Private environment variables rendered from 1Password.
+# Local variable names live in ignored chezmoi data, not in git.
+{{- $vault := "Dotfiles" -}}
+{{- with (index . "onePasswordVault") -}}
+{{- $vault = . -}}
+{{- end -}}
+{{- range (index . "privateEnvVars" | default list) }}
+$env.{{ . }} = {{ onepasswordRead (printf "op://%s/%s/password" $vault .) | quote }}
+{{- end }}
+{{- range (index . "privateEnvExpressions" | default list) }}
+$env.{{ .name }} = {{ .value }}
+{{- end }}

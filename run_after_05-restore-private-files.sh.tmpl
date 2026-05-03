@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+vault="{{ index . "onePasswordVault" | default "Dotfiles" }}"
+secret_dir="${DOTFILES_SECRET_DIR:-$HOME/.local/state/dotfiles/secrets}"
+
+# Chezmoi may run this script with a minimal PATH; Linuxbrew often is not included.
+brew_bins=(
+  /home/linuxbrew/.linuxbrew/bin
+  "${HOME}/.linuxbrew/bin"
+  /opt/homebrew/bin
+  /usr/local/bin
+  "${HOME}/.local/bin"
+)
+for d in "${brew_bins[@]}"; do
+  if [[ -d "$d" ]]; then
+    PATH="$d:$PATH"
+  fi
+done
+export PATH
+
+if ! command -v op >/dev/null 2>&1; then
+  echo "Skipping private file restore: 1Password CLI (op) not on PATH."
+  echo "Install on Linuxbrew: brew install 1password-cli"
+  echo "Then run again: sync"
+  exit 0
+fi
+
+# Never block chezmoi on 1Password first-run prompts (e.g. "add an account now?").
+# Those come from commands like `op vault get` when no account exists yet.
+run_op() {
+  if command -v timeout >/dev/null 2>&1; then
+    timeout 8 "$@"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout 8 "$@"
+  else
+    "$@"
+  fi
+}
+
+have_op_accounts() {
+  local out
+  out="$(run_op op account list --format=json 2>/dev/null || true)"
+  echo "$out" | python3 -c '
+import json, sys
+raw = sys.stdin.read().strip()
+if not raw:
+    raise SystemExit(1)
+data = json.loads(raw)
+sys.exit(0 if isinstance(data, list) and len(data) > 0 else 1)
+'
+}
+
+prompt_for_service_account_token() {
+  if [[ ! -t 0 ]]; then
+    return 1
+  fi
+
+  echo "No signed-in 1Password session is available."
+  echo "Paste OP_SERVICE_ACCOUNT_TOKEN to restore private files, or leave empty to skip."
+  printf "OP_SERVICE_ACCOUNT_TOKEN: "
+  local token
+  IFS= read -rs token || true
+  printf "\n"
+
+  if [[ -z "$token" ]]; then
+    return 1
+  fi
+
+  export OP_SERVICE_ACCOUNT_TOKEN="$token"
+}
+
+ensure_op_signed_in() {
+  if run_op op whoami >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if [[ -n "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]]; then
+    echo "OP_SERVICE_ACCOUNT_TOKEN is set, but op whoami failed."
+    return 1
+  fi
+
+  if have_op_accounts; then
+    echo "1Password CLI is not signed in; starting op signin for this sync."
+    if [[ -t 0 ]]; then
+      # The exported OP_SESSION_* variable only needs to live for this script.
+      if eval "$(op signin -f)"; then
+        run_op op whoami >/dev/null 2>&1 && return 0
+      fi
+    else
+      echo "Cannot run interactive op signin without a TTY."
+    fi
+  fi
+
+  if prompt_for_service_account_token && run_op op whoami >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "Skipping private file restore: 1Password is not authenticated."
+  echo "Run: op account add"
+  echo "Then run: sync"
+  echo "Headless machines can export OP_SERVICE_ACCOUNT_TOKEN before sync."
+  return 1
+}
+
+if ! ensure_op_signed_in; then
+  exit 0
+fi
+
+if ! run_op op vault get "$vault" >/dev/null 2>&1; then
+  echo "Skipping private file restore: 1Password vault '$vault' is not available (or op timed out)."
+  exit 0
+fi
+
+mkdir -p "$secret_dir"
+chmod 700 "$secret_dir"
+
+restore_document() {
+  local item="$1"
+  local out_file="$2"
+
+  if run_op op document get "$item" \
+    --vault "$vault" \
+    --out-file "$out_file" \
+    --file-mode 0600 \
+    --force \
+    >/dev/null 2>&1; then
+    chmod 600 "$out_file"
+    echo "Restored $item."
+  else
+    echo "Skipping $item: document not found in 1Password vault '$vault'."
+  fi
+}
+
+restore_password_field() {
+  local item="$1"
+  local out_file="$2"
+
+  if run_op op read \
+    --out-file "$out_file" \
+    --file-mode 0600 \
+    --force \
+    "op://$vault/$item/password" \
+    >/dev/null 2>&1; then
+    chmod 600 "$out_file"
+    echo "Restored $item."
+  else
+    echo "Skipping $item: item/password field not found in 1Password vault '$vault'."
+  fi
+}
+
+restore_document "WEEKLY_PROJECT_UPDATE_SCRIPT" "$secret_dir/weekly-slack-board-update.nu"
+restore_password_field "GITLEAKS_PRIVATE_CONFIG" "$secret_dir/gitleaks-private.toml"
+
+mkdir -p "$secret_dir/statuses"
+chmod 700 "$secret_dir/statuses"
