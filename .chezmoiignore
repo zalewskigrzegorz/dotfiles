@@ -19,7 +19,9 @@ private/**
 
 # Generated application state and secrets.
 .config/cursor/chats/**
-.config/raycast/**
+.config/raycast/ai/**
+.config/raycast/config.json
+.config/raycast/extensions/**
 .config/zed/.tmp*
 .config/zed/embeddings/**
 .config/zed/prompts/**

@@ -9,7 +9,8 @@
 backups/
 
 # Sensitive configs (automatically managed by import script)
-raycast/
+/raycast/
+/.config/raycast/
 op/
 1password/
 keychain/

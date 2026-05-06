@@ -12,6 +12,7 @@ Captured before removing legacy Stow symlinks.
 - `~/.config/cursor -> ~/Code/dotfiles/.config/cursor`
 - `~/.config/flipperdevices.com -> ~/Code/dotfiles/.config/flipperdevices.com`
 - `~/.config/gh -> ~/Code/dotfiles/.config/gh`
+- `~/.config/gh-dash -> ~/Code/dotfiles/.config/gh-dash`
 - `~/.config/ghostty -> ~/Code/dotfiles/.config/ghostty`
 - `~/.config/lazy-github -> ~/Code/dotfiles/.config/lazy-github`
 - `~/.config/lazydocker -> ~/Code/dotfiles/.config/lazydocker`
