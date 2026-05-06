@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+peon_hooks_dir="$HOME/.claude/hooks/peon-ping"
+openpeon_packs="$HOME/.openpeon/packs"
+hook_packs="$peon_hooks_dir/packs"
+
+if [[ -d "$openpeon_packs" && -d "$peon_hooks_dir" ]]; then
+  if [[ -L "$hook_packs" ]]; then
+    current_target="$(readlink "$hook_packs")"
+    if [[ "$current_target" != "$openpeon_packs" ]]; then
+      ln -sfn "$openpeon_packs" "$hook_packs"
+    fi
+  elif [[ -d "$hook_packs" ]]; then
+    # Chezmoi can leave an empty directory here after replacing the old Stow
+    # symlink. A non-empty directory might contain user data, so leave it alone.
+    if [[ -z "$(find "$hook_packs" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+      rmdir "$hook_packs"
+      ln -s "$openpeon_packs" "$hook_packs"
+    fi
+  else
+    ln -s "$openpeon_packs" "$hook_packs"
+  fi
+fi

@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Raycast stores script command directories internally. Keep the old configured
+# locations pointing at the chezmoi-managed scripts after the Stow migration.
+current_scripts_dir="$HOME/.config/raycast/scripts"
+old_stow_scripts_dir="$HOME/Code/dotfiles/.config/raycast/scripts"
+raycast_script_commands_dir="$HOME/raycast/script-commands"
+raycast_dotfiles_commands_dir="$raycast_script_commands_dir/commands/dotfiles"
+old_labs_shortcuts_dir="$HOME/Code/Labs/shortcuts"
+
+install_script_copy() {
+  local target_dir="$1"
+  local script="$2"
+  local source="$current_scripts_dir/$script"
+  local target="$target_dir/$script"
+
+  [[ -f "$source" ]] || return 0
+
+  mkdir -p "$target_dir"
+  if [[ -L "$target" ]]; then
+    rm -f "$target"
+  fi
+  install -m 0755 "$source" "$target"
+}
+
+if [[ -d "$current_scripts_dir" ]]; then
+  if [[ -L "$old_stow_scripts_dir" ]]; then
+    rm -f "$old_stow_scripts_dir"
+  fi
+
+  for script in \
+    clearGithubNotification.sh \
+    create-new-branch.sh \
+    navi-cheatsheets-nu.nu \
+    run-e2e-on-github.sh
+  do
+    install_script_copy "$old_stow_scripts_dir" "$script"
+    install_script_copy "$raycast_script_commands_dir" "$script"
+    install_script_copy "$raycast_dotfiles_commands_dir" "$script"
+    install_script_copy "$old_labs_shortcuts_dir" "$script"
+  done
+
+  if [[ "$(uname -s)" == "Darwin" ]] && ! defaults read com.raycast.macos scriptCommandsDirectories >/dev/null 2>&1; then
+    defaults write com.raycast.macos scriptCommandsDirectories -array \
+      "$old_labs_shortcuts_dir" \
+      "$raycast_script_commands_dir" \
+      "$current_scripts_dir"
+  fi
+fi
