@@ -5,8 +5,9 @@ history
 | reverse
 | where {|row| ($row.command? | default "" | str trim | is-not-empty) }
 | uniq-by command
-| enumerate
 | each {|row|
-    let cmd = ($row.item.command | default "" | str replace -a "\n" "\\n")
-    $"($row.index)\t($cmd)"
+    $row.command
+    | default ""
+    | str replace -a "\n" "\\n"
 }
+| str join "\n"
