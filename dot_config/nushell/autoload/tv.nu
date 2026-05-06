@@ -19,7 +19,7 @@ def tv_smart_autocomplete [] {
     }
 }
 
-# Alt+T for smart autocomplete; fzf-history.nu handles history (Ctrl+R)
+# Alt+T for smart autocomplete; Ctrl+R history + Ctrl+T completion come from tv init nu (vendor/autoload/tv.nu)
 export-env {
     $env.config = (
         $env.config
