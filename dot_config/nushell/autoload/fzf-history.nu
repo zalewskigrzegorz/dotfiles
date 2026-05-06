@@ -1,8 +1,9 @@
-# Fast history search using Nushell history + fzf.
+# Fast history search using Nushell history + fzf (fallback).
 #
 # Keybindings:
-#   Ctrl+R - fuzzy search history, seeded with current commandline
-#   Alt+R  - same picker; handy when terminal/IDE captures Ctrl+R
+#   Ctrl+Option+R — fzf history fallback (Ctrl+R = Television).
+#   Ctrl+Shift+R intentionally not used: many terminals send the same ^R as plain Ctrl+R.
+#   Plain Alt/Option+R = ® in macOS terminals — avoid.
 
 const history_limit = 20000
 
@@ -10,9 +11,15 @@ def fzf_history_candidates [] {
     history
     | last $history_limit
     | reverse
-    | select index command
-    | where {|row| ($row.command | str trim | is-not-empty) }
+    | where {|row| ($row.command? | default "" | str trim | is-not-empty) }
     | uniq-by command
+    | enumerate
+    | each {|row|
+        {
+            index: $row.index,
+            command: $row.item.command
+        }
+    }
 }
 
 def fzf_history_display_rows [candidates: list] {
@@ -81,13 +88,7 @@ export-env {
         $existing_keybindings
         | where {|kb|
             let name = ($kb.name? | default "")
-            let modifier = ($kb.modifier? | default "")
-            let keycode = ($kb.keycode? | default "")
-
-            not (
-                ($name | str starts-with "fzf_history") or
-                (($modifier == "control") and ($keycode == "char_r"))
-            )
+            not ($name | str starts-with "fzf_history")
         }
     )
 
@@ -98,18 +99,8 @@ export-env {
             $filtered_keybindings
             | append [
                 {
-                    name: fzf_history_ctrl_r
-                    modifier: control
-                    keycode: char_r
-                    mode: [emacs, vi_normal, vi_insert]
-                    event: {
-                        send: executehostcommand
-                        cmd: "fzf_history_insert"
-                    }
-                }
-                {
-                    name: fzf_history_alt_r
-                    modifier: alt
+                    name: fzf_history_ctrl_alt_r
+                    modifier: control_alt
                     keycode: char_r
                     mode: [emacs, vi_normal, vi_insert]
                     event: {
