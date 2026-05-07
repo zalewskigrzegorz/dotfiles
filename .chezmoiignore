@@ -19,6 +19,7 @@ private/**
 
 # Generated application state and secrets.
 .config/cursor/chats/**
+.config/cursor/cli-config.json
 .config/raycast/ai/**
 .config/raycast/config.json
 .config/raycast/extensions/**

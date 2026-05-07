@@ -1,0 +1,20 @@
+---
+description: Architecture and safety rules for this chezmoi-managed dotfiles repo
+alwaysApply: true
+---
+
+# Dotfiles Architecture
+
+- This repo is a chezmoi source tree. Edit source paths like `dot_config/...`, `dot_Brewfile.tmpl`, and `run_*` scripts, then use `chezmoi apply`/`sync` to render targets under `~/.config/...`.
+- Do not edit generated target files inside the home directory as the source of truth. If a local target changed and should become source, use `chezmoi add <target>` or convert the source file/template deliberately.
+- Private values come from local chezmoi data and 1Password. See `dot_config/nushell/autoload/private_private.nu.tmpl`: `privateEnvVars` are read with `onepasswordRead`, and `privateEnvExpressions` compose derived values such as `WORK_PROJECT_DIR`.
+- Avoid committing private/company identifiers or hardcoded work paths. If a command needs the work repo root, render it from `WORKSPACE_DIR`, `WORK_COMPANY`, and `WORK_MAIN_PROJECT` in a `.tmpl` file, or use `$env.WORK_PROJECT_DIR` at runtime where Nushell already provides it.
+- Generated secrets or private local app state must not be copied back into the repo. Compatibility hooks should copy rendered files only to locations outside the chezmoi source tree.
+- Cursor/Raycast auth caches and generated app state should be ignored, not templated, unless there is a clear stable setting to manage.
+
+# Common Patterns
+
+- Nushell helpers live in `dot_config/nushell/autoload/*.nu`; exported commands should follow existing `ut`/`pwt` style: find the project from `pwd`, print the command, `cd` to the right root, then execute.
+- Television channels live in `dot_config/television/cable/*.toml` plus optional `*-source.sh` scripts. Add shell integration triggers in `dot_config/television/config.toml`.
+- Raycast scripts live in `dot_config/raycast/scripts/`. If a script needs private values, make it `executable_*.sh.tmpl`; chezmoi renders it to `~/.config/raycast/scripts/*.sh`.
+- Before finishing changes that touch private/company context, run a working-tree scan such as `rg -i '<private identifier>' .` and `gitleaks dir . --config "$DOTFILES_GITLEAKS_PRIVATE_CONFIG"` when the private config exists.

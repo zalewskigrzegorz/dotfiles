@@ -1,0 +1,10 @@
+[metadata]
+name = "respect-integration-tests"
+description = "Select Respect (Arazzo) integration specs or a single workflow"
+requirements = ["rg", "fd"]
+
+[source]
+command = "bash -lc 'bash \"$HOME/.config/television/cable/respect-integration-tests-source.sh\"'"
+
+[preview]
+command = "bash -lc 'kind=$(printf \"%s\" \"{}\" | cut -f1); file=$(printf \"%s\" \"{}\" | cut -f2); wf=$(printf \"%s\" \"{}\" | cut -f3); root=\"$PWD\"; while [ \"$root\" != \"/\" ] && { [ ! -d \"$root/api-integration-tests\" ] || [ ! -f \"$root/run-integration-tests.sh\" ]; }; do root=$(dirname \"$root\"); done; if [ \"$kind\" = \"workflow\" ]; then printf \"rit %q --workflow %q\\n\\n\" \"$file\" \"$wf\"; else printf \"rit %q\\n\\n\" \"$file\"; fi; abs=\"$root/$file\"; bat -n --color=always \"$abs\" 2>/dev/null || sed -n \"1,220p\" \"$abs\" 2>/dev/null'"

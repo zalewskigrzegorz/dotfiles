@@ -14,9 +14,21 @@
 
 # @raycast.argument1 { "type": "dropdown", "placeholder": "Branch type", "prompt": "Select branch type", "required": true, "data": [{"title": "docs", "value": "docs"}, {"title": "feat", "value": "feat"}, {"title": "chore", "value": "chore"}, {"title": "fix", "value": "fix"}] }
 # @raycast.argument2 { "type": "text", "placeholder": "Branch name", "prompt": "Enter branch name" }
+{{- $vault := "Dotfiles" -}}
+{{- with (index . "onePasswordVault") -}}
+{{- $vault = . -}}
+{{- end }}
 
-# Change to the repository directory
-cd /Users/greg/Code/Redocly/redocly || { echo "Failed to change directory"; exit 1; }
+workspace_dir={{ onepasswordRead (printf "op://%s/WORKSPACE_DIR/password" $vault) | quote }}
+work_company={{ onepasswordRead (printf "op://%s/WORK_COMPANY/password" $vault) | quote }}
+work_main_project={{ onepasswordRead (printf "op://%s/WORK_MAIN_PROJECT/password" $vault) | quote }}
+work_project_dir="${workspace_dir}/${work_company}/${work_main_project}"
+
+if [ -z "$work_project_dir" ] || [ ! -d "$work_project_dir" ]; then
+  echo "Rendered WORK_PROJECT_DIR must point to your monorepo clone root." >&2
+  exit 1
+fi
+cd "$work_project_dir" || { echo "Failed to change directory"; exit 1; }
 
 # Stash any existing changes
 echo "Stashing any existing changes..."

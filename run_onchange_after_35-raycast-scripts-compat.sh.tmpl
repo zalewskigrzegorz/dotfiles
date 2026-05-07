@@ -4,7 +4,6 @@ set -euo pipefail
 # Raycast stores script command directories internally. Keep the old configured
 # locations pointing at the chezmoi-managed scripts after the Stow migration.
 current_scripts_dir="$HOME/.config/raycast/scripts"
-old_stow_scripts_dir="$HOME/Code/dotfiles/.config/raycast/scripts"
 raycast_script_commands_dir="$HOME/raycast/script-commands"
 raycast_dotfiles_commands_dir="$raycast_script_commands_dir/commands/dotfiles"
 old_labs_shortcuts_dir="$HOME/Code/Labs/shortcuts"
@@ -25,17 +24,13 @@ install_script_copy() {
 }
 
 if [[ -d "$current_scripts_dir" ]]; then
-  if [[ -L "$old_stow_scripts_dir" ]]; then
-    rm -f "$old_stow_scripts_dir"
-  fi
-
   for script in \
     clearGithubNotification.sh \
     create-new-branch.sh \
     navi-cheatsheets-nu.nu \
+    resolve-email-alias.sh \
     run-e2e-on-github.sh
   do
-    install_script_copy "$old_stow_scripts_dir" "$script"
     install_script_copy "$raycast_script_commands_dir" "$script"
     install_script_copy "$raycast_dotfiles_commands_dir" "$script"
     install_script_copy "$old_labs_shortcuts_dir" "$script"
