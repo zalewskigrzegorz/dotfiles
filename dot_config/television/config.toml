@@ -268,6 +268,7 @@ fallback_channel = "files"
 "pnpm" = ["pnpm", "p"]
 "nx" = ["pnpm nx"]
 "playwright-tests" = ["pwt", "pnpm exec playwright test", "pnpm playwright test"]
+"respect-integration-tests" = ["rit"]
 "nomad" = ["nomad job", "nomad alloc", "nomad-pull-logs"]
 "basti" = ["basti connect", "basti-nomad"]
 "zoxide" = ["z", "zoxide"]
