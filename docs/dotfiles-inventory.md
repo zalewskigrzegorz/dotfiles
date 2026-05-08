@@ -29,6 +29,11 @@ These are applied on macOS workstation and Debian homelab:
 - **Full snapshot (extra formulae, casks with tap prefixes, VS Code pins):** `brew/Brewfile.current`.
 - **Human-readable lists:** `docs/brew-snapshot-20260503.md`.
 
+## Cursor
+
+- **`dot_cursor/` → `~/.cursor/`** (chezmoi): settings, hooks, **`rules/`** (global assistant rules), **`skills/`**. On **`homelab`** profile, `.cursor/**` targets are skipped (see `.chezmoiignore`) — no Cursor sync on headless hosts.
+- **`.cursor/rules/`** at repo root (not under `dot_cursor/`): workspace-only rules when **this dotfiles repo** is the Cursor project (e.g. `dotfiles-architecture.mdc`). Keeps repo-specific AI instructions out of `~/.cursor/rules`.
+
 ## macOS Workstation Only
 
 These are ignored when `profile = "homelab"`:
