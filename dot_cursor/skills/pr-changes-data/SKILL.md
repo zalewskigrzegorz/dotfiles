@@ -23,7 +23,6 @@ Cel: uzyskać ustrukturyzowany zestaw danych o zmianach, który można później
 - Metadane: `gh pr view <PR> --json number,title,url,author,baseRefName,headRefName,additions,deletions,changedFiles,files,commits`
 - Lista plików: z `files` w JSON lub `gh pr diff <PR> --name-only`
 - Diff: `gh pr diff <PR>` (pełny) lub `gh pr diff <PR> --patch` (z patchami)
-- Opcjonalnie skrypt: `agent-skills/gh-smart-port/scripts/pr_snapshot.sh <PR>` — zwraca meta + diffstat + początek diffu
 
 **GitHub MCP (gdy potrzebny dostęp przez API):**
 - `get_pull_request` — owner, repo, pull_number → szczegóły PR

@@ -91,6 +91,7 @@ The script removes only symlinks whose targets are inside the current dotfiles c
 
 ## Reference
 
+- Cursor: rules under `dot_cursor/rules/` render to `~/.cursor/rules/` for **every** workspace (global). Rules under `.cursor/rules/` at repo root apply **only when this dotfiles repo is the workspace** (e.g. dotfiles architecture).
 - Brew bundle reference: `docs/brew-snapshot-20260503.md`
 - Stow link inventory: `docs/stow-links-before-chezmoi.md`
 - Dotfiles inventory: `docs/dotfiles-inventory.md`
