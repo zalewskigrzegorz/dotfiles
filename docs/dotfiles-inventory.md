@@ -23,6 +23,12 @@ These are applied on macOS workstation and Debian homelab:
 - `dot_config/zellij`
 - `bin`
 
+## Homebrew
+
+- **Canonical bundle:** `dot_Brewfile.tmpl` (chezmoi).
+- **Full snapshot (extra formulae, casks with tap prefixes, VS Code pins):** `brew/Brewfile.current`.
+- **Human-readable lists:** `docs/brew-snapshot-20260503.md`.
+
 ## macOS Workstation Only
 
 These are ignored when `profile = "homelab"`:

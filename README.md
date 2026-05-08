@@ -91,7 +91,7 @@ The script removes only symlinks whose targets are inside the current dotfiles c
 
 ## Reference
 
-- Brew snapshot: `docs/brew-snapshot-20260503.md`
+- Brew bundle reference: `docs/brew-snapshot-20260503.md`
 - Stow link inventory: `docs/stow-links-before-chezmoi.md`
 - Dotfiles inventory: `docs/dotfiles-inventory.md`
 - Legacy Stow scripts: `legacy/`

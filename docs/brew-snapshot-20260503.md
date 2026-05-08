@@ -1,11 +1,25 @@
-# Brew Snapshot 2026-05-03
+# Brew bundle reference
 
-## Formulae (`brew leaves`)
+Historical filename kept for links; contents track **`brew/Brewfile.current`** and **`dot_Brewfile.tmpl`**. Last aligned with repo: **2026-05-08**.
+
+## Which file is authoritative?
+
+| File | Role |
+|------|------|
+| **`dot_Brewfile.tmpl`** | Rendered by chezmoi. Defines taps, formulae, and **workstation macOS casks** for a normal bootstrap (`brew bundle` after apply). |
+| **`brew/Brewfile.current`** | Broader snapshot: same cask set (with explicit tap prefixes where used), **extra CLI formulae** not in the minimal template, **VS Code** extensions, plus `cargo` / `npm` entries. Use when reproducing a full dev machine. |
+
+Workstation GUI apps live under the `{{ if eq $profile "workstation" }}` block in `dot_Brewfile.tmpl`. Optional **`setapp`** cask is gated by chezmoi data.
+
+## Formulae (`brew/Brewfile.current`)
+
+Alphabetical by token (tap-qualified names kept as in the bundle):
 
 ```text
 aria2
 asdf
 awscli
+bash
 bat
 btop
 carapace
@@ -22,6 +36,7 @@ felixkratz/formulae/sketchybar
 ffmpeg
 fish
 fnm
+fzf
 gawk
 gh
 git
@@ -60,6 +75,8 @@ nushell
 oven-sh/bun/bun
 pam-reattach
 peonping/tap/peon-ping
+pkgconf
+podman
 podman-compose
 postgresql@14
 rclone
@@ -73,9 +90,7 @@ stow
 superfile
 switchaudio-osx
 television
-telnet
 terminal-notifier
-thefuck
 tilt
 timrogers/tap/litra
 tmux
@@ -88,54 +103,53 @@ wget
 yq
 zig
 zoxide
+zstd
 ```
 
-## Casks (`brew list --cask`)
+## Casks (`brew/Brewfile.current`)
+
+Alphabetical by install name. `aerospace` and `sql-tap` use explicit taps in the bundle file.
 
 ```text
 1password
 1password-cli
-aerospace
 bitwarden
 chipmunk
-dbeaver-community
-discord
-docker
+clop
+comet
+datagrip
 docker-desktop
-firefox-developer-edition
 firefox@developer-edition
 font-fantasque-sans-mono-nerd-font
 font-fira-code
 font-fira-code-nerd-font
 font-hack-nerd-font
 font-iosevka-nerd-font
-font-open-dyslexic-nerd-font
 font-opendyslexic-nerd-font
 ghostty
-gitkraken
-gitkraken-cli
 google-chrome
 google-drive
 insomnia
-iterm2
-jetbrains-toolbox
 keycastr
 logi-options+
-notion
+mickamy/tap/sql-tap
+nikitabobko/tap/aerospace
 obsidian
-paw
 rapidapi
 raycast
 remarkable
 sf-symbols
 slack
 spotify
-sql-tap
-steam
-steelseries-gg
 superwhisper
 via
 vlc
 wooshy
 zed
 ```
+
+Removed from management (no longer in the bundle): `dbeaver-community`, `discord`, `gitkraken`, `gitkraken-cli`, `iterm2`, `jetbrains-toolbox`, `notion`, `steam`, `steelseries-gg`.
+
+## VS Code / other bundle entries
+
+`brew/Brewfile.current` also pins **VS Code extensions** (`vscode "..."`), **`cargo "mcp-server-nu"`**, and **`npm "corepack"`**. See the file for the full list; it is intentionally long and changes with editor setup.
