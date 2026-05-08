@@ -1,13 +1,31 @@
 # Respect integration tests (api-integration-tests + run-integration-tests.sh layout)
 
-# Published CLI binary name from npm (split so repo scanners do not match vendor token).
 def respect-cli-name [] {
-  ["re", "do", "cly"] | str join ""
+  let cli = ($env.WORK_MAIN_PROJECT? | default "")
+  if ($cli | is-empty) {
+    error make { msg: "WORK_MAIN_PROJECT is not set. Run chezmoi apply/sync so private Nushell env is rendered." }
+  }
+  $cli
 }
 
-# Reunite-style env key expected by the local stack (split for same reason).
+def respect-cli-package [] {
+  "@" + (respect-cli-name) + "/cli"
+}
+
 def respect-reunite-env-key [] {
-  "RE" + "DO" + "CLY" + "_ENVIRONMENT"
+  ((respect-cli-name) | str upcase) + "_ENVIRONMENT"
+}
+
+def default-respect-debug-dir [] {
+  "/tmp/respect-debug"
+}
+
+def default-respect-har-output [] {
+  default-respect-debug-dir | path join "latest.har"
+}
+
+def default-respect-json-output [] {
+  default-respect-debug-dir | path join "latest.json"
 }
 
 # Find monorepo root: api-integration-tests/ + run-integration-tests.sh
@@ -67,21 +85,74 @@ def build-respect-args [
   target: string
   --workflow: string = ""
   --verbose
+  --har-output: string = ""
+  --json-output: string = ""
+  --no-secrets-masking
+  --max-fetch-timeout: int = 0
+  --execution-timeout: int = 0
 ] {
   let rel = (normalize-respect-target $root $target)
   let cli = (respect-cli-name)
-  let base = [$cli "respect" $rel]
+  let pkg = (respect-cli-package)
+  let base = ["pnpm" $"--package=($pkg)" "dlx" $cli "respect" $rel]
   let with_wf = if ($workflow | is-empty) { $base } else { $base | append ["--workflow" $workflow] }
-  if $verbose {
+  let with_verbose = if $verbose {
     $with_wf | append ["--verbose"]
   } else {
     $with_wf
   }
+  append-respect-diagnostic-args $with_verbose --har-output=$har_output --json-output=$json_output --no-secrets-masking=$no_secrets_masking --max-fetch-timeout=$max_fetch_timeout --execution-timeout=$execution_timeout
 }
 
-def build-respect-all-args [root: string, --verbose] {
+def append-respect-diagnostic-args [
+  command: list<string>
+  --har-output: string = ""
+  --json-output: string = ""
+  --no-secrets-masking
+  --max-fetch-timeout: int = 0
+  --execution-timeout: int = 0
+] {
+  let with_har = if ($har_output | is-empty) { $command } else { $command | append ["--har-output" $har_output] }
+  let with_json = if ($json_output | is-empty) { $with_har } else { $with_har | append ["--json-output" $json_output] }
+  let with_masking = if $no_secrets_masking { $with_json | append ["--no-secrets-masking"] } else { $with_json }
+  let with_fetch_timeout = if $max_fetch_timeout > 0 { $with_masking | append ["--max-fetch-timeout" ($max_fetch_timeout | into string)] } else { $with_masking }
+  if $execution_timeout > 0 {
+    $with_fetch_timeout | append ["--execution-timeout" ($execution_timeout | into string)]
+  } else {
+    $with_fetch_timeout
+  }
+}
+
+def normalize-diagnostic-output-path [root: string, output_path: string] {
+  if ($output_path | is-empty) {
+    ""
+  } else if ($output_path | str starts-with "/") {
+    $output_path
+  } else {
+    $root | path join $output_path
+  }
+}
+
+def ensure-diagnostic-output-parent [output_path: string] {
+  if not ($output_path | is-empty) {
+    let parent = ($output_path | path dirname)
+    if not ($parent | path exists) {
+      mkdir $parent
+    }
+  }
+}
+
+def build-respect-all-args [
+  root: string
+  --verbose
+  --har-output: string = ""
+  --json-output: string = ""
+  --no-secrets-masking
+  --max-fetch-timeout: int = 0
+  --execution-timeout: int = 0
+] {
   let qroot = ($root | str replace -a "'" "'\"'\"'")
-  let cafe_segment = ([(["re", "do", "cly"] | str join ""), "-cafe-api-atomic-operations"] | str join "")
+  let cafe_segment = ([(respect-cli-name), "-cafe-api-atomic-operations"] | str join "")
   let find_script = $"cd '($qroot)' && find ./api-integration-tests -type f -name '*.yaml' -not -name 'petstore.yaml' -not -name 'close-pr-via-webhook-on-branch-deletion.yaml' -not -path './api-integration-tests/($cafe_segment)/*' | sort"
   let out = (
     bash -lc $find_script
@@ -91,12 +162,14 @@ def build-respect-all-args [root: string, --verbose] {
   )
 
   let cli = (respect-cli-name)
-  let base = ([$cli "respect"] | append $out)
-  if $verbose {
+  let pkg = (respect-cli-package)
+  let base = (["pnpm" $"--package=($pkg)" "dlx" $cli "respect"] | append $out)
+  let with_verbose = if $verbose {
     $base | append ["--verbose"]
   } else {
     $base
   }
+  append-respect-diagnostic-args $with_verbose --har-output=$har_output --json-output=$json_output --no-secrets-masking=$no_secrets_masking --max-fetch-timeout=$max_fetch_timeout --execution-timeout=$execution_timeout
 }
 
 # Convert Television or Nushell completion selection to file and optional workflow id
@@ -167,10 +240,17 @@ def exec-respect-from-root [root: string, args: list<string>] {
 # Pick and run Respect integration tests (Arazzo YAML) with optional Television picker
 export def rit [
   ...selection: string@"nu-complete-respect-targets" # Optional spec or workflow line. If omitted, opens Television picker.
-  --workflow(-w): string # Run a single workflow from the file (overrides workflow embedded in picker selection).
+  --workflow(-w): string = "" # Run a single workflow from the file (overrides workflow embedded in picker selection).
   --all                  # Run the full default suite (same file set as run-integration-tests.sh).
   --full                 # Run pnpm test:integration (starts stack, runs suite, stops).
+  --debug(-d)            # Write HAR + JSON debug artifacts to /tmp/respect-debug and use local debug-friendly flags.
   --no-verbose           # Omit --verbose from the respect subcommand.
+  --har-output(-H): string = "" # Write a HAR file for request-level debugging.
+  --json-output(-J): string = "" # Write a JSON result file.
+  --no-har               # Do not write the default HAR file.
+  --no-secrets-masking   # Show unmasked secrets in output; use only locally.
+  --max-fetch-timeout: int = 0 # Override per-request timeout in milliseconds.
+  --execution-timeout: int = 0 # Override total execution timeout in milliseconds.
 ] {
   let root = (find-respect-integration-root)
   if not (is-respect-integration-repo $root) {
@@ -187,10 +267,39 @@ export def rit [
   }
 
   let verbose = not $no_verbose
+  let effective_har_output = if not ($har_output | is-empty) {
+    normalize-diagnostic-output-path $root $har_output
+  } else if $debug and (not $no_har) {
+    default-respect-har-output
+  } else {
+    ""
+  }
+  let effective_json_output = if not ($json_output | is-empty) {
+    normalize-diagnostic-output-path $root $json_output
+  } else if $debug {
+    default-respect-json-output
+  } else {
+    ""
+  }
+  let effective_no_secrets_masking = $no_secrets_masking or $debug
+  let effective_max_fetch_timeout = if $max_fetch_timeout > 0 { $max_fetch_timeout } else if $debug { 120000 } else { 0 }
+  let effective_execution_timeout = if $execution_timeout > 0 { $execution_timeout } else if $debug { 7200000 } else { 0 }
+
+  ensure-diagnostic-output-parent $effective_har_output
+  ensure-diagnostic-output-parent $effective_json_output
 
   if $all {
-    let command = (build-respect-all-args $root --verbose=$verbose)
+    let command = (build-respect-all-args $root --verbose=$verbose --har-output=$effective_har_output --json-output=$effective_json_output --no-secrets-masking=$effective_no_secrets_masking --max-fetch-timeout=$effective_max_fetch_timeout --execution-timeout=$effective_execution_timeout)
     print $"cd ($root)"
+    if $debug {
+      print $"Diagnostic output dir: (default-respect-debug-dir)"
+    }
+    if not ($effective_har_output | is-empty) {
+      print $"HAR output: ($effective_har_output)"
+    }
+    if not ($effective_json_output | is-empty) {
+      print $"JSON output: ($effective_json_output)"
+    }
     print (display-respect-command $command)
     cd $root
     exec-respect-from-root $root $command
@@ -214,9 +323,18 @@ export def rit [
   }
   let parsed = (parse-respect-selection $parts)
   let wf = if ($workflow | is-empty) { $parsed.workflow } else { $workflow }
-  let command = (build-respect-args $root $parsed.target --workflow=$wf --verbose=$verbose)
+  let command = (build-respect-args $root $parsed.target --workflow=$wf --verbose=$verbose --har-output=$effective_har_output --json-output=$effective_json_output --no-secrets-masking=$effective_no_secrets_masking --max-fetch-timeout=$effective_max_fetch_timeout --execution-timeout=$effective_execution_timeout)
 
   print $"cd ($root)"
+  if $debug {
+    print $"Diagnostic output dir: (default-respect-debug-dir)"
+  }
+  if not ($effective_har_output | is-empty) {
+    print $"HAR output: ($effective_har_output)"
+  }
+  if not ($effective_json_output | is-empty) {
+    print $"JSON output: ($effective_json_output)"
+  }
   print (display-respect-command $command)
 
   cd $root
