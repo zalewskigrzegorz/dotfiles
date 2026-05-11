@@ -4,9 +4,9 @@
 			"command": "{{ .chezmoi.homeDir }}/.cargo/bin/mcp-server-nu",
 			"args": [
 				"--nu-config",
-				"{{ .chezmoi.homeDir }}/Library/Application Support/nushell/config.nu",
+				"{{ .chezmoi.homeDir }}/.config/nushell/config.nu",
 				"--nu-env-config",
-				"{{ .chezmoi.homeDir }}/Library/Application Support/nushell/env.nu"
+				"{{ .chezmoi.homeDir }}/.config/nushell/env.nu"
 			],
 			"env": {}
 		}

@@ -36,10 +36,8 @@ if [[ -d "$current_scripts_dir" ]]; then
     install_script_copy "$old_labs_shortcuts_dir" "$script"
   done
 
-  if [[ "$(uname -s)" == "Darwin" ]] && ! defaults read com.raycast.macos scriptCommandsDirectories >/dev/null 2>&1; then
+  if [[ "$(uname -s)" == "Darwin" ]]; then
     defaults write com.raycast.macos scriptCommandsDirectories -array \
-      "$old_labs_shortcuts_dir" \
-      "$raycast_script_commands_dir" \
-      "$current_scripts_dir"
+      "$old_labs_shortcuts_dir"
   fi
 fi
