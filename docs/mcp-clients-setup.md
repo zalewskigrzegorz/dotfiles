@@ -15,6 +15,8 @@ Endpoints:
 - Cursor MCP: **yes** (`~/.cursor/mcp.json` for global, or `.cursor/mcp.json` per-project).
 - Claude Code MCP: **yes** (recommended as project-scoped `.mcp.json` in repo; user/local scope is stored in `~/.claude.json`).
 
+> **As of the agent-sync rework**, both Cursor and Claude Code now share a single source of truth at `agent-mcp/mcp-servers.json.tmpl`. `chezmoi apply` renders it into `~/.cursor/mcp.json` (via `dot_cursor/mcp.json.tmpl`) and calls `claude mcp add --scope user` for each server. See `docs/agents-sync.md` for the full layout.
+
 ## One-time macOS certificate step (required for Raycast HTTPS)
 
 1. Open `https://mcp.lab/cert/cert.pem` in Safari.
@@ -31,7 +33,7 @@ In Raycast MCP settings add:
 
 ## Cursor (global dotfile-managed)
 
-Put this into `~/.cursor/mcp.json` (or render from `dot_cursor/mcp.json.tmpl`):
+`dot_cursor/mcp.json.tmpl` is a one-line include of the shared `agent-mcp/mcp-servers.json.tmpl`; `chezmoi apply` renders both Cursor and Claude from the same source. Edit `agent-mcp/mcp-servers.json.tmpl` instead of the rendered file. Example shared servers (current state):
 
 ```json
 {
@@ -50,9 +52,13 @@ Put this into `~/.cursor/mcp.json` (or render from `dot_cursor/mcp.json.tmpl`):
 
 Restart Cursor after changes.
 
-## Claude Code (recommended: project-scoped, committed)
+## Claude Code (global user scope, dotfile-managed)
 
-Create/update `.mcp.json` in repo root:
+User-scope MCP servers are registered automatically by `run_onchange_after_32-agent-mcp-sync.sh` (driven off `agent-mcp/mcp-servers.json.tmpl`). It calls `claude mcp remove --scope user <name>` then `claude mcp add --scope user <name> -- <cmd> <args>` per server. Verify with `claude mcp list`.
+
+### Project-scoped (per-repo, committed)
+
+For a per-repo MCP entry that's not global, create/update `.mcp.json` in that repo's root:
 
 ```json
 {

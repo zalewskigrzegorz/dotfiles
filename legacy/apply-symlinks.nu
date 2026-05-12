@@ -216,11 +216,11 @@ def main [] {
         print "  ✅ Cursor settings.json (empty hooks) copied to ~/.cursor/"
     }
 
-    # Sync Cursor agent-skills (copy, no symlinks) if source exists
+    # Sync agent-skills to BOTH ~/.cursor/skills and ~/.claude/skills if source exists
     if ("agent-skills" | path exists) {
         print ""
-        print "📂 Syncing Cursor agent-skills to ~/.cursor/skills..."
-        let sync_result = (do -i { ^./bin/sync-cursor-skills } | complete)
+        print "📂 Syncing agent-skills to ~/.cursor/skills and ~/.claude/skills..."
+        let sync_result = (do -i { ^./bin/sync-agent-skills } | complete)
         if $sync_result.exit_code == 0 {
             print $sync_result.stdout
         } else {

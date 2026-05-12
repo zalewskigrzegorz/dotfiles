@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Sync agent-skills/ -> BOTH ~/.cursor/skills and ~/.claude/skills via rsync.
+# Single source of truth: dotfiles/agent-skills/ (one subdir per skill, each with SKILL.md).
+
+set -e
+
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
+SOURCE="${DOTFILES}/agent-skills"
+TARGETS=("${HOME}/.cursor/skills" "${HOME}/.claude/skills")
+
+if [[ ! -d "$SOURCE" ]]; then
+  echo "No agent-skills directory at $SOURCE — nothing to sync."
+  exit 0
+fi
+
+for target in "${TARGETS[@]}"; do
+  mkdir -p "$target"
+  # --delete prunes skills removed from agent-skills/.
+  # Excludes protect any non-shared content the user may have added locally.
+  rsync -a --delete \
+    --exclude '.DS_Store' \
+    "${SOURCE}/" "${target}/"
+done
+
+echo "Synced agent-skills to:"
+for target in "${TARGETS[@]}"; do
+  echo "  $target:"
+  for d in "$target"/*/; do
+    [[ -d "$d" ]] || continue
+    echo "    - $(basename "$d")"
+  done
+done
+
+# Optional: keep skills-cli as a tool for installing remote/community skills
+# (separate from our shared shared bundle). It can still pull from GitHub repos
+# directly via `skills source add <url> --remote` and sync to its own targets.
