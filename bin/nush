@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# nush — run a nushell expression with all ~/.config/nushell/autoload modules pre-loaded.
+#
+# nu -c does not load the autoload directory (interactive-only), so custom commands
+# like apilogs/pm2logs are invisible. This wrapper sources every autoload file before
+# running your expression so the full surface is available, including pipelines.
+#
+# Usage:
+#   nush "<nushell expression>"
+#
+# Examples:
+#   nush "apilogs"
+#   nush "apilogs | where level == 'ERROR'"
+#   nush "pm2logs portal | first 20"
+
+set -euo pipefail
+
+AUTOLOAD_DIR="${NUSH_AUTOLOAD_DIR:-${HOME}/.config/nushell/autoload}"
+NU_BIN="${NU_BIN:-nu}"
+
+if [[ $# -eq 0 ]]; then
+  echo "Usage: nush \"<nushell expression>\"" >&2
+  exit 2
+fi
+
+if ! command -v "$NU_BIN" >/dev/null 2>&1; then
+  echo "nush: '$NU_BIN' not found on PATH" >&2
+  exit 127
+fi
+
+imports=""
+shopt -s nullglob
+for f in "$AUTOLOAD_DIR"/*.nu; do
+  imports+="source \"$f\"; "
+done
+shopt -u nullglob
+
+exec "$NU_BIN" --commands "${imports}$*"
