@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Sync agent-mcp/mcp-servers.json (rendered) into Claude Code user-scope MCP.
+# (Cursor reads ~/.cursor/mcp.json directly — handled by dot_cursor/mcp.json.tmpl.)
+#
+# Re-runs whenever the rendered MCP config changes.
+# fingerprint: {{ includeTemplate "agent-mcp/mcp-servers.json.tmpl" . | sha256sum }}
+
+set -e
+
+if ! command -v claude &>/dev/null; then
+  echo "agent-mcp sync: claude CLI not on PATH — skipping."
+  exit 0
+fi
+
+tmp="$(mktemp -t agent-mcp.XXXXXX.json)"
+trap 'rm -f "$tmp"' EXIT
+
+cat >"$tmp" <<'__MCP_JSON__'
+{{ includeTemplate "agent-mcp/mcp-servers.json.tmpl" . }}
+__MCP_JSON__
+
+python3 - "$tmp" <<'PY'
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+cfg = json.loads(Path(sys.argv[1]).read_text())
+servers = cfg.get("mcpServers", {})
+
+for name, spec in servers.items():
+    subprocess.run(["claude", "mcp", "remove", "--scope", "user", name],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    cmd = ["claude", "mcp", "add", "--scope", "user"]
+    if "url" in spec:
+        cmd += ["--transport", spec.get("type", "http"), name, spec["url"]]
+    else:
+        for k, v in (spec.get("env") or {}).items():
+            cmd += ["--env", f"{k}={v}"]
+        # `--` separates `claude mcp add` flags from the stdio command + its args.
+        cmd += [name, "--", spec["command"], *spec.get("args", [])]
+
+    try:
+        subprocess.run(cmd, check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        print(f"  + {name}")
+    except subprocess.CalledProcessError as e:
+        sys.stderr.write(f"  ! {name}: {e.stderr.decode().strip()}\n")
+PY
+
+echo "agent-mcp sync: done."

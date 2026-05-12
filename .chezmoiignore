@@ -17,6 +17,10 @@ project-update.md
 work/**
 private/**
 
+agent-skills/**
+agent-rules/**
+agent-mcp/**
+
 # Generated application state and secrets.
 .config/cursor/chats/**
 .config/cursor/cli-config.json

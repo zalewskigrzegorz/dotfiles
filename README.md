@@ -89,9 +89,31 @@ legacy/migrate-stow-links-to-chezmoi.sh --apply
 
 The script removes only symlinks whose targets are inside the current dotfiles checkout. It does not touch real files or directories.
 
+## Agent config (Claude Code + Cursor)
+
+Single-source-of-truth folders at repo root hold what's shared between both agents. `chezmoi apply` renders/syncs them into `~/.cursor/*` and `~/.claude/*`.
+
+| Folder | Lives in repo as | Pushed to | Rendered by |
+| --- | --- | --- | --- |
+| Skills (shared, both agents) | `agent-skills/<name>/SKILL.md` | `~/.cursor/skills/` + `~/.claude/skills/` | `run_onchange_after_30-agent-skills-sync.sh.tmpl` (rsync) |
+| Rules (global) | `agent-rules/<name>.md` (+ Cursor-style frontmatter) | `~/.cursor/rules/<name>.mdc` + `~/.claude/CLAUDE.md` (only `alwaysApply: true`) | `run_onchange_after_31-agent-rules-sync.sh.tmpl` |
+| MCP servers (global) | `agent-mcp/mcp-servers.json.tmpl` | `~/.cursor/mcp.json` (via `dot_cursor/mcp.json.tmpl`) + Claude user-scope via `claude mcp add` | `run_onchange_after_32-agent-mcp-sync.sh.tmpl` |
+| Cursor-only skills | `dot_cursor/skills-cursor/<name>/SKILL.md` | `~/.cursor/skills-cursor/` (chezmoi-managed) | chezmoi default |
+| Claude global file | (auto) | `~/.claude/CLAUDE.md` (auto-generated from `agent-rules/`) | rules sync |
+
+Project-scoped configs are not touched: `<repo>/.cursor/rules/`, `<repo>/CLAUDE.md`, `<repo>/.mcp.json` stay per-project.
+
+Add or change shared content, then `chezmoi apply` — both agents pick it up. For an ad-hoc skill resync without other chezmoi changes:
+
+```bash
+sync-agent-skills
+```
+
+See `docs/agents-sync.md` for details (adding a new skill/rule/MCP server, secrets via 1Password, troubleshooting).
+
 ## Reference
 
-- Cursor: rules under `dot_cursor/rules/` render to `~/.cursor/rules/` for **every** workspace (global). Rules under `.cursor/rules/` at repo root apply **only when this dotfiles repo is the workspace** (e.g. dotfiles architecture).
+- Agent config (shared + per-agent): `docs/agents-sync.md`
 - MCP client setup (Raycast/Cursor/Claude): `docs/mcp-clients-setup.md`
 - Brew bundle reference: `docs/brew-snapshot-20260503.md`
 - Stow link inventory: `docs/stow-links-before-chezmoi.md`

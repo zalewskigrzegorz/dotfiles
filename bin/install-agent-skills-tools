@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Install optional tools for managing AGENT SKILLS:
+#   - Bun + @dhruvwill/skills-cli   (for community/remote skills via `skills source add <url> --remote`)
+#
+# Shared skills from THIS dotfiles repo are synced via `sync-agent-skills` (rsync), not skills-cli,
+# so this installer is optional. It only sets up skills-cli for additional community sources.
+
+set -e
+
+if [[ "$(uname -s)" != Darwin ]]; then
+  echo "Skipping agent-skills tools install (not macOS)."
+  exit 0
+fi
+
+if ! command -v brew &>/dev/null; then
+  echo "Skipping agent-skills tools install (Homebrew not found)."
+  exit 0
+fi
+
+# Bun (needed by skills-cli)
+if ! command -v bun &>/dev/null; then
+  echo "Installing Bun..."
+  brew tap oven-sh/bun
+  brew install bun
+else
+  echo "Bun already installed."
+fi
+
+# skills-cli — optional, for community remote skills only.
+if ! command -v skills &>/dev/null; then
+  echo "Installing @dhruvwill/skills-cli..."
+  bun install -g @dhruvwill/skills-cli
+else
+  echo "skills-cli already installed ($(skills --version 2>/dev/null || true))."
+fi
+
+# Register cursor + claude targets so a future `skills sync` (e.g. for community
+# remote skills) pushes to both agents.
+if command -v skills &>/dev/null; then
+  for target in cursor claude; do
+    if ! skills target list 2>/dev/null | grep -qw "$target"; then
+      echo "Adding skills target: $target"
+      skills target add "$target"
+    fi
+  done
+fi
+
+echo
+echo "Agent-skills tools ready."
+echo "  Shared dotfiles skills:   sync-agent-skills    (rsync agent-skills/ -> both agents)"
+echo "  Community remote skills:  skills source add <github-url> --remote && skills sync"
+echo "  Status:                   skills status"

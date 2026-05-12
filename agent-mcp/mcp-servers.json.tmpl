@@ -1,0 +1,41 @@
+{
+  "mcpServers": {
+    "draw": {
+      "type": "http",
+      "url": "https://mcp.lab/excalidraw/mcp"
+    },
+    "Homey": {
+      "type": "http",
+      "url": "https://mcp.lab/homey/mcp"
+    },
+    "nushell": {
+      "command": "{{ .chezmoi.homeDir }}/.cargo/bin/mcp-server-nu",
+      "args": [
+        "--nu-config",
+        "{{ .chezmoi.homeDir }}/.config/nushell/config.nu",
+        "--nu-env-config",
+        "{{ .chezmoi.homeDir }}/.config/nushell/env.nu"
+      ]
+    },
+    "console-ninja": {
+      "command": "node",
+      "args": ["{{ .chezmoi.homeDir }}/.console-ninja/mcp/"]
+    },
+    "wallaby": {
+      "command": "node",
+      "args": ["{{ .chezmoi.homeDir }}/.wallaby/mcp/"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@latest"]
+    },
+    "MCP_DOCKER": {
+      "command": "docker",
+      "args": ["mcp", "gateway", "run"]
+    }
+  }
+}
