@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Install Claude Code CLI if missing.
+# Order: Homebrew (cask on macOS) -> official installer fallback.
+set -euo pipefail
+
+export HOMEBREW_NO_ENV_HINTS=1
+
+if command -v claude >/dev/null 2>&1; then
+  echo "install-claude: claude already on PATH — skipping."
+  exit 0
+fi
+
+if [[ -x /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+
+{{ if eq .chezmoi.os "darwin" -}}
+if command -v brew >/dev/null 2>&1; then
+  echo "install-claude: installing via brew cask."
+  brew install --cask claude-code
+  exit 0
+fi
+{{ end -}}
+
+echo "install-claude: no brew formula for this OS — using official installer."
+curl -fsSL https://claude.ai/install.sh | bash
