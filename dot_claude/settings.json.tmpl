@@ -7,7 +7,8 @@
           {
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10
+            "timeout": 3,
+            "async": true
           }
         ]
       }
@@ -19,7 +20,7 @@
           {
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10,
+            "timeout": 5,
             "async": true
           }
         ]
@@ -32,7 +33,7 @@
           {
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10,
+            "timeout": 5,
             "async": true
           }
         ]
@@ -45,7 +46,7 @@
           {
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10,
+            "timeout": 5,
             "async": true
           }
         ]
@@ -58,7 +59,7 @@
           {
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10,
+            "timeout": 5,
             "async": true
           }
         ]
@@ -71,7 +72,7 @@
           {
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10,
+            "timeout": 5,
             "async": true
           }
         ]
@@ -84,7 +85,7 @@
           {
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10,
+            "timeout": 5,
             "async": true
           }
         ]
@@ -97,12 +98,60 @@
           {
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10,
+            "timeout": 5,
             "async": true
           }
         ]
       }
     ]
   },
-  "theme": "dark"
+  "theme": "dark",
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true,
+  "outputStyle": "bilingual-concise",
+  "statusLine": {
+    "type": "command",
+    "command": "{{ .chezmoi.homeDir }}/.claude/statusline.sh"
+  },
+  "env": {
+    "DISABLE_TELEMETRY": "1",
+    "DISABLE_ERROR_REPORTING": "1",
+    "BASH_DEFAULT_TIMEOUT_MS": "180000"
+  },
+  "permissions": {
+    "allow": [
+      "Read(/{{ .chezmoi.homeDir }}/**)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(git remote -v)",
+      "Bash(git stash list)",
+      "Bash(git rev-parse*)",
+      "Bash(ls *)",
+      "Bash(rg *)",
+      "Bash(fd *)",
+      "Bash(which *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(tree *)",
+      "Bash(chezmoi diff*)",
+      "Bash(chezmoi managed*)",
+      "Bash(chezmoi source-path*)",
+      "Bash(chezmoi data*)",
+      "Bash(chezmoi execute-template*)",
+      "Bash(gh pr view*)",
+      "Bash(gh pr list*)",
+      "Bash(gh pr diff*)",
+      "Bash(gh issue view*)",
+      "Bash(gh issue list*)",
+      "Bash(gh api*)",
+      "Bash(brew info*)",
+      "Bash(brew list*)",
+      "Bash(claude mcp list)"
+    ]
+  }
 }
