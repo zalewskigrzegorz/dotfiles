@@ -104,8 +104,3 @@ dot_config/zed/embeddings/
 dot_config/zed/prompts/
 .config/zed/.tmp*
 dot_config/zed/.tmp*
-dot_claude/hooks/peon-ping/.last_update_check
-dot_claude/hooks/peon-ping/.relay.pid
-dot_claude/hooks/peon-ping/.sound.pid
-dot_claude/hooks/peon-ping/.state.json
-dot_claude/hooks/peon-ping/.update_available
