@@ -33,11 +33,6 @@ agent-mcp/**
 .config/lnav/**
 .config/atuin/atuin-receipt.json
 .config/spotify-player/clientid
-.claude/hooks/peon-ping/.last_update_check
-.claude/hooks/peon-ping/.relay.pid
-.claude/hooks/peon-ping/.sound.pid
-.claude/hooks/peon-ping/.state.json
-.claude/hooks/peon-ping/.update_available
 
 {{- $profile := "workstation" -}}
 {{- with (index . "profile") -}}

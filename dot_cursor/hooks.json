@@ -1,41 +1,4 @@
 {
   "version": 1,
-  "hooks": {
-    "sessionStart": [
-      {
-        "command": "./hooks/peon-ping.sh",
-        "timeout": 10
-      }
-    ],
-    "beforeSubmitPrompt": [
-      {
-        "command": "./hooks/peon-ping.sh",
-        "timeout": 10
-      }
-    ],
-    "stop": [
-      {
-        "command": "./hooks/peon-ping.sh",
-        "timeout": 10
-      }
-    ],
-    "postToolUseFailure": [
-      {
-        "command": "./hooks/peon-ping.sh",
-        "timeout": 10
-      }
-    ],
-    "subagentStop": [
-      {
-        "command": "./hooks/peon-ping.sh",
-        "timeout": 10
-      }
-    ],
-    "preCompact": [
-      {
-        "command": "./hooks/peon-ping.sh",
-        "timeout": 10
-      }
-    ]
-  }
+  "hooks": {}
 }
