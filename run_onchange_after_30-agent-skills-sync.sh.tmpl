@@ -13,6 +13,22 @@ if [[ ! -d "$SOURCE" ]]; then
   exit 0
 fi
 
+if ! command -v rsync >/dev/null 2>&1; then
+  if [[ -x /opt/homebrew/bin/brew ]]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  fi
+
+  if command -v brew >/dev/null 2>&1; then
+    echo "agent-skills sync: rsync missing — installing via brew."
+    brew install rsync
+  else
+    echo "agent-skills sync: rsync missing and brew unavailable — skipping." >&2
+    exit 0
+  fi
+fi
+
 for target in "${HOME}/.cursor/skills" "${HOME}/.claude/skills"; do
   mkdir -p "$target"
   rsync -a --delete \
