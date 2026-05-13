@@ -69,8 +69,14 @@ brew "zig"
 brew "zoxide"
 
 {{ if eq .chezmoi.os "linux" -}}
-# Headless/Linux: secrets restore (`run_after_05-restore-private-files.sh`) needs `op` on PATH.
-brew "1password-cli"
+# Headless/Linux: 1Password CLI (`op`) is NOT in homebrew on Linux.
+# Install manually before running secrets restore:
+#   curl -sS https://downloads.1password.com/linux/keys/1password.asc \
+#     | sudo gpg --dearmor --output /usr/share/keyrings/1password-archive-keyring.gpg
+#   echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/$(dpkg --print-architecture) stable main" \
+#     | sudo tee /etc/apt/sources.list.d/1password.list
+#   sudo apt update && sudo apt install -y 1password-cli
+# Docs: https://developer.1password.com/docs/cli/get-started/
 {{ end -}}
 
 {{ if eq .chezmoi.os "darwin" -}}
