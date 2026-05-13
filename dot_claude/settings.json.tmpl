@@ -46,18 +46,53 @@
       "Bash(gh api*)",
       "Bash(brew info*)",
       "Bash(brew list*)",
-      "Bash(claude mcp list)"
+      "Bash(claude mcp list)",
+      "Bash(mempalace *)",
+      "Bash(mempalace-mcp *)"
     ]
   },
-  "extraKnownMarketplaces": {
-    "superwhisper": {
-      "source": {
-        "source": "github",
-        "repo": "superultrainc/superwhisper-claude-code"
+  {{- /* Marketplaces + enabled plugins are declared in agent-plugins/plugins.json.tmpl. */ -}}
+  {{- $pluginData := includeTemplate "agent-plugins/plugins.json.tmpl" . | fromJson -}}
+  {{- $mps := dict -}}
+  {{- range $name, $src := $pluginData.marketplaces -}}
+    {{- $_ := set $mps $name (dict "source" $src) -}}
+  {{- end }}
+  "extraKnownMarketplaces": {{ $mps | toJson }},
+  {{- $enabled := dict -}}
+  {{- range $p := $pluginData.plugins -}}
+    {{- $_ := set $enabled $p true -}}
+  {{- end }}
+  "enabledPlugins": {{ $enabled | toJson }},
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "mempalace hook run --hook session-start --harness claude-code"
+          }
+        ]
       }
-    }
-  },
-  "enabledPlugins": {
-    "superwhisper@superwhisper": true
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "mempalace hook run --hook stop --harness claude-code"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "mempalace hook run --hook precompact --harness claude-code"
+          }
+        ]
+      }
+    ]
   }
 }
