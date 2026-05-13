@@ -17,37 +17,40 @@
 # `name`, with auto-rename disabled so the icon stays put. Outside
 # tmux, runs the command directly in the current shell.
 def --wrapped _tui_window [
-    name: string  # e.g. "  nvim"
-    cmd: string   # e.g. "nvim"
-    ...args
+    name: string
+    ...cmd_and_args  # first element is the executable, rest are args
 ] {
+    let cmd = ($cmd_and_args | first)
+    let rest = ($cmd_and_args | skip 1)
     if ($env.TMUX? != null) {
-        let wid = (^tmux new-window -d -P -F "#{window_id}" -n $name -c $env.PWD $cmd ...$args | str trim)
+        let wid = (^tmux new-window -d -P -F "#{window_id}" -n $name -c $env.PWD $cmd ...$rest | str trim)
         ^tmux set-window-option -t $wid automatic-rename off
         ^tmux rename-window -t $wid $name
         ^tmux select-window -t $wid
     } else {
-        run-external $cmd ...$args
+        run-external $cmd ...$rest
     }
 }
 
-# Editors
-def --wrapped nvim   [...args] { _tui_window "  nvim"      "nvim"       ...$args }
-def --wrapped vim    [...args] { _tui_window "  nvim"      "nvim"       ...$args }
-def --wrapped vi     [...args] { _tui_window "  nvim"      "nvim"       ...$args }
+# Editors — nf-custom-vim (U+E62B)
+def --wrapped nvim   [...args] { _tui_window $"\u{e62b}  nvim"      "nvim"   ...$args }
+def --wrapped vim    [...args] { _tui_window $"\u{e62b}  nvim"      "nvim"   ...$args }
+def --wrapped vi     [...args] { _tui_window $"\u{e62b}  nvim"      "nvim"   ...$args }
 
-# AI / agents
-def --wrapped claude [...args] { _tui_window "󰚩  claude"   "claude"     ...$args }
+# AI / agents — nf-md-robot (U+F06A9)
+def --wrapped claude [...args] { _tui_window $"\u{f06a9}  claude"   "claude" ...$args }
 
-# Git / repo TUIs
-def --wrapped lazygit [...args] { _tui_window "  git"      "lazygit"    ...$args }
+# Git TUIs — nf-dev-git_branch (U+E725)
+def --wrapped lazygit [...args] { _tui_window $"\u{e725}  git"      "lazygit" ...$args }
 
-# Containers
-def --wrapped lazydocker [...args] { _tui_window "  docker" "lazydocker" ...$args }
+# GitHub dashboard (gh dash extension) — nf-md-github (U+F0865)
+def --wrapped gh-dash [...args] { _tui_window $"\u{f0865}  gh-dash" "gh" "dash" ...$args }
 
-# System monitors
-def --wrapped btop   [...args] { _tui_window "  btop"      "btop"       ...$args }
-def --wrapped htop   [...args] { _tui_window "  htop"      "htop"       ...$args }
+# Containers — nf-md-docker (U+F0868)
+def --wrapped lazydocker [...args] { _tui_window $"\u{f0868}  docker" "lazydocker" ...$args }
 
-# Kubernetes (if/when installed)
-def --wrapped k9s    [...args] { _tui_window "󱃾  k9s"      "k9s"        ...$args }
+# System monitor — nf-fa-tachometer (U+F0E4)
+def --wrapped btop   [...args] { _tui_window $"\u{f0e4}  btop"      "btop"   ...$args }
+
+# Kubernetes — nf-md-kubernetes (U+F10FE)
+def --wrapped k9s    [...args] { _tui_window $"\u{f10fe}  k9s"      "k9s"    ...$args }
