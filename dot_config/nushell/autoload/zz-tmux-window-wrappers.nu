@@ -51,6 +51,3 @@ def --wrapped lazydocker [...args] { _tui_window $"\u{f0868}  docker" "lazydocke
 
 # System monitor — nf-fa-tachometer (U+F0E4)
 def --wrapped btop   [...args] { _tui_window $"\u{f0e4}  btop"      "btop"   ...$args }
-
-# Kubernetes — nf-md-kubernetes (U+F10FE)
-def --wrapped k9s    [...args] { _tui_window $"\u{f10fe}  k9s"      "k9s"    ...$args }
