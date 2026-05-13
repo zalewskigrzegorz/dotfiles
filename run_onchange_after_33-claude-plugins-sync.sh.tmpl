@@ -20,17 +20,24 @@ __PLUGINS_JSON__
 
 python3 - "$tmp" <<'PY'
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 cfg = json.loads(Path(sys.argv[1]).read_text())
+desired_marketplaces = set((cfg.get("marketplaces") or {}).keys())
+desired_plugins = set(cfg.get("plugins") or [])
+
+def parse_listing(stdout: str) -> set[str]:
+    # Both `claude plugin list` and `... marketplace list` prefix each entry with "❯ <name>".
+    return set(re.findall(r"^\s*❯\s+(\S+)", stdout, flags=re.MULTILINE))
 
 # 1. Add marketplaces (skip if already known).
-known = subprocess.run(
+known = parse_listing(subprocess.run(
     ["claude", "plugin", "marketplace", "list"],
     capture_output=True, text=True,
-).stdout
+).stdout)
 
 for name, src in (cfg.get("marketplaces") or {}).items():
     if name in known:
@@ -54,12 +61,12 @@ for name, src in (cfg.get("marketplaces") or {}).items():
         sys.stderr.write(f"  ! marketplace {name}: {r.stderr.strip()}\n")
 
 # 2. Install plugins (skip if already installed).
-installed = subprocess.run(
+installed = parse_listing(subprocess.run(
     ["claude", "plugin", "list"],
     capture_output=True, text=True,
-).stdout
+).stdout)
 
-for plugin in cfg.get("plugins") or []:
+for plugin in desired_plugins:
     if plugin in installed:
         continue
     r = subprocess.run(
@@ -70,6 +77,28 @@ for plugin in cfg.get("plugins") or []:
         print(f"  + plugin {plugin}")
     else:
         sys.stderr.write(f"  ! plugin {plugin}: {r.stderr.strip()}\n")
+
+# 3. Uninstall plugins no longer in the manifest.
+for plugin in installed - desired_plugins:
+    r = subprocess.run(
+        ["claude", "plugin", "uninstall", plugin],
+        capture_output=True, text=True,
+    )
+    if r.returncode == 0:
+        print(f"  - plugin {plugin}")
+    else:
+        sys.stderr.write(f"  ! uninstall {plugin}: {r.stderr.strip()}\n")
+
+# 4. Remove marketplaces no longer in the manifest (after plugins are gone).
+for name in known - desired_marketplaces:
+    r = subprocess.run(
+        ["claude", "plugin", "marketplace", "remove", name],
+        capture_output=True, text=True,
+    )
+    if r.returncode == 0:
+        print(f"  - marketplace {name}")
+    else:
+        sys.stderr.write(f"  ! remove marketplace {name}: {r.stderr.strip()}\n")
 PY
 
 echo "claude-plugins sync: done."

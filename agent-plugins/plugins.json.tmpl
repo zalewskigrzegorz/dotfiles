@@ -1,16 +1,20 @@
 {
   "marketplaces": {
+    {{- if eq .chezmoi.os "darwin" }}
     "superwhisper": {
       "source": "github",
       "repo": "superultrainc/superwhisper-claude-code"
     },
+    {{- end }}
     "claude-plugins-official": {
       "source": "github",
       "repo": "anthropics/claude-plugins-official"
     }
   },
   "plugins": [
+    {{- if eq .chezmoi.os "darwin" }}
     "superwhisper@superwhisper",
+    {{- end }}
     "superpowers@claude-plugins-official",
     "context7@claude-plugins-official",
     "code-review@claude-plugins-official",
