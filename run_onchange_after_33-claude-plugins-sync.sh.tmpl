@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# Sync Claude Code marketplaces & plugins declared in agent-plugins/plugins.json.tmpl.
+# Idempotent — skips already-installed entries.
+#
+# fingerprint: {{ includeTemplate "agent-plugins/plugins.json.tmpl" . | sha256sum }}
+
+set -e
+
+if ! command -v claude >/dev/null 2>&1; then
+  echo "claude-plugins sync: claude CLI not on PATH — skipping."
+  exit 0
+fi
+
+tmp="$(mktemp -t claude-plugins.XXXXXX.json)"
+trap 'rm -f "$tmp"' EXIT
+
+cat >"$tmp" <<'__PLUGINS_JSON__'
+{{ includeTemplate "agent-plugins/plugins.json.tmpl" . }}
+__PLUGINS_JSON__
+
+python3 - "$tmp" <<'PY'
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+cfg = json.loads(Path(sys.argv[1]).read_text())
+
+# 1. Add marketplaces (skip if already known).
+known = subprocess.run(
+    ["claude", "plugin", "marketplace", "list"],
+    capture_output=True, text=True,
+).stdout
+
+for name, src in (cfg.get("marketplaces") or {}).items():
+    if name in known:
+        continue
+    if src.get("source") == "github" and src.get("repo"):
+        ref = src["repo"]
+    elif src.get("url"):
+        ref = src["url"]
+    elif src.get("path"):
+        ref = src["path"]
+    else:
+        sys.stderr.write(f"  ! {name}: unknown marketplace source — skipping\n")
+        continue
+    r = subprocess.run(
+        ["claude", "plugin", "marketplace", "add", ref],
+        capture_output=True, text=True,
+    )
+    if r.returncode == 0:
+        print(f"  + marketplace {name}")
+    else:
+        sys.stderr.write(f"  ! marketplace {name}: {r.stderr.strip()}\n")
+
+# 2. Install plugins (skip if already installed).
+installed = subprocess.run(
+    ["claude", "plugin", "list"],
+    capture_output=True, text=True,
+).stdout
+
+for plugin in cfg.get("plugins") or []:
+    if plugin in installed:
+        continue
+    r = subprocess.run(
+        ["claude", "plugin", "install", "--scope", "user", plugin],
+        capture_output=True, text=True,
+    )
+    if r.returncode == 0:
+        print(f"  + plugin {plugin}")
+    else:
+        sys.stderr.write(f"  ! plugin {plugin}: {r.stderr.strip()}\n")
+PY
+
+echo "claude-plugins sync: done."
