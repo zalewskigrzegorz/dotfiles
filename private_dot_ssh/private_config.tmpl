@@ -1,0 +1,21 @@
+# Managed by chezmoi. Edit: ~/Code/dotfiles/private_dot_ssh/config.tmpl
+
+Host lab
+    HostName lab
+    User greg
+    IdentityFile ~/.ssh/id_ed25519
+    ForwardAgent yes
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+
+Host lab-via-ip
+    HostName 192.168.50.10
+    User greg
+    IdentityFile ~/.ssh/id_ed25519
+    ForwardAgent yes
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+
+Host homeassistant.local
+    HostName homeassistant.local
+    User hassio
