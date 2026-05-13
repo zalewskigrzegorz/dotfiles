@@ -1,0 +1,14 @@
+# Sesh: fuzzy tmux session manager
+# https://github.com/joshmedeski/sesh
+
+[default_session]
+startup_command = "tmux rename-window '  term'"
+
+# Public, non-secret project
+[[session]]
+name = "dotfiles"
+path = "~/Code/dotfiles"
+startup_command = "tmux rename-window '  term'"
+
+# NOTE: Other projects (e.g. redocly) are discovered dynamically via
+# zoxide history. Do not hardcode private project names here.
