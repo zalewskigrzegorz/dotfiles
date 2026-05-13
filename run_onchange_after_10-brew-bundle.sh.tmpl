@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Re-runs whenever ~/.Brewfile changes (chezmoi hashes the rendered script).
+# Brewfile hash: {{ include "dot_Brewfile.tmpl" | sha256sum }}
 set -euo pipefail
 
 export HOMEBREW_NO_ENV_HINTS=1
@@ -11,14 +13,6 @@ fi
 
 if ! command -v brew >/dev/null 2>&1; then
   echo "brew not found; skipping brew bundle" >&2
-  exit 0
-fi
-
-if [[ "${DOTFILES_RUN_BREW_BUNDLE:-0}" != "1" ]]; then
-  echo "Skipping brew bundle. Review ~/.Brewfile, then run:"
-  echo "  DOTFILES_RUN_BREW_BUNDLE=1 chezmoi apply"
-  echo "or:"
-  echo "  brew bundle --global"
   exit 0
 fi
 
