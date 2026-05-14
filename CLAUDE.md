@@ -32,3 +32,21 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
   - `output-styles/` — custom response styles
 - Plugins/MCP/skills are declared in `agent-plugins/plugins.json.tmpl`, `nushell-mcp.json.tmpl`, and `run_onchange_after_3{0,1,2,3}-*.sh.tmpl` sync scripts.
 - Anything installed via `/plugin install` or `claude mcp add` on a machine must be reflected in the relevant `.tmpl` so the next `chezmoi apply` reinstalls it.
+
+## tmux + persistence
+
+- **No auto-tmux on shell start.** `dot_config/nushell/autoload/ghostty.nu` and `ssh-tmux.nu` keep their auto-`exec tmux` / `exec sesh connect` blocks commented out. Start tmux manually (`tn` alias = `tmux new-session -s main`). Reason: multiple race / crash modes when auto-tmux fires during shell init (TTY race in Ghostty, `sesh connect` requires a session arg, restored panes spawn through wrappers).
+- **`tmux-resurrect` + `tmux-continuum` are disabled** (plugin lines commented in `dot_config/tmux/tmux.conf`, plugin dirs removed). Restore reliably crashes the running tmux server in this setup — likely `switch-client` + `kill-session "0"` in `restore.sh` clashing with `default-command "exec nu"` and the TUI window wrappers. Re-enable only after that interaction is fixed.
+- **Window wrappers** (`dot_config/nushell/autoload/zz-tmux-window-wrappers.nu`) spawn each TUI in its own tmux window with a nerd-font icon: `nvim`/`vim`/`vi`, `claude`, `lazygit`, `gh-dash`, `lazydocker`, `btop`. Use `\u{xxxx}` escapes so codepoints survive every edit; literal glyphs in source have been silently stripped before.
+
+## Lab (`minis`, Debian) — connect & cold-start
+
+- SSH alias: `ssh lab` (chezmoi-templated `~/.ssh/config`); fallback `ssh lab-via-ip` (192.168.50.10).
+- **One-time terminfo install on each remote** so tmux/nvim accept `xterm-ghostty`:
+  ```
+  infocmp -x xterm-ghostty | ssh <host> -- tic -x -
+  ```
+- Lab login shell is `bash`, not nu. Either run `nu` after login or `chsh -s $(which nu)` (after adding nu to `/etc/shells`).
+- **Pulling new dotfiles on lab from bash:** `chezmoi update` (runs `git pull` in `~/.local/share/chezmoi` + `chezmoi apply`). `~/Code/dotfiles` on lab is NOT a git checkout.
+- `1Password CLI` on Linux is **not** in homebrew. Install via apt (commands in `dot_Brewfile.tmpl` comment under the Linux block).
+- Accepted workflow: `tn` on mac → SSH from inside that tmux window → `nu` + `tn`/`ta` on lab. Two status bars (mac-tmux + lab-tmux nested), prefix is `Space`, send to inner tmux via `Space Space` (`bind-key ' ' send-prefix`).
