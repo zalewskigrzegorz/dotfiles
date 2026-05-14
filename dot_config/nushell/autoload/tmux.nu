@@ -23,6 +23,11 @@ def --env ta [
         tmux attach -t $name
         return
     }
+    let sessions = (do { ^tmux list-sessions -F "#{session_name}" } | complete)
+    if $sessions.exit_code != 0 or ($sessions.stdout | str trim | is-empty) {
+        tn
+        return
+    }
     if (which tv | is-not-empty) {
         let selected = (^tv tmux | str trim)
         if ($selected | is-not-empty) {
