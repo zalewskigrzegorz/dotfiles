@@ -13,11 +13,24 @@ def "tmux sessions" [] {
 # Create new tmux session
 def tn [name?: string = "main"] { tmux new-session -s $name }
 
-# Attach to tmux session
+# Attach to tmux session. With no arg: use `tv tmux` picker if
+# television is installed (preview + fuzzy search), else plain
+# `tmux attach` (most-recent / errors if none).
 def --env ta [
     name?: string@"tmux sessions" # Complete with available sessions
-] { 
-    if ($name | is-empty) { tmux attach } else { tmux attach -t $name }
+] {
+    if ($name | is-not-empty) {
+        tmux attach -t $name
+        return
+    }
+    if (which tv | is-not-empty) {
+        let selected = (^tv tmux | str trim)
+        if ($selected | is-not-empty) {
+            tmux attach -t $selected
+        }
+    } else {
+        tmux attach
+    }
 }
 
 # List tmux sessions
