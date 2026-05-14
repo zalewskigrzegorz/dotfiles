@@ -1,14 +1,18 @@
 # Sesh: fuzzy tmux session manager
 # https://github.com/joshmedeski/sesh
 
+# NOTE: window name uses TOML \u escape (U+E795 = nf-dev-terminal) so the
+# codepoint survives future edits. Literal glyphs in source have been
+# silently stripped before — see CLAUDE.md.
+
 [default_session]
-startup_command = "tmux rename-window '  term'"
+startup_command = "tmux rename-window '\uE795  term'"
 
 # Public, non-secret project
 [[session]]
 name = "dotfiles"
 path = "~/Code/dotfiles"
-startup_command = "tmux rename-window '  term'"
+startup_command = "tmux rename-window '\uE795  term'"
 
 # NOTE: Other projects (e.g. REDACTED_ORG) are discovered dynamically via
 # zoxide history. Do not hardcode private project names here.
