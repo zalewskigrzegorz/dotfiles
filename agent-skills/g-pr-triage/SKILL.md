@@ -51,10 +51,11 @@ Capture `OWNER`, `REPO`, `NUMBER`, `headRefOid`, and the PR URL.
 
 ## Step 2 — Fetch all comment sources
 
-Scripts live next to this skill: `scripts/` under the skill directory (default **`$HOME/.cursor/skills/g-pr-triage/scripts`**). Override with **`G_PR_TRIAGE_SCRIPTS`** if the skill is copied elsewhere.
+Scripts live next to this skill: `scripts/` under the skill directory (default **`$HOME/.claude/skills/g-pr-triage/scripts`**, with `$HOME/.cursor/skills/g-pr-triage/scripts` as fallback). Override with **`G_PR_TRIAGE_SCRIPTS`** if the skill is copied elsewhere.
 
 ```bash
-TRIAGE_SCRIPTS="${G_PR_TRIAGE_SCRIPTS:-$HOME/.cursor/skills/g-pr-triage/scripts}"
+TRIAGE_SCRIPTS="${G_PR_TRIAGE_SCRIPTS:-$HOME/.claude/skills/g-pr-triage/scripts}"
+[[ -d "$TRIAGE_SCRIPTS" ]] || TRIAGE_SCRIPTS="$HOME/.cursor/skills/g-pr-triage/scripts"
 ```
 
 ### 2a. Unresolved inline threads (GraphQL, auto-paginated)
@@ -64,6 +65,15 @@ bash "$TRIAGE_SCRIPTS/fetch-comments.sh" "$OWNER" "$REPO" "$NUMBER"
 ```
 
 JSON **array** of unresolved threads, sorted by `path` then line. Include threads with `isOutdated: true` but flag them in triage.
+
+Each thread is enriched with:
+
+- `pr_author` — PR author login.
+- `last_comment_author`, `last_comment_at` — latest comment in the thread.
+- `author_replied_last` — `true` when the **PR author** wrote the latest comment. Default stance: **skip** (likely already handled). Surface only in the summary count.
+- `reviewer_followed_up` — `true` when a reviewer (anyone other than the PR author) wrote **after** the PR author's last reply. The ball is back in the PR author's court — treat as **live**, prioritize.
+
+Each thread's `comments` is a **flat array** (sorted by `createdAt` is not guaranteed — sort yourself if order matters). Use `.comments[0]` for the opening comment, `.comments[-1]` for the latest, `.comments | length` for the count. Each comment has `{id, databaseId, author:{login}, body, url, createdAt, path, line, originalLine, diffHunk}`.
 
 ### 2b. PR-level review bodies + merged inline comments
 
@@ -116,23 +126,37 @@ If a comment mixes a **type** label and a **color** badge (e.g. suggestion vs ma
 
 Keep fix plans short: **what**, **where** (linked files), **feasible?**, up to two **alternatives** if there is a real trade-off.
 
+### Filter: skip already-answered threads
+
+Before building the queue, split inline threads from `fetch-comments.sh` into:
+
+- **Live** — `author_replied_last == false` OR `reviewer_followed_up == true`. These are the threads to triage.
+- **Already replied** — `author_replied_last == true` AND `reviewer_followed_up == false`. The PR author wrote the last word and the reviewer has not pushed back. Skip by default — do **not** prepare a reply.
+
+Default: only triage **Live** threads. Show the count of skipped ones in the summary so the user knows they exist. If the user explicitly asks to revisit them (e.g. "show me the ones I already answered"), include them with `Status: already-replied`.
+
 ### Summary table before per-thread questions
 
 Show one table so the user sees the whole queue first:
 
 | # | Severity | Source | File:line | Author | Status | Summary |
 |---|----------|--------|-----------|--------|--------|---------|
-| 1 | … | inline / review body / issue | … | @… | new / previous | … |
+| 1 | … | inline / review body / issue | … | @… | new / awaiting-you / already-replied | … |
 
-- **Status**: `new` if the latest comment in the thread is **after** `git log -1 --format=%cI HEAD` (approximate), else `previous`. If you cannot run git, omit the column or mark `unknown`.
+- **Status**:
+  - `new` — no reply from the PR author yet (`author_replied_last == false` and no prior author comment).
+  - `awaiting-you` — reviewer followed up after the PR author's reply (`reviewer_followed_up == true`). High priority.
+  - `already-replied` — PR author had the last word, no follow-up. Filtered out by default; only appears if the user asks to see them.
+  - For PR-level review bodies (`reviews`) and `issue` comments, fall back to `new`/`previous` based on timestamps — no thread structure to inspect.
 - **Source**: `inline` (GraphQL thread), text from **`reviews`**, or `issue` for 2c.
 - Group obvious duplicate nits (same reviewer, same theme across files) into one **cluster** with one row or a merged summary.
+- Below the table, add a one-line note: `Skipped N already-replied thread(s) — say "show already-replied" to include them.` Omit the line if `N == 0`.
 
 ---
 
 ## Step 5 — Ask the user per thread
 
-Use `AskQuestion` with the **recommended action first**:
+Use `AskUserQuestion` with the **recommended action first**:
 
 ```
 Title: Thread 2/6 · CRITICAL · src/auth.py L45
@@ -149,7 +173,7 @@ Rules:
 
 - Recommended option is always **first** (keyboard default).
 - Near-duplicate threads → one question, one shared reply, per-file links.
-- One `AskQuestion` per thread or cluster, then emit that block before continuing. Never loop silently.
+- One `AskUserQuestion` per thread or cluster, then emit that block before continuing. Never loop silently.
 
 ---
 
@@ -190,6 +214,7 @@ For **`isOutdated: true`**, keep the thread if still unresolved, mark **`outdate
 ## Step 7 — Wrap-up
 
 - Counts by **recommendation** and by **severity**
+- Count of **already-replied** threads skipped (if any), with the one-line opt-in reminder
 - Manual next steps in order: apply fixes → paste replies → push → resolve threads on GitHub
 - Reminder: this skill did not post or edit anything
 
@@ -243,11 +268,12 @@ Optional suggested change:
 ## Internal checklist
 
 - [ ] PR resolved (`OWNER`, `REPO`, `NUMBER`, `headRefOid`, PR URL)
-- [ ] `fetch-comments.sh` run — unresolved threads
+- [ ] `fetch-comments.sh` run — unresolved threads (with `author_replied_last` / `reviewer_followed_up` enrichment)
 - [ ] `fetch-reviews.sh` run — `reviews` + `inline_comments`
-- [ ] Severity + recommendation + feasibility per thread or cluster
-- [ ] Summary table shown before `AskQuestion` rounds
-- [ ] `AskQuestion` per thread or cluster, recommended option first
+- [ ] Already-replied threads filtered out by default; count surfaced
+- [ ] Severity + recommendation + feasibility per remaining (live) thread or cluster
+- [ ] Summary table shown before `AskUserQuestion` rounds, with `Status` and skipped-count note
+- [ ] `AskUserQuestion` per thread or cluster, recommended option first
 - [ ] Per-thread block: severity, links, fenced reply, optional `suggestion`
 - [ ] No semicolons in prose inside replies
 - [ ] No GitHub writes, no repo edits
