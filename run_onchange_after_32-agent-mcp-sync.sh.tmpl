@@ -36,10 +36,14 @@ for name, spec in servers.items():
     if "url" in spec:
         cmd += ["--transport", spec.get("type", "http"), name, spec["url"]]
     else:
-        for k, v in (spec.get("env") or {}).items():
-            cmd += ["--env", f"{k}={v}"]
-        # `--` separates `claude mcp add` flags from the stdio command + its args.
-        cmd += [name, "--", spec["command"], *spec.get("args", [])]
+        env_pairs = [f"{k}={v}" for k, v in (spec.get("env") or {}).items()]
+        if env_pairs:
+            # `-e` is variadic; pass all pairs in one flag, then `--` ends the
+            # env list so the next positional is the server name.
+            cmd += ["-e", *env_pairs, "--"]
+        else:
+            cmd += ["--"]
+        cmd += [name, spec["command"], *spec.get("args", [])]
 
     try:
         subprocess.run(cmd, check=True,

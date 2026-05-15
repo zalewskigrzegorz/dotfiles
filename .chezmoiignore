@@ -24,6 +24,8 @@ agent-mcp/**
 # Generated application state and secrets.
 .config/cursor/chats/**
 .config/cursor/cli-config.json
+# Cursor manages its bundled skills directly — don't let chezmoi fight it.
+.cursor/skills-cursor/**
 .config/raycast/ai/**
 .config/raycast/config.json
 .config/raycast/extensions/**
