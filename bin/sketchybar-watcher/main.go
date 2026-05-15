@@ -50,6 +50,7 @@ var (
 	showVersion  = flag.Bool("version", false, "print version and exit")
 	homeDir      string
 	kindavimPath string
+	globalState  *state // set in main(); used by notif_preview to fire pulses
 )
 
 var workspaceOrder = []string{
@@ -370,7 +371,7 @@ func dimColor(c string) string {
 
 // ---- sketchybar push ----
 
-func pushToSketchybar(labels []string, focused string, recent []string, svc bool, vim string, pulsed []string) error {
+func pushToSketchybar(labels []string, focused string, recent []string, svc bool, vim string) error {
 	args := make([]string, 0, 256)
 	for i := 1; i <= workspaceCount; i++ {
 		ws := workspaceOrder[i-1]
@@ -394,14 +395,6 @@ func pushToSketchybar(labels []string, focused string, recent []string, svc bool
 		if selected {
 			bgColor = "0x199580ff"
 		}
-		// E4: pulse — temporarily override icon color to cyan; we revert after pulseDurationMs.
-		iconColor := drawColor
-		for _, p := range pulsed {
-			if p == ws {
-				iconColor = colorCyan
-				break
-			}
-		}
 		label := " —"
 		if i <= len(labels) {
 			label = labels[i-1]
@@ -410,7 +403,7 @@ func pushToSketchybar(labels []string, focused string, recent []string, svc bool
 			"--set", fmt.Sprintf("item.%d", i),
 			"label="+label,
 			fmt.Sprintf("icon.highlight=%v", selected),
-			"icon.color="+iconColor,
+			"icon.color="+drawColor,
 			fmt.Sprintf("label.highlight=%v", selected),
 			"label.color="+drawColor,
 			"background.border_color="+drawColor,
@@ -476,7 +469,7 @@ func refresh(st *state) {
 	badges := DockBadges()
 	labels := buildWorkspaceLabels(windowsByWs, badges)
 	pulsed := st.diffBadges(badges, windowsByWs)
-	if err := pushToSketchybar(labels, focused, recent, svc, vim, pulsed); err != nil {
+	if err := pushToSketchybar(labels, focused, recent, svc, vim); err != nil {
 		log.Printf("pushToSketchybar: %v", err)
 		st.mu.Lock()
 		st.retryAttempt++
@@ -493,14 +486,73 @@ func refresh(st *state) {
 	st.mu.Lock()
 	st.retryAttempt = 0
 	st.mu.Unlock()
-	// E4: schedule a revert of the pulse after pulseDurationMs (re-push without pulsed list).
+	// E4: pulse workspaces whose app gained/changed a Dock badge. Uses
+	// sketchybar's `--animate sin` to ease background + border to cyan,
+	// then a follow-up animate back to normal. Visible app-icon "attention".
 	if len(pulsed) > 0 {
-		time.AfterFunc(pulseDurationMs*time.Millisecond, func() {
-			// best-effort revert; trigger a normal refresh which will not pulse again
-			invalidateWindowCache()
-			scheduleRefresh(st)
-		})
+		animatePulse(pulsed, st)
 	}
+}
+
+// E4: animate a notification-arrival pulse on each workspace in `pulsed`.
+// Three on-off cycles using sketchybar's sin animation for a clearly visible
+// "attention" effect. Total ~1.8s per workspace.
+func animatePulse(pulsed []string, st *state) {
+	for _, ws := range pulsed {
+		idx := workspaceIndex(ws)
+		if idx == 0 {
+			continue
+		}
+		item := fmt.Sprintf("item.%d", idx)
+		focused, _, _, _ := st.snapshot()
+		color := workspaceColors[ws]
+		if color == "" {
+			color = colorGrey
+		}
+		baseBorder := color
+		baseBg := colorTransparent
+		baseBorderW := "1"
+		if ws == focused {
+			baseBorder = colorPurple
+			baseBg = "0x199580ff"
+			baseBorderW = "3"
+		}
+		go pulseCycles(item, baseBg, baseBorder, baseBorderW)
+	}
+}
+
+// pulseCycles runs 3 ON/OFF cycles on a workspace item. Each cycle: animate
+// to bright cyan over 15 frames (~250ms), then back to base over 15 frames.
+func pulseCycles(item, baseBg, baseBorder, baseBorderW string) {
+	const cycles = 3
+	const halfMs = 250
+	for i := 0; i < cycles; i++ {
+		_ = exec.Command("sketchybar",
+			"--animate", "sin", "15",
+			"--set", item,
+			"background.color="+colorCyan,
+			"background.border_color="+colorCyan,
+			"background.border_width=3",
+		).Run()
+		time.Sleep(halfMs * time.Millisecond)
+		_ = exec.Command("sketchybar",
+			"--animate", "sin", "15",
+			"--set", item,
+			"background.color="+baseBg,
+			"background.border_color="+baseBorder,
+			"background.border_width="+baseBorderW,
+		).Run()
+		time.Sleep(halfMs * time.Millisecond)
+	}
+}
+
+func workspaceIndex(ws string) int {
+	for i, w := range workspaceOrder {
+		if w == ws {
+			return i + 1
+		}
+	}
+	return 0
 }
 
 func scheduleRefresh(st *state) {
@@ -527,6 +579,10 @@ func handleEvent(st *state, event string, env map[string]string) {
 	case "window-changed": // B4: emitted by aerospace on-window-detected
 		invalidateWindowCache()
 		scheduleRefresh(st)
+	case "manual-pulse": // test trigger for E4 animation
+		if ws := env["WORKSPACE"]; ws != "" {
+			go animatePulse([]string{ws}, st)
+		}
 	case "enter_service":
 		st.setServiceMode(true)
 		scheduleRefresh(st)
@@ -621,6 +677,15 @@ func main() {
 		fmt.Printf("sketchybar-watcher %s (built %s)\n", version, buildTime)
 		return
 	}
+	// Manual pulse test: `sketchybar-watcher pulse chat` — fires the E4
+	// animation against the named workspace. Bypasses the badge-diff path so
+	// you can verify the effect without a real notification.
+	if len(os.Args) >= 3 && os.Args[1] == "pulse" {
+		if err := notifyClient("manual-pulse", []string{"WORKSPACE=" + os.Args[2]}); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	if len(os.Args) >= 2 && os.Args[1] == "notify" {
 		var event string
 		var toSend []string
@@ -651,6 +716,7 @@ func main() {
 	kindavimPath = filepath.Join(homeDir, kindavimEnvFile)
 
 	st := &state{}
+	globalState = st
 
 	listener, err := daemon(st)
 	if err != nil {
