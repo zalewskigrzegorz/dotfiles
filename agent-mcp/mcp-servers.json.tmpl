@@ -39,6 +39,61 @@
     },
     "mempalace": {
       "command": "mempalace-mcp"
+    },
+    "grafana": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "GRAFANA_URL",
+        "-e",
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN",
+        "grafana/mcp-grafana",
+        "--enabled-tools",
+        "clickhouse,prometheus,datasource",
+        "-t",
+        "stdio"
+      ],
+      "env": {
+        "GRAFANA_URL": "https://grafana.redocly.com",
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN": {{ onepasswordRead (printf "op://%s/GRAFANA_SERVICE_ACCOUNT_TOKEN/password" (index . "onePasswordVault" | default "Dotfiles")) | quote }}
+      }
+    },
+    "grafana-dashboards": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "GRAFANA_URL",
+        "-e",
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN",
+        "grafana/mcp-grafana",
+        "--enabled-tools",
+        "search,dashboard,navigation",
+        "-t",
+        "stdio"
+      ],
+      "env": {
+        "GRAFANA_URL": "https://grafana.redocly.com",
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN": {{ onepasswordRead (printf "op://%s/GRAFANA_SERVICE_ACCOUNT_TOKEN/password" (index . "onePasswordVault" | default "Dotfiles")) | quote }}
+      }
+    },
+    "awslabs.cloudwatch-mcp-server": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "--interactive",
+        "-v",
+        "{{ .chezmoi.homeDir }}/.aws:/app/.aws",
+        "-e",
+        "AWS_PROFILE=redocly-prod",
+        "mcp/cloudwatch-mcp-server:latest"
+      ]
     }
   }
 }
