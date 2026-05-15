@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Rebuild the sketchybar-watcher Go binary whenever any of its .go sources or
+# go.mod/go.sum change, then restart the daemon so the new binary is live.
+# Aerospace's after-startup-command relaunches the daemon at login, so during
+# normal chezmoi apply we kill the running watcher and spawn a fresh one.
+#
+# fingerprint: {{ output "bash" "-c" (printf "cd %q && find bin/sketchybar-watcher -maxdepth 1 -type f \\( -name '*.go' -o -name 'go.mod' -o -name 'go.sum' \\) -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
+
+set -e
+
+{{ if eq .chezmoi.os "darwin" -}}
+SRC="{{ .chezmoi.sourceDir }}/bin/sketchybar-watcher"
+LOGS_DIR="$HOME/Code/dotfiles/logs"
+BIN="$SRC/sketchybar-watcher"
+
+if ! command -v go >/dev/null 2>&1; then
+  if [[ -x /opt/homebrew/bin/brew ]]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  fi
+fi
+
+if ! command -v go >/dev/null 2>&1; then
+  echo "sketchybar-watcher: go not on PATH — skipping rebuild."
+  exit 0
+fi
+
+mkdir -p "$LOGS_DIR"
+
+cd "$SRC"
+
+GIT_SHA="$(git -C "$SRC" rev-parse --short HEAD 2>/dev/null || echo dev)"
+BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+echo "sketchybar-watcher: rebuilding ($GIT_SHA, $BUILD_TIME)..."
+GO111MODULE=on go build \
+  -ldflags "-X main.version=$GIT_SHA -X main.buildTime=$BUILD_TIME" \
+  -o sketchybar-watcher .
+
+# Don't restart if the daemon isn't currently running (e.g. fresh install).
+if ! pgrep -x sketchybar-watcher >/dev/null 2>&1; then
+  echo "sketchybar-watcher: daemon not running, skipping restart."
+  exit 0
+fi
+
+echo "sketchybar-watcher: SIGTERM + relaunch..."
+killall sketchybar-watcher 2>/dev/null || true
+# Give it a beat to release the socket before spawn.
+sleep 0.5
+nohup "$BIN" >> "$LOGS_DIR/sketchybar-watcher.log" 2>&1 &
+disown || true
+
+echo "sketchybar-watcher: rebuild complete."
+{{- else -}}
+echo "sketchybar-watcher: skipping rebuild on non-darwin host."
+{{- end }}

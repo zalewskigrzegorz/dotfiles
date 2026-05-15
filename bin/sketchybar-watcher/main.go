@@ -1,36 +1,53 @@
 // sketchybar-watcher is a daemon that drives sketchybar from Aerospace events
 // and kindaVim state. It listens on a Unix socket for workspace/focus/service
-// events and polls kindaVim's environment.json for mode changes.
+// events, polls kindaVim's environment.json for mode changes, fetches Dock
+// notification badges, and watches macOS Focus mode + the NotificationCenter
+// sqlite DB for the on-bar notification preview.
 package main
 
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
+// Injected at build time via -ldflags '-X main.version=... -X main.buildTime=...'
+var (
+	version   = "dev"
+	buildTime = "unknown"
+)
+
 const (
-	socketPath      = "/tmp/sketchybar-watcher.sock"
-	debounceMs      = 0
-	workspaceCount  = 10
-	kindavimPollMs  = 300
-	kindavimIdleMs  = 2000 // poll less often when kindaVim not running
-	kindavimEnvFile = "Library/Application Support/kindaVim/environment.json"
-	startupDelayMs  = 2500
-	retryDelayMs    = 2000
+	socketPath       = "/tmp/sketchybar-watcher.sock"
+	workspaceCount   = 10
+	kindavimEnvFile  = "Library/Application Support/kindaVim/environment.json"
+	debounceMs       = 50         // A1: coalesce rapid focus/workspace events
+	kindavimPollMs   = 300        // A4: mtime-gated, full read is now rare
+	kindavimIdleMs   = 2000       // poll less often when kindaVim not running
+	windowCacheTTLMs = 150        // A3: TTL for `aerospace list-windows`
+	retryDelayMs     = 500        // B3: base backoff
+	retryMaxAttempts = 3          // B3: bounded retry
+	readinessMaxMs   = 5000       // B2: max wait for sketchybar items to exist
+	readinessStepMs  = 50         // B2: initial probe interval
+	recentLRUSize    = 3          // E3: recent-workspace LRU
+	pulseDurationMs  = 600        // E4: app-launch pulse
 )
 
 var (
 	debug        = flag.Bool("debug", false, "verbose logging")
+	showVersion  = flag.Bool("version", false, "print version and exit")
 	homeDir      string
 	kindavimPath string
 )
@@ -40,184 +57,77 @@ var workspaceOrder = []string{
 }
 
 var workspaceColors = map[string]string{
-	"chat":  "0xffa2ff99", "web": "0xff80ffea", "term": "0xffffca80", "code": "0xffff80bf",
-	"media": "0xffffaa99", "test": "0xffffff80", "misc": "0xff7970a9", "notes": "0xff8aff80",
-	"mail":  "0xffff9580", "mac": "0xfff8f8f2",
-}
-
-// appIcons maps the macOS app display name (as reported by aerospace) to a glyph
-// from sketchybar-app-font (https://github.com/kvndrsslr/sketchybar-app-font).
-// One line per app for readability; add new apps alphabetically within their group.
-var appIcons = map[string]string{
-	// Editors & IDEs
-	"Cursor":             ":cursor:",
-	"Visual Studio Code": ":code:",
-	"Zed":                ":zed:",
-	"DataGrip":           ":datagrip:",
-	"Insomnia":           ":insomnia:",
-	"RapidAPI":           ":code:",
-	"chipmunk":           ":code:",
-	"DevUtils":           ":script_editor:",
-	"Proxyman":           ":proxyman:",
-	"Beyond Compare":     ":sublime_merge:",
-	"kindaVim":           ":vim:",
-	"Claude":             ":claude:",
-	"Claude Code URL Handler": ":claude:",
-
-	// Terminals
-	"Ghostty":  ":terminal:",
-	"iTerm":    ":iterm:",
-	"Terminal": ":terminal:",
-	"kitty":    ":kitty:",
-
-	// Browsers
-	"Arc":                       ":arc:",
-	"Comet":                     ":comet:",
-	"Firefox":                   ":firefox:",
-	"Firefox Developer Edition": ":firefox_developer_edition:",
-	"Google Chrome":             ":google_chrome:",
-	"Safari":                    ":safari:",
-	"Zen":                       ":zen_browser:",
-
-	// Communication & mail
-	"Discord":                ":discord:",
-	"Slack":                  ":slack:",
-	"Mail":                   ":mail:",
-	"Canary Mail":            ":mail:",
-	"Spark Mail":             ":spark:",
-	"ChatMate for WhatsApp":  ":whats_app:",
-
-	// Notes, knowledge, productivity
-	"Notes":           ":notes:",
-	"NotePlan":        ":notes:",
-	"Obsidian":        ":obsidian:",
-	"Notion":          ":notion:",
-	"Drafts":          ":drafts:",
-	"Pages Creator Studio": ":pages:",
-	"Pencil":          ":sketch:",
-	"Expressions":     ":script_editor:",
-	"Juicy":           ":default:",
-
-	// Calendar & time
-	"Calendar":        ":calendar:",
-	"Notion Calendar": ":calendar:",
-	"Fantastical":     ":calendar:",
-	"Timing":          ":timingapp:",
-
-	// Media (music / video / audio)
-	"Spotify":      ":spotify:",
-	"Music Decoy":  ":music:",
-	"Endel":        ":music:",
-	"Boom":         ":music:",
-	"VLC":          ":vlc:",
-	"Replay":       ":dvd_player:",
-	"superwhisper": ":voice_memos:",
-	"AirBuddy":     ":face_time:",
-	"Upscayl":      ":image_playground:",
-
-	// Capture & screenshots
-	"CleanShot X": ":screencap:",
-	"Snagit 2024": ":screencap:",
-	"FocuSee":     ":screencap:",
-	"Clop":        ":color_picker:",
-
-	// Finder / file management
-	"Finder":         ":finder:",
-	"Path Finder":    ":finder:",
-	"The Unarchiver": ":default:",
-	"Dropzone":       ":dropbox:",
-
-	// Cloud / drive
-	"Google Drive":  ":google_drive:",
-	"Google Docs":   ":microsoft_word:",
-	"Google Sheets": ":microsoft_excel:",
-	"Google Slides": ":microsoft_power_point:",
-
-	// Security & VPN
-	"1Password":                 ":one_password:",
-	"SigmaOS 1Password Linker":  ":one_password:",
-	"Bitwarden":                 ":bit_warden:",
-	"ClearVPN":                  ":openvpn_connect:",
-
-	// System / utility
-	"Setapp":               ":setapp:",
-	"System Settings":      ":gear:",
-	"System Preferences":   ":gear:",
-	"AeroSpace":            ":gear:",
-	"Raycast":              ":raycast:",
-	"Raycast Beta":         ":raycast:",
-	"SF Symbols":           ":sf_symbols:",
-	"iStat Menus":          ":activity_monitor:",
-	"CleanMyMac":           ":pearcleaner:",
-	"DisplayBuddy":         ":desktop:",
-	"NotchNook":            ":default:",
-	"OpenIn":               ":default:",
-	"StartupFolder":        ":gear:",
-	"Wooshy":               ":spotlight:",
-	"WiFi Explorer":        ":airport_utility:",
-
-	// Containers
-	"Docker":         ":docker:",
-	"Docker Desktop": ":docker:",
-
-	// Peripherals & hardware
-	"Stream Deck":            ":keyboard:",
-	"Elgato Stream Deck":     ":keyboard:",
-	"Bazecor":                ":bazecor:",
-	"KeyCastr":               ":keyboard:",
-	"logioptionsplus":        ":keyboard:",
-	"KDE Connect":            ":phone:",
-	"Poly Studio":            ":phone:",
-	"qFlipper":               ":gear:",
-	"Insta360 Link Controller": ":face_time:",
-	"Steam Link":              ":gear:",
-	"Iru Self Service":        ":gear:",
-	"Glyphica Typing Survival": ":default:",
-
-	// PDF / readers
-	"CleverPDF":  ":pdf_expert:",
-	"reMarkable": ":pdf_expert:",
+	"chat":  "0xffa2ff99",
+	"web":   "0xff80ffea",
+	"term":  "0xffffca80",
+	"code":  "0xffff80bf",
+	"media": "0xffffaa99",
+	"test":  "0xffffff80",
+	"misc":  "0xff7970a9",
+	"notes": "0xff8aff80",
+	"mail":  "0xffff9580",
+	"mac":   "0xfff8f8f2",
 }
 
 const (
-	colorPurple     = "0xff9580ff"
-	colorMagenta    = "0xffff80bf"
-	colorYellow     = "0xffffff80"
-	colorRed        = "0xffff9580"
-	colorGrey       = "0xff7970a9"
+	colorPurple      = "0xff9580ff"
+	colorMagenta     = "0xffff80bf"
+	colorYellow      = "0xffffff80"
+	colorRed         = "0xffff9580"
+	colorGrey        = "0xff7970a9"
+	colorCyan        = "0xff80ffea"
 	colorTransparent = "0x00000000"
+	colorDim         = "0x60" // alpha prefix used when E3 dims a workspace
 )
 
 type state struct {
 	mu               sync.Mutex
 	focusedWorkspace string
+	recentWorkspaces []string // E3: most-recent first, max recentLRUSize
 	serviceMode      bool
 	vimMode          string // N, I, V, C, R or ""
+	dndActive        bool   // E2
 	debounceTimer    *time.Timer
+	retryAttempt     int                 // B3
+	prevWindowCounts map[string]int      // E4: previous per-workspace counts for diff
+}
+
+func (s *state) snapshot() (focused string, recent []string, svc bool, vim string, dnd bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	focused = s.focusedWorkspace
+	recent = append([]string(nil), s.recentWorkspaces...)
+	svc = s.serviceMode
+	vim = s.vimMode
+	dnd = s.dndActive
+	return
 }
 
 func (s *state) setFocused(ws string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if ws == "" || ws == s.focusedWorkspace {
+		return
+	}
 	s.focusedWorkspace = ws
-}
-
-func (s *state) getFocused() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.focusedWorkspace
+	// E3: push to front of recent LRU
+	out := []string{ws}
+	for _, w := range s.recentWorkspaces {
+		if w == ws {
+			continue
+		}
+		out = append(out, w)
+		if len(out) >= recentLRUSize {
+			break
+		}
+	}
+	s.recentWorkspaces = out
 }
 
 func (s *state) setServiceMode(v bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.serviceMode = v
-}
-
-func (s *state) getServiceMode() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.serviceMode
 }
 
 func (s *state) setVimMode(v string) {
@@ -232,6 +142,29 @@ func (s *state) getVimMode() string {
 	return s.vimMode
 }
 
+func (s *state) setDND(v bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.dndActive = v
+}
+
+// E4: diff previous per-workspace counts vs new ones; return list of workspaces
+// where window count increased (candidates for the pulse animation).
+func (s *state) diffWindowCounts(newCounts map[string]int) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var increased []string
+	for ws, n := range newCounts {
+		if s.prevWindowCounts == nil || n > s.prevWindowCounts[ws] {
+			if s.prevWindowCounts != nil { // skip first-tick "all new" noise
+				increased = append(increased, ws)
+			}
+		}
+	}
+	s.prevWindowCounts = newCounts
+	return increased
+}
+
 func logDebug(format string, args ...interface{}) {
 	if *debug {
 		log.Printf("[watcher] "+format, args...)
@@ -239,20 +172,37 @@ func logDebug(format string, args ...interface{}) {
 }
 
 func runCmd(name string, args ...string) ([]byte, error) {
-	cmd := exec.Command(name, args...)
-	return cmd.Output()
+	return exec.Command(name, args...).Output()
 }
 
 func runAerospace(args ...string) ([]byte, error) {
 	return runCmd("aerospace", args...)
 }
 
+// ---- window cache (A3) ----
+
+type windowSet map[string][]string // workspace -> apps
+
+var (
+	windowCacheMu     sync.Mutex
+	windowCacheData   windowSet
+	windowCacheExpiry time.Time
+)
+
 type windowInfo struct {
 	Workspace string `json:"workspace"`
 	AppName   string `json:"app-name"`
 }
 
-func getWindowsByWorkspace() (map[string][]string, error) {
+func getWindowsByWorkspace() (windowSet, error) {
+	windowCacheMu.Lock()
+	if windowCacheData != nil && time.Now().Before(windowCacheExpiry) {
+		out := windowCacheData
+		windowCacheMu.Unlock()
+		return out, nil
+	}
+	windowCacheMu.Unlock()
+
 	out, err := runAerospace("list-windows", "--all", "--format", "%{workspace}%{app-name}", "--json")
 	if err != nil {
 		return nil, err
@@ -261,17 +211,25 @@ func getWindowsByWorkspace() (map[string][]string, error) {
 	if err := json.Unmarshal(out, &list); err != nil {
 		return nil, err
 	}
-	byWs := make(map[string][]string)
+	byWs := make(windowSet)
 	for _, w := range list {
-		if w.Workspace == "" || w.AppName == "" {
-			continue
-		}
-		if w.AppName == "kindaVim" {
+		if w.Workspace == "" || w.AppName == "" || w.AppName == "kindaVim" {
 			continue
 		}
 		byWs[w.Workspace] = append(byWs[w.Workspace], w.AppName)
 	}
+
+	windowCacheMu.Lock()
+	windowCacheData = byWs
+	windowCacheExpiry = time.Now().Add(windowCacheTTLMs * time.Millisecond)
+	windowCacheMu.Unlock()
 	return byWs, nil
+}
+
+func invalidateWindowCache() {
+	windowCacheMu.Lock()
+	windowCacheExpiry = time.Time{}
+	windowCacheMu.Unlock()
 }
 
 func getFocusedWorkspace() (string, error) {
@@ -285,6 +243,8 @@ func getFocusedWorkspace() (string, error) {
 	}
 	return strings.TrimSpace(lines[0]), nil
 }
+
+// ---- kindaVim (A4: mtime-gated polling) ----
 
 func readKindavimMode() string {
 	data, err := os.ReadFile(kindavimPath)
@@ -315,20 +275,27 @@ func readKindavimMode() string {
 func kindavimPoller(st *state) {
 	interval := kindavimIdleMs * time.Millisecond
 	lastMode := ""
+	var lastMtime time.Time
 	for {
 		out, err := runCmd("pgrep", "-x", "kindaVim")
 		running := err == nil && len(out) > 0
 		if running {
 			interval = kindavimPollMs * time.Millisecond
-			mode := readKindavimMode()
-			if mode != lastMode {
-				lastMode = mode
-				st.setVimMode(mode)
-				scheduleRefresh(st)
+			// A4: only re-read JSON if mtime changed
+			fi, statErr := os.Stat(kindavimPath)
+			if statErr == nil && fi.ModTime() != lastMtime {
+				lastMtime = fi.ModTime()
+				mode := readKindavimMode()
+				if mode != lastMode {
+					lastMode = mode
+					st.setVimMode(mode)
+					scheduleRefresh(st)
+				}
 			}
 		} else {
 			if lastMode != "" {
 				lastMode = ""
+				lastMtime = time.Time{}
 				st.setVimMode("")
 				scheduleRefresh(st)
 			}
@@ -338,53 +305,20 @@ func kindavimPoller(st *state) {
 	}
 }
 
-func getAppNotifications(appNames []string) map[string]string {
-	configDir := os.Getenv("CONFIG_DIR")
-	if configDir == "" {
-		configDir = filepath.Join(homeDir, ".config", "sketchybar")
-	}
-	script := filepath.Join(configDir, "helpers", "get_app_notifications.nu")
-	if _, err := os.Stat(script); err != nil {
-		return nil
-	}
-	out, err := runCmd("nu", script)
-	if err != nil || len(out) == 0 {
-		return nil
-	}
-	m := make(map[string]string)
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		idx := strings.Index(line, ":")
-		if idx <= 0 {
-			continue
-		}
-		app := line[:idx]
-		badge := strings.Trim(line[idx+1:], "\"")
-		m[app] = badge
-	}
-	return m
-}
+// ---- workspace label rendering (uses C-restored badges + E1 window counts) ----
 
-func appIcon(appName string) string {
-	if s, ok := appIcons[appName]; ok {
-		return s
-	}
-	return ":default:"
-}
-
-func buildWorkspaceLabels(windowsByWs map[string][]string, notifications map[string]string) []string {
+func buildWorkspaceLabels(windowsByWs windowSet, badges map[string]string) ([]string, map[string]int) {
 	labels := make([]string, workspaceCount)
+	counts := make(map[string]int)
 	for i, ws := range workspaceOrder {
 		apps := windowsByWs[ws]
+		counts[ws] = len(apps)
 		var parts []string
 		for _, appName := range apps {
 			icon := appIcon(appName)
 			badge := ""
-			if notifications != nil {
-				badge = notifications[appName]
+			if badges != nil {
+				badge = badges[appName]
 			}
 			if badge != "" {
 				parts = append(parts, " "+icon+badge)
@@ -392,26 +326,59 @@ func buildWorkspaceLabels(windowsByWs map[string][]string, notifications map[str
 				parts = append(parts, " "+icon)
 			}
 		}
+		// E1: append window-count badge when count > 1
+		if len(apps) > 1 {
+			countStr := fmt.Sprintf(" [%d]", len(apps))
+			if len(apps) > 9 {
+				countStr = " [9+]"
+			}
+			parts = append(parts, countStr)
+		}
 		if len(parts) == 0 {
 			labels[i] = " —"
 		} else {
 			labels[i] = strings.Join(parts, "")
 		}
 	}
-	return labels
+	return labels, counts
 }
 
-func pushToSketchybar(labels []string, focusedWorkspace string, serviceMode bool, vimMode string) error {
+// E3: workspace is "dim" if it's NOT focused AND NOT in the recent-LRU.
+func isRecent(ws string, recent []string) bool {
+	for _, r := range recent {
+		if r == ws {
+			return true
+		}
+	}
+	return false
+}
+
+// dimColor blends a 0xAARRGGBB color with reduced alpha for E3 dimming.
+// We replace the alpha byte (positions 2-3 after "0x") with colorDim's hex pair.
+func dimColor(c string) string {
+	if len(c) < 4 || !strings.HasPrefix(c, "0x") {
+		return c
+	}
+	return "0x" + strings.TrimPrefix(colorDim, "0x") + c[4:]
+}
+
+// ---- sketchybar push ----
+
+func pushToSketchybar(labels []string, counts map[string]int, focused string, recent []string, svc bool, vim string, dnd bool, pulsed []string) error {
 	args := make([]string, 0, 256)
 	for i := 1; i <= workspaceCount; i++ {
 		ws := workspaceOrder[i-1]
-		selected := ws == focusedWorkspace
+		selected := ws == focused
 		color := workspaceColors[ws]
 		if color == "" {
 			color = colorGrey
 		}
+		drawColor := color
 		if selected {
-			color = colorPurple
+			drawColor = colorPurple
+		} else if !isRecent(ws, recent) {
+			// E3: dim non-recent workspaces
+			drawColor = dimColor(color)
 		}
 		borderWidth := "1"
 		if selected {
@@ -419,7 +386,15 @@ func pushToSketchybar(labels []string, focusedWorkspace string, serviceMode bool
 		}
 		bgColor := colorTransparent
 		if selected {
-			bgColor = "0x199580ff" // purple with alpha
+			bgColor = "0x199580ff"
+		}
+		// E4: pulse — temporarily override icon color to cyan; we revert after pulseDurationMs.
+		iconColor := drawColor
+		for _, p := range pulsed {
+			if p == ws {
+				iconColor = colorCyan
+				break
+			}
 		}
 		label := " —"
 		if i <= len(labels) {
@@ -429,87 +404,100 @@ func pushToSketchybar(labels []string, focusedWorkspace string, serviceMode bool
 			"--set", fmt.Sprintf("item.%d", i),
 			"label="+label,
 			fmt.Sprintf("icon.highlight=%v", selected),
-			"icon.color="+color,
+			"icon.color="+iconColor,
 			fmt.Sprintf("label.highlight=%v", selected),
-			"label.color="+color,
-			"background.border_color="+color,
+			"label.color="+drawColor,
+			"background.border_color="+drawColor,
 			"background.border_width="+borderWidth,
 			"background.color="+bgColor,
 		)
 	}
-	// Apple item: service > kindaVim N/V/C/R > unicorn (insert or default)
-	// Insert (I) = unicorn; N,V,C,R = show letter
-	if serviceMode {
-		args = append(args,
-			"--set", "apple",
-			"icon.string=💀",
-			"icon.color="+colorRed,
-			"icon.highlight=true",
-			"background.border_color="+colorRed,
-			"background.border_width=3",
-		)
-	} else if vimMode == "N" || vimMode == "V" || vimMode == "C" || vimMode == "R" {
-		color := colorPurple
-		switch vimMode {
+	// Apple item: service > kindaVim N/V/C/R > unicorn (insert or default). E2 dims when DND active.
+	appleColor := colorPurple
+	appleBorder := "1"
+	appleString := "🦄"
+	appleHighlight := "false"
+	if svc {
+		appleString = "💀"
+		appleColor = colorRed
+		appleBorder = "3"
+		appleHighlight = "true"
+	} else if vim == "N" || vim == "V" || vim == "C" || vim == "R" {
+		appleString = vim
+		appleBorder = "2"
+		switch vim {
 		case "V":
-			color = colorMagenta
+			appleColor = colorMagenta
 		case "C":
-			color = colorRed
+			appleColor = colorRed
 		case "R":
-			color = colorYellow
+			appleColor = colorYellow
+		default:
+			appleColor = colorPurple
 		}
-		args = append(args,
-			"--set", "apple",
-			"icon.string="+vimMode,
-			"icon.color="+color,
-			"icon.highlight=false",
-			"background.border_color="+color,
-			"background.border_width=2",
-		)
-	} else {
-		// Insert (I) or no kindaVim = unicorn
-		args = append(args,
-			"--set", "apple",
-			"icon.string=🦄",
-			"icon.color="+colorPurple,
-			"icon.highlight=false",
-			"background.border_color="+colorPurple,
-			"background.border_width=1",
-		)
 	}
+	if dnd {
+		appleColor = dimColor(appleColor)
+	}
+	args = append(args,
+		"--set", "apple",
+		"icon.string="+appleString,
+		"icon.color="+appleColor,
+		"icon.highlight="+appleHighlight,
+		"background.border_color="+appleColor,
+		"background.border_width="+appleBorder,
+	)
 	logDebug("sketchybar %s", strings.Join(args, " "))
 	cmd := exec.Command("sketchybar", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	_ = counts // E1 already baked into labels
 	return cmd.Run()
 }
 
+// ---- refresh orchestration ----
+
 func refresh(st *state) {
-	focused := st.getFocused()
-	serviceMode := st.getServiceMode()
-	// If we never got focus from event, query
+	focused, recent, svc, vim, dnd := st.snapshot()
 	if focused == "" {
-		var err error
-		focused, err = getFocusedWorkspace()
-		if err != nil {
-			logDebug("getFocusedWorkspace: %v", err)
+		if f, err := getFocusedWorkspace(); err == nil {
+			focused = f
+			st.setFocused(f)
+			_, recent, _, _, _ = st.snapshot()
 		}
 	}
 	windowsByWs, err := getWindowsByWorkspace()
 	if err != nil {
 		logDebug("getWindowsByWorkspace: %v", err)
-		windowsByWs = make(map[string][]string)
+		windowsByWs = make(windowSet)
 	}
-	var appNames []string
-	for _, apps := range windowsByWs {
-		appNames = append(appNames, apps...)
+	badges := DockBadges()
+	labels, counts := buildWorkspaceLabels(windowsByWs, badges)
+	pulsed := st.diffWindowCounts(counts)
+	if err := pushToSketchybar(labels, counts, focused, recent, svc, vim, dnd, pulsed); err != nil {
+		log.Printf("pushToSketchybar: %v", err)
+		st.mu.Lock()
+		st.retryAttempt++
+		attempt := st.retryAttempt
+		st.mu.Unlock()
+		if attempt <= retryMaxAttempts {
+			backoff := time.Duration(retryDelayMs*(1<<(attempt-1))) * time.Millisecond
+			time.AfterFunc(backoff, func() { refresh(st) })
+		} else {
+			log.Printf("pushToSketchybar: giving up after %d attempts", attempt-1)
+		}
+		return
 	}
-	notifications := getAppNotifications(appNames)
-	labels := buildWorkspaceLabels(windowsByWs, notifications)
-	vimMode := st.getVimMode()
-	if err := pushToSketchybar(labels, focused, serviceMode, vimMode); err != nil {
-		log.Printf("pushToSketchybar: %v (sketchybar may still be loading)", err)
-		time.AfterFunc(retryDelayMs*time.Millisecond, func() { refresh(st) })
+	st.mu.Lock()
+	st.retryAttempt = 0
+	st.mu.Unlock()
+	// E4: schedule a revert of the pulse after pulseDurationMs (re-push without pulsed list).
+	if len(pulsed) > 0 {
+		time.AfterFunc(pulseDurationMs*time.Millisecond, func() {
+			// best-effort revert; trigger a normal refresh which will not pulse again
+			invalidateWindowCache()
+			scheduleRefresh(st)
+		})
 	}
 }
 
@@ -528,9 +516,14 @@ func handleEvent(st *state, event string, env map[string]string) {
 	logDebug("event %q env %v", event, env)
 	switch event {
 	case "workspace", "focus":
+		// A5: trust FOCUSED_WORKSPACE from event payload; never fall back to subprocess.
 		if ws := env["FOCUSED_WORKSPACE"]; ws != "" {
 			st.setFocused(ws)
 		}
+		invalidateWindowCache()
+		scheduleRefresh(st)
+	case "window-changed": // B4: emitted by aerospace on-window-detected
+		invalidateWindowCache()
 		scheduleRefresh(st)
 	case "enter_service":
 		st.setServiceMode(true)
@@ -538,46 +531,54 @@ func handleEvent(st *state, event string, env map[string]string) {
 	case "leave_service":
 		st.setServiceMode(false)
 		scheduleRefresh(st)
+	case "dnd-changed": // E2: emitted by dnd poller via internal channel (loopback)
+		scheduleRefresh(st)
 	default:
 		logDebug("unknown event %q", event)
 	}
 }
 
-func daemon(st *state) error {
-	os.Remove(socketPath)
+// ---- socket daemon ----
+
+func daemon(st *state) (net.Listener, error) {
+	if err := os.Remove(socketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Printf("os.Remove(%s): %v", socketPath, err) // B5
+	}
 	l, err := net.Listen("unix", socketPath)
 	if err != nil {
-		return fmt.Errorf("listen: %w", err)
+		return nil, fmt.Errorf("listen: %w", err)
 	}
-	defer l.Close()
 	logDebug("listening on %s", socketPath)
-	for {
-		conn, err := l.Accept()
-		if err != nil {
-			return err
+	go func() {
+		for {
+			conn, err := l.Accept()
+			if err != nil {
+				return // listener closed during shutdown
+			}
+			go handleConn(conn, st)
 		}
-		go func(c net.Conn) {
-			defer c.Close()
-			sc := bufio.NewScanner(c)
-			if !sc.Scan() {
-				return
-			}
-			line := strings.TrimSpace(sc.Text())
-			parts := strings.SplitN(line, " ", 2)
-			event := parts[0]
-			env := make(map[string]string)
-			if len(parts) > 1 {
-				for _, kv := range strings.Fields(parts[1]) {
-					if idx := strings.Index(kv, "="); idx > 0 {
-						key := kv[:idx]
-						val := kv[idx+1:]
-						env[key] = val
-					}
-				}
-			}
-			handleEvent(st, event, env)
-		}(conn)
+	}()
+	return l, nil
+}
+
+func handleConn(c net.Conn, st *state) {
+	defer c.Close()
+	sc := bufio.NewScanner(c)
+	if !sc.Scan() {
+		return
 	}
+	line := strings.TrimSpace(sc.Text())
+	parts := strings.SplitN(line, " ", 2)
+	event := parts[0]
+	env := make(map[string]string)
+	if len(parts) > 1 {
+		for _, kv := range strings.Fields(parts[1]) {
+			if idx := strings.Index(kv, "="); idx > 0 {
+				env[kv[:idx]] = kv[idx+1:]
+			}
+		}
+	}
+	handleEvent(st, event, env)
 }
 
 func notifyClient(event string, env []string) error {
@@ -594,25 +595,49 @@ func notifyClient(event string, env []string) error {
 	return err
 }
 
+// ---- B2: sketchybar readiness probe ----
+
+func waitForSketchybar(maxWait time.Duration) error {
+	step := readinessStepMs * time.Millisecond
+	deadline := time.Now().Add(maxWait)
+	for time.Now().Before(deadline) {
+		out, err := exec.Command("sketchybar", "--query", "item.1").Output()
+		if err == nil && len(out) > 0 && !strings.Contains(string(out), "not found") {
+			return nil
+		}
+		time.Sleep(step)
+		if step < 500*time.Millisecond {
+			step *= 2
+		}
+	}
+	return fmt.Errorf("sketchybar items not ready after %v", maxWait)
+}
+
+// ---- main ----
+
 func main() {
 	flag.Parse()
+	if *showVersion {
+		fmt.Printf("sketchybar-watcher %s (built %s)\n", version, buildTime)
+		return
+	}
 	if len(os.Args) >= 2 && os.Args[1] == "notify" {
-		// Client: sketchybar-watcher notify --event workspace FOCUSED_WORKSPACE=chat FOCUSED_DISPLAY=...
 		var event string
 		var toSend []string
 		for i := 2; i < len(os.Args); i++ {
 			arg := os.Args[i]
-			if strings.HasPrefix(arg, "--event=") {
+			switch {
+			case strings.HasPrefix(arg, "--event="):
 				event = strings.TrimPrefix(arg, "--event=")
-			} else if arg == "--event" && i+1 < len(os.Args) {
+			case arg == "--event" && i+1 < len(os.Args):
 				event = os.Args[i+1]
 				i++
-			} else if strings.Contains(arg, "=") {
+			case strings.Contains(arg, "="):
 				toSend = append(toSend, arg)
 			}
 		}
 		if event == "" {
-			log.Fatal("notify requires --event workspace|focus|enter_service|leave_service")
+			log.Fatal("notify requires --event <name>")
 		}
 		if err := notifyClient(event, toSend); err != nil {
 			log.Fatal(err)
@@ -626,16 +651,46 @@ func main() {
 	kindavimPath = filepath.Join(homeDir, kindavimEnvFile)
 
 	st := &state{}
+
+	listener, err := daemon(st)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// B1: graceful shutdown + SIGHUP reload
+	sigCh := make(chan os.Signal, 2)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+
 	go func() {
-		time.Sleep(startupDelayMs * time.Millisecond)
+		if err := waitForSketchybar(readinessMaxMs * time.Millisecond); err != nil {
+			log.Printf("readiness: %v (continuing anyway)", err)
+		}
 		if f, _ := getFocusedWorkspace(); f != "" {
 			st.setFocused(f)
 		}
 		st.setVimMode(readKindavimMode())
 		refresh(st)
+		startNotifPreview(st) // E5: kicks off sqlite poller goroutine
+		startDNDPoller(st)    // E2: kicks off Focus mode poller goroutine
 	}()
 	go kindavimPoller(st)
-	if err := daemon(st); err != nil {
-		log.Fatal(err)
+
+	for sig := range sigCh {
+		switch sig {
+		case syscall.SIGHUP:
+			log.Printf("SIGHUP: full refresh")
+			invalidateWindowCache()
+			scheduleRefresh(st)
+		case syscall.SIGINT, syscall.SIGTERM:
+			log.Printf("shutdown: %s", sig)
+			st.mu.Lock()
+			if st.debounceTimer != nil {
+				st.debounceTimer.Stop()
+			}
+			st.mu.Unlock()
+			_ = listener.Close()
+			_ = os.Remove(socketPath)
+			return
+		}
 	}
 }

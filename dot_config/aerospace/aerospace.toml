@@ -281,6 +281,14 @@ ctrl-shift-l = [
 ]
 
 # Automation when windows open
+
+# Catch-all: notify watcher every time a window is detected, then continue
+# with the per-app placement rules below. Fixes the "open new window doesn't
+# update sketchybar until focus changes" gap (handleEvent: "window-changed").
+[[on-window-detected]]
+check-further-callbacks = true
+run = ['exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event window-changed']
+
 [[on-window-detected]]
 if.app-name-regex-substring = 'Discord'
 run = 'move-node-to-workspace chat'
