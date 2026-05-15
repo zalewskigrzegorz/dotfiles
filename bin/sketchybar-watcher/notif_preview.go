@@ -194,13 +194,20 @@ func pushPreview(n *notifPreview) {
 	if len([]rune(text)) > notifPreviewMaxLen {
 		text = string([]rune(text)[:notifPreviewMaxLen-1]) + "…"
 	}
-	logDebug("notif_preview push: icon=%s body=%s", icon, text)
+	logDebug("notif_preview push: icon=%s body=%s bundle=%s", icon, text, n.bundleID)
 	// icon uses sketchybar-app-font (set in Lua widget); label uses text font.
+	// click_script: open the source app on click. The Lua `mouse.clicked`
+	// handler ALSO fires and clears the item, so click both opens + dismisses.
+	clickScript := ""
+	if n.bundleID != "" {
+		clickScript = "open -b " + n.bundleID
+	}
 	_ = exec.Command("sketchybar",
 		"--set", notifPreviewItem,
 		"icon="+icon,
 		"label="+text,
 		"drawing=on",
+		"click_script="+clickScript,
 	).Run()
 }
 
