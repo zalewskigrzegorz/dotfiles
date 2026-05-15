@@ -1,13 +1,18 @@
 ---
 name: g-pr-fix-checks
-description: Rebases failing open GitHub PRs onto their base branch, force-pushes, and retriggers the run_e2e label. Use whenever the user says they want to "fix failing checks", "rebase the PR", "retrigger e2e", "rerun checks after main was fixed", or otherwise wants to recover one or more PRs that went red because base branch (main/master) was broken. Trigger even if the user just says "checks are failing on my PRs" or "fix my PRs" without naming this skill.
+description: Rebases open GitHub PRs that are failing checks OR have merge conflicts with their base branch, force-pushes, and retriggers the run_e2e label. Use whenever the user says they want to "fix failing checks", "rebase the PR", "retrigger e2e", "rerun checks after main was fixed", resolve PRs that "conflict with main/master", or otherwise wants to recover one or more PRs that went red because base branch was broken or moved. Trigger even if the user just says "checks are failing on my PRs", "fix my PRs", or "my PRs are conflicting" without naming this skill.
 ---
 
 # g-pr-fix-checks
 
 ## Purpose
 
-When `main` (or whichever base branch) gets fixed after breaking unit tests / e2e / typescript / etc., open PRs on top of it stay red until they're rebased. This skill discovers those PRs, lets the user pick which to fix, and runs the rebase + force-push + e2e re-trigger loop with **minimal AI involvement** — only stops to ask the user when there's a real decision (which PRs to touch, how to handle a conflict).
+Two cases this skill recovers:
+
+1. `main` (or whichever base) got fixed after breaking unit tests / e2e / typescript — open PRs on top of it stay red until rebased.
+2. `main` moved on and a PR now **conflicts** with it — GitHub flags it as not mergeable until rebased.
+
+This skill discovers both kinds of PRs, lets the user pick which to fix, and runs the rebase + force-push + e2e re-trigger loop with **minimal AI involvement** — only stops to ask the user when there's a real decision (which PRs to touch, how to handle a conflict during rebase).
 
 The skill is for the user's *own* open PRs across whichever GitHub repo the user is currently in. It does not pick repos for you — `cd` to the repo first.
 
@@ -36,18 +41,30 @@ bash scripts/list_prs.sh
 It outputs one line per open PR authored by the current user, ordered with the current branch's PR (if any) first:
 
 ```
-<number>\t<state>\t<headRefName>\t<baseRefName>\t<title>
+<number>\t<state>\t<mergeable>\t<failed_checks>\t<headRefName>\t<baseRefName>\t<title>
 ```
 
-Where `state` is one of `FAILING`, `PENDING`, `PASSING`, `UNKNOWN`.
+Where:
+- `state` is one of `FAILING`, `PENDING`, `PASSING`, `UNKNOWN` (CI checks rollup).
+- `mergeable` is one of `MERGEABLE`, `CONFLICTING`, `UNKNOWN` (GitHub merge state vs base).
+- `failed_checks` is a comma-separated list of failed check names (e.g. `build, e2e/login`), or `-` if none.
+
+A PR is **actionable** for this skill if `state == FAILING` **or** `mergeable == CONFLICTING`. `UNKNOWN` mergeable on its own is not actionable (GitHub hasn't computed it yet); fall back to the check state.
 
 ### 2. Decide which PRs to update
 
-- If **no** PRs are `FAILING` → tell the user "no failing PRs, nothing to do" and stop. Do not rebase green PRs (the user explicitly does not want that).
-- If exactly one PR is `FAILING` and it's the current branch's PR → confirm with the user in one sentence, then proceed.
-- Otherwise → present the failing PRs as a short numbered list (number, branch, title, base) and ask the user which to update: a single one, several (comma-separated), or `all`.
+- If **no** PRs are actionable → tell the user "no failing or conflicting PRs, nothing to do" and stop. Do not rebase green, mergeable PRs (the user explicitly does not want that).
+- If exactly one PR is actionable and it's the current branch's PR → confirm with the user in one sentence (mention whether it's failing, conflicting, or both, and which checks failed if any), then proceed.
+- Otherwise → present the actionable PRs as a short numbered list. One PR per line, in this shape:
 
-Keep the prompt terse. Do not lecture, do not list passing PRs.
+  ```
+  N) #<num>  <tag>  <branch>  ←  <title>
+       failed: <check names>            # only if state == FAILING
+  ```
+
+  Where `<tag>` is one of `failing` / `conflicting` / `failing+conflicting`. Omit the `failed:` line entirely for purely-conflicting PRs. Then ask which to update: a single one, several (comma-separated), or `all`.
+
+Keep the prompt terse. Do not lecture, do not list clean PRs, do not dump raw TSV.
 
 ### 3. For each selected PR, run the update
 
@@ -107,7 +124,7 @@ This label is a Redocly-specific convention: removing then re-adding it causes t
 
 ## Things to avoid
 
-- Don't rebase a PR whose checks are green. The user reaches for this skill specifically when base was broken; touching green PRs is wasted CI and noise.
+- Don't rebase a PR that's both green **and** mergeable. The user reaches for this skill specifically when base was broken or the PR conflicts; touching clean PRs is wasted CI and noise.
 - Don't `git push --force` (without `--force-with-lease`). Lease protects against clobbering a teammate's push.
 - Don't `git rebase --skip` on a conflict. Skipping silently drops the user's commit.
 - Don't switch the user back to a different branch than they started on.

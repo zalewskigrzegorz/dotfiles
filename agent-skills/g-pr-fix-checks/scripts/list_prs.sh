@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# List the current user's open PRs in the current repo with rolled-up check status.
+# List the current user's open PRs in the current repo with rolled-up check status,
+# mergeable state, and the names of failed checks.
 # Output, one PR per line, tab-separated:
-#   <number>\t<state>\t<headRefName>\t<baseRefName>\t<title>
+#   <number>\t<state>\t<mergeable>\t<failed_checks>\t<headRefName>\t<baseRefName>\t<title>
 # State is one of: FAILING, PENDING, PASSING, UNKNOWN.
+# Mergeable is one of: MERGEABLE, CONFLICTING, UNKNOWN.
+# failed_checks is a comma-separated list of failed check names, or "-" if none.
 # The PR matching the current branch (if any) is listed first.
 
 set -euo pipefail
@@ -29,7 +32,7 @@ current_branch="$(git symbolic-ref --short HEAD 2>/dev/null || true)"
 raw="$(gh pr list \
   --state open \
   --author '@me' \
-  --json number,title,headRefName,baseRefName,statusCheckRollup \
+  --json number,title,headRefName,baseRefName,statusCheckRollup,mergeable \
   --limit 200)"
 
 # Reduce statusCheckRollup to one of FAILING / PENDING / PASSING / UNKNOWN.
@@ -53,10 +56,30 @@ echo "$raw" | jq -r --arg cb "$current_branch" '
         end
     end;
 
+  def merge_state(m):
+    (m // "" | ascii_upcase) as $u
+    | if $u == "CONFLICTING" then "CONFLICTING"
+      elif $u == "MERGEABLE" then "MERGEABLE"
+      else "UNKNOWN"
+      end;
+
+  # Names of failed checks, joined by ", ". "-" if none.
+  def failed_names(checks):
+    (checks | map(
+      ((.conclusion // .state // "") | ascii_upcase) as $c
+      | select($c == "FAILURE" or $c == "TIMED_OUT" or $c == "CANCELLED" or $c == "ACTION_REQUIRED" or $c == "STARTUP_FAILURE" or $c == "ERROR")
+      | (.name // .context // "unknown")
+    )) as $names
+    | if ($names | length) == 0 then "-" else ($names | join(", ")) end;
+
   . as $prs
-  | map(. + {state: roll(.statusCheckRollup)})
+  | map(. + {
+      state: roll(.statusCheckRollup),
+      merge: merge_state(.mergeable),
+      failed: failed_names(.statusCheckRollup),
+    })
   # Put the current-branch PR first (if any), keep the rest in API order.
   | (map(select(.headRefName == $cb))) + (map(select(.headRefName != $cb)))
   | .[]
-  | [.number, .state, .headRefName, .baseRefName, .title] | @tsv
+  | [.number, .state, .merge, .failed, .headRefName, .baseRefName, .title] | @tsv
 '
