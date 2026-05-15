@@ -194,6 +194,24 @@ func pushPreview(n *notifPreview) {
 	if len([]rune(text)) > notifPreviewMaxLen {
 		text = string([]rune(text)[:notifPreviewMaxLen-1]) + "…"
 	}
+	// E4 trigger: pulse the workspace running this app, if any.
+	if appName != "" && globalState != nil {
+		if windows, err := getWindowsByWorkspace(); err == nil {
+			var pulsed []string
+		find:
+			for ws, apps := range windows {
+				for _, a := range apps {
+					if a == appName {
+						pulsed = []string{ws}
+						break find
+					}
+				}
+			}
+			if len(pulsed) > 0 {
+				go animatePulse(pulsed, globalState)
+			}
+		}
+	}
 	logDebug("notif_preview push: icon=%s body=%s bundle=%s", icon, text, n.bundleID)
 	// icon uses sketchybar-app-font (set in Lua widget); label uses text font.
 	// click_script: open the source app on click. The Lua `mouse.clicked`
