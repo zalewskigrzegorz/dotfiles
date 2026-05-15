@@ -46,15 +46,17 @@ var workspaceColors = map[string]string{
 }
 
 var appIcons = map[string]string{
-	"Cursor": ":cursor:", "Visual Studio Code": ":code:", "Ghostty": ":terminal:",
+	"Cursor": ":cursor:", "Visual Studio Code": ":code:", "Zed": ":zed:", "Ghostty": ":terminal:",
 	"Discord": ":discord:", "Slack": ":slack:", "Spotify": ":spotify:",
-	"Firefox": ":firefox:", "Firefox Developer Edition": ":firefox_developer_edition:", "Safari": ":safari:", "Arc": ":arc:", "Comet": ":comet:",
+	"Firefox": ":firefox:", "Firefox Developer Edition": ":firefox_developer_edition:", "Safari": ":safari:", "Arc": ":arc:", "Comet": ":comet:", "Google Chrome": ":google_chrome:",
 	"Notes": ":notes:", "Obsidian": ":obsidian:", "NotePlan": ":notes:", "Notion": ":notion:",
 	"Mail": ":mail:", "Canary Mail": ":mail:", "Spark Mail": ":spark:", "Finder": ":finder:",
 	"iTerm": ":iterm:", "Terminal": ":terminal:", "kitty": ":kitty:",
-	"DataGrip": ":datagrip:",
+	"DataGrip": ":datagrip:", "Insomnia": ":insomnia:", "Docker Desktop": ":docker:", "Docker": ":docker:",
 	"Notion Calendar": ":calendar:", "Fantastical": ":calendar:", "Calendar": ":calendar:",
-	"Raycast": ":raycast:", "Endel": ":music:",
+	"Raycast": ":raycast:", "Raycast Beta": ":raycast:", "Endel": ":music:", "VLC": ":vlc:",
+	"1Password": ":one_password:", "Bitwarden": ":bit_warden:",
+	"Google Drive": ":google_drive:", "SF Symbols": ":sf_symbols:",
 	"Setapp": ":setapp:", "System Settings": ":gear:", "System Preferences": ":gear:",
 	"Boom": ":phone:", "Stream Deck": ":keyboard:",
 }
