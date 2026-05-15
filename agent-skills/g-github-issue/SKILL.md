@@ -1,6 +1,6 @@
 ---
 name: g-github-issue
-description: Creates GitHub issues for REDACTED_ORG/REDACTED_ORG via gh CLI. Chooses template (bug vs maintenance explicitly when unclear), default label Team: REDACTED_TEAM, English issue bodies, confirmation before gh issue create. Use when the user wants a bug report, maintenance issue, feature request, idea, docs, epic, or onboarding issue.
+description: Creates GitHub issues for REDACTED_ORG/REDACTED_ORG via gh CLI with template choice (bug/maintenance), default label Team:REDACTED_TEAM, English body, confirmation before create. Use for bug report, maintenance, feature request, idea, docs, epic, or onboarding issue.
 ---
 
 # g-github-issue

@@ -1,6 +1,6 @@
 ---
 name: g-pr-triage
-description: Fetches unresolved PR review threads (paginated GraphQL), PR-level review bodies plus cross-checked bot inline comments, optionally issue comments. Classifies by severity and fix/reply/both/skip, shows a summary table, then AskQuestion per thread with paste-ready replies and fix plans. Use when the user wants to respond to, plan, or work through PR review comments on the current branch, a PR number, or a PR URL.
+description: Fetches unresolved PR review threads and bot inline comments via GraphQL, classifies by severity/action, asks per-thread with paste-ready replies and fix plans. Use when the user wants to respond to or work through PR review comments on current branch, PR number, or PR URL.
 ---
 
 # g-pr-triage

@@ -1,6 +1,6 @@
 ---
 name: dotfiles-sync
-description: Audits drift between the live system and ~/Code/dotfiles (Brewfile, Claude plugins/MCP/skills/hooks/settings, dot_config/, chezmoi diff), reports it in a table, and syncs missing pieces back to the repo via `chezmoi re-add` or by editing the right .tmpl. Also handles the "add new app" flow (brew install → Brewfile entry → dot_config capture). Use whenever the user wants to sync dotfiles, audit drift, add a new app to their dotfiles, asks "what's missing from my repo", says they installed a new brew formula / Claude plugin / MCP server / skill and wants it persisted, or wants to verify `chezmoi apply` would reproduce the current setup. Trigger even on terse asks like "sync my dotfiles", "audit drift", "I just installed X, add it".
+description: Audits drift between live system and ~/Code/dotfiles (Brewfile, Claude plugins/MCP/skills/hooks/settings, dot_config/, chezmoi diff) and syncs missing pieces back. Use for "sync dotfiles", "audit drift", "add new app/brew/plugin/MCP/skill to dotfiles", or verifying `chezmoi apply` reproduces setup.
 ---
 
 # dotfiles-sync

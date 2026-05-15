@@ -1,6 +1,6 @@
 ---
 name: g-pr-fix-checks
-description: Rebases open GitHub PRs that are failing checks OR have merge conflicts with their base branch, force-pushes, and retriggers the run_e2e label. Use whenever the user says they want to "fix failing checks", "rebase the PR", "retrigger e2e", "rerun checks after main was fixed", resolve PRs that "conflict with main/master", or otherwise wants to recover one or more PRs that went red because base branch was broken or moved. Trigger even if the user just says "checks are failing on my PRs", "fix my PRs", or "my PRs are conflicting" without naming this skill.
+description: Rebases open GitHub PRs failing checks or conflicting with base branch, force-pushes, retriggers run_e2e label. Use for "fix failing checks", "rebase the PR", "retrigger e2e", "my PRs are conflicting", or recovering PRs that went red after base branch moved.
 ---
 
 # g-pr-fix-checks
