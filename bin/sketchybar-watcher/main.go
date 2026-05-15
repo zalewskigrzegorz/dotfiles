@@ -86,10 +86,10 @@ type state struct {
 	recentWorkspaces []string // E3: most-recent first, max recentLRUSize
 	serviceMode      bool
 	vimMode          string // N, I, V, C, R or ""
-	dndActive        bool   // E2
+	dndActive        bool   // E2 (set via `sketchybar-watcher dnd` subcommand)
 	debounceTimer    *time.Timer
-	retryAttempt     int                 // B3
-	prevWindowCounts map[string]int      // E4: previous per-workspace counts for diff
+	retryAttempt     int               // B3
+	prevBadges       map[string]string // E4: previous per-app Dock badges for notification-arrival diff
 }
 
 func (s *state) snapshot() (focused string, recent []string, svc bool, vim string, dnd bool) {
@@ -148,21 +148,43 @@ func (s *state) setDND(v bool) {
 	s.dndActive = v
 }
 
-// E4: diff previous per-workspace counts vs new ones; return list of workspaces
-// where window count increased (candidates for the pulse animation).
-func (s *state) diffWindowCounts(newCounts map[string]int) []string {
+// E4: diff previous per-app Dock badges vs new ones. Return list of workspaces
+// where any app gained a new badge OR an existing badge changed (notification
+// arrived). This pulses workspaces for incoming notifications, not for new
+// windows — more useful in practice (new windows are usually intentional, but
+// new notifications are easy to miss).
+func (s *state) diffBadges(newBadges map[string]string, windowsByWs windowSet) []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var increased []string
-	for ws, n := range newCounts {
-		if s.prevWindowCounts == nil || n > s.prevWindowCounts[ws] {
-			if s.prevWindowCounts != nil { // skip first-tick "all new" noise
-				increased = append(increased, ws)
+	wsSet := make(map[string]bool)
+	for app, badge := range newBadges {
+		prev, had := s.prevBadges[app]
+		changed := false
+		if s.prevBadges == nil {
+			changed = false // skip first-tick "all new" noise
+		} else if !had {
+			changed = true // new badge appeared
+		} else if prev != badge {
+			changed = true // badge value changed (e.g. count went up)
+		}
+		if !changed {
+			continue
+		}
+		// Locate which workspace this app lives in.
+		for ws, apps := range windowsByWs {
+			for _, a := range apps {
+				if a == app {
+					wsSet[ws] = true
+				}
 			}
 		}
 	}
-	s.prevWindowCounts = newCounts
-	return increased
+	s.prevBadges = newBadges
+	out := make([]string, 0, len(wsSet))
+	for ws := range wsSet {
+		out = append(out, ws)
+	}
+	return out
 }
 
 func logDebug(format string, args ...interface{}) {
@@ -307,12 +329,10 @@ func kindavimPoller(st *state) {
 
 // ---- workspace label rendering (uses C-restored badges + E1 window counts) ----
 
-func buildWorkspaceLabels(windowsByWs windowSet, badges map[string]string) ([]string, map[string]int) {
+func buildWorkspaceLabels(windowsByWs windowSet, badges map[string]string) []string {
 	labels := make([]string, workspaceCount)
-	counts := make(map[string]int)
 	for i, ws := range workspaceOrder {
 		apps := windowsByWs[ws]
-		counts[ws] = len(apps)
 		var parts []string
 		for _, appName := range apps {
 			icon := appIcon(appName)
@@ -326,21 +346,15 @@ func buildWorkspaceLabels(windowsByWs windowSet, badges map[string]string) ([]st
 				parts = append(parts, " "+icon)
 			}
 		}
-		// E1: append window-count badge when count > 1
-		if len(apps) > 1 {
-			countStr := fmt.Sprintf(" [%d]", len(apps))
-			if len(apps) > 9 {
-				countStr = " [9+]"
-			}
-			parts = append(parts, countStr)
-		}
+		// E1: window-count badge skipped — sketchybar-app-font has no ascii
+		// digits/brackets, renders as tofu. Count is implicit in icon count.
 		if len(parts) == 0 {
 			labels[i] = " —"
 		} else {
 			labels[i] = strings.Join(parts, "")
 		}
 	}
-	return labels, counts
+	return labels
 }
 
 // E3: workspace is "dim" if it's NOT focused AND NOT in the recent-LRU.
@@ -364,7 +378,7 @@ func dimColor(c string) string {
 
 // ---- sketchybar push ----
 
-func pushToSketchybar(labels []string, counts map[string]int, focused string, recent []string, svc bool, vim string, dnd bool, pulsed []string) error {
+func pushToSketchybar(labels []string, focused string, recent []string, svc bool, vim string, dnd bool, pulsed []string) error {
 	args := make([]string, 0, 256)
 	for i := 1; i <= workspaceCount; i++ {
 		ws := workspaceOrder[i-1]
@@ -451,7 +465,6 @@ func pushToSketchybar(labels []string, counts map[string]int, focused string, re
 	cmd := exec.Command("sketchybar", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	_ = counts // E1 already baked into labels
 	return cmd.Run()
 }
 
@@ -472,9 +485,9 @@ func refresh(st *state) {
 		windowsByWs = make(windowSet)
 	}
 	badges := DockBadges()
-	labels, counts := buildWorkspaceLabels(windowsByWs, badges)
-	pulsed := st.diffWindowCounts(counts)
-	if err := pushToSketchybar(labels, counts, focused, recent, svc, vim, dnd, pulsed); err != nil {
+	labels := buildWorkspaceLabels(windowsByWs, badges)
+	pulsed := st.diffBadges(badges, windowsByWs)
+	if err := pushToSketchybar(labels, focused, recent, svc, vim, dnd, pulsed); err != nil {
 		log.Printf("pushToSketchybar: %v", err)
 		st.mu.Lock()
 		st.retryAttempt++
@@ -531,8 +544,8 @@ func handleEvent(st *state, event string, env map[string]string) {
 	case "leave_service":
 		st.setServiceMode(false)
 		scheduleRefresh(st)
-	case "dnd-changed": // E2: emitted by dnd poller via internal channel (loopback)
-		scheduleRefresh(st)
+	case "dnd": // E2: manual toggle via `sketchybar-watcher dnd on|off|toggle`
+		handleDNDEvent(st, env["ACTION"])
 	default:
 		logDebug("unknown event %q", event)
 	}
@@ -644,6 +657,14 @@ func main() {
 		}
 		return
 	}
+	// E2: `sketchybar-watcher dnd on|off|toggle` — flip in-memory DND on the daemon
+	if len(os.Args) >= 3 && os.Args[1] == "dnd" {
+		action := os.Args[2]
+		if err := notifyClient("dnd", []string{"ACTION=" + action}); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	homeDir = os.Getenv("HOME")
 	if homeDir == "" {
 		log.Fatal("HOME not set")
@@ -671,7 +692,6 @@ func main() {
 		st.setVimMode(readKindavimMode())
 		refresh(st)
 		startNotifPreview(st) // E5: kicks off sqlite poller goroutine
-		startDNDPoller(st)    // E2: kicks off Focus mode poller goroutine
 	}()
 	go kindavimPoller(st)
 
