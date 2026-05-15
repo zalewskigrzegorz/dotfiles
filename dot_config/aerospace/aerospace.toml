@@ -298,7 +298,11 @@ if.app-name-regex-substring = 'Slack'
 run = 'move-node-to-workspace chat'
 
 [[on-window-detected]]
-if.app-name-regex-substring = 'ChatMate for WhatsApp'
+if.app-name-regex-substring = 'ChatMate'
+run = 'move-node-to-workspace chat'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'WhatsApp'
 run = 'move-node-to-workspace chat'
 
 # Disable since arc litle is also moved to this worekspace

@@ -44,10 +44,11 @@ type notifPreview struct {
 }
 
 var (
-	notifMu       sync.Mutex
-	notifCurrent  *notifPreview
-	notifEnabled  = true
-	notifDBPath   string
+	notifMu        sync.Mutex
+	notifCurrent   *notifPreview
+	lastShownRecID int // sticky after TTL — prevents re-showing the same notif
+	notifEnabled   = true
+	notifDBPath    string
 	bundleToApp   = map[string]string{
 		"com.tinyspeck.slackmacgap":            "Slack",
 		"com.apple.MobileSMS":                  "Messages",
@@ -84,13 +85,7 @@ func startNotifPreview(st *state) {
 }
 
 func tick(st *state) {
-	_, _, _, _, dnd := st.snapshot()
-	if dnd {
-		// E2 interaction: while in Focus, do not push new previews. We still keep
-		// the existing one until its TTL.
-		expireIfStale()
-		return
-	}
+	_ = st
 	latest, err := newestNotification()
 	if err != nil {
 		logDebug("notif_preview: %v", err)
@@ -108,27 +103,21 @@ func tick(st *state) {
 		}
 		return
 	}
-	// Same notification as currently shown? Just check TTL.
-	if notifCurrent != nil && notifCurrent.recID == latest.recID {
-		if time.Since(notifCurrent.shownAt) > notifPreviewTTL {
+	// Already shown this notif (possibly TTL'd out)? Don't re-push. Older
+	// notifs (recID < lastShown) are also skipped — they were dismissed past us.
+	if latest.recID <= lastShownRecID {
+		// If still within TTL, just keep showing; otherwise let it expire.
+		if notifCurrent != nil && time.Since(notifCurrent.shownAt) > notifPreviewTTL {
 			notifCurrent = nil
 			pushClear()
 		}
 		return
 	}
-	// New notification — replace and push.
+	// Genuinely new notification — replace and push.
 	latest.shownAt = time.Now()
 	notifCurrent = latest
+	lastShownRecID = latest.recID
 	pushPreview(latest)
-}
-
-func expireIfStale() {
-	notifMu.Lock()
-	defer notifMu.Unlock()
-	if notifCurrent != nil && time.Since(notifCurrent.shownAt) > notifPreviewTTL {
-		notifCurrent = nil
-		pushClear()
-	}
 }
 
 func newestNotification() (*notifPreview, error) {
@@ -205,11 +194,12 @@ func pushPreview(n *notifPreview) {
 	if len([]rune(text)) > notifPreviewMaxLen {
 		text = string([]rune(text)[:notifPreviewMaxLen-1]) + "…"
 	}
-	label := fmt.Sprintf("%s %s", icon, text)
-	logDebug("notif_preview push: %s", label)
+	logDebug("notif_preview push: icon=%s body=%s", icon, text)
+	// icon uses sketchybar-app-font (set in Lua widget); label uses text font.
 	_ = exec.Command("sketchybar",
 		"--set", notifPreviewItem,
-		"label="+label,
+		"icon="+icon,
+		"label="+text,
 		"drawing=on",
 	).Run()
 }
@@ -217,6 +207,7 @@ func pushPreview(n *notifPreview) {
 func pushClear() {
 	_ = exec.Command("sketchybar",
 		"--set", notifPreviewItem,
+		"icon=",
 		"label=",
 		"drawing=off",
 	).Run()

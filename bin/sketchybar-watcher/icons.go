@@ -40,7 +40,9 @@ var appIcons = map[string]string{
 	"Mail":                  ":mail:",
 	"Canary Mail":           ":mail:",
 	"Spark Mail":            ":spark:",
-	"ChatMate for WhatsApp": ":whats_app:",
+	"ChatMate for WhatsApp":     ":whats_app:",
+	"ChatMate Pro for WhatsApp": ":whats_app:", // aerospace reports this variant
+	"WhatsApp":                  ":whats_app:",
 	"Messages":              ":messages:",
 	"FaceTime":              ":face_time:",
 
@@ -107,6 +109,7 @@ var appIcons = map[string]string{
 	"Raycast Beta":       ":raycast:",
 	"SF Symbols":         ":sf_symbols:",
 	"iStat Menus":        ":activity_monitor:",
+	"Activity Monitor":   ":activity_monitor:",
 	"CleanMyMac":         ":pearcleaner:",
 	"DisplayBuddy":       ":desktop:",
 	"NotchNook":          ":default:",
@@ -143,4 +146,24 @@ func appIcon(appName string) string {
 		return s
 	}
 	return ":default:"
+}
+
+// dockAliases maps an aerospace app-name to the corresponding Dock display
+// name when they differ. Used to look up Dock badges for an aerospace window.
+// Add entries here when you spot a mismatch (e.g. via `osascript -e 'tell
+// application "System Events" to tell process "Dock" to get name of every UI
+// element of list 1'` vs `aerospace list-windows --all --format '%{app-name}'`).
+var dockAliases = map[string]string{
+	"ChatMate Pro for WhatsApp": "ChatMate for WhatsApp",
+}
+
+// badgeFor returns the Dock badge for an aerospace app, consulting dockAliases.
+func badgeFor(appName string, badges map[string]string) string {
+	if b, ok := badges[appName]; ok {
+		return b
+	}
+	if alias, ok := dockAliases[appName]; ok {
+		return badges[alias]
+	}
+	return ""
 }

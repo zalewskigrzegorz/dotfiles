@@ -86,20 +86,18 @@ type state struct {
 	recentWorkspaces []string // E3: most-recent first, max recentLRUSize
 	serviceMode      bool
 	vimMode          string // N, I, V, C, R or ""
-	dndActive        bool   // E2 (set via `sketchybar-watcher dnd` subcommand)
 	debounceTimer    *time.Timer
 	retryAttempt     int               // B3
 	prevBadges       map[string]string // E4: previous per-app Dock badges for notification-arrival diff
 }
 
-func (s *state) snapshot() (focused string, recent []string, svc bool, vim string, dnd bool) {
+func (s *state) snapshot() (focused string, recent []string, svc bool, vim string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	focused = s.focusedWorkspace
 	recent = append([]string(nil), s.recentWorkspaces...)
 	svc = s.serviceMode
 	vim = s.vimMode
-	dnd = s.dndActive
 	return
 }
 
@@ -140,12 +138,6 @@ func (s *state) getVimMode() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.vimMode
-}
-
-func (s *state) setDND(v bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.dndActive = v
 }
 
 // E4: diff previous per-app Dock badges vs new ones. Return list of workspaces
@@ -338,7 +330,7 @@ func buildWorkspaceLabels(windowsByWs windowSet, badges map[string]string) []str
 			icon := appIcon(appName)
 			badge := ""
 			if badges != nil {
-				badge = badges[appName]
+				badge = badgeFor(appName, badges)
 			}
 			if badge != "" {
 				parts = append(parts, " "+icon+badge)
@@ -378,7 +370,7 @@ func dimColor(c string) string {
 
 // ---- sketchybar push ----
 
-func pushToSketchybar(labels []string, focused string, recent []string, svc bool, vim string, dnd bool, pulsed []string) error {
+func pushToSketchybar(labels []string, focused string, recent []string, svc bool, vim string, pulsed []string) error {
 	args := make([]string, 0, 256)
 	for i := 1; i <= workspaceCount; i++ {
 		ws := workspaceOrder[i-1]
@@ -426,7 +418,7 @@ func pushToSketchybar(labels []string, focused string, recent []string, svc bool
 			"background.color="+bgColor,
 		)
 	}
-	// Apple item: service > kindaVim N/V/C/R > unicorn (insert or default). E2 dims when DND active.
+	// Apple item: service > kindaVim N/V/C/R > unicorn (insert or default).
 	appleColor := colorPurple
 	appleBorder := "1"
 	appleString := "🦄"
@@ -450,9 +442,6 @@ func pushToSketchybar(labels []string, focused string, recent []string, svc bool
 			appleColor = colorPurple
 		}
 	}
-	if dnd {
-		appleColor = dimColor(appleColor)
-	}
 	args = append(args,
 		"--set", "apple",
 		"icon.string="+appleString,
@@ -471,12 +460,12 @@ func pushToSketchybar(labels []string, focused string, recent []string, svc bool
 // ---- refresh orchestration ----
 
 func refresh(st *state) {
-	focused, recent, svc, vim, dnd := st.snapshot()
+	focused, recent, svc, vim := st.snapshot()
 	if focused == "" {
 		if f, err := getFocusedWorkspace(); err == nil {
 			focused = f
 			st.setFocused(f)
-			_, recent, _, _, _ = st.snapshot()
+			_, recent, _, _ = st.snapshot()
 		}
 	}
 	windowsByWs, err := getWindowsByWorkspace()
@@ -487,7 +476,7 @@ func refresh(st *state) {
 	badges := DockBadges()
 	labels := buildWorkspaceLabels(windowsByWs, badges)
 	pulsed := st.diffBadges(badges, windowsByWs)
-	if err := pushToSketchybar(labels, focused, recent, svc, vim, dnd, pulsed); err != nil {
+	if err := pushToSketchybar(labels, focused, recent, svc, vim, pulsed); err != nil {
 		log.Printf("pushToSketchybar: %v", err)
 		st.mu.Lock()
 		st.retryAttempt++
@@ -544,8 +533,6 @@ func handleEvent(st *state, event string, env map[string]string) {
 	case "leave_service":
 		st.setServiceMode(false)
 		scheduleRefresh(st)
-	case "dnd": // E2: manual toggle via `sketchybar-watcher dnd on|off|toggle`
-		handleDNDEvent(st, env["ACTION"])
 	default:
 		logDebug("unknown event %q", event)
 	}
@@ -653,14 +640,6 @@ func main() {
 			log.Fatal("notify requires --event <name>")
 		}
 		if err := notifyClient(event, toSend); err != nil {
-			log.Fatal(err)
-		}
-		return
-	}
-	// E2: `sketchybar-watcher dnd on|off|toggle` — flip in-memory DND on the daemon
-	if len(os.Args) >= 3 && os.Args[1] == "dnd" {
-		action := os.Args[2]
-		if err := notifyClient("dnd", []string{"ACTION=" + action}); err != nil {
 			log.Fatal(err)
 		}
 		return
