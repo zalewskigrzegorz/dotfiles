@@ -319,6 +319,10 @@ if.app-name-regex-substring = 'Visual Studio Code'
 run = 'move-node-to-workspace code'
 
 [[on-window-detected]]
+if.app-name-regex-substring = 'Claude'
+run = 'move-node-to-workspace code'
+
+[[on-window-detected]]
 if.app-name-regex-substring = 'Firefox Developer Edition'
 run = 'move-node-to-workspace test'
 
@@ -385,5 +389,204 @@ run = 'layout floating'
 [[on-window-detected]]
 if.app-name-regex-substring = 'kindaVim'
 run = 'layout floating'
+
+# === Bulk app-to-workspace assignments ===
+
+# code (3)
+[[on-window-detected]]
+if.app-name-regex-substring = 'Zed'
+run = 'move-node-to-workspace code'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Docker Desktop'
+run = 'move-node-to-workspace code'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Beyond Compare'
+run = 'move-node-to-workspace code'
+
+# term (2)
+[[on-window-detected]]
+if.app-name-regex-substring = 'iTerm'
+run = 'move-node-to-workspace term'
+
+[[on-window-detected]]
+if.app-name-regex-substring = '^Terminal$'
+run = 'move-node-to-workspace term'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'kitty'
+run = 'move-node-to-workspace term'
+
+# web (6)
+[[on-window-detected]]
+if.app-name-regex-substring = 'Safari'
+run = 'move-node-to-workspace web'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Google Chrome'
+run = 'move-node-to-workspace web'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Zen'
+run = 'move-node-to-workspace web'
+
+# test (8) — Firefox + API/testing tools
+[[on-window-detected]]
+if.app-name-regex-substring = '^Firefox$'
+run = 'move-node-to-workspace test'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Insomnia'
+run = 'move-node-to-workspace test'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'RapidAPI'
+run = 'move-node-to-workspace test'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Proxyman'
+run = 'move-node-to-workspace test'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'chipmunk'
+run = 'move-node-to-workspace test'
+
+# chat (1)
+[[on-window-detected]]
+if.app-name-regex-substring = 'Messages'
+run = 'move-node-to-workspace chat'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'FaceTime'
+run = 'move-node-to-workspace chat'
+
+# mail (9) — Apple Mail + Timing
+[[on-window-detected]]
+if.app-name-regex-substring = '^Mail$'
+run = 'move-node-to-workspace mail'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Timing'
+run = 'move-node-to-workspace mail'
+
+# notes (5)
+[[on-window-detected]]
+if.app-name-regex-substring = '^Notes$'
+run = 'move-node-to-workspace notes'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Drafts'
+run = 'move-node-to-workspace notes'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Reminders'
+run = 'move-node-to-workspace notes'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Pages Creator Studio'
+run = 'move-node-to-workspace notes'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Pencil'
+run = 'move-node-to-workspace notes'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Expressions'
+run = 'move-node-to-workspace notes'
+
+# media (7) — VLC + Replay (Boom is floating)
+[[on-window-detected]]
+if.app-name-regex-substring = 'VLC'
+run = 'move-node-to-workspace media'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Replay'
+run = 'move-node-to-workspace media'
+
+# misc (4) — utilities, peripherals, infrequent apps
+[[on-window-detected]]
+if.app-name-regex-substring = 'CleverPDF'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'reMarkable'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Stream Deck'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Bazecor'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'logioptionsplus'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'KDE Connect'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Poly Studio'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'qFlipper'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Insta360 Link Controller'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Steam Link'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'WiFi Explorer'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'iStat Menus'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Activity Monitor'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'CleanMyMac'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Google Drive'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Google Docs'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Google Sheets'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Google Slides'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'The Unarchiver'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Path Finder'
+run = 'move-node-to-workspace misc'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Upscayl'
+run = 'move-node-to-workspace misc'
 
 #It should be easy way to swich modes basic on focused window.
