@@ -32,7 +32,9 @@ def tv_shell_history [] {
 }
 
 # Alt+T for smart autocomplete.
-# Ctrl+R is added as a fallback only when vendor tv init binding is missing.
+# Ctrl+R is owned by fzf-history.nu (Television's filter quality wasn't good enough).
+# To re-enable TV history search, drop a {modifier: control, keycode: char_r,
+# cmd: "tv_shell_history"} entry into $env.config.keybindings manually.
 export-env {
     let existing_keybindings = ($env.config?.keybindings? | default [])
     let filtered_keybindings = (
@@ -42,27 +44,6 @@ export-env {
             ($name != "tv_completion_alt_t") and ($name != "tv_history_fallback")
         }
     )
-    let has_tv_ctrl_r = (
-        $filtered_keybindings
-        | any {|kb|
-            let modifier = ($kb.modifier? | default "" | str downcase)
-            let keycode = ($kb.keycode? | default "" | str downcase)
-            let cmd = ($kb.event?.cmd? | default "")
-            (($modifier == "control") and ($keycode == "char_r") and ($cmd == "tv_shell_history"))
-        }
-    )
-    let fallback_history_binding = if $has_tv_ctrl_r { [] } else { [
-        {
-            name: tv_history_fallback,
-            modifier: control,
-            keycode: char_r,
-            mode: [vi_normal, vi_insert, emacs],
-            event: {
-                send: executehostcommand,
-                cmd: "tv_shell_history"
-            }
-        }
-    ] }
 
     $env.config = (
         $env.config
@@ -80,7 +61,6 @@ export-env {
                     }
                 }
             ]
-            | append $fallback_history_binding
         )
     )
 }

@@ -112,6 +112,11 @@ Anything installed via `/plugin install`, `claude mcp add`, or `~/.claude/skills
 - **`tmux-resurrect` + `tmux-continuum` are disabled** (plugin lines commented in `dot_config/tmux/tmux.conf`, plugin dirs removed). Restore reliably crashes the running tmux server — likely `switch-client` + `kill-session "0"` in `restore.sh` clashing with `default-command "exec nu"` and the TUI window wrappers. Re-enable only after that interaction is fixed.
 - **Window wrappers** (`dot_config/nushell/autoload/zz-tmux-window-wrappers.nu`) spawn each TUI in its own tmux window with a nerd-font icon: `nvim`/`vim`/`vi`, `claude`, `lazygit`, `gh-dash`, `lazydocker`, `btop`. Use `\u{xxxx}` escapes so codepoints survive every edit; literal glyphs in source have been silently stripped before.
 
+## Shell history (nushell)
+
+- **`Ctrl+R` = fzf** over the nushell sqlite history (`dot_config/nushell/autoload/fzf-history.nu`). `Alt+T` = Television smart-autocomplete (`tv.nu`). TV's `nu-history` channel is **not** wired to Ctrl+R — its filter quality is too weak.
+- **Do not propose Atuin** until upstream nushell issues close: [atuinsh/atuin#2900](https://github.com/atuinsh/atuin/issues/2900) (executehostcommand pastes literal text) + [#2820](https://github.com/atuinsh/atuin/issues/2820) (nu integration broken). Both still open as of 2026-05-16. Re-verify with `gh issue view` before recommending.
+
 ## Lab (`minis`, Debian) — connect & cold-start
 
 - SSH alias: `ssh lab` (chezmoi-templated `~/.ssh/config`); fallback `ssh lab-via-ip` (192.168.50.10).
