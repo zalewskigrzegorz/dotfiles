@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -33,6 +34,10 @@ const (
 	notifPreviewTTL    = 30 * time.Second
 	notifPreviewMaxLen = 60 // characters of body shown after the icon
 	notifPreviewItem   = "notif_preview"
+	// lastNotifWsFile holds the workspace name of the most recently pulsed
+	// notification. `bin/aerospace-jump-to-notif` reads + deletes it so the
+	// user can jump to the workspace that just got a notification.
+	lastNotifWsFile = "/tmp/sketchybar-watcher-last-notif-ws"
 )
 
 type notifPreview struct {
@@ -209,6 +214,7 @@ func pushPreview(n *notifPreview) {
 			}
 			if len(pulsed) > 0 {
 				go animatePulse(pulsed, globalState)
+				_ = os.WriteFile(lastNotifWsFile, []byte(pulsed[0]), 0644)
 			}
 		}
 	}
@@ -230,6 +236,7 @@ func pushPreview(n *notifPreview) {
 }
 
 func pushClear() {
+	_ = os.Remove(lastNotifWsFile)
 	_ = exec.Command("sketchybar",
 		"--set", notifPreviewItem,
 		"icon=",

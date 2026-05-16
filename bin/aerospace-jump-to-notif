@@ -1,0 +1,11 @@
+#!/bin/bash
+# Jump to the workspace of the most recently pulsed notification.
+# Written by sketchybar-watcher (notif_preview.go) to /tmp/...-last-notif-ws.
+# One-shot: file is consumed (removed) on jump.
+set -eu
+f="/tmp/sketchybar-watcher-last-notif-ws"
+[ -s "$f" ] || exit 0
+ws="$(cat "$f")"
+rm -f "$f"
+[ -n "$ws" ] || exit 0
+exec /opt/homebrew/bin/aerospace workspace "$ws"
