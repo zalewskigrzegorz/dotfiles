@@ -1,9 +1,9 @@
-# Fast history search using Nushell history + fzf (fallback).
+# Fast history search using Nushell history + fzf.
 #
 # Keybindings:
-#   Ctrl+Option+R — fzf history fallback (Ctrl+R = Television).
-#   Ctrl+Shift+R intentionally not used: many terminals send the same ^R as plain Ctrl+R.
-#   Plain Alt/Option+R = ® in macOS terminals — avoid.
+#   Ctrl+R — primary fzf history search over the full sqlite history.
+#   (Television's nu-history channel filters poorly; Atuin's nu integration is still
+#   broken upstream — atuinsh/atuin#2900 + #2820 — so fzf owns Ctrl+R for now.)
 
 const history_limit = 20000
 
@@ -99,8 +99,8 @@ export-env {
             $filtered_keybindings
             | append [
                 {
-                    name: fzf_history_ctrl_alt_r
-                    modifier: control_alt
+                    name: fzf_history_ctrl_r
+                    modifier: control
                     keycode: char_r
                     mode: [emacs, vi_normal, vi_insert]
                     event: {
