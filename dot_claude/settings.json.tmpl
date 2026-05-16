@@ -1,12 +1,4 @@
 {
-  "theme": "custom:dracula-pro",
-  "agentPushNotifEnabled": true,
-  "skipAutoPermissionPrompt": true,
-  "outputStyle": "bilingual-concise",
-  "statusLine": {
-    "type": "command",
-    "command": "{{ .chezmoi.homeDir }}/.claude/statusline.sh"
-  },
   "env": {
     "DISABLE_TELEMETRY": "1",
     "DISABLE_ERROR_REPORTING": "1",
@@ -68,18 +60,6 @@
       "Edit(**/*.key)"
     ]
   },
-  {{- /* Marketplaces + enabled plugins are declared in agent-plugins/plugins.json.tmpl. */ -}}
-  {{- $pluginData := includeTemplate "agent-plugins/plugins.json.tmpl" . | fromJson -}}
-  {{- $mps := dict -}}
-  {{- range $name, $src := $pluginData.marketplaces -}}
-    {{- $_ := set $mps $name (dict "source" $src) -}}
-  {{- end }}
-  "extraKnownMarketplaces": {{ $mps | toJson }},
-  {{- $enabled := dict -}}
-  {{- range $p := $pluginData.plugins -}}
-    {{- $_ := set $enabled $p true -}}
-  {{- end }}
-  "enabledPlugins": {{ $enabled | toJson }},
   "hooks": {
     "PreToolUse": [
       {
@@ -143,5 +123,41 @@
         ]
       }
     ]
-  }
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "{{ .chezmoi.homeDir }}/.claude/statusline.sh"
+  },
+  "enabledPlugins": {
+    "code-review@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "context7@claude-plugins-official": true,
+    "feature-dev@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+    {{- if eq .chezmoi.os "darwin" }}
+    "superwhisper@superwhisper": true,
+    {{- end }}
+    "typescript-lsp@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
+    }{{- if eq .chezmoi.os "darwin" }},
+    "superwhisper": {
+      "source": {
+        "source": "github",
+        "repo": "superultrainc/superwhisper-claude-code"
+      }
+    }
+    {{- end }}
+  },
+  "outputStyle": "bilingual-concise",
+  "theme": "custom:dracula-pro",
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true
 }
