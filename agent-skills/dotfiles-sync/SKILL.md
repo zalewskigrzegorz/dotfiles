@@ -127,6 +127,69 @@ chezmoi execute-template < dot_Brewfile.tmpl
 
 Useful for diffing actual installed state against what `chezmoi apply` would produce.
 
+---
+
+## Helper scripts (token-savers)
+
+Two helpers live in `~/.claude/skills/dotfiles-sync/scripts/`. Use them instead of reading whole files and reasoning about diffs in-context.
+
+### `audit-drift.sh`
+
+Compact classified view of `chezmoi diff`. Each row is `PATH | KIND | SUGGESTED_ACTION`:
+
+- `FILE_DRIFT` — plain file, `chezmoi re-add` captures it
+- `TEMPLATE_DRIFT` — source is `.tmpl`; `chezmoi re-add` may no-op even when live differs (template still renders to live). Manual rewrite needed — see next section.
+- `BINARY_DRIFT` — same as file, but watch the exec bit (re-add can drop it if source lacks `executable_` prefix or wasn't tracked with mode 100755).
+- `FAKE_SCRIPT` — `run_*` script that always appears in `chezmoi diff` because it executes on every apply. Not real drift; nothing to capture.
+
+Run it first whenever the user says "sync dotfiles" or "what's drifted" — it answers the question in seconds without loading any file content.
+
+### `render-and-diff.sh <source-or-target-path>`
+
+Render a `.tmpl` and byte-diff it against its chezmoi target (or the other way around — either path resolves to the pair).
+
+- Exit 0 → `MATCH` (byte-identical, no work needed)
+- Exit 1 → `DIFF` (unified diff printed; act on it)
+- Exit 2 → invocation error
+
+Use this as the loop terminator while doing template-aware re-sync: rewrite → run → repeat until `MATCH`.
+
+---
+
+## Template-aware re-sync (live → .tmpl)
+
+The case: source is `.tmpl`, live drifted, **live is the truth** (e.g. Claude Code reformatted `~/.claude/settings.json` and rewrote key ordering; the cosmetic shape is now canonical because Claude will keep producing it). `chezmoi re-add` won't help — it keeps the template untouched when the rendered output still parses to the same data.
+
+### Workflow
+
+1. **Confirm "live is truth"** with the user. If source is canonical and live got mangled by some background tool, the answer is `chezmoi apply` (revert live), **not** a rewrite. Only proceed when the user explicitly wants live → source.
+
+2. **Inventory template tokens to preserve.** Read the existing `.tmpl` and list everything inside `{{ ... }}` — typically:
+   - `{{ .chezmoi.homeDir }}`, `{{ .chezmoi.os }}` (path / OS substitutions)
+   - `{{- if eq .chezmoi.os "darwin" }}...{{- end }}` (OS-conditional blocks)
+   - `{{ includeTemplate "..." . | ... }}` (cross-file references)
+   - Anything with `.chezmoi.*`, `.profile.*`, secret functions (`onepasswordRead`, etc.)
+
+   These must survive the rewrite or `chezmoi apply` on a fresh machine will break (wrong paths, missing OS branches, secrets gone).
+
+3. **Rewrite the `.tmpl` to mirror live byte-for-byte, then re-insert the tokens.** Concretely: copy live verbatim into the `.tmpl`, then walk through the preserved-token list and put each one back where it belongs. For OS-conditional blocks, you'll need to look at git history or ask the user which fields are platform-specific (live shows only the current platform's view).
+
+4. **Verify byte-identity:**
+
+   ```bash
+   ~/.claude/skills/dotfiles-sync/scripts/render-and-diff.sh <source.tmpl>
+   ```
+
+   Exit 0 = done. Exit 1 = patch and re-run.
+
+5. **Sanity check on the other platform.** If the file has `{{ if eq .chezmoi.os "..." }}` branches, mentally render the *other* OS case and confirm it's still valid JSON/YAML/whatever. There's no automatic check for this — the user runs both machines, so they can spot-check on the lab.
+
+### Caveats
+
+- **`chezmoi re-add` on a templated file is mostly a no-op** when the template still renders to live content (even if the live formatting differs from what the template would render). Don't be surprised when it does nothing — that's the trigger for manual rewrite.
+- **Beware of self-rewriting tools.** If Claude Code, an IDE, or a daemon keeps rewriting the live file, the diff will come back. Decide once: either match live (this section) and accept re-sync on changes, or keep the canonical template and `chezmoi apply` to revert live whenever it drifts. Don't oscillate.
+- **`includeTemplate` indirection.** If the original template sourced data from another file (e.g. `agent-plugins/plugins.json.tmpl`), dropping it inlines the data — duplication risk. Keep the indirection if the data is shared with another consumer; drop it if the indirection is only for this one file.
+
 ## Idempotency
 
 Re-running this skill on an already-clean repo should produce: "No drift detected. `chezmoi diff` is clean." Never write changes unless drift is found.
