@@ -40,10 +40,11 @@ const (
 )
 
 type notifPreview struct {
-	recID    int
-	bundleID string
-	title    string
-	body     string
+	recID     int
+	bundleID  string
+	title     string
+	body      string
+	workspace string // aerospace workspace that received the pulse, if any
 }
 
 var (
@@ -209,6 +210,7 @@ func pushPreview(n *notifPreview) {
 			if len(pulsed) > 0 {
 				go animatePulse(pulsed, globalState)
 				_ = os.WriteFile(lastNotifWsFile, []byte(pulsed[0]), 0644)
+				n.workspace = pulsed[0]
 			}
 		}
 	}
@@ -241,22 +243,18 @@ func pushClear() {
 
 // clearNotifPreviewForWorkspace clears the preview when the user focuses the
 // workspace that triggered the most recent notification — they've "seen" it.
-// Called from main.go on workspace/focus events.
+// Called from main.go on workspace/focus events. Uses the in-memory
+// notifCurrent.workspace (not lastNotifWsFile) because aerospace-jump-to-notif
+// consumes the file on ctrl-n before the workspace event reaches us.
 func clearNotifPreviewForWorkspace(ws string) {
 	if ws == "" {
 		return
 	}
-	data, err := os.ReadFile(lastNotifWsFile)
-	if err != nil {
-		return
-	}
-	if strings.TrimSpace(string(data)) != ws {
-		return
-	}
 	notifMu.Lock()
 	defer notifMu.Unlock()
-	if notifCurrent != nil {
-		notifCurrent = nil
+	if notifCurrent == nil || notifCurrent.workspace != ws {
+		return
 	}
+	notifCurrent = nil
 	pushClear()
 }
