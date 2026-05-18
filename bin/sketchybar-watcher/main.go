@@ -605,8 +605,8 @@ func handleEvent(st *state, event string, env map[string]string) {
 		if ws := env["WORKSPACE"]; ws != "" {
 			go animatePulse([]string{ws}, st)
 		}
-	case "preview_hover": // Lua mouse.entered/exited on notif_preview
-		setNotifPreviewHover(env["STATE"] == "on")
+	case "sketchybar_ready": // Lua signals sketchybar config finished loading
+		rehydrateNotifPreview()
 	case "enter_service":
 		st.setServiceMode(true)
 		scheduleRefresh(st)

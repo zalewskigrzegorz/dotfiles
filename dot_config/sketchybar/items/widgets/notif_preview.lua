@@ -10,15 +10,13 @@ local settings = require("settings")
 -- The icon and label use DIFFERENT fonts on purpose:
 --   icon  -> sketchybar-app-font   (renders :slack:, :default:, etc.)
 --   label -> FiraCode Nerd Font Mono (renders real readable text)
--- The item auto-sizes (width=dynamic) to fit truncated text. Body truncation
--- length is per-display, set by sketchybar-watcher on every push (see
--- notif_preview.go::notifPreviewCharsByDisplay). Dark background matches cpu
--- widget; no border for a calmer look.
+-- Compact bar item shows app icon + truncated body. On hover, sketchybar's
+-- native popup opens with the full body — same pattern as wifi/battery —
+-- so we never burn render cycles scrolling text on the bar itself.
 local notif = sbar.add("item", "notif_preview", {
     position = "right",
     drawing = false,
     width = "dynamic",
-    scroll_texts = false,
     icon = {
         drawing = true,
         font = settings.icons, -- sketchybar-app-font:Regular:16.0
@@ -46,20 +44,39 @@ local notif = sbar.add("item", "notif_preview", {
         border_width = 0,
     },
     padding_right = settings.paddings,
+    popup = {
+        align = "center",
+    },
+})
+
+-- Single popup row carrying the full (untruncated) body text. Watcher pushes
+-- both the compact label on `notif_preview` AND this row's label on every
+-- notification.
+sbar.add("item", "notif_preview.popup.body", {
+    position = "popup." .. notif.name,
+    icon = { drawing = false },
+    label = {
+        string = "",
+        max_chars = 240,
+        font = {
+            family = settings.font.text,
+            style = settings.font.style_map["Regular"],
+            size = 13.0,
+        },
+        color = colors.white,
+        padding_left = 12,
+        padding_right = 12,
+    },
 })
 
 notif:subscribe("mouse.clicked", function()
-    notif:set({ drawing = false, icon = "", label = "" })
+    notif:set({ drawing = false, icon = "", label = "", popup = { drawing = false } })
 end)
 
--- Hover toggles between truncated (no scroll) and full text with slow scroll.
--- Watcher decides what label to render based on the hover state event below,
--- so scroll animation only burns cycles while the cursor is on the preview.
-local hover_on_cmd = os.getenv("HOME") .. "/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event preview_hover STATE=on"
-local hover_off_cmd = os.getenv("HOME") .. "/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event preview_hover STATE=off"
 notif:subscribe("mouse.entered", function()
-    sbar.exec(hover_on_cmd)
+    notif:set({ popup = { drawing = true } })
 end)
+
 notif:subscribe("mouse.exited", function()
-    sbar.exec(hover_off_cmd)
+    notif:set({ popup = { drawing = false } })
 end)
