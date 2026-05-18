@@ -31,7 +31,6 @@ import (
 
 const (
 	notifPreviewPollMs = 3 * time.Second
-	notifPreviewTTL    = 30 * time.Second
 	notifPreviewMaxLen = 60 // characters of body shown after the icon
 	notifPreviewItem   = "notif_preview"
 	// lastNotifWsFile holds the workspace name of the most recently pulsed
@@ -45,7 +44,6 @@ type notifPreview struct {
 	bundleID string
 	title    string
 	body     string
-	shownAt  time.Time
 }
 
 var (
@@ -108,18 +106,14 @@ func tick(st *state) {
 		}
 		return
 	}
-	// Already shown this notif (possibly TTL'd out)? Don't re-push. Older
-	// notifs (recID < lastShown) are also skipped — they were dismissed past us.
+	// Already shown this notif? Keep showing — preview persists until the
+	// macOS notification is dismissed (latest==nil branch above), the user
+	// clicks the preview (Lua handler clears it locally), or focusing the
+	// notif's workspace clears it (see clearNotifPreviewForWorkspace).
 	if latest.recID <= lastShownRecID {
-		// If still within TTL, just keep showing; otherwise let it expire.
-		if notifCurrent != nil && time.Since(notifCurrent.shownAt) > notifPreviewTTL {
-			notifCurrent = nil
-			pushClear()
-		}
 		return
 	}
 	// Genuinely new notification — replace and push.
-	latest.shownAt = time.Now()
 	notifCurrent = latest
 	lastShownRecID = latest.recID
 	pushPreview(latest)
@@ -243,4 +237,26 @@ func pushClear() {
 		"label=",
 		"drawing=off",
 	).Run()
+}
+
+// clearNotifPreviewForWorkspace clears the preview when the user focuses the
+// workspace that triggered the most recent notification — they've "seen" it.
+// Called from main.go on workspace/focus events.
+func clearNotifPreviewForWorkspace(ws string) {
+	if ws == "" {
+		return
+	}
+	data, err := os.ReadFile(lastNotifWsFile)
+	if err != nil {
+		return
+	}
+	if strings.TrimSpace(string(data)) != ws {
+		return
+	}
+	notifMu.Lock()
+	defer notifMu.Unlock()
+	if notifCurrent != nil {
+		notifCurrent = nil
+	}
+	pushClear()
 }

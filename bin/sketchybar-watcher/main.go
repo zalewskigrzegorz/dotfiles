@@ -573,6 +573,9 @@ func handleEvent(st *state, event string, env map[string]string) {
 		// A5: trust FOCUSED_WORKSPACE from event payload; never fall back to subprocess.
 		if ws := env["FOCUSED_WORKSPACE"]; ws != "" {
 			st.setFocused(ws)
+			// Clear notif preview if user just entered the workspace that
+			// triggered the latest notification — they've seen it.
+			clearNotifPreviewForWorkspace(ws)
 		}
 		invalidateWindowCache()
 		scheduleRefresh(st)
