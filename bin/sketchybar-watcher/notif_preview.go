@@ -266,9 +266,17 @@ func renderPreview(n *notifPreview) {
 	if appName != "" {
 		icon = appIcon(appName)
 	}
-	full := n.body
-	if full == "" {
+	// Compose label as "title — body" so calendar/event reminders show the
+	// event name alongside the time. Falls back to whichever field exists
+	// when only one is populated (e.g. some apps put everything in title).
+	var full string
+	switch {
+	case n.title != "" && n.body != "":
+		full = n.title + " — " + n.body
+	case n.title != "":
 		full = n.title
+	default:
+		full = n.body
 	}
 	short := full
 	if len([]rune(short)) > notifPreviewBarChars {
