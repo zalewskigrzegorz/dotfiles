@@ -25,10 +25,12 @@
       "command": "node",
       "args": ["{{ .chezmoi.homeDir }}/.wallaby/mcp/"]
     },
+    {{/* Disabled while testing agent-browser as the browser skill. Re-enable by removing the surrounding chezmoi comment.
     "playwright": {
       "command": "npx",
       "args": ["@playwright/mcp@latest"]
     },
+    */}}
     "chrome-devtools": {
       "command": "npx",
       "args": ["-y", "chrome-devtools-mcp@latest"]
