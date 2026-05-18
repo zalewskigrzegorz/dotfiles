@@ -10,15 +10,15 @@ local settings = require("settings")
 -- The icon and label use DIFFERENT fonts on purpose:
 --   icon  -> sketchybar-app-font   (renders :slack:, :default:, etc.)
 --   label -> FiraCode Nerd Font Mono (renders real readable text)
--- Fixed width keeps the bar from jumping when previews appear/disappear and
--- forces scroll_texts to kick in on longer messages instead of dynamically
--- resizing the item. 500px fits comfortably on built-in retina, the dell, and
--- the ultrawide; adjust here if you change monitor setup.
+-- The item auto-sizes (width=dynamic) to fit truncated text. Body truncation
+-- length is per-display, set by sketchybar-watcher on every push (see
+-- notif_preview.go::notifPreviewCharsByDisplay). Dark background matches cpu
+-- widget; no border for a calmer look.
 local notif = sbar.add("item", "notif_preview", {
     position = "right",
     drawing = false,
-    width = 500,
-    scroll_texts = true,
+    width = "dynamic",
+    scroll_texts = false,
     icon = {
         drawing = true,
         font = settings.icons, -- sketchybar-app-font:Regular:16.0
@@ -29,7 +29,6 @@ local notif = sbar.add("item", "notif_preview", {
     },
     label = {
         string = "",
-        max_chars = 130,
         font = {
             family = settings.font.text, -- FiraCode Nerd Font Mono
             style = settings.font.style_map["Regular"],
@@ -40,11 +39,11 @@ local notif = sbar.add("item", "notif_preview", {
         padding_right = 8,
     },
     background = {
-        color = colors.bg2,
+        color = colors.bg1,
         height = 22,
         corner_radius = 6,
-        border_color = colors.grey,
-        border_width = 1,
+        border_color = colors.bg1,
+        border_width = 0,
     },
     padding_right = settings.paddings,
 })

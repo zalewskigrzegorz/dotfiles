@@ -30,14 +30,26 @@ import (
 // Resilience: if schema changes or DB is locked, set enabled=false and stop.
 
 const (
-	notifPreviewPollMs = 3 * time.Second
-	notifPreviewMaxLen = 100 // characters of body shown after the icon (scrolls in fixed-width label)
-	notifPreviewItem   = "notif_preview"
+	notifPreviewPollMs   = 3 * time.Second
+	notifPreviewItem     = "notif_preview"
+	notifPreviewDefaultN = 60 // fallback truncate length if focused display unknown
 	// lastNotifWsFile holds the workspace name of the most recently pulsed
 	// notification. `bin/aerospace-jump-to-notif` reads + deletes it so the
 	// user can jump to the workspace that just got a notification.
 	lastNotifWsFile = "/tmp/sketchybar-watcher-last-notif-ws"
 )
+
+// notifPreviewCharsByDisplay maps aerospace monitor-id → max body-text length
+// for the notif_preview item. The item auto-sizes to fit the truncated text;
+// values are tuned so the bubble doesn't push workspace items off the bar on
+// the smaller built-in retina. Edit if monitor setup changes.
+//   - scroll_texts is intentionally OFF — it has a clipping bug where the
+//     scrolling text leaks past the item's right border on every push.
+var notifPreviewCharsByDisplay = map[int]int{
+	1: 90,  // DELL U3225QE (2560 logical)
+	2: 40,  // Built-in Retina (1800 logical) — laptop, tight
+	3: 120, // C34H89x ultrawide (3440 native)
+}
 
 type notifPreview struct {
 	recID     int
@@ -60,6 +72,8 @@ var (
 		"com.apple.iCal":                       "Calendar",
 		"md.obsidian":                          "Obsidian",
 		"com.readdle.smartemail-Mac":           "Spark Mail",
+		"com.readdle.sparkdesktop-setapp":      "Spark Mail",
+		"com.readdle.sparkdesktop":             "Spark Mail",
 		"com.apple.facetime":                   "FaceTime",
 		"com.apple.reminders":                  "Reminders",
 		"notion.id":                            "Notion",
@@ -191,8 +205,14 @@ func pushPreview(n *notifPreview) {
 	if text == "" {
 		text = n.title
 	}
-	if len([]rune(text)) > notifPreviewMaxLen {
-		text = string([]rune(text)[:notifPreviewMaxLen-1]) + "…"
+	maxLen := notifPreviewDefaultN
+	if globalState != nil {
+		if n, ok := notifPreviewCharsByDisplay[globalState.getFocusedDisplay()]; ok {
+			maxLen = n
+		}
+	}
+	if len([]rune(text)) > maxLen {
+		text = string([]rune(text)[:maxLen-1]) + "…"
 	}
 	// E4 trigger: pulse the workspace running this app, if any.
 	if appName != "" && globalState != nil {
@@ -222,15 +242,20 @@ func pushPreview(n *notifPreview) {
 	if n.bundleID != "" {
 		clickScript = "open -b " + n.bundleID
 	}
-	// Force fixed width + scrolling on every push: sketchybar's Lua reload
-	// doesn't always re-apply geometry on items that started with drawing=false,
-	// so we redundantly set them here.
+	// Item auto-sizes to fit truncated text; no scroll_texts (its clipping
+	// is buggy and bleeds the scrolling text past the item border).
+	// Background/border are re-pushed every time because Lua --reload
+	// doesn't always re-apply geometry/style on items that started with
+	// drawing=false.
 	_ = exec.Command("sketchybar",
 		"--set", notifPreviewItem,
 		"icon="+icon,
 		"label="+text,
-		"width=500",
-		"scroll_texts=on",
+		"width=dynamic",
+		"scroll_texts=off",
+		"background.color=0xff22212c",   // colors.bg1 — dark, matches bar
+		"background.border_color=0xff454158", // colors.bg2 — subtle outline
+		"background.border_width=1",
 		"drawing=on",
 		"click_script="+clickScript,
 	).Run()
