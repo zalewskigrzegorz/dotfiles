@@ -49,25 +49,30 @@ local notif = sbar.add("item", "notif_preview", {
     },
 })
 
--- Single popup row carrying the full (untruncated) body text. Watcher pushes
--- both the compact label on `notif_preview` AND this row's label on every
--- notification.
-sbar.add("item", "notif_preview.popup.body", {
-    position = "popup." .. notif.name,
-    icon = { drawing = false },
-    label = {
-        string = "",
-        max_chars = 240,
-        font = {
-            family = settings.font.text,
-            style = settings.font.style_map["Regular"],
-            size = 13.0,
+-- Popup is N stacked rows because sketchybar labels are single-line. Watcher
+-- splits the body into ~60-char chunks (word-aware) and writes them into
+-- line1..lineN; unused rows get blanked so the popup shrinks to fit.
+local popup_lines = 4
+local popup_chars_per_line = 60
+for i = 1, popup_lines do
+    sbar.add("item", "notif_preview.popup.line" .. i, {
+        position = "popup." .. notif.name,
+        icon = { drawing = false },
+        label = {
+            string = "",
+            max_chars = popup_chars_per_line + 4,
+            font = {
+                family = settings.font.text,
+                style = settings.font.style_map["Regular"],
+                size = 13.0,
+            },
+            color = colors.white,
+            padding_left = 12,
+            padding_right = 12,
+            align = "left",
         },
-        color = colors.white,
-        padding_left = 12,
-        padding_right = 12,
-    },
-})
+    })
+end
 
 notif:subscribe("mouse.clicked", function()
     notif:set({ drawing = false, icon = "", label = "", popup = { drawing = false } })

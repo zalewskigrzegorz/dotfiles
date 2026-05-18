@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"howett.net/plist"
 )
@@ -30,27 +31,15 @@ import (
 // Resilience: if schema changes or DB is locked, set enabled=false and stop.
 
 const (
-	notifPreviewPollMs    = 3 * time.Second
-	notifPreviewItem      = "notif_preview"
-	notifPreviewPopupItem = "notif_preview.popup.body"
-	notifPreviewPopupMax  = 240 // chars of full body shown inside the popup
+	notifPreviewPollMs        = 3 * time.Second
+	notifPreviewItem          = "notif_preview"
+	notifPreviewBarChars      = 30 // compact label cap — same on every display because sketchybar mirrors items to all bars
+	notifPreviewPopupLines    = 4
+	notifPreviewPopupLineChrs = 60 // soft wrap width per popup row
 	// lastNotifWsFile holds the workspace name of the most recently pulsed
 	// notification. `bin/aerospace-jump-to-notif` reads + deletes it so the
 	// user can jump to the workspace that just got a notification.
 	lastNotifWsFile = "/tmp/sketchybar-watcher-last-notif-ws"
-)
-
-// notifPreviewTruncByDisplay maps aerospace monitor-id → max chars shown on
-// the compact bar item. Smaller on the built-in retina so the bubble doesn't
-// crowd workspace items / collide with the notch. Hovering opens a popup
-// (handled in Lua) with the full body.
-var (
-	notifPreviewTruncByDisplay = map[int]int{
-		1: 70,  // DELL U3225QE
-		2: 24,  // Built-in retina — keep it tiny near the notch
-		3: 100, // C34H89x ultrawide
-	}
-	notifPreviewTruncDefault = 50
 )
 
 type notifPreview struct {
@@ -222,18 +211,56 @@ func pushPreview(n *notifPreview) {
 	renderPreview(n)
 }
 
-// renderPreview pushes the current notif to sketchybar: the compact bar item
-// gets a truncated label (per focused display), and the popup child item gets
-// the full body so it's revealed on hover. Background/style are re-pushed
-// every time because Lua --reload doesn't always re-apply geometry on items
-// that started with drawing=false.
-func renderPreview(n *notifPreview) {
-	truncN := notifPreviewTruncDefault
-	if globalState != nil {
-		if t, ok := notifPreviewTruncByDisplay[globalState.getFocusedDisplay()]; ok {
-			truncN = t
+// wrapLines word-wraps text to `maxLines` rows of up to `lineLen` runes.
+// Words longer than lineLen get hard-broken. The last visible row is suffixed
+// with "…" if there's leftover content; any unused rows return empty strings.
+func wrapLines(text string, lineLen, maxLines int) []string {
+	out := make([]string, maxLines)
+	runes := []rune(text)
+	pos, row := 0, 0
+	for row < maxLines && pos < len(runes) {
+		end := pos + lineLen
+		if end >= len(runes) {
+			out[row] = string(runes[pos:])
+			pos = len(runes)
+			row++
+			break
 		}
+		// Word-boundary backoff: scan back for whitespace within this row.
+		brk := end
+		for brk > pos && !unicode.IsSpace(runes[brk]) {
+			brk--
+		}
+		if brk == pos {
+			brk = end // no whitespace found — hard break
+		}
+		out[row] = strings.TrimSpace(string(runes[pos:brk]))
+		pos = brk
+		// Skip leading whitespace for next row.
+		for pos < len(runes) && unicode.IsSpace(runes[pos]) {
+			pos++
+		}
+		row++
 	}
+	// Append ellipsis on the last filled row if content remains.
+	if pos < len(runes) && row > 0 {
+		last := out[row-1]
+		// Make room for "…" if the row is at capacity.
+		lastRunes := []rune(last)
+		if len(lastRunes) >= lineLen {
+			lastRunes = lastRunes[:lineLen-1]
+		}
+		out[row-1] = string(lastRunes) + "…"
+	}
+	return out
+}
+
+// renderPreview pushes the current notif to sketchybar: the compact bar item
+// gets a single-line truncated label; the popup gets up to N word-wrapped
+// rows of the full body. Background/style are re-pushed every time because
+// Lua --reload doesn't always re-apply geometry on items that started with
+// drawing=false.
+func renderPreview(n *notifPreview) {
 	appName := bundleToApp[n.bundleID]
 	icon := ":default:"
 	if appName != "" {
@@ -244,32 +271,31 @@ func renderPreview(n *notifPreview) {
 		full = n.title
 	}
 	short := full
-	if len([]rune(short)) > truncN {
-		short = string([]rune(short)[:truncN-1]) + "…"
+	if len([]rune(short)) > notifPreviewBarChars {
+		short = string([]rune(short)[:notifPreviewBarChars-1]) + "…"
 	}
-	popup := full
-	if len([]rune(popup)) > notifPreviewPopupMax {
-		popup = string([]rune(popup)[:notifPreviewPopupMax-1]) + "…"
-	}
-	logDebug("notif_preview push: icon=%s short=%s popup_len=%d", icon, short, len([]rune(popup)))
+	lines := wrapLines(full, notifPreviewPopupLineChrs, notifPreviewPopupLines)
+	logDebug("notif_preview push: icon=%s short=%s lines=%d", icon, short, len(lines))
 	clickScript := ""
 	if n.bundleID != "" {
 		clickScript = "open -b " + n.bundleID
 	}
-	_ = exec.Command("sketchybar",
+	args := []string{
 		"--set", notifPreviewItem,
-		"icon="+icon,
-		"label="+short,
+		"icon=" + icon,
+		"label=" + short,
 		"width=dynamic",
 		"scroll_texts=off",
-		"background.color=0xff22212c",        // colors.bg1
-		"background.border_color=0xff454158", // colors.bg2
+		"background.color=0xff22212c",
+		"background.border_color=0xff454158",
 		"background.border_width=1",
 		"drawing=on",
-		"click_script="+clickScript,
-		"--set", notifPreviewPopupItem,
-		"label="+popup,
-	).Run()
+		"click_script=" + clickScript,
+	}
+	for i, line := range lines {
+		args = append(args, "--set", fmt.Sprintf("%s.popup.line%d", notifPreviewItem, i+1), "label="+line)
+	}
+	_ = exec.Command("sketchybar", args...).Run()
 }
 
 // rehydrateNotifPreview re-pushes the current notif. Called when Lua signals
@@ -286,7 +312,7 @@ func rehydrateNotifPreview() {
 
 func pushClear() {
 	_ = os.Remove(lastNotifWsFile)
-	_ = exec.Command("sketchybar",
+	args := []string{
 		"--set", notifPreviewItem,
 		"icon=",
 		"label=",
@@ -294,9 +320,11 @@ func pushClear() {
 		"scroll_texts=off",
 		"drawing=off",
 		"popup.drawing=off",
-		"--set", notifPreviewPopupItem,
-		"label=",
-	).Run()
+	}
+	for i := 1; i <= notifPreviewPopupLines; i++ {
+		args = append(args, "--set", fmt.Sprintf("%s.popup.line%d", notifPreviewItem, i), "label=")
+	}
+	_ = exec.Command("sketchybar", args...).Run()
 }
 
 // clearNotifPreviewForWorkspace clears the preview when the user focuses the
