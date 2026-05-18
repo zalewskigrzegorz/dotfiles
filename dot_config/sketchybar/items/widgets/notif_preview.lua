@@ -51,3 +51,15 @@ local notif = sbar.add("item", "notif_preview", {
 notif:subscribe("mouse.clicked", function()
     notif:set({ drawing = false, icon = "", label = "" })
 end)
+
+-- Hover toggles between truncated (no scroll) and full text with slow scroll.
+-- Watcher decides what label to render based on the hover state event below,
+-- so scroll animation only burns cycles while the cursor is on the preview.
+local hover_on_cmd = os.getenv("HOME") .. "/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event preview_hover STATE=on"
+local hover_off_cmd = os.getenv("HOME") .. "/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event preview_hover STATE=off"
+notif:subscribe("mouse.entered", function()
+    sbar.exec(hover_on_cmd)
+end)
+notif:subscribe("mouse.exited", function()
+    sbar.exec(hover_off_cmd)
+end)
