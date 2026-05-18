@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -84,12 +85,25 @@ const (
 type state struct {
 	mu               sync.Mutex
 	focusedWorkspace string
+	focusedDisplay   int      // aerospace monitor-id (1=DELL, 2=Built-in, 3=C34H89x); 0=unknown
 	recentWorkspaces []string // E3: most-recent first, max recentLRUSize
 	serviceMode      bool
 	vimMode          string // N, I, V, C, R or ""
 	debounceTimer    *time.Timer
 	retryAttempt     int               // B3
 	prevBadges       map[string]string // E4: previous per-app Dock badges for notification-arrival diff
+}
+
+func (s *state) setFocusedDisplay(d int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.focusedDisplay = d
+}
+
+func (s *state) getFocusedDisplay() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.focusedDisplay
 }
 
 func (s *state) snapshot() (focused string, recent []string, svc bool, vim string) {
@@ -576,6 +590,11 @@ func handleEvent(st *state, event string, env map[string]string) {
 			// Clear notif preview if user just entered the workspace that
 			// triggered the latest notification — they've seen it.
 			clearNotifPreviewForWorkspace(ws)
+		}
+		if d := env["FOCUSED_DISPLAY"]; d != "" {
+			if n, err := strconv.Atoi(d); err == nil {
+				st.setFocusedDisplay(n)
+			}
 		}
 		invalidateWindowCache()
 		scheduleRefresh(st)
