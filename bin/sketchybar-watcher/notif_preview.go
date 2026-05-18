@@ -31,7 +31,7 @@ import (
 
 const (
 	notifPreviewPollMs = 3 * time.Second
-	notifPreviewMaxLen = 60 // characters of body shown after the icon
+	notifPreviewMaxLen = 100 // characters of body shown after the icon (scrolls in fixed-width label)
 	notifPreviewItem   = "notif_preview"
 	// lastNotifWsFile holds the workspace name of the most recently pulsed
 	// notification. `bin/aerospace-jump-to-notif` reads + deletes it so the
@@ -222,10 +222,15 @@ func pushPreview(n *notifPreview) {
 	if n.bundleID != "" {
 		clickScript = "open -b " + n.bundleID
 	}
+	// Force fixed width + scrolling on every push: sketchybar's Lua reload
+	// doesn't always re-apply geometry on items that started with drawing=false,
+	// so we redundantly set them here.
 	_ = exec.Command("sketchybar",
 		"--set", notifPreviewItem,
 		"icon="+icon,
 		"label="+text,
+		"width=500",
+		"scroll_texts=on",
 		"drawing=on",
 		"click_script="+clickScript,
 	).Run()
