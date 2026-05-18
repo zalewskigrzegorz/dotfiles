@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -31,36 +30,27 @@ import (
 // Resilience: if schema changes or DB is locked, set enabled=false and stop.
 
 const (
-	notifPreviewPollMs       = 3 * time.Second
-	notifPreviewItem         = "notif_preview"
-	notifPreviewScrollDurMs  = 600 // ms per scroll step when hovering — higher = slower
+	notifPreviewPollMs    = 3 * time.Second
+	notifPreviewItem      = "notif_preview"
+	notifPreviewPopupItem = "notif_preview.popup.body"
+	notifPreviewPopupMax  = 240 // chars of full body shown inside the popup
 	// lastNotifWsFile holds the workspace name of the most recently pulsed
 	// notification. `bin/aerospace-jump-to-notif` reads + deletes it so the
 	// user can jump to the workspace that just got a notification.
 	lastNotifWsFile = "/tmp/sketchybar-watcher-last-notif-ws"
 )
 
-// previewCfg controls notif_preview sizing per monitor:
-//   - truncChars: max chars shown when NOT hovering (item auto-sizes)
-//   - hoverWidth: pixel width when hovering (scroll_texts on, slow scroll)
-//
-// The Lua widget subscribes to mouse.entered/exited and pings the watcher
-// via `sketchybar-watcher notify --event preview_hover STATE=on|off`, which
-// flips between the two states. Scroll is off when not hovering so sketchybar
-// doesn't burn render cycles continuously animating text the user isn't
-// looking at.
-type previewCfg struct {
-	truncChars int
-	hoverWidth int
-}
-
+// notifPreviewTruncByDisplay maps aerospace monitor-id → max chars shown on
+// the compact bar item. Smaller on the built-in retina so the bubble doesn't
+// crowd workspace items / collide with the notch. Hovering opens a popup
+// (handled in Lua) with the full body.
 var (
-	previewByDisplay = map[int]previewCfg{
-		1: {truncChars: 90, hoverWidth: 700},  // DELL U3225QE (2560 logical)
-		2: {truncChars: 30, hoverWidth: 320},  // Built-in Retina — narrow, dodges the notch
-		3: {truncChars: 120, hoverWidth: 900}, // C34H89x ultrawide (3440 native)
+	notifPreviewTruncByDisplay = map[int]int{
+		1: 70,  // DELL U3225QE
+		2: 24,  // Built-in retina — keep it tiny near the notch
+		3: 100, // C34H89x ultrawide
 	}
-	defaultPreviewCfg = previewCfg{truncChars: 60, hoverWidth: 400}
+	notifPreviewTruncDefault = 50
 )
 
 type notifPreview struct {
@@ -74,8 +64,7 @@ type notifPreview struct {
 var (
 	notifMu        sync.Mutex
 	notifCurrent   *notifPreview
-	previewHover   bool // toggled by mouse.entered/exited via Lua → notify event
-	lastShownRecID int  // sticky — prevents re-showing the same notif
+	lastShownRecID int // sticky — prevents re-showing the same notif
 	notifEnabled   = true
 	notifDBPath    string
 	bundleToApp   = map[string]string{
@@ -233,17 +222,16 @@ func pushPreview(n *notifPreview) {
 	renderPreview(n)
 }
 
-// renderPreview pushes the current notif to sketchybar, picking truncated vs
-// hover (full + scroll) presentation based on the previewHover flag. Pulls
-// per-display sizing from previewByDisplay.
-//
-// Background/border are re-pushed every time because Lua --reload doesn't
-// always re-apply geometry/style on items that started with drawing=false.
+// renderPreview pushes the current notif to sketchybar: the compact bar item
+// gets a truncated label (per focused display), and the popup child item gets
+// the full body so it's revealed on hover. Background/style are re-pushed
+// every time because Lua --reload doesn't always re-apply geometry on items
+// that started with drawing=false.
 func renderPreview(n *notifPreview) {
-	cfg := defaultPreviewCfg
+	truncN := notifPreviewTruncDefault
 	if globalState != nil {
-		if c, ok := previewByDisplay[globalState.getFocusedDisplay()]; ok {
-			cfg = c
+		if t, ok := notifPreviewTruncByDisplay[globalState.getFocusedDisplay()]; ok {
+			truncN = t
 		}
 	}
 	appName := bundleToApp[n.bundleID]
@@ -255,20 +243,15 @@ func renderPreview(n *notifPreview) {
 	if full == "" {
 		full = n.title
 	}
-	var text, width, scroll string
-	if previewHover {
-		text = full
-		width = strconv.Itoa(cfg.hoverWidth)
-		scroll = "on"
-	} else {
-		text = full
-		if len([]rune(text)) > cfg.truncChars {
-			text = string([]rune(text)[:cfg.truncChars-1]) + "…"
-		}
-		width = "dynamic"
-		scroll = "off"
+	short := full
+	if len([]rune(short)) > truncN {
+		short = string([]rune(short)[:truncN-1]) + "…"
 	}
-	logDebug("notif_preview push: hover=%v width=%s icon=%s text=%s", previewHover, width, icon, text)
+	popup := full
+	if len([]rune(popup)) > notifPreviewPopupMax {
+		popup = string([]rune(popup)[:notifPreviewPopupMax-1]) + "…"
+	}
+	logDebug("notif_preview push: icon=%s short=%s popup_len=%d", icon, short, len([]rune(popup)))
 	clickScript := ""
 	if n.bundleID != "" {
 		clickScript = "open -b " + n.bundleID
@@ -276,28 +259,26 @@ func renderPreview(n *notifPreview) {
 	_ = exec.Command("sketchybar",
 		"--set", notifPreviewItem,
 		"icon="+icon,
-		"label="+text,
-		"width="+width,
-		"scroll_texts="+scroll,
-		"label.scroll_duration="+strconv.Itoa(notifPreviewScrollDurMs),
+		"label="+short,
+		"width=dynamic",
+		"scroll_texts=off",
 		"background.color=0xff22212c",        // colors.bg1
 		"background.border_color=0xff454158", // colors.bg2
 		"background.border_width=1",
 		"drawing=on",
 		"click_script="+clickScript,
+		"--set", notifPreviewPopupItem,
+		"label="+popup,
 	).Run()
 }
 
-// setNotifPreviewHover is called from main.go's event handler when Lua
-// reports a mouse enter/exit on the preview item. Toggles between the
-// truncated (compact) and full+scroll presentations of the current notif.
-func setNotifPreviewHover(on bool) {
+// rehydrateNotifPreview re-pushes the current notif. Called when Lua signals
+// that sketchybar finished loading its config (sketchybar_ready event) —
+// a reload resets every item's geometry/drawing, so without a re-push the
+// preview stays invisible even though the watcher still tracks the notif.
+func rehydrateNotifPreview() {
 	notifMu.Lock()
 	defer notifMu.Unlock()
-	if previewHover == on {
-		return
-	}
-	previewHover = on
 	if notifCurrent != nil {
 		renderPreview(notifCurrent)
 	}
@@ -305,7 +286,6 @@ func setNotifPreviewHover(on bool) {
 
 func pushClear() {
 	_ = os.Remove(lastNotifWsFile)
-	previewHover = false
 	_ = exec.Command("sketchybar",
 		"--set", notifPreviewItem,
 		"icon=",
@@ -313,6 +293,9 @@ func pushClear() {
 		"width=dynamic",
 		"scroll_texts=off",
 		"drawing=off",
+		"popup.drawing=off",
+		"--set", notifPreviewPopupItem,
+		"label=",
 	).Run()
 }
 
