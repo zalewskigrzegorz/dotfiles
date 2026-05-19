@@ -92,7 +92,7 @@
           }
         ]
       }
-    ],
+    ]{{ if ne .profile "homelab" }},
     "SessionStart": [
       {
         "hooks": [
@@ -123,6 +123,7 @@
         ]
       }
     ]
+    {{- end }}
   },
   "statusLine": {
     "type": "command",
