@@ -18,25 +18,33 @@ removed=$(printf '%s' "$input" | jq -r '.cost.total_lines_removed // 0')
 over200k=$(printf '%s' "$input" | jq -r '.exceeds_200k_tokens // false')
 style=$(printf '%s' "$input" | jq -r '.output_style.name // ""')
 transcript=$(printf '%s' "$input" | jq -r '.transcript_path // ""')
+cwd=$(printf '%s' "$input" | jq -r '.workspace.current_dir // .cwd // ""')
 
 mm=$(( dur_ms / 60000 )); ss=$(( (dur_ms % 60000) / 1000 ))
 dur_fmt=$(printf '%dm%02ds' "$mm" "$ss")
 
-# --- palette (Dracula Pro — readable on #22212C bg) ---
+# --- palette (Synthwave multi-color — distinct hue per segment on dark bg) ---
 B=$'\033[1m'
 N=$'\033[0m'
-FG=$'\033[38;2;248;248;242m'      # foreground         #F8F8F2
-LABEL=$'\033[38;2;149;128;255m'   # purple label       #9580FF
-MUTED=$'\033[38;2;198;198;194m'   # dim foreground     #C6C6C2
-SEPC=$'\033[38;2;121;112;169m'    # separator/cursor   #7970A9
-TROUGH=$'\033[38;2;69;65;88m'     # bar empty (track)  #454158
-ACCENT=$'\033[38;2;128;255;234m'  # cyan               #80FFEA
-G=$'\033[38;2;138;255;128m'       # green              #8AFF80
-Y=$'\033[38;2;255;255;128m'       # yellow             #FFFF80
-O=$'\033[38;2;255;202;128m'       # orange             #FFCA80
-R=$'\033[38;2;255;149;128m'       # red                #FF9580
-PINK=$'\033[38;2;255;128;191m'    # pink               #FF80BF
-SEP=" ${SEPC}·${N} "
+FG=$'\033[38;2;240;240;255m'      # foreground          #F0F0FF
+LABEL=$'\033[38;2;58;134;255m'    # electric blue       #3A86FF
+MUTED=$'\033[38;2;170;160;200m'   # dim lavender-grey   #AAA0C8
+SEPC=$'\033[38;2;120;100;180m'    # separator (muted)   #7864B4
+TROUGH=$'\033[38;2;58;30;80m'     # bar empty (track)   #3A1E50
+TROUGH_BG=$'\033[48;2;58;30;80m'  # bar empty as bg     #3A1E50
+BG_RESET=$'\033[49m'              # reset bg only
+ACCENT=$'\033[38;2;58;134;255m'   # electric blue       #3A86FF — model
+G=$'\033[38;2;255;0;110m'         # hot pink (default)  #FF006E
+Y=$'\033[38;2;255;190;11m'        # amber warn          #FFBE0B
+O=$'\033[38;2;255;100;30m'        # neon orange         #FF641E
+R=$'\033[38;2;255;0;50m'          # crit red            #FF0032
+PINK=$'\033[38;2;255;0;110m'      # hot pink            #FF006E
+PURPLE=$'\033[38;2;179;71;255m'   # vivid purple        #B347FF — proj
+CYAN=$'\033[38;2;0;229;255m'      # cyan                #00E5FF — week
+MINT=$'\033[38;2;0;245;160m'      # mint green          #00F5A0 — duration
+AMBER=$'\033[38;2;255;190;11m'    # amber               #FFBE0B — ctx
+GOLD=$'\033[38;2;255;215;0m'      # gold                #FFD700 — style
+SEP=" ${SEPC}▌${N} "
 
 now_ts=$(date +%s)
 
@@ -110,45 +118,52 @@ fmt_remain() {
 }
 
 bar() {
-  local p=$1 width=12
-  local f=$(( p * width / 100 ))
-  (( f > width )) && f=$width
-  (( f < 0 )) && f=0
-  local e=$(( width - f ))
+  local p=$1 width=12 color_override=${2:-}
+  local full=$(( (p * width + 50) / 100 ))
+  (( full > width )) && full=$width
+  (( full < 0 )) && full=0
+  local empty_n=$(( width - full ))
   local color
-  if   [ "$p" -ge 90 ]; then color="$R"
+  if [ -n "$color_override" ]; then color="$color_override"
+  elif [ "$p" -ge 90 ]; then color="$R"
   elif [ "$p" -ge 75 ]; then color="$O"
   elif [ "$p" -ge 50 ]; then color="$Y"
   else color="$G"; fi
-  local fill="" empty=""
-  for ((i=0; i<f; i++)); do fill+="█"; done
-  for ((i=0; i<e; i++)); do empty+="█"; done
+  local fill="" empty="" i
+  for ((i=0; i<full;    i++)); do fill+="▰"; done
+  for ((i=0; i<empty_n; i++)); do empty+="▱"; done
   printf '%s%s%s%s%s' "$color" "$fill" "$TROUGH" "$empty" "$N"
 }
 
 # --- segments ---
 model_seg="${ACCENT}${B}${model}${N}"
-dur_seg="${SEP}${MUTED}${dur_fmt}${N}"
+
+proj_seg=""
+if [ -n "$cwd" ]; then
+  proj_seg="${SEP}${PURPLE}${B}$(basename "$cwd")${N}"
+fi
+
+dur_seg="${SEP}${MINT}${dur_fmt}${N}"
 
 sess_seg=""
 if [ "$sess_end_ts" -gt 0 ]; then
   sp=$(pct_elapsed "$sess_start_ts" "$sess_end_ts")
   sr=$(fmt_remain $(( sess_end_ts - now_ts )))
-  sess_seg="${SEP}${LABEL}session${N} $(bar "$sp") ${SEPC}↻${N}${FG}${B}${sr}${N}"
+  sess_seg="${SEP}${PINK}session${N} $(bar "$sp" "$PINK") ${SEPC}↻${N}${PINK}${B}${sr}${N}"
 fi
 
 week_seg=""
 if [ "$week_end_ts" -gt 0 ]; then
   wp=$(pct_elapsed "$week_start_ts" "$week_end_ts")
   wr=$(fmt_remain $(( week_end_ts - now_ts )))
-  week_seg="${SEP}${LABEL}week${N} $(bar "$wp") ${SEPC}↻${N}${FG}${B}${wr}${N}"
+  week_seg="${SEP}${CYAN}week${N} $(bar "$wp" "$CYAN") ${SEPC}↻${N}${CYAN}${B}${wr}${N}"
 fi
 
 sonnet_seg=""
 if [ "$sonnet_end_ts" -gt 0 ]; then
   snp=$(pct_elapsed "$sonnet_start_ts" "$sonnet_end_ts")
   snr=$(fmt_remain $(( sonnet_end_ts - now_ts )))
-  sonnet_seg="${SEP}${PINK}sonnet${N} $(bar "$snp") ${SEPC}↻${N}${FG}${B}${snr}${N}"
+  sonnet_seg="${SEP}${O}sonnet${N} $(bar "$snp" "$O") ${SEPC}↻${N}${O}${B}${snr}${N}"
 fi
 
 # context %
@@ -159,24 +174,25 @@ if [ -n "$transcript" ] && [ -f "$transcript" ]; then
   if [ -n "$ctx_tokens" ] && [ "$ctx_tokens" != "null" ] && [ "$ctx_tokens" -gt 0 ]; then
     if [ "$over200k" = "true" ]; then ctx_max=1000000; else ctx_max=200000; fi
     ctx_pct=$(( ctx_tokens * 100 / ctx_max ))
-    if [ "$ctx_pct" -ge 80 ]; then cc="$R"
-    elif [ "$ctx_pct" -ge 50 ]; then cc="$Y"
+    # compaction warning: red ≥85% (compact ~90%), yellow ≥60%, green otherwise
+    if   [ "$ctx_pct" -ge 85 ]; then cc="$R"
+    elif [ "$ctx_pct" -ge 60 ]; then cc="$Y"
     else cc="$G"; fi
-    ctx_seg="${SEP}${MUTED}ctx${N} ${cc}${ctx_pct}%${N}"
+    ctx_seg="${SEP}${AMBER}ctx${N} $(bar "$ctx_pct" "$cc") ${cc}${B}${ctx_pct}%${N}"
   fi
 fi
 [ -z "$ctx_seg" ] && [ "$over200k" = "true" ] && ctx_seg="${SEP}${R}ctx >200k${N}"
 
 if [ "$added" -gt 0 ] || [ "$removed" -gt 0 ]; then
-  lines_seg="${SEP}${G}+${added}${N} ${R}-${removed}${N}"
+  lines_seg="${SEP}${MINT}${B}+${added}${N} ${R}${B}-${removed}${N}"
 else
   lines_seg=""
 fi
 
 style_seg=""
-[ -n "$style" ] && [ "$style" != "default" ] && style_seg="${SEP}${MUTED}${style}${N}"
+[ -n "$style" ] && [ "$style" != "default" ] && style_seg="${SEP}${GOLD}${style}${N}"
 
-printf '%s%s%s%s%s%s%s%s' \
-  "$model_seg" "$dur_seg" \
+printf '%s%s%s%s%s%s%s%s%s' \
+  "$model_seg" "$proj_seg" "$dur_seg" \
   "$sess_seg" "$week_seg" "$sonnet_seg" \
   "$ctx_seg" "$lines_seg" "$style_seg"
