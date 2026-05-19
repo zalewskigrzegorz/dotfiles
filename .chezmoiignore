@@ -52,7 +52,6 @@ agent-mcp/**
 .config/svim/**
 .config/zed/**
 .cursor/**
-.claude/**
 nushell-mcp.json
 bin/aerospace-flip-window/**
 bin/sketchybar-watcher/**
