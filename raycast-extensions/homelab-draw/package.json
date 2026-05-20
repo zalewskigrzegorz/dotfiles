@@ -1,0 +1,75 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "homelab-draw",
+  "title": "Homelab Draw",
+  "description": "Drive draw.lab + draw-bridge from Raycast — present canvases, import AI scenes, run the full pipeline.",
+  "icon": "icon.png",
+  "author": "zalewskigrzegorz",
+  "license": "MIT",
+  "categories": [
+    "Productivity",
+    "Developer Tools"
+  ],
+  "commands": [
+    {
+      "name": "present",
+      "title": "Draw: Present Canvas",
+      "subtitle": "Homelab Draw",
+      "description": "Pick a draw.lab canvas and open it in presentation mode via draw-bridge.",
+      "mode": "view"
+    },
+    {
+      "name": "import-ai",
+      "title": "Draw: Import AI Scene",
+      "subtitle": "Homelab Draw",
+      "description": "Send the draw-mcp scene.json into draw.lab as a new canvas.",
+      "mode": "no-view"
+    },
+    {
+      "name": "full-pipeline",
+      "title": "Draw: Full Pipeline",
+      "subtitle": "Homelab Draw",
+      "description": "Run the full draw pipeline: import draw-mcp scene → create canvas → open present mode.",
+      "mode": "no-view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "bridgeUrl",
+      "title": "Bridge URL",
+      "description": "Base URL of draw-bridge.",
+      "type": "textfield",
+      "required": false,
+      "default": "http://draw-bridge.lab",
+      "placeholder": "http://draw-bridge.lab"
+    },
+    {
+      "name": "drawUrl",
+      "title": "Draw URL",
+      "description": "Base URL of the draw.lab Excalidraw instance.",
+      "type": "textfield",
+      "required": false,
+      "default": "http://draw.lab",
+      "placeholder": "http://draw.lab"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.84.0",
+    "@raycast/utils": "^1.18.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^1.0.11",
+    "@types/node": "^22.7.0",
+    "@types/react": "^19.2.15",
+    "eslint": "^8.57.1",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.2"
+  },
+  "scripts": {
+    "build": "ray build -e dist",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}

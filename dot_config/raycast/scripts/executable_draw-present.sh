@@ -7,42 +7,71 @@
 # @raycast.packageName Homelab Draw
 
 # Documentation:
-# @raycast.description Prezentuje aktualny canvas. Próbuje (w kolejności): URL z clipboardu, aktywna karta Chrome/Safari/Arc, ostatni canvas z draw.lab, fallback na draw-mcp
+# @raycast.description Prezentuje aktualny canvas z otwartej karty draw.lab (czyta localStorage). Fallback: draw-mcp scene.json.
 # @raycast.author Grzegorz Zalewski
 # @raycast.authorURL https://raycast.com/zalewskigrzegorz
 
 set -euo pipefail
 
-extract_canvas_id() {
-  # draw.lab URL format (to be verified): http://draw.lab/?canvas=<id> or .../canvas/<id>
-  echo "$1" | grep -oE '(canvas[/=])[a-zA-Z0-9_-]+' | head -1 | sed -E 's|^canvas[/=]||'
+# Read excalidraw-current-canvas-id from the first draw.lab tab found in any
+# Chromium-based browser (Arc/Chrome/Brave/Vivaldi).
+read_chromium_canvas() {
+  local app="$1"
+  osascript <<EOF 2>/dev/null || true
+tell application "$app"
+  if not running then return ""
+  repeat with w in windows
+    repeat with t in tabs of w
+      try
+        if URL of t starts with "http://draw.lab" then
+          return (execute t javascript "localStorage.getItem('excalidraw-current-canvas-id') || ''")
+        end if
+      end try
+    end repeat
+  end repeat
+  return ""
+end tell
+EOF
 }
 
-# Try 1: clipboard
-CANVAS_ID=$(extract_canvas_id "$(pbpaste 2>/dev/null || true)")
+read_safari_canvas() {
+  osascript <<'EOF' 2>/dev/null || true
+tell application "Safari"
+  if not running then return ""
+  repeat with w in windows
+    repeat with t in tabs of w
+      try
+        if URL of t starts with "http://draw.lab" then
+          return (do JavaScript "localStorage.getItem('excalidraw-current-canvas-id') || ''" in t)
+        end if
+      end try
+    end repeat
+  end repeat
+  return ""
+end tell
+EOF
+}
 
-# Try 2: active browser tab (Chrome → Arc → Safari)
+CANVAS_ID=""
+for APP in "Arc" "Google Chrome" "Brave Browser" "Vivaldi"; do
+  CANVAS_ID=$(read_chromium_canvas "$APP")
+  CANVAS_ID="${CANVAS_ID//[$'\t\r\n ']/}"
+  [ -n "$CANVAS_ID" ] && break
+done
+
 if [ -z "$CANVAS_ID" ]; then
-  for BROWSER in "Google Chrome" "Arc" "Safari"; do
-    URL=$(osascript -e "tell application \"$BROWSER\" to if it is running then return URL of active tab of front window" 2>/dev/null || true)
-    if [ -n "$URL" ]; then
-      ID=$(extract_canvas_id "$URL")
-      if [ -n "$ID" ]; then CANVAS_ID="$ID"; break; fi
-    fi
-  done
+  CANVAS_ID=$(read_safari_canvas)
+  CANVAS_ID="${CANVAS_ID//[$'\t\r\n ']/}"
 fi
 
-# Try 3 skipped (excalidraw-full /api/v2/kv listing endpoint not yet verified).
-# If clipboard/tab don't reveal a canvas, fall through to draw-mcp source.
-
-# Decide source
-SOURCE="draw-lab"
 if [ -z "$CANVAS_ID" ]; then
-  SOURCE="draw-mcp"
-  PAYLOAD='{"source":"draw-mcp"}'
-else
-  PAYLOAD="{\"source\":\"draw-lab\",\"canvasId\":\"$CANVAS_ID\"}"
+  ERR="Otwórz draw.lab w Arc/Chrome/Safari i włącz View → Developer → Allow JavaScript from Apple Events."
+  osascript -e "display notification \"$ERR\" with title \"Draw: Present failed\" sound name \"Basso\""
+  echo "❌ $ERR"
+  exit 1
 fi
+
+PAYLOAD="{\"source\":\"draw-lab\",\"canvasId\":\"$CANVAS_ID\"}"
 
 RESPONSE=$(curl -s -m 10 -X POST http://draw-bridge.lab/scene-to-presentation \
   -H 'Content-Type: application/json' \
@@ -58,6 +87,5 @@ if [ -z "$URL" ]; then
 fi
 
 open "$URL"
-SRC_LABEL=$([ "$SOURCE" = "draw-mcp" ] && echo "(z MCP — brak canvasu w draw.lab)" || echo "(canvas $CANVAS_ID)")
-osascript -e "display notification \"Prezentacja $SRC_LABEL\" with title \"Draw: Presenting\""
-echo "✅ $URL  $SRC_LABEL"
+osascript -e "display notification \"Prezentacja canvas $CANVAS_ID\" with title \"Draw: Presenting\""
+echo "✅ $URL  (canvas $CANVAS_ID)"
