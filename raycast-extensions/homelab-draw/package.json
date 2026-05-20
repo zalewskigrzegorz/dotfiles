@@ -2,35 +2,27 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "homelab-draw",
   "title": "Homelab Draw",
-  "description": "Drive draw.lab + draw-bridge from Raycast — present canvases, import AI scenes, run the full pipeline.",
+  "description": "Browse canvases on draw.lab and open them in Draw, AI, or Present mode — or save the current scene under a name.",
   "icon": "icon.png",
   "author": "zalewskigrzegorz",
   "license": "MIT",
-  "categories": [
-    "Productivity",
-    "Developer Tools"
-  ],
+  "categories": ["Productivity", "Developer Tools"],
   "commands": [
     {
-      "name": "present",
-      "title": "Draw: Present Canvas",
+      "name": "browse",
+      "title": "Draw: Browse",
       "subtitle": "Homelab Draw",
-      "description": "Pick a draw.lab canvas and open it in presentation mode via draw-bridge.",
+      "description": "Search canvases on draw.lab and open any of them in Draw, AI, or Present mode.",
+      "icon": "browse.png",
       "mode": "view"
     },
     {
-      "name": "import-ai",
-      "title": "Draw: Import AI Scene",
+      "name": "save",
+      "title": "Draw: Save",
       "subtitle": "Homelab Draw",
-      "description": "Send the draw-mcp scene.json into draw.lab as a new canvas.",
-      "mode": "no-view"
-    },
-    {
-      "name": "full-pipeline",
-      "title": "Draw: Full Pipeline",
-      "subtitle": "Homelab Draw",
-      "description": "Run the full draw pipeline: import draw-mcp scene → create canvas → open present mode.",
-      "mode": "no-view"
+      "description": "Save the current AI scene (or an existing canvas / preload) to draw.lab with a name.",
+      "icon": "save.png",
+      "mode": "view"
     }
   ],
   "preferences": [
@@ -60,7 +52,7 @@
   "devDependencies": {
     "@raycast/eslint-config": "^1.0.11",
     "@types/node": "^22.7.0",
-    "@types/react": "^19.2.15",
+    "@types/react": "^19.0.10",
     "eslint": "^8.57.1",
     "prettier": "^3.3.3",
     "typescript": "^5.6.2"
