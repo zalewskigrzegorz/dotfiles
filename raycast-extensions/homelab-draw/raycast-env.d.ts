@@ -18,20 +18,16 @@ type ExtensionPreferences = {
 declare type Preferences = ExtensionPreferences
 
 declare namespace Preferences {
-  /** Preferences accessible in the `present` command */
-  export type Present = ExtensionPreferences & {}
-  /** Preferences accessible in the `import-ai` command */
-  export type ImportAi = ExtensionPreferences & {}
-  /** Preferences accessible in the `full-pipeline` command */
-  export type FullPipeline = ExtensionPreferences & {}
+  /** Preferences accessible in the `browse` command */
+  export type Browse = ExtensionPreferences & {}
+  /** Preferences accessible in the `save` command */
+  export type Save = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
-  /** Arguments passed to the `present` command */
-  export type Present = {}
-  /** Arguments passed to the `import-ai` command */
-  export type ImportAi = {}
-  /** Arguments passed to the `full-pipeline` command */
-  export type FullPipeline = {}
+  /** Arguments passed to the `browse` command */
+  export type Browse = {}
+  /** Arguments passed to the `save` command */
+  export type Save = {}
 }
 

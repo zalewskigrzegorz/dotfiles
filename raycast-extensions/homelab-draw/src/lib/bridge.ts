@@ -17,9 +17,14 @@ export function drawUrl(): string {
 
 export type Canvas = {
   id: string;
-  title?: string;
-  modifiedAt?: string;
+  name: string;
+  thumbnail?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
+
+export type OpenTarget = "draw" | "ai" | "present";
+export type SaveSource = "draw" | "ai" | "present";
 
 type BridgeError = { error: string };
 
@@ -37,58 +42,40 @@ async function bridgeJson<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     body = text ? JSON.parse(text) : {};
   } catch {
-    throw new Error(
-      `Bridge ${path} returned non-JSON (${res.status}): ${text.slice(0, 200)}`,
-    );
+    throw new Error(`Bridge ${path} returned non-JSON (${res.status}): ${text.slice(0, 200)}`);
   }
   if (!res.ok) {
-    const err =
-      (body as BridgeError).error ?? `Bridge ${path} failed (${res.status})`;
+    const err = (body as BridgeError).error ?? `Bridge ${path} failed (${res.status})`;
     throw new Error(err);
   }
   return body as T;
 }
 
-export async function listCanvases(): Promise<Canvas[]> {
-  const data = await bridgeJson<{ canvases: Canvas[] } | Canvas[]>("/canvases");
-  return Array.isArray(data) ? data : (data.canvases ?? []);
+export async function listCanvases(q?: string): Promise<Canvas[]> {
+  const query = q ? `?q=${encodeURIComponent(q)}` : "";
+  return bridgeJson<Canvas[]>(`/canvases${query}`);
 }
 
-export async function presentCanvas(canvasId: string): Promise<string> {
-  const data = await bridgeJson<{ presentUrl: string }>(
-    "/scene-to-presentation",
-    {
-      method: "POST",
-      body: JSON.stringify({ source: "draw-lab", canvasId }),
-    },
-  );
-  return data.presentUrl;
+export async function getCanvas(id: string): Promise<Canvas & { scene: unknown }> {
+  return bridgeJson(`/canvases/${encodeURIComponent(id)}`);
 }
 
-export async function importAiScene(): Promise<{
-  url: string;
-  canvasId?: string;
-}> {
-  const data = await bridgeJson<{ url: string; canvasId?: string }>(
-    "/import-ai-scene",
-    {
-      method: "POST",
-      body: JSON.stringify({}),
-    },
+export async function openCanvas(id: string, target: OpenTarget): Promise<string> {
+  const data = await bridgeJson<{ url: string }>(
+    `/canvases/${encodeURIComponent(id)}/open`,
+    { method: "POST", body: JSON.stringify({ target }) },
   );
-  return data;
+  return data.url;
 }
 
-export async function fullPipeline(): Promise<{
-  presentUrl: string;
-  canvasUrl?: string;
-}> {
-  const data = await bridgeJson<{ presentUrl: string; canvasUrl?: string }>(
-    "/full-pipeline",
-    {
-      method: "POST",
-      body: JSON.stringify({}),
-    },
-  );
-  return data;
+export async function saveCanvas(args: {
+  source: SaveSource;
+  name: string;
+  sourceId?: string;
+  presentToken?: string;
+}): Promise<{ id: string; url: string }> {
+  return bridgeJson<{ id: string; url: string }>(`/canvases`, {
+    method: "POST",
+    body: JSON.stringify(args),
+  });
 }
