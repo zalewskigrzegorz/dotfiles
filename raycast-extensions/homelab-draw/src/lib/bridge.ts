@@ -42,10 +42,13 @@ async function bridgeJson<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     body = text ? JSON.parse(text) : {};
   } catch {
-    throw new Error(`Bridge ${path} returned non-JSON (${res.status}): ${text.slice(0, 200)}`);
+    throw new Error(
+      `Bridge ${path} returned non-JSON (${res.status}): ${text.slice(0, 200)}`,
+    );
   }
   if (!res.ok) {
-    const err = (body as BridgeError).error ?? `Bridge ${path} failed (${res.status})`;
+    const err =
+      (body as BridgeError).error ?? `Bridge ${path} failed (${res.status})`;
     throw new Error(err);
   }
   return body as T;
@@ -56,11 +59,16 @@ export async function listCanvases(q?: string): Promise<Canvas[]> {
   return bridgeJson<Canvas[]>(`/canvases${query}`);
 }
 
-export async function getCanvas(id: string): Promise<Canvas & { scene: unknown }> {
+export async function getCanvas(
+  id: string,
+): Promise<Canvas & { scene: unknown }> {
   return bridgeJson(`/canvases/${encodeURIComponent(id)}`);
 }
 
-export async function openCanvas(id: string, target: OpenTarget): Promise<string> {
+export async function openCanvas(
+  id: string,
+  target: OpenTarget,
+): Promise<string> {
   const data = await bridgeJson<{ url: string }>(
     `/canvases/${encodeURIComponent(id)}/open`,
     { method: "POST", body: JSON.stringify({ target }) },

@@ -8,7 +8,12 @@ import {
   showToast,
 } from "@raycast/api";
 import { useCallback, useEffect, useState } from "react";
-import { listCanvases, openCanvas, type Canvas, type OpenTarget } from "./lib/bridge";
+import {
+  listCanvases,
+  openCanvas,
+  type Canvas,
+  type OpenTarget,
+} from "./lib/bridge";
 import { SetupHelp } from "./lib/setup";
 
 export default function BrowseCommand() {
@@ -70,7 +75,10 @@ export default function BrowseCommand() {
               metadata={
                 <List.Item.Detail.Metadata>
                   <List.Item.Detail.Metadata.Label title="ID" text={c.id} />
-                  <List.Item.Detail.Metadata.Label title="Name" text={c.name ?? "—"} />
+                  <List.Item.Detail.Metadata.Label
+                    title="Name"
+                    text={c.name ?? "—"}
+                  />
                   {c.updatedAt && (
                     <List.Item.Detail.Metadata.Label
                       title="Modified"
