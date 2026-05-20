@@ -25,7 +25,9 @@ export default function SaveCommand() {
     (async () => {
       try {
         const tabs = await BrowserExtension.getTabs();
-        const drawTab = tabs.find((t) => t.url.startsWith(drawUrl()) && t.url.includes("canvas="));
+        const drawTab = tabs.find(
+          (t) => t.url.startsWith(drawUrl()) && t.url.includes("canvas="),
+        );
         if (drawTab) {
           const m = drawTab.url.match(/[?&]canvas=([^&]+)/);
           if (m) {
@@ -50,15 +52,22 @@ export default function SaveCommand() {
             onSubmit={async (values) => {
               try {
                 if (!values.name?.toString().trim()) {
-                  await showToast({ style: Toast.Style.Failure, title: "Name is required" });
+                  await showToast({
+                    style: Toast.Style.Failure,
+                    title: "Name is required",
+                  });
                   return;
                 }
-                const toast = await showToast({ style: Toast.Style.Animated, title: "Saving…" });
+                const toast = await showToast({
+                  style: Toast.Style.Animated,
+                  title: "Saving…",
+                });
                 const { url } = await saveCanvas({
                   source: values.source as SaveSource,
                   name: values.name.toString().trim(),
                   sourceId: values.sourceId?.toString().trim() || undefined,
-                  presentToken: values.presentToken?.toString().trim() || undefined,
+                  presentToken:
+                    values.presentToken?.toString().trim() || undefined,
                 });
                 await open(url);
                 toast.style = Toast.Style.Success;
@@ -84,9 +93,21 @@ export default function SaveCommand() {
         onChange={(v) => setSource(v as SaveSource)}
         info="Where to read the scene from"
       >
-        <Form.Dropdown.Item value="ai" title="AI (draw-ai.lab / scene.json)" icon={Icon.Stars} />
-        <Form.Dropdown.Item value="draw" title="Draw (an existing canvas)" icon={Icon.Pencil} />
-        <Form.Dropdown.Item value="present" title="Present (a live preload token)" icon={Icon.Play} />
+        <Form.Dropdown.Item
+          value="ai"
+          title="AI (draw-ai.lab / scene.json)"
+          icon={Icon.Stars}
+        />
+        <Form.Dropdown.Item
+          value="draw"
+          title="Draw (an existing canvas)"
+          icon={Icon.Pencil}
+        />
+        <Form.Dropdown.Item
+          value="present"
+          title="Present (a live preload token)"
+          icon={Icon.Play}
+        />
       </Form.Dropdown>
 
       <Form.TextField
@@ -101,10 +122,18 @@ export default function SaveCommand() {
         <Form.TextField
           id="sourceId"
           title="Source canvas ID"
-          placeholder={autoDetected ? `auto-detected: ${autoDetected}` : "paste canvas id or URL"}
+          placeholder={
+            autoDetected
+              ? `auto-detected: ${autoDetected}`
+              : "paste canvas id or URL"
+          }
           value={sourceId}
           onChange={setSourceId}
-          info={autoDetected ? "Pulled from your open draw.lab tab" : "Open the canvas in your browser to auto-detect, or paste the id"}
+          info={
+            autoDetected
+              ? "Pulled from your open draw.lab tab"
+              : "Open the canvas in your browser to auto-detect, or paste the id"
+          }
         />
       )}
 
