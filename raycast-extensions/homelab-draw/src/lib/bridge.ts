@@ -23,8 +23,8 @@ export type Canvas = {
   updatedAt?: string;
 };
 
-export type OpenTarget = "draw" | "ai" | "present";
-export type SaveSource = "draw" | "ai" | "present";
+export type OpenTarget = "draw" | "ai";
+export type SaveSource = "ai";
 
 type BridgeError = { error: string };
 
@@ -77,15 +77,18 @@ export async function openCanvas(
 }
 
 export async function saveCanvas(args: {
-  source: SaveSource;
   name: string;
-  sourceId?: string;
-  presentToken?: string;
+  mode?: "new" | "update";
+  targetId?: string;
 }): Promise<{ id: string; url: string }> {
-  return bridgeJson<{ id: string; url: string }>(`/canvases`, {
+  return bridgeJson<{ id: string; url: string }>(`/canvases/import-from-ai`, {
     method: "POST",
-    body: JSON.stringify(args),
+    body: JSON.stringify({ source: "ai", ...args }),
   });
+}
+
+export async function getAiSceneAppState(): Promise<{ homelabSourceId: string | null; name: string | null }> {
+  return bridgeJson(`/ai-scene/appstate`);
 }
 
 export async function deleteCanvas(id: string): Promise<void> {
