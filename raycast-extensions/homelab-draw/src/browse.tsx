@@ -44,7 +44,7 @@ export default function BrowseCommand() {
         await deleteCanvas(c.id);
         toast.style = Toast.Style.Success;
         toast.title = "Deleted";
-        toast.message = c.name ?? c.id;
+        toast.message = c.name?.trim() || c.id;
         retry();
       } catch (e) {
         toast.style = Toast.Style.Failure;
