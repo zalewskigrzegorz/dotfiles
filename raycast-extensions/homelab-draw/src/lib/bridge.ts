@@ -87,3 +87,13 @@ export async function saveCanvas(args: {
     body: JSON.stringify(args),
   });
 }
+
+export async function deleteCanvas(id: string): Promise<void> {
+  const res = await fetch(`${bridgeUrl()}/canvases/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Bridge DELETE /canvases/${id} failed (${res.status}): ${text.slice(0, 200)}`);
+  }
+}
