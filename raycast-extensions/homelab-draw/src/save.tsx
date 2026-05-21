@@ -1,7 +1,6 @@
 import {
   Action,
   ActionPanel,
-  BrowserExtension,
   Form,
   Icon,
   Toast,
@@ -10,106 +9,67 @@ import {
   useNavigation,
 } from "@raycast/api";
 import { useEffect, useState } from "react";
-import { drawUrl, saveCanvas, type SaveSource } from "./lib/bridge";
+import { getAiSceneAppState, saveCanvas } from "./lib/bridge";
 
 export default function SaveCommand() {
   const { pop } = useNavigation();
-  const [source, setSource] = useState<SaveSource>("ai");
   const [name, setName] = useState("");
-  const [sourceId, setSourceId] = useState("");
-  const [presentToken, setPresentToken] = useState("");
-  const [autoDetected, setAutoDetected] = useState<string | null>(null);
+  const [detect, setDetect] = useState<{ homelabSourceId: string | null; name: string | null } | null>(null);
+  const [mode, setMode] = useState<"new" | "update">("new");
 
   useEffect(() => {
-    if (source !== "draw") return;
     (async () => {
       try {
-        const tabs = await BrowserExtension.getTabs();
-        const drawTab = tabs.find(
-          (t) => t.url.startsWith(drawUrl()) && t.url.includes("canvas="),
-        );
-        if (drawTab) {
-          const m = drawTab.url.match(/[?&]canvas=([^&]+)/);
-          if (m) {
-            setSourceId(m[1]);
-            setAutoDetected(m[1]);
-          }
+        const d = await getAiSceneAppState();
+        setDetect(d);
+        if (d.homelabSourceId) {
+          setMode("update");
+          if (d.name) setName(d.name);
         }
       } catch {
-        // BrowserExtension not available — leave sourceId empty for manual paste.
+        setDetect({ homelabSourceId: null, name: null });
       }
     })();
-  }, [source]);
+  }, []);
+
+  const canOverwrite = detect?.homelabSourceId != null;
 
   return (
     <Form
-      navigationTitle="Draw: Save"
+      navigationTitle="Draw: Save AI scene"
       actions={
         <ActionPanel>
           <Action.SubmitForm
             title="Save Canvas"
             icon={Icon.SaveDocument}
             onSubmit={async (values) => {
+              const trimmed = values.name?.toString().trim();
+              if (!trimmed) {
+                await showToast({ style: Toast.Style.Failure, title: "Name is required" });
+                return;
+              }
+              const toast = await showToast({ style: Toast.Style.Animated, title: "Saving..." });
               try {
-                if (!values.name?.toString().trim()) {
-                  await showToast({
-                    style: Toast.Style.Failure,
-                    title: "Name is required",
-                  });
-                  return;
-                }
-                const toast = await showToast({
-                  style: Toast.Style.Animated,
-                  title: "Saving…",
-                });
                 const { url } = await saveCanvas({
-                  source: values.source as SaveSource,
-                  name: values.name.toString().trim(),
-                  sourceId: values.sourceId?.toString().trim() || undefined,
-                  presentToken:
-                    values.presentToken?.toString().trim() || undefined,
+                  name: trimmed,
+                  mode: canOverwrite && values.mode === "update" ? "update" : "new",
+                  targetId: canOverwrite && values.mode === "update" ? detect!.homelabSourceId! : undefined,
                 });
                 await open(url);
                 toast.style = Toast.Style.Success;
                 toast.title = "Saved";
-                toast.message = values.name.toString();
+                toast.message = trimmed;
                 pop();
               } catch (e) {
-                await showToast({
-                  style: Toast.Style.Failure,
-                  title: "Save failed",
-                  message: e instanceof Error ? e.message : String(e),
-                });
+                toast.style = Toast.Style.Failure;
+                toast.title = "Save failed";
+                toast.message = e instanceof Error ? e.message : String(e);
               }
             }}
           />
         </ActionPanel>
       }
     >
-      <Form.Dropdown
-        id="source"
-        title="Source"
-        value={source}
-        onChange={(v) => setSource(v as SaveSource)}
-        info="Where to read the scene from"
-      >
-        <Form.Dropdown.Item
-          value="ai"
-          title="AI (draw-ai.lab / scene.json)"
-          icon={Icon.Stars}
-        />
-        <Form.Dropdown.Item
-          value="draw"
-          title="Draw (an existing canvas)"
-          icon={Icon.Pencil}
-        />
-        <Form.Dropdown.Item
-          value="present"
-          title="Present (a live preload token)"
-          icon={Icon.Play}
-        />
-      </Form.Dropdown>
-
       <Form.TextField
         id="name"
         title="Name"
@@ -117,34 +77,17 @@ export default function SaveCommand() {
         value={name}
         onChange={setName}
       />
-
-      {source === "draw" && (
-        <Form.TextField
-          id="sourceId"
-          title="Source canvas ID"
-          placeholder={
-            autoDetected
-              ? `auto-detected: ${autoDetected}`
-              : "paste canvas id or URL"
-          }
-          value={sourceId}
-          onChange={setSourceId}
-          info={
-            autoDetected
-              ? "Pulled from your open draw.lab tab"
-              : "Open the canvas in your browser to auto-detect, or paste the id"
-          }
-        />
-      )}
-
-      {source === "present" && (
-        <Form.TextField
-          id="presentToken"
-          title="Present token"
-          placeholder="paste the ?preload=… value from the present URL"
-          value={presentToken}
-          onChange={setPresentToken}
-        />
+      {canOverwrite && (
+        <Form.Dropdown
+          id="mode"
+          title="Save mode"
+          value={mode}
+          onChange={(v) => setMode(v as "new" | "update")}
+          info={`Detected source canvas: ${detect!.homelabSourceId}`}
+        >
+          <Form.Dropdown.Item value="update" title={`Update existing "${detect!.name ?? detect!.homelabSourceId}"`} icon={Icon.ArrowClockwise} />
+          <Form.Dropdown.Item value="new" title="Save as new canvas" icon={Icon.PlusCircle} />
+        </Form.Dropdown>
       )}
     </Form>
   );
