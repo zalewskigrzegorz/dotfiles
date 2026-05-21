@@ -1,14 +1,17 @@
 import {
   Action,
   ActionPanel,
+  Alert,
   Icon,
   List,
   Toast,
+  confirmAlert,
   open,
   showToast,
 } from "@raycast/api";
 import { useCallback, useEffect, useState } from "react";
 import {
+  deleteCanvas,
   listCanvases,
   openCanvas,
   type Canvas,
@@ -27,6 +30,30 @@ export default function BrowseCommand() {
     setCanvases(null);
     setReloadKey((k) => k + 1);
   }, []);
+
+  const remove = useCallback(
+    async (c: Canvas) => {
+      const ok = await confirmAlert({
+        title: `Delete "${c.name?.trim() || c.id}"?`,
+        message: "This cannot be undone.",
+        primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
+      });
+      if (!ok) return;
+      const toast = await showToast({ style: Toast.Style.Animated, title: "Deleting…" });
+      try {
+        await deleteCanvas(c.id);
+        toast.style = Toast.Style.Success;
+        toast.title = "Deleted";
+        toast.message = c.name ?? c.id;
+        retry();
+      } catch (e) {
+        toast.style = Toast.Style.Failure;
+        toast.title = "Delete failed";
+        toast.message = e instanceof Error ? e.message : String(e);
+      }
+    },
+    [retry],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -113,6 +140,13 @@ export default function BrowseCommand() {
                 title="Copy Canvas Id"
                 content={c.id}
                 shortcut={{ modifiers: ["cmd"], key: "." }}
+              />
+              <Action
+                title="Delete Canvas"
+                icon={Icon.Trash}
+                style={Action.Style.Destructive}
+                shortcut={{ modifiers: ["cmd"], key: "backspace" }}
+                onAction={() => remove(c)}
               />
               <Action
                 title="Reload"
