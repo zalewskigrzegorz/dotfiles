@@ -7,7 +7,7 @@ set -euo pipefail
 WINDOW="${1:-}"
 WIDTH=5
 
-PCT=$(/Users/greg/Code/dotfiles/bin/usage-pct "$WINDOW" 2>/dev/null || echo "?")
+PCT=$(usage-pct "$WINDOW" 2>/dev/null || echo "?")
 if [ "$PCT" = "?" ] || ! [[ "$PCT" =~ ^[0-9]+$ ]]; then
   # No limit configured — print dimmed dashes
   printf '╌╌╌╌╌\n'
