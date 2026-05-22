@@ -1,21 +1,17 @@
--- Mocha Neon claude_sessions widget — event-driven, no polling.
--- Subscribes to two events:
---   • claude_sessions_changed     fired by bin/claude-watcher on .jsonl FS event
---   • claude_sessions_idle_check  fired by bin/claude-idle-timer every 30s
--- On 0→N waiting transition, fires native macOS notification.
+-- Mocha Neon claude_sessions widget — event-driven via fswatch + 30s idle ticker.
 local sbar = require("sketchybar")
 local colors = require("colors")
 
 local claude_sessions = sbar.add("item", "widgets.claude_sessions", {
   position = "right",
   icon = {
-    string = "",
+    string = "",   -- nf-md-brain (U+F068B)
     color = colors.green,
     font = { family = "Iosevka Nerd Font", style = "Bold", size = 14.0 },
     padding_right = 4,
   },
   label = {
-    string = "0",
+    string = "...",
     color = colors.green,
     font = { family = "Iosevka Nerd Font", style = "Bold", size = 14.0 },
   },
@@ -41,49 +37,50 @@ local claude_sessions = sbar.add("item", "widgets.claude_sessions", {
 
 local state_dir = os.getenv("HOME") .. "/.cache/sketchybar"
 local state_file = state_dir .. "/claude_sessions_state"
-os.execute("mkdir -p " .. state_dir)
+os.execute("mkdir -p '" .. state_dir .. "'")
 
 local function refresh()
-  local handle = io.popen("/Users/greg/Code/dotfiles/bin/claude-sessions --json 2>/dev/null")
+  -- Delegate to `claude-sessions inline` which returns a single ready-to-display line.
+  -- Examples: "0"  |  "2"  |  "2 dotfiles"  |  "2 +dotfiles  1 "
+  local handle = io.popen("/Users/greg/Code/dotfiles/bin/claude-sessions inline 2>/dev/null")
   if not handle then return end
-  local json = handle:read("*a")
+  local line = handle:read("*l") or ""
   handle:close()
 
-  local total, waiting = 0, 0
-  for sessions, wait in (json or ""):gmatch('"waiting":(%a+)') do
-    -- waiting is "true" or "false"; count each entry
-    total = total + 1
-    if wait == "true" then waiting = waiting + 1 end
+  -- Total count = first token
+  local total = tonumber(line:match("^(%d+)") or "0") or 0
+
+  -- Waiting count: look for a digit before the bell glyph  (nf-fa-bell U+F0F4)
+  -- inline may emit "2 +dotfiles  1 " — the number before the bell is waiting count.
+  -- Also handle simple numeric-only output where waiting = 0.
+  local waiting_count = 0
+  local bell_num = line:match("(%d+)%s*\xef\x83\xb4")  -- UTF-8 bytes for U+F0F4
+  if bell_num then
+    waiting_count = tonumber(bell_num) or 0
   end
-  -- Fallback: count by occurrences of "session_id"
-  if total == 0 then
-    for _ in (json or ""):gmatch('"session_id":') do
-      total = total + 1
-    end
+  -- Fallback: if line contains the bell at all, at least 1 is waiting
+  if waiting_count == 0 and line:find("\xef\x83\xb4") then
+    waiting_count = 1
   end
 
-  local color = colors.green
-  local icon_str = ""
-  if waiting > 0 then
-    color = colors.yellow
-    icon_str = " " .. waiting .. " "
-  end
+  local label_text = (total > 0) and line or "0"
+  local color = (waiting_count > 0) and colors.yellow or colors.green
 
-  -- Transition detection: fire native notif only on 0→N waiting
+  claude_sessions:set({
+    icon = { color = color },
+    label = { string = label_text, color = color },
+    background = { border_color = color },
+  })
+
+  -- Native macOS notification on 0→N waiting transition
   local prev = 0
   local f = io.open(state_file, "r")
   if f then prev = tonumber(f:read("*l")) or 0; f:close() end
-  if prev == 0 and waiting > 0 then
+  if prev == 0 and waiting_count > 0 then
     os.execute([[osascript -e 'display notification "Claude is waiting" with title " Mocha Neon" sound name "Tink"']])
   end
   local fw = io.open(state_file, "w")
-  if fw then fw:write(tostring(waiting)); fw:close() end
-
-  claude_sessions:set({
-    icon = { string = icon_str, color = color },
-    label = { string = tostring(total), color = color },
-    background = { border_color = color },
-  })
+  if fw then fw:write(tostring(waiting_count)); fw:close() end
 end
 
 claude_sessions:subscribe(
