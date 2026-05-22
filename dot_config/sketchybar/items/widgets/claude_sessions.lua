@@ -47,23 +47,18 @@ local function refresh()
   local line = handle:read("*l") or ""
   handle:close()
 
-  -- Total count = first token
-  local total = tonumber(line:match("^(%d+)") or "0") or 0
-
-  -- Waiting count: look for a digit before the bell glyph  (nf-fa-bell U+F0F4)
-  -- inline may emit "2 +dotfiles  1 " — the number before the bell is waiting count.
-  -- Also handle simple numeric-only output where waiting = 0.
+  -- `claude-sessions inline` now returns formats like:
+  --   "—"          (no sessions)
+  --   "D 1"        (1 session in 'dotfiles')
+  --   "D⫯R 2"      (2 sessions across 'dotfiles' + 'redocly')
+  --   "D⫯R 1!"     (waiting indicated by trailing "!")
+  -- Trust the line as-is for the label; detect waiting by trailing '!'.
   local waiting_count = 0
-  local bell_num = line:match("(%d+)%s*\xef\x83\xb4")  -- UTF-8 bytes for U+F0F4
-  if bell_num then
-    waiting_count = tonumber(bell_num) or 0
-  end
-  -- Fallback: if line contains the bell at all, at least 1 is waiting
-  if waiting_count == 0 and line:find("\xef\x83\xb4") then
+  if line:find("!%s*$") then
     waiting_count = 1
   end
 
-  local label_text = (total > 0) and line or "0"
+  local label_text = (line ~= "" and line ~= "—") and line or "0"
   local color = (waiting_count > 0) and colors.magenta or colors.mauve
 
   claude_sessions:set({
