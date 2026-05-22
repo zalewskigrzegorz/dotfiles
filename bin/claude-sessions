@@ -44,27 +44,37 @@ rebuild_cache() {
       '{project:$project, session_id:$sid, mtime:$mtime, waiting:$waiting}')")
   done
   shopt -u nullglob
+  local tmp="$CACHE_FILE.tmp.$$"
   if (( ${#items[@]} == 0 )); then
-    echo '[]' > "$CACHE_FILE.tmp"
+    echo '[]' > "$tmp"
   else
-    printf '%s\n' "${items[@]}" | jq -s '.' > "$CACHE_FILE.tmp"
+    printf '%s\n' "${items[@]}" | jq -s '.' > "$tmp"
   fi
-  mv "$CACHE_FILE.tmp" "$CACHE_FILE"
+  mv "$tmp" "$CACHE_FILE"
 }
 
 ensure_cache() {
   [[ -f "$CACHE_FILE" ]] || rebuild_cache
 }
 
+safe_jq() {
+  # Read cache via jq. If file vanished or is corrupt, rebuild once and retry.
+  local filter="$1"
+  jq -r "$filter" "$CACHE_FILE" 2>/dev/null && return 0
+  rebuild_cache
+  jq -r "$filter" "$CACHE_FILE" 2>/dev/null || echo ""
+}
+
 cmd_count() {
   ensure_cache
-  jq 'length' "$CACHE_FILE"
+  local n; n=$(safe_jq 'length')
+  echo "${n:-0}"
 }
 
 case "${1:-}" in
   count)        cmd_count ;;
-  --json|json)  shift || true; ensure_cache; cat "$CACHE_FILE" ;;
-  waiting)      ensure_cache; jq -r '.[] | select(.waiting) | "\(.project)\t\(.session_id)"' "$CACHE_FILE" ;;
+  --json|json)  shift || true; ensure_cache; safe_jq '.' ;;
+  waiting)      ensure_cache; safe_jq '.[] | select(.waiting) | "\(.project)\t\(.session_id)"' ;;
   -h|--help|"") usage ;;
   *) echo "unknown subcommand: $1" >&2; usage >&2; exit 2 ;;
 esac
