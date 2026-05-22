@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Installs Go-based CLI tools that have no homebrew formula.
+# Re-runs whenever this script's content changes (e.g. tool list edits).
+set -euo pipefail
+
+# Pick up brew-installed go on both macOS (/opt/homebrew) and Linux (/home/linuxbrew/.linuxbrew).
+if [[ -x /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+
+if ! command -v go >/dev/null 2>&1; then
+  echo "go not found; skipping go-install tools" >&2
+  exit 0
+fi
+
+# Default GOBIN to ~/go/bin so installed binaries land in a predictable spot on PATH.
+export GOBIN="${GOBIN:-$HOME/go/bin}"
+mkdir -p "$GOBIN"
+
+# `go install pkg@version` requires module mode regardless of the legacy default.
+export GO111MODULE=on
+
+tools=(
+  "github.com/rlnorthcutt/analyzeRepo@latest"
+)
+
+for tool in "${tools[@]}"; do
+  echo "go install $tool"
+  go install "$tool"
+done
