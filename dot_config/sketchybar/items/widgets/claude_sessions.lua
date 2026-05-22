@@ -8,22 +8,25 @@ local claude_sessions = sbar.add("item", "widgets.claude_sessions", {
     string = "󰙵",  -- nf-md-creation U+F0675 sparkle — verified renders in Iosevka
     color = colors.mauve,
     font = { family = "Iosevka Nerd Font", style = "Bold", size = 14.0 },
+    padding_left = 4,
     padding_right = 6,
   },
   label = {
     string = "...",
     color = colors.mauve,
     font = { family = "Iosevka Nerd Font", style = "Bold", size = 14.0 },
+    padding_left = 4,
+    padding_right = 4,
   },
   background = {
     border_width = 2,
     border_color = colors.mauve,
     color = colors.bar.bg,
     corner_radius = 8,
-    height = 24,
+    height = 26,
   },
-  padding_left = 12,
-  padding_right = 12,
+  padding_left = 14,
+  padding_right = 14,
   click_script = [[
     sess=$(/Users/greg/Code/dotfiles/bin/claude-sessions waiting 2>/dev/null | head -n 1 | awk -F'\t' '{print $1}')
     if [ -n "$sess" ]; then
