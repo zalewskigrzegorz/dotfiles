@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# ~/Code/dotfiles/bin/claude-sessions
+# List active Claude Code sessions. Cache-backed, fswatch-invalidated.
+# Subcommands: count | --json | waiting
+set -euo pipefail
+
+PROJECTS_DIR="${CLAUDE_PROJECTS_DIR:-$HOME/.claude/projects}"
+CACHE_FILE="${CLAUDE_SESSIONS_CACHE:-/tmp/claude-sessions-$(id -u).json}"
+ACTIVE_WINDOW_SEC=600   # files modified in last 10 min are "active"
+WAIT_THRESHOLD_SEC=30   # idle > 30s after assistant_text_end → "waiting"
+
+usage() {
+  cat <<'EOF'
+Usage: claude-sessions <subcommand>
+  count      Print integer count of active sessions
+  --json     Print JSON array (one entry per active session)
+  waiting    Print one line per waiting session: <project>\t<session_id>
+EOF
+}
+
+rebuild_cache() {
+  local now items=()
+  now=$(date +%s)
+  shopt -s nullglob
+  for f in "$PROJECTS_DIR"/*/*.jsonl; do
+    local mtime
+    mtime=$(stat -f %m "$f" 2>/dev/null || stat -c %Y "$f" 2>/dev/null || echo 0)
+    (( now - mtime > ACTIVE_WINDOW_SEC )) && continue
+    local last_event
+    last_event=$(tail -n 1 "$f" 2>/dev/null | jq -r '.type // empty' 2>/dev/null || echo "")
+    local project_dir project sid waiting
+    project_dir=$(dirname "$f")
+    project=$(basename "$project_dir" | sed 's|^-||; s|-|/|g')
+    sid=$(basename "$f" .jsonl)
+    waiting=false
+    if [[ "$last_event" == "assistant_text_end" ]] && (( now - mtime > WAIT_THRESHOLD_SEC )); then
+      waiting=true
+    fi
+    items+=("$(jq -n \
+      --arg project "$project" \
+      --arg sid "$sid" \
+      --argjson mtime "$mtime" \
+      --argjson waiting "$waiting" \
+      '{project:$project, session_id:$sid, mtime:$mtime, waiting:$waiting}')")
+  done
+  shopt -u nullglob
+  if (( ${#items[@]} == 0 )); then
+    echo '[]' > "$CACHE_FILE.tmp"
+  else
+    printf '%s\n' "${items[@]}" | jq -s '.' > "$CACHE_FILE.tmp"
+  fi
+  mv "$CACHE_FILE.tmp" "$CACHE_FILE"
+}
+
+ensure_cache() {
+  [[ -f "$CACHE_FILE" ]] || rebuild_cache
+}
+
+cmd_count() {
+  ensure_cache
+  jq 'length' "$CACHE_FILE"
+}
+
+case "${1:-}" in
+  count)        cmd_count ;;
+  --json|json)  shift || true; ensure_cache; cat "$CACHE_FILE" ;;
+  waiting)      ensure_cache; jq -r '.[] | select(.waiting) | "\(.project)\t\(.session_id)"' "$CACHE_FILE" ;;
+  -h|--help|"") usage ;;
+  *) echo "unknown subcommand: $1" >&2; usage >&2; exit 2 ;;
+esac
