@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# ~/Code/dotfiles/bin/claude-idle-timer
+# Fires `claude_sessions_idle_check` event every 30s so sketchybar
+# re-evaluates idle→waiting transitions (no FS event when a transcript
+# simply stops being touched).
+set -euo pipefail
+
+INTERVAL="${CLAUDE_IDLE_INTERVAL_SEC:-30}"
+
+is_mac() { [[ "$(uname -s)" == "Darwin" ]]; }
+
+while sleep "$INTERVAL"; do
+  if is_mac && command -v sketchybar >/dev/null 2>&1; then
+    sketchybar --trigger claude_sessions_idle_check 2>/dev/null || true
+  fi
+done
