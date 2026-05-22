@@ -94,6 +94,18 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/bazgroly-autopush.sh",
+            "timeout": 30000
+          }
+        ]
+      }
     ]{{ if ne .profile "homelab" }},
     "SessionStart": [
       {
