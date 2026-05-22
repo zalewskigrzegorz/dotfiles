@@ -180,11 +180,18 @@ sess_seg=""
 if [ -f "$cache_file" ]; then
   sess_used=$(jq -r '.totalTokens // 0' "$cache_file" 2>/dev/null || echo 0)
   [ -z "$sess_used" ] && sess_used=0
-  if [ "$sess_used" -gt 0 ] 2>/dev/null; then
-    sess_fmt=$(fmt_count "$sess_used")
+  sess_limit="${CLAUDE_SESSION_TOKEN_LIMIT:-200000000}"
+  if [ "$sess_used" -gt 0 ] 2>/dev/null && [ "$sess_limit" -gt 0 ] 2>/dev/null; then
+    sess_pct=$(( sess_used * 100 / sess_limit ))
+    (( sess_pct > 100 )) && sess_pct=100
+    time_pct=0
+    if [ "$sess_end_ts" -gt 0 ]; then time_pct=$(pct_elapsed "$sess_start_ts" "$sess_end_ts"); fi
+    if   (( sess_pct > time_pct + 10 )); then sc="$R"
+    elif (( sess_pct > time_pct - 10 )); then sc="$Y"
+    else sc="$G"; fi
     sr=""
     if [ "$sess_end_ts" -gt 0 ]; then sr=" ${SEPC}↻${N}${PINK}$(fmt_remain $(( sess_end_ts - now_ts )))${N}"; fi
-    sess_seg="${SEP}${PINK}use${N} ${PINK}${B}${sess_fmt}${N}${sr}"
+    sess_seg="${SEP}${PINK}use${N} $(bar "$sess_pct" "$sc") ${sc}${B}${sess_pct}%${N}${sr}"
   fi
 fi
 
@@ -193,11 +200,18 @@ if command -v ccusage >/dev/null 2>&1; then
   week_used=$(ccusage weekly --json --offline 2>/dev/null \
     | jq -r '.weekly[-1].totalTokens // 0' 2>/dev/null || echo 0)
   [ -z "$week_used" ] && week_used=0
-  if [ "$week_used" -gt 0 ] 2>/dev/null; then
-    week_fmt=$(fmt_count "$week_used")
+  week_limit="${CLAUDE_WEEKLY_TOKEN_LIMIT:-1100000000}"
+  if [ "$week_used" -gt 0 ] 2>/dev/null && [ "$week_limit" -gt 0 ] 2>/dev/null; then
+    week_pct=$(( week_used * 100 / week_limit ))
+    (( week_pct > 100 )) && week_pct=100
+    time_pct=0
+    if [ "$week_end_ts" -gt 0 ]; then time_pct=$(pct_elapsed "$week_start_ts" "$week_end_ts"); fi
+    if   (( week_pct > time_pct + 10 )); then wc="$R"
+    elif (( week_pct > time_pct - 10 )); then wc="$Y"
+    else wc="$G"; fi
     wr=""
     if [ "$week_end_ts" -gt 0 ]; then wr=" ${SEPC}↻${N}${CYAN}$(fmt_remain $(( week_end_ts - now_ts )))${N}"; fi
-    week_seg="${SEP}${CYAN}wk${N} ${CYAN}${B}${week_fmt}${N}${wr}"
+    week_seg="${SEP}${CYAN}wk${N} $(bar "$week_pct" "$wc") ${wc}${B}${week_pct}%${N}${wr}"
   fi
 fi
 
