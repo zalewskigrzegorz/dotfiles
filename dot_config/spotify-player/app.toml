@@ -1,4 +1,4 @@
-theme = "dracula"
+theme = "mocha-neon"
 client_id_command = { command = "cat", args = [".config/spotify-player/clientid"] }
 client_port = 8080
 login_redirect_uri = "http://127.0.0.1:8989/login"

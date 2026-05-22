@@ -1,0 +1,13 @@
+[[themes]]
+name = "mocha-neon"
+[themes.palette]
+background = "#1E1E2E"
+foreground = "#F0F0FF"
+black      = "#11111B"
+red        = "#FF6B9D"
+green      = "#50FA7B"
+yellow     = "#FFD700"
+blue       = "#8AB4F8"
+magenta    = "#B347FF"
+cyan       = "#8BE9FD"
+white      = "#F0F0FF"

@@ -64,19 +64,13 @@ orientation = "landscape"
 # directory in your configuration directory (see the `config.toml` location above).
 theme = "dracula"
 
-# Theme color overrides
-# ---------------------
-# You can override specific colors from the selected theme by adding them here.
-# This allows you to customize the appearance without creating a full theme file.
-# Colors can be specified as ANSI color names (e.g., "red", "bright-blue") or
-# as hex values (e.g., "#ff0000", "#1e1e2e").
-#
-# Example overrides:
-# [ui.theme_overrides]
-# background = "#000000"
-# text_fg = "#ffffff"
-# selection_bg = "#444444"
-# match_fg = "#ff0000"
+# Mocha Neon overrides (applied on top of dracula base)
+[ui.theme_overrides]
+background = "#1E1E2E"
+text_fg = "#F0F0FF"
+selection_bg = "#313244"
+match_fg = "#B347FF"
+# border_fg = "#585B70"
 # The default size of the preview panel (in percentage of the screen)
 preview_size = 50
 
