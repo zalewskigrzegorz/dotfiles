@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# ~/Code/dotfiles/bin/usage-pct
+# Print integer 0..100 representing % of plan tokens consumed for {session,week}.
+# Reads ccusage + plan limits from env vars.
+# Output:
+#   integer N (0..100) on success
+#   "?" if no limit configured or ccusage unavailable
+set -euo pipefail
+
+WINDOW="${1:-}"
+
+case "$WINDOW" in
+  session)
+    LIMIT="${CLAUDE_SESSION_TOKEN_LIMIT:-0}"
+    [[ "$LIMIT" -eq 0 ]] && { echo "?"; exit 0; }
+    USED=$(ccusage blocks --json --active --offline 2>/dev/null \
+      | jq '.blocks[0].totalTokens // 0' 2>/dev/null || echo 0)
+    ;;
+  week)
+    LIMIT="${CLAUDE_WEEKLY_TOKEN_LIMIT_OPUS:-0}"
+    [[ "$LIMIT" -eq 0 ]] && { echo "?"; exit 0; }
+    USED=$(ccusage weekly --json --offline 2>/dev/null \
+      | jq '[.weekly[-1].modelBreakdowns[]? | select(.modelName | test("opus")) | (.inputTokens + .outputTokens + .cacheCreationTokens + .cacheReadTokens)] | add // 0' 2>/dev/null \
+      || echo 0)
+    ;;
+  *)
+    echo "usage: usage-pct <session|week>" >&2
+    exit 2
+    ;;
+esac
+
+[[ "$LIMIT" -gt 0 ]] || { echo "?"; exit 0; }
+[[ -z "$USED" || "$USED" == "null" ]] && USED=0
+echo $(( USED * 100 / LIMIT ))
