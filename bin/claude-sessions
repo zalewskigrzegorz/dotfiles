@@ -15,7 +15,7 @@ Usage: claude-sessions <subcommand>
   count      Print integer count of active sessions
   --json     Print JSON array (one entry per active session)
   waiting    Print one line per waiting session: <project>\t<session_id>
-  inline     Print compact status-bar string: "N" or "N 🔔K" when K waiting
+  inline     Print compact status-bar string: "N [project]" (1-2 sessions) or "N" / "N K" (>2)
   summary    Print full per-project breakdown (for popups / terminals)
 EOF
 }
@@ -90,15 +90,28 @@ cmd_count() {
 
 cmd_inline() {
   ensure_cache
-  local total waiting
+  local total waiting projects
   total=$(safe_jq 'length')
   waiting=$(safe_jq '[.[] | select(.waiting)] | length')
   [ -z "$total" ] && total=0
   [ -z "$waiting" ] && waiting=0
-  if [ "$waiting" -gt 0 ]; then
-    echo "$total 🔔$waiting"
+  # Show project names if 1-2 sessions, just count if more
+  if [ "$total" -ge 1 ] && [ "$total" -le 2 ]; then
+    projects=$(safe_jq '[.[].project | split("/") | .[-1]] | unique | join("+")')
+    [ -z "$projects" ] && projects=""
+    if [ "$waiting" -gt 0 ]; then
+      printf '%s  %s %s\n' "$total" "$projects" "$waiting"
+    elif [ -n "$projects" ]; then
+      printf '%s %s\n' "$total" "$projects"
+    else
+      printf '%s\n' "$total"
+    fi
   else
-    echo "$total"
+    if [ "$waiting" -gt 0 ]; then
+      printf '%s  %s\n' "$total" "$waiting"
+    else
+      printf '%s\n' "$total"
+    fi
   fi
 }
 
@@ -112,13 +125,13 @@ cmd_summary() {
   [ -z "$waiting" ] && waiting=0
   [ -z "$projects" ] && projects="(none)"
   cat <<EOF
-🦄 Claude sessions: $total active · $waiting waiting
+ Claude sessions: $total active · $waiting waiting
 
 Projects: $projects
 
 Per session:
 EOF
-  safe_jq '.[] | "  • \(.project) [\(.session_id[0:8])] " + (if .waiting then "🔔 waiting" else "active" end) + " — mtime: \(.mtime|todate)"'
+  safe_jq '.[] | "  • \(.project) [\(.session_id[0:8])] " + (if .waiting then " waiting" else "active" end) + " — mtime: \(.mtime|todate)"'
 }
 
 case "${1:-}" in
