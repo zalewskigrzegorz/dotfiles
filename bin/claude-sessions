@@ -90,28 +90,23 @@ cmd_count() {
 
 cmd_inline() {
   ensure_cache
-  local total waiting projects
+  local total waiting projects_csv initials
   total=$(safe_jq 'length')
   waiting=$(safe_jq '[.[] | select(.waiting)] | length')
   [ -z "$total" ] && total=0
   [ -z "$waiting" ] && waiting=0
-  # Show project names if 1-2 sessions, just count if more
-  if [ "$total" -ge 1 ] && [ "$total" -le 2 ]; then
-    projects=$(safe_jq '[.[].project | split("/") | .[-1]] | unique | join("+")')
-    [ -z "$projects" ] && projects=""
-    if [ "$waiting" -gt 0 ]; then
-      printf '%s  %s %s\n' "$total" "$projects" "$waiting"
-    elif [ -n "$projects" ]; then
-      printf '%s %s\n' "$total" "$projects"
-    else
-      printf '%s\n' "$total"
-    fi
+  if [ "$total" -eq 0 ]; then
+    echo "—"
+    return
+  fi
+  # Extract first letter of last path component, uppercased, deduped, joined with ⫯
+  projects_csv=$(safe_jq '[.[].project | split("/") | .[-1] | .[0:1] | ascii_upcase] | unique | join("⫯")')
+  [ -z "$projects_csv" ] && projects_csv="?"
+  # Append waiting indicator with ! after initials when waiting > 0
+  if [ "$waiting" -gt 0 ]; then
+    echo "$projects_csv $waiting!"
   else
-    if [ "$waiting" -gt 0 ]; then
-      printf '%s  %s\n' "$total" "$waiting"
-    else
-      printf '%s\n' "$total"
-    fi
+    echo "$projects_csv $total"
   fi
 }
 
