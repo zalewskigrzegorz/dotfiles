@@ -1,39 +1,35 @@
 gui:
-  # DRACULA
+  # Mocha Neon (Dracula REPLACED — kept for reference)
+  # theme:
+  #   activeBorderColor: ["#FF79C6", bold]
+  #   inactiveBorderColor: ["#BD93F9"]
+  #   searchingActiveBorderColor: ["#8BE9FD", bold]
+  #   optionsTextColor: ["#6272A4"]
+  #   selectedLineBgColor: ["#6272A4"]
+  #   inactiveViewSelectedLineBgColor: [bold]
+  #   cherryPickedCommitFgColor: ["#6272A4"]
+  #   cherryPickedCommitBgColor: ["#8BE9FD"]
+  #   markedBaseCommitFgColor: ["#8BE9FD"]
+  #   markedBaseCommitBgColor: ["#F1FA8C"]
+  #   unstagedChangesColor: ["#FF5555"]
+  #   defaultFgColor: ["#F8F8F2"]
   theme:
     activeBorderColor:
-      - "#FF79C6"
+      - "#B347FF"
       - bold
     inactiveBorderColor:
-      - "#BD93F9"
-
-    searchingActiveBorderColor:
-      - "#8BE9FD"
-      - bold
-
+      - "#585B70"
     optionsTextColor:
-      - "#6272A4"
-
+      - "#8BE9FD"
     selectedLineBgColor:
-      - "#6272A4"
-
-    inactiveViewSelectedLineBgColor:
-      - bold
-
-    cherryPickedCommitFgColor:
-      - "#6272A4"
-
+      - "#313244"
+    selectedRangeBgColor:
+      - "#313244"
     cherryPickedCommitBgColor:
-      - "#8BE9FD"
-
-    markedBaseCommitFgColor:
-      - "#8BE9FD"
-
-    markedBaseCommitBgColor:
-      - "#F1FA8C"
-
+      - "#FF80BF"
+    cherryPickedCommitFgColor:
+      - "#1E1E2E"
     unstagedChangesColor:
-      - "#FF5555"
-
+      - "#FF6B9D"
     defaultFgColor:
-      - "#F8F8F2"
+      - "#F0F0FF"
