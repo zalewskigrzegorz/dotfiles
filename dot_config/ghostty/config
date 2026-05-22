@@ -1,30 +1,53 @@
 # NOTE:
 # This is my hand tailored config file for ghostty.
 
-# Custom theme: Dracula 
-window-theme = dark 
-palette = 0=#22212C
-palette = 1=#FF9580
-palette = 2=#8AFF80
-palette = 3=#FFFF80
-palette = 4=#9580FF
-palette = 5=#FF80BF
-palette = 6=#80FFEA
-palette = 7=#F8F8F2
-palette = 8=#504C67
-palette = 9=#FFAA99
-palette = 10=#A2FF99
-palette = 11=#FFFF99
-palette = 12=#AA99FF
-palette = 13=#FF99CC
-palette = 14=#99FFEE
-palette = 15=#FFFFFF
-background = #22212C
-foreground = #F8F8F2
-cursor-color = #7970A9
-cursor-text = #7970A9
-selection-background = #454158
-selection-foreground = #F8F8F2
+# Custom theme: Dracula (REPLACED — kept for reference)
+# window-theme = dark
+# palette = 0=#22212C
+# palette = 1=#FF9580
+# palette = 2=#8AFF80
+# palette = 3=#FFFF80
+# palette = 4=#9580FF
+# palette = 5=#FF80BF
+# palette = 6=#80FFEA
+# palette = 7=#F8F8F2
+# palette = 8=#504C67
+# palette = 9=#FFAA99
+# palette = 10=#A2FF99
+# palette = 11=#FFFF99
+# palette = 12=#AA99FF
+# palette = 13=#FF99CC
+# palette = 14=#99FFEE
+# palette = 15=#FFFFFF
+# background = #22212C
+# foreground = #F8F8F2
+# cursor-color = #7970A9
+# cursor-text = #7970A9
+# selection-background = #454158
+# selection-foreground = #F8F8F2
+
+# Mocha Neon palette (Catppuccin Mocha + bumped accents)
+background = 1E1E2E
+foreground = F0F0FF
+cursor-color = B347FF
+selection-background = 313244
+selection-foreground = F0F0FF
+palette = 0=#11111B
+palette = 1=#FF6B9D
+palette = 2=#50FA7B
+palette = 3=#FFD700
+palette = 4=#8AB4F8
+palette = 5=#B347FF
+palette = 6=#8BE9FD
+palette = 7=#F0F0FF
+palette = 8=#585B70
+palette = 9=#FF6B9D
+palette = 10=#50FA7B
+palette = 11=#FFD700
+palette = 12=#8AB4F8
+palette = 13=#FF80BF
+palette = 14=#8BE9FD
+palette = 15=#F0F0FF
 
 # Window settings
 window-padding-x = 5
