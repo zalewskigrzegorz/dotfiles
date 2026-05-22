@@ -5,7 +5,7 @@ local colors = require("colors")
 local claude_sessions = sbar.add("item", "widgets.claude_sessions", {
   position = "right",
   icon = {
-    string = "󱷁",  -- nf-md-creation U+F0675 sparkle — verified renders in Iosevka
+    string = "󱗃",  -- nf-md-creation U+F0675 sparkle — verified renders in Iosevka
     color = colors.mauve,
     font = { family = "Iosevka Nerd Font", style = "Bold", size = 14.0 },
     padding_left = 4,
