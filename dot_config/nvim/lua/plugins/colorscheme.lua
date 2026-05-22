@@ -1,12 +1,14 @@
-return {
-  -- add dracula
-  { "binhtran432k/dracula.nvim" },
-
-  -- Configure LazyVim to load dracula
-  {
-    "LazyVim/LazyVim",
-    opts = {
-      colorscheme = "dracula-soft",
-    },
-  },
-}
+-- Disabled for Mocha Neon migration — replaced by plugins/catppuccin.lua
+-- return {
+--   -- add dracula
+--   { "binhtran432k/dracula.nvim" },
+--
+--   -- Configure LazyVim to load dracula
+--   {
+--     "LazyVim/LazyVim",
+--     opts = {
+--       colorscheme = "dracula-soft",
+--     },
+--   },
+-- }
+return {}
