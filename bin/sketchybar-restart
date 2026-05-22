@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# ~/Code/dotfiles/bin/sketchybar-restart
+# Restart sketchybar and force item registration via --reload.
+# Works around the init race where items land empty on `brew services start`.
+set -e
+
+brew services stop sketchybar >/dev/null 2>&1 || true
+pkill -9 -f sketchybar 2>/dev/null || true
+sleep 2
+brew services start sketchybar >/dev/null 2>&1
+sleep 4
+/opt/homebrew/bin/sketchybar --reload >/dev/null 2>&1
+echo "sketchybar restarted with items committed"
