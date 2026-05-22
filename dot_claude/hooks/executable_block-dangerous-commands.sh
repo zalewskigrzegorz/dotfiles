@@ -35,8 +35,41 @@ BR_REGEX=$(printf '%s' "$PROTECTED_BRANCHES" | tr ',' '\n' | awk 'NF{printf "%s%
 contains_cmd() { printf '%s' "$COMMAND" | grep -qE "$1"; }
 contains_icmd() { printf '%s' "$COMMAND" | grep -qiE "$1"; }
 
+# ── Repo allowlist (skip protected-branch push checks) ──────────────────
+# Some personal repos legitimately commit + push to master directly (no PR flow).
+# Default: bazgroly (AI-doc destination repo, autopushed after every Write/Edit).
+# Override with CLAUDE_PUSH_ALLOWLIST=path1,path2 (absolute paths to repo roots).
+PUSH_ALLOWLIST="${CLAUDE_PUSH_ALLOWLIST:-$HOME/Code/personal/bazgroly}"
+PUSH_ALLOWED=0
+if contains_cmd 'git[[:space:]]+push'; then
+  # Try to infer the target repo from the command text first (cd <path>, git -C <path>),
+  # falling back to the hook's own cwd. Tilde and $HOME are expanded.
+  CMD_TARGET=""
+  CMD_TARGET=$(printf '%s' "$COMMAND" | grep -oE 'git[[:space:]]+-C[[:space:]]+[^[:space:];&|]+' | head -1 | awk '{print $NF}')
+  if [ -z "$CMD_TARGET" ]; then
+    CMD_TARGET=$(printf '%s' "$COMMAND" | grep -oE '(^|[;&|]|[[:space:]])cd[[:space:]]+[^[:space:];&|]+' | head -1 | awk '{print $NF}')
+  fi
+  CMD_TARGET="${CMD_TARGET//\~/$HOME}"
+  CMD_TARGET="${CMD_TARGET//\$HOME/$HOME}"
+  if [ -n "$CMD_TARGET" ] && [ -d "$CMD_TARGET" ]; then
+    REPO_ROOT=$(git -C "$CMD_TARGET" rev-parse --show-toplevel 2>/dev/null || true)
+  else
+    REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
+  fi
+  if [ -n "$REPO_ROOT" ]; then
+    IFS=',' read -ra _allow <<< "$PUSH_ALLOWLIST"
+    for p in "${_allow[@]}"; do
+      [ -z "$p" ] && continue
+      # Expand ~ / $HOME in allowlist entries
+      p="${p//\~/$HOME}"
+      p="${p//\$HOME/$HOME}"
+      if [ "$REPO_ROOT" = "$p" ]; then PUSH_ALLOWED=1; break; fi
+    done
+  fi
+fi
+
 # ── Git push protections ────────────────────────────────────────────────
-if contains_cmd '(^|[;&|()]+[[:space:]]*)git[[:space:]]+push'; then
+if [ "$PUSH_ALLOWED" -eq 0 ] && contains_cmd '(^|[;&|()]+[[:space:]]*)git[[:space:]]+push'; then
   # Explicit refspec to a protected branch (origin main, :main, HEAD:main, remote branch)
   if contains_cmd "git[[:space:]]+push[[:space:]]+[^[:space:]]+[[:space:]]+([^[:space:]]*:)?($BR_REGEX)(\$|[[:space:]])"; then
     MATCHED_BRANCH=$(printf '%s' "$COMMAND" | grep -oE "($BR_REGEX)(\$|[[:space:]])" | head -1 | tr -d '[:space:]')
@@ -53,11 +86,13 @@ if contains_cmd '(^|[;&|()]+[[:space:]]*)git[[:space:]]+push'; then
       emit_deny "Blocked: you are on '$CURRENT' (a protected branch). Switch to a feature branch."
     fi
   fi
-  # Force push (but allow --force-with-lease)
-  if contains_cmd 'git[[:space:]]+push([[:space:]]+[^[:space:]]+)*[[:space:]]+(-[a-zA-Z]*f[a-zA-Z]*|--force)([[:space:]=]|$)' \
-     && ! contains_cmd '\-\-force-with-lease'; then
-    emit_deny "Blocked: force push is not allowed. Use --force-with-lease if you must overwrite remote."
-  fi
+fi
+
+# Force push protection always applies, even in allowlisted repos.
+if contains_cmd '(^|[;&|()]+[[:space:]]*)git[[:space:]]+push' \
+   && contains_cmd 'git[[:space:]]+push([[:space:]]+[^[:space:]]+)*[[:space:]]+(-[a-zA-Z]*f[a-zA-Z]*|--force)([[:space:]=]|$)' \
+   && ! contains_cmd '\-\-force-with-lease'; then
+  emit_deny "Blocked: force push is not allowed. Use --force-with-lease if you must overwrite remote."
 fi
 
 # ── Destructive filesystem operations ───────────────────────────────────
