@@ -98,6 +98,19 @@ if [ -n "${CLAUDE_SONNET_WEEKLY_RESET:-}" ]; then
 fi
 
 # --- helpers ---
+fmt_count() {
+  local n="${1:-0}"
+  [[ -z "$n" || "$n" == "null" ]] && { echo "?"; return; }
+  awk -v n="$n" '
+    BEGIN {
+      if (n >= 1e9)      printf "%.1fG", n / 1e9
+      else if (n >= 1e6) printf "%.1fM", n / 1e6
+      else if (n >= 1e3) printf "%.0fK", n / 1e3
+      else               printf "%d", n
+    }
+  '
+}
+
 pct_elapsed() {
   local start=$1 end=$2
   [ "$end" -le "$start" ] && { echo 0; return; }
@@ -164,35 +177,28 @@ if [ -n "$transcript" ] && [ -f "$transcript" ]; then
 fi
 
 sess_seg=""
-if [ -n "${CLAUDE_SESSION_TOKEN_LIMIT:-}" ] && [ "$CLAUDE_SESSION_TOKEN_LIMIT" -gt 0 ] && [ -f "$cache_file" ]; then
+if [ -f "$cache_file" ]; then
   sess_used=$(jq -r '.totalTokens // 0' "$cache_file" 2>/dev/null || echo 0)
   [ -z "$sess_used" ] && sess_used=0
-  sess_used_pct=$(( sess_used * 100 / CLAUDE_SESSION_TOKEN_LIMIT ))
-  (( sess_used_pct > 100 )) && sess_used_pct=100
-  time_pct=0
-  if [ "$sess_end_ts" -gt 0 ]; then time_pct=$(pct_elapsed "$sess_start_ts" "$sess_end_ts"); fi
-  if   (( sess_used_pct > time_pct + 10 )); then sc="$R"
-  elif (( sess_used_pct > time_pct - 10 )); then sc="$Y"
-  else sc="$G"; fi
-  sr=$(fmt_remain $(( sess_end_ts - now_ts )))
-  sess_seg="${SEP}${PINK}use${N} $(bar "$sess_used_pct" "$sc") ${sc}${B}${sess_used_pct}%${N} ${SEPC}↻${N}${PINK}${sr}${N}"
+  if [ "$sess_used" -gt 0 ] 2>/dev/null; then
+    sess_fmt=$(fmt_count "$sess_used")
+    sr=""
+    if [ "$sess_end_ts" -gt 0 ]; then sr=" ${SEPC}↻${N}${PINK}$(fmt_remain $(( sess_end_ts - now_ts )))${N}"; fi
+    sess_seg="${SEP}${PINK}use${N} ${PINK}${B}${sess_fmt}${N}${sr}"
+  fi
 fi
 
 week_seg=""
-if [ -n "${CLAUDE_WEEKLY_TOKEN_LIMIT_OPUS:-}" ] && [ "$CLAUDE_WEEKLY_TOKEN_LIMIT_OPUS" -gt 0 ]; then
+if command -v ccusage >/dev/null 2>&1; then
   week_used=$(ccusage weekly --json --offline 2>/dev/null \
-    | jq -r '[.weekly[-1].modelBreakdowns[]? | select(.modelName | test("opus")) | (.inputTokens + .outputTokens + .cacheCreationTokens + .cacheReadTokens)] | add // 0' 2>/dev/null \
-    || echo 0)
+    | jq -r '.weekly[-1].totalTokens // 0' 2>/dev/null || echo 0)
   [ -z "$week_used" ] && week_used=0
-  week_used_pct=$(( week_used * 100 / CLAUDE_WEEKLY_TOKEN_LIMIT_OPUS ))
-  (( week_used_pct > 100 )) && week_used_pct=100
-  time_pct=0
-  if [ "$week_end_ts" -gt 0 ]; then time_pct=$(pct_elapsed "$week_start_ts" "$week_end_ts"); fi
-  if   (( week_used_pct > time_pct + 10 )); then wc="$R"
-  elif (( week_used_pct > time_pct - 10 )); then wc="$Y"
-  else wc="$G"; fi
-  wr=$(fmt_remain $(( week_end_ts - now_ts )))
-  week_seg="${SEP}${CYAN}wk${N} $(bar "$week_used_pct" "$wc") ${wc}${B}${week_used_pct}%${N} ${SEPC}↻${N}${CYAN}${wr}${N}"
+  if [ "$week_used" -gt 0 ] 2>/dev/null; then
+    week_fmt=$(fmt_count "$week_used")
+    wr=""
+    if [ "$week_end_ts" -gt 0 ]; then wr=" ${SEPC}↻${N}${CYAN}$(fmt_remain $(( week_end_ts - now_ts )))${N}"; fi
+    week_seg="${SEP}${CYAN}wk${N} ${CYAN}${B}${week_fmt}${N}${wr}"
+  fi
 fi
 
 sonnet_seg=""
