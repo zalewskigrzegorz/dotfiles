@@ -111,6 +111,19 @@ sync-agent-skills
 
 See `docs/agents-sync.md` for details (adding a new skill/rule/MCP server, secrets via 1Password, troubleshooting).
 
+## macOS LaunchAgents
+
+After first `chezmoi apply` on macOS, register the Claude session watchers:
+
+```bash
+cp ~/.config/launchd/com.greg.claude-watcher.plist ~/Library/LaunchAgents/
+cp ~/.config/launchd/com.greg.claude-idle-timer.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.greg.claude-watcher.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.greg.claude-idle-timer.plist
+```
+
+Verify with `launchctl list | grep com.greg` (PIDs should be > 0).
+
 ## Reference
 
 - Agent config (shared + per-agent): `docs/agents-sync.md`
