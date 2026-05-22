@@ -127,6 +127,15 @@
             "command": "mempalace hook run --hook stop --harness claude-code"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/stop.sh",
+            "timeout": 5000
+          }
+        ]
       }
     ],
     "PreCompact": [
