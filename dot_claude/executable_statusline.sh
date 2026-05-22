@@ -23,27 +23,27 @@ cwd=$(printf '%s' "$input" | jq -r '.workspace.current_dir // .cwd // ""')
 mm=$(( dur_ms / 60000 )); ss=$(( (dur_ms % 60000) / 1000 ))
 dur_fmt=$(printf '%dm%02ds' "$mm" "$ss")
 
-# --- palette (Synthwave multi-color — distinct hue per segment on dark bg) ---
+# --- palette (Mocha Neon — Catppuccin Mocha + bumped accents) ---
 B=$'\033[1m'
 N=$'\033[0m'
-FG=$'\033[38;2;240;240;255m'      # foreground          #F0F0FF
-LABEL=$'\033[38;2;58;134;255m'    # electric blue       #3A86FF
-MUTED=$'\033[38;2;170;160;200m'   # dim lavender-grey   #AAA0C8
-SEPC=$'\033[38;2;120;100;180m'    # separator (muted)   #7864B4
-TROUGH=$'\033[38;2;58;30;80m'     # bar empty (track)   #3A1E50
-TROUGH_BG=$'\033[48;2;58;30;80m'  # bar empty as bg     #3A1E50
-BG_RESET=$'\033[49m'              # reset bg only
-ACCENT=$'\033[38;2;58;134;255m'   # electric blue       #3A86FF — model
-G=$'\033[38;2;255;0;110m'         # hot pink (default)  #FF006E
-Y=$'\033[38;2;255;190;11m'        # amber warn          #FFBE0B
-O=$'\033[38;2;255;100;30m'        # neon orange         #FF641E
-R=$'\033[38;2;255;0;50m'          # crit red            #FF0032
-PINK=$'\033[38;2;255;0;110m'      # hot pink            #FF006E
-PURPLE=$'\033[38;2;179;71;255m'   # vivid purple        #B347FF — proj
-CYAN=$'\033[38;2;0;229;255m'      # cyan                #00E5FF — week
-MINT=$'\033[38;2;0;245;160m'      # mint green          #00F5A0 — duration
-AMBER=$'\033[38;2;255;190;11m'    # amber               #FFBE0B — ctx
-GOLD=$'\033[38;2;255;215;0m'      # gold                #FFD700 — style
+FG=$'\033[38;2;240;240;255m'      # #F0F0FF text
+LABEL=$'\033[38;2;179;71;255m'    # #B347FF mauve — labels
+MUTED=$'\033[38;2;166;173;200m'   # #A6ADC8 subtext
+SEPC=$'\033[38;2;88;91;112m'      # #585B70 surface2 — separator
+TROUGH=$'\033[38;2;49;50;68m'     # #313244 surface0 — bar empty
+TROUGH_BG=$'\033[48;2;49;50;68m'
+BG_RESET=$'\033[49m'
+ACCENT=$'\033[38;2;179;71;255m'   # #B347FF mauve — model
+G=$'\033[38;2;80;250;123m'        # #50FA7B green — success
+Y=$'\033[38;2;255;215;0m'         # #FFD700 gold — warning
+O=$'\033[38;2;255;140;66m'        # #FF8C42 peach — compaction / pace-warn
+R=$'\033[38;2;255;107;157m'       # #FF6B9D red — error / waiting
+PINK=$'\033[38;2;255;128;191m'    # #FF80BF pink — project / session
+PURPLE=$'\033[38;2;149;128;255m'  # #9580FF lavender
+CYAN=$'\033[38;2;139;233;253m'    # #8BE9FD sky — week
+MINT=$'\033[38;2;80;250;123m'     # #50FA7B mint — duration / success
+AMBER=$'\033[38;2;255;215;0m'     # #FFD700 amber — ctx
+GOLD=$'\033[38;2;255;215;0m'      # #FFD700 — style/tools
 SEP=" ${SEPC}▌${N} "
 
 now_ts=$(date +%s)
@@ -145,18 +145,54 @@ fi
 
 dur_seg="${SEP}${MINT}${dur_fmt}${N}"
 
+# Tool call counter (count tool_use events in transcript)
+tool_seg=""
+if [ -n "$transcript" ] && [ -f "$transcript" ]; then
+  tool_count=$(jq -rs '[.[] | select(.type=="tool_use")] | length' "$transcript" 2>/dev/null || echo 0)
+  if [ -n "$tool_count" ] && [ "$tool_count" != "null" ] && [ "$tool_count" -gt 0 ]; then
+    tool_seg="${SEP}${GOLD}⚒ ${tool_count}${N}"
+  fi
+fi
+
+# Compaction counter — uses test() so it matches multiple possible marker names
+comp_seg=""
+if [ -n "$transcript" ] && [ -f "$transcript" ]; then
+  comp_count=$(jq -rs '[.[] | select(.type | test("^(compact|compaction)$"))] | length' "$transcript" 2>/dev/null || echo 0)
+  if [ -n "$comp_count" ] && [ "$comp_count" != "null" ] && [ "$comp_count" -gt 0 ]; then
+    comp_seg="${SEP}${O}♻ ${comp_count}${N}"
+  fi
+fi
+
 sess_seg=""
-if [ "$sess_end_ts" -gt 0 ]; then
-  sp=$(pct_elapsed "$sess_start_ts" "$sess_end_ts")
+if [ -n "${CLAUDE_SESSION_TOKEN_LIMIT:-}" ] && [ "$CLAUDE_SESSION_TOKEN_LIMIT" -gt 0 ] && [ -f "$cache_file" ]; then
+  sess_used=$(jq -r '.totalTokens // 0' "$cache_file" 2>/dev/null || echo 0)
+  [ -z "$sess_used" ] && sess_used=0
+  sess_used_pct=$(( sess_used * 100 / CLAUDE_SESSION_TOKEN_LIMIT ))
+  (( sess_used_pct > 100 )) && sess_used_pct=100
+  time_pct=0
+  if [ "$sess_end_ts" -gt 0 ]; then time_pct=$(pct_elapsed "$sess_start_ts" "$sess_end_ts"); fi
+  if   (( sess_used_pct > time_pct + 10 )); then sc="$R"
+  elif (( sess_used_pct > time_pct - 10 )); then sc="$Y"
+  else sc="$G"; fi
   sr=$(fmt_remain $(( sess_end_ts - now_ts )))
-  sess_seg="${SEP}${PINK}session${N} $(bar "$sp" "$PINK") ${SEPC}↻${N}${PINK}${B}${sr}${N}"
+  sess_seg="${SEP}${PINK}use${N} $(bar "$sess_used_pct" "$sc") ${sc}${B}${sess_used_pct}%${N} ${SEPC}↻${N}${PINK}${sr}${N}"
 fi
 
 week_seg=""
-if [ "$week_end_ts" -gt 0 ]; then
-  wp=$(pct_elapsed "$week_start_ts" "$week_end_ts")
+if [ -n "${CLAUDE_WEEKLY_TOKEN_LIMIT_OPUS:-}" ] && [ "$CLAUDE_WEEKLY_TOKEN_LIMIT_OPUS" -gt 0 ]; then
+  week_used=$(ccusage weekly --json --offline 2>/dev/null \
+    | jq -r '[.weekly[-1].modelBreakdowns[]? | select(.modelName | test("opus")) | (.inputTokens + .outputTokens + .cacheCreationTokens + .cacheReadTokens)] | add // 0' 2>/dev/null \
+    || echo 0)
+  [ -z "$week_used" ] && week_used=0
+  week_used_pct=$(( week_used * 100 / CLAUDE_WEEKLY_TOKEN_LIMIT_OPUS ))
+  (( week_used_pct > 100 )) && week_used_pct=100
+  time_pct=0
+  if [ "$week_end_ts" -gt 0 ]; then time_pct=$(pct_elapsed "$week_start_ts" "$week_end_ts"); fi
+  if   (( week_used_pct > time_pct + 10 )); then wc="$R"
+  elif (( week_used_pct > time_pct - 10 )); then wc="$Y"
+  else wc="$G"; fi
   wr=$(fmt_remain $(( week_end_ts - now_ts )))
-  week_seg="${SEP}${CYAN}week${N} $(bar "$wp" "$CYAN") ${SEPC}↻${N}${CYAN}${B}${wr}${N}"
+  week_seg="${SEP}${CYAN}wk${N} $(bar "$week_used_pct" "$wc") ${wc}${B}${week_used_pct}%${N} ${SEPC}↻${N}${CYAN}${wr}${N}"
 fi
 
 sonnet_seg=""
@@ -164,6 +200,21 @@ if [ "$sonnet_end_ts" -gt 0 ]; then
   snp=$(pct_elapsed "$sonnet_start_ts" "$sonnet_end_ts")
   snr=$(fmt_remain $(( sonnet_end_ts - now_ts )))
   sonnet_seg="${SEP}${O}sonnet${N} $(bar "$snp" "$O") ${SEPC}↻${N}${O}${B}${snr}${N}"
+fi
+
+# Waiting badge — fires when last event is assistant_text_end AND idle > 30s
+wait_seg=""
+if [ -n "$transcript" ] && [ -f "$transcript" ]; then
+  last_type=$(tail -n 1 "$transcript" 2>/dev/null | jq -r '.type // empty' 2>/dev/null || echo "")
+  if [[ "$last_type" == "assistant_text_end" ]]; then
+    t_mtime=$(stat -f %m "$transcript" 2>/dev/null || stat -c %Y "$transcript" 2>/dev/null || echo 0)
+    idle=$(( now_ts - t_mtime ))
+    if (( idle > 30 )); then
+      m=$(( idle / 60 ))
+      if (( m > 0 )); then wait_fmt=$(printf '%dm' "$m"); else wait_fmt=$(printf '%ds' "$idle"); fi
+      wait_seg="${SEP}${R}🔔 wait ${wait_fmt}${N}"
+    fi
+  fi
 fi
 
 # context %
@@ -192,7 +243,8 @@ fi
 style_seg=""
 [ -n "$style" ] && [ "$style" != "default" ] && style_seg="${SEP}${GOLD}${style}${N}"
 
-printf '%s%s%s%s%s%s%s%s%s' \
+printf '%s%s%s%s%s%s%s%s%s%s%s%s' \
   "$model_seg" "$proj_seg" "$dur_seg" \
+  "$tool_seg" "$comp_seg" \
   "$sess_seg" "$week_seg" "$sonnet_seg" \
-  "$ctx_seg" "$lines_seg" "$style_seg"
+  "$wait_seg" "$ctx_seg" "$lines_seg" "$style_seg"
