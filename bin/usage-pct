@@ -17,11 +17,10 @@ case "$WINDOW" in
       | jq '.blocks[0].totalTokens // 0' 2>/dev/null || echo 0)
     ;;
   week)
-    LIMIT="${CLAUDE_WEEKLY_TOKEN_LIMIT_OPUS:-0}"
+    LIMIT="${CLAUDE_WEEKLY_TOKEN_LIMIT:-${CLAUDE_WEEKLY_TOKEN_LIMIT_OPUS:-0}}"
     [[ "$LIMIT" -eq 0 ]] && { echo "?"; exit 0; }
     USED=$(ccusage weekly --json --offline 2>/dev/null \
-      | jq '[.weekly[-1].modelBreakdowns[]? | select(.modelName | test("opus")) | (.inputTokens + .outputTokens + .cacheCreationTokens + .cacheReadTokens)] | add // 0' 2>/dev/null \
-      || echo 0)
+      | jq '.weekly[-1].totalTokens // 0' 2>/dev/null || echo 0)
     ;;
   *)
     echo "usage: usage-pct <session|week>" >&2
