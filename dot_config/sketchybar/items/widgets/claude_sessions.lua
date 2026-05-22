@@ -28,10 +28,9 @@ local claude_sessions = sbar.add("item", "widgets.claude_sessions", {
   padding_left = 14,
   padding_right = 14,
   click_script = [[
-    sess=$(/Users/greg/Code/dotfiles/bin/claude-sessions waiting 2>/dev/null | head -n 1 | awk -F'\t' '{print $1}')
+    sess=$(/Users/greg/Code/dotfiles/bin/claude-sessions --json 2>/dev/null | /opt/homebrew/bin/jq -r '[.[] | select(.waiting)] | .[0].tmux_session // empty')
     if [ -n "$sess" ]; then
-      /opt/homebrew/bin/tmux switch-client -t "$sess" 2>/dev/null || \
-      /usr/bin/open -a Ghostty
+      /opt/homebrew/bin/tmux switch-client -t "$sess" 2>/dev/null || /usr/bin/open -a Ghostty
     else
       /usr/bin/open -a Ghostty
     fi
@@ -45,7 +44,7 @@ os.execute("mkdir -p '" .. state_dir .. "'")
 local function refresh()
   -- Delegate to `claude-sessions inline` which returns a single ready-to-display line.
   -- Examples: "0"  |  "2"  |  "2 dotfiles"  |  "2 +dotfiles  1 "
-  local handle = io.popen("/Users/greg/Code/dotfiles/bin/claude-sessions inline 2>/dev/null")
+  local handle = io.popen(os.getenv("HOME") .. "/Code/dotfiles/bin/claude-sessions inline 2>/dev/null")
   if not handle then return end
   local line = handle:read("*l") or ""
   handle:close()
