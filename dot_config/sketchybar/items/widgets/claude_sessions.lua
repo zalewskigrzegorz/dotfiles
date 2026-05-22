@@ -25,8 +25,8 @@ local claude_sessions = sbar.add("item", "widgets.claude_sessions", {
     corner_radius = 8,
     height = 26,
   },
-  padding_left = 14,
-  padding_right = 14,
+  padding_left = 8,
+  padding_right = 8,
   click_script = [[
     sess=$(/Users/greg/Code/dotfiles/bin/claude-sessions --json 2>/dev/null | /opt/homebrew/bin/jq -r '[.[] | select(.waiting)] | .[0].tmux_session // empty')
     if [ -n "$sess" ]; then
@@ -41,29 +41,43 @@ local state_dir = os.getenv("HOME") .. "/.cache/sketchybar"
 local state_file = state_dir .. "/claude_sessions_state"
 os.execute("mkdir -p '" .. state_dir .. "'")
 
-local function refresh()
-  -- Delegate to `claude-sessions inline` which returns a single ready-to-display line.
-  -- Examples: "0"  |  "2"  |  "2 dotfiles"  |  "2 +dotfiles  1 "
-  local handle = io.popen(os.getenv("HOME") .. "/Code/dotfiles/bin/claude-sessions inline 2>/dev/null")
-  if not handle then return end
-  local line = handle:read("*l") or ""
-  handle:close()
+-- Resolve display file path once at module load (avoids shell spawn on each refresh).
+-- macOS launchers often don't export UID; fall back to `id -u` once here.
+local _uid = os.getenv("UID")
+if not _uid then
+  local h = io.popen("id -u")
+  if h then _uid = h:read("*l"); h:close() end
+end
+local display_file = "/tmp/claude-sessions-display-" .. (_uid or "502") .. ".txt"
 
-  -- `claude-sessions inline` now returns formats like:
-  --   "—"          (no sessions)
-  --   "D 1"        (1 session in 'dotfiles')
-  --   "D⫯R 2"      (2 sessions across 'dotfiles' + 'REDACTED_ORG')
-  --   "D⫯R 1!"     (waiting indicated by trailing "!")
-  -- Trust the line as-is for the label; detect waiting by trailing '!'.
-  local waiting_count = 0
-  if line:find("!%s*$") then
-    waiting_count = 1
+local function refresh()
+  -- Read pre-rendered display string written by claude-sessions-render (sub-ms, no shell spawn).
+  -- Format mirrors `claude-sessions inline`:
+  --   file empty / missing  → no sessions, hide widget
+  --   "D 1"                 → 1 session in 'dotfiles'
+  --   "D\u{2AEF}R 2"        → 2 sessions across projects
+  --   "D\u{2AEF}R 1!"       → waiting (trailing "!")
+  local label_text = ""
+  local f = io.open(display_file, "r")
+  if f then
+    label_text = f:read("*l") or ""
+    f:close()
   end
 
-  local label_text = (line ~= "" and line ~= "—") and line or "0"
+  if label_text == "" then
+    -- Hide widget entirely when no sessions
+    claude_sessions:set({ drawing = "off" })
+    local fw = io.open(state_file, "w")
+    if fw then fw:write("0"); fw:close() end
+    return
+  end
+
+  -- Detect waiting by trailing "!"
+  local waiting_count = (label_text:find("!%s*$")) and 1 or 0
   local color = (waiting_count > 0) and colors.magenta or colors.mauve
 
   claude_sessions:set({
+    drawing = "on",
     icon = { color = color },
     label = { string = label_text, color = color },
     background = { border_color = color },
@@ -71,10 +85,10 @@ local function refresh()
 
   -- Native macOS notification on 0→N waiting transition
   local prev = 0
-  local f = io.open(state_file, "r")
-  if f then prev = tonumber(f:read("*l")) or 0; f:close() end
+  local f2 = io.open(state_file, "r")
+  if f2 then prev = tonumber(f2:read("*l")) or 0; f2:close() end
   if prev == 0 and waiting_count > 0 then
-    os.execute("osascript -e 'display notification \"Claude is waiting\" with title \"\u{F0675} Mocha Neon\" sound name \"Tink\"'")
+    os.execute("osascript -e 'display notification \"Claude is waiting\" with title \"\u{F0675} Mocha Neon\" sound name \"Tink\"' 2>/dev/null")
   end
   local fw = io.open(state_file, "w")
   if fw then fw:write(tostring(waiting_count)); fw:close() end
