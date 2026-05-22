@@ -15,6 +15,8 @@ Usage: claude-sessions <subcommand>
   count      Print integer count of active sessions
   --json     Print JSON array (one entry per active session)
   waiting    Print one line per waiting session: <project>\t<session_id>
+  inline     Print compact status-bar string: "N" or "N 🔔K" when K waiting
+  summary    Print full per-project breakdown (for popups / terminals)
 EOF
 }
 
@@ -86,10 +88,45 @@ cmd_count() {
   echo "${n:-0}"
 }
 
+cmd_inline() {
+  ensure_cache
+  local total waiting
+  total=$(safe_jq 'length')
+  waiting=$(safe_jq '[.[] | select(.waiting)] | length')
+  [ -z "$total" ] && total=0
+  [ -z "$waiting" ] && waiting=0
+  if [ "$waiting" -gt 0 ]; then
+    echo "$total 🔔$waiting"
+  else
+    echo "$total"
+  fi
+}
+
+cmd_summary() {
+  ensure_cache
+  local total waiting projects
+  total=$(safe_jq 'length')
+  waiting=$(safe_jq '[.[] | select(.waiting)] | length')
+  projects=$(safe_jq '[.[].project] | unique | join(", ")')
+  [ -z "$total" ] && total=0
+  [ -z "$waiting" ] && waiting=0
+  [ -z "$projects" ] && projects="(none)"
+  cat <<EOF
+🦄 Claude sessions: $total active · $waiting waiting
+
+Projects: $projects
+
+Per session:
+EOF
+  safe_jq '.[] | "  • \(.project) [\(.session_id[0:8])] " + (if .waiting then "🔔 waiting" else "active" end) + " — mtime: \(.mtime|todate)"'
+}
+
 case "${1:-}" in
   count)        cmd_count ;;
   --json|json)  shift || true; ensure_cache; safe_jq '.' ;;
   waiting)      ensure_cache; safe_jq '.[] | select(.waiting) | "\(.project)\t\(.session_id)"' ;;
+  inline)       cmd_inline ;;
+  summary)      cmd_summary ;;
   -h|--help|"") usage ;;
   *) echo "unknown subcommand: $1" >&2; usage >&2; exit 2 ;;
 esac
