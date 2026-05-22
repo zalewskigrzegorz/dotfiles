@@ -9,7 +9,7 @@ local colors = require("colors")
 local claude_sessions = sbar.add("item", "widgets.claude_sessions", {
   position = "right",
   icon = {
-    string = "🔗",
+    string = "",
     color = colors.green,
     font = { family = "Iosevka Nerd Font", style = "Bold", size = 14.0 },
     padding_right = 4,
@@ -63,10 +63,10 @@ local function refresh()
   end
 
   local color = colors.green
-  local icon_str = "🔗"
+  local icon_str = ""
   if waiting > 0 then
     color = colors.yellow
-    icon_str = "🔗 " .. waiting .. " 🔔"
+    icon_str = " " .. waiting .. " "
   end
 
   -- Transition detection: fire native notif only on 0→N waiting
@@ -74,7 +74,7 @@ local function refresh()
   local f = io.open(state_file, "r")
   if f then prev = tonumber(f:read("*l")) or 0; f:close() end
   if prev == 0 and waiting > 0 then
-    os.execute([[osascript -e 'display notification "Claude is waiting" with title "🦄 Mocha Neon" sound name "Tink"']])
+    os.execute([[osascript -e 'display notification "Claude is waiting" with title " Mocha Neon" sound name "Tink"']])
   end
   local fw = io.open(state_file, "w")
   if fw then fw:write(tostring(waiting)); fw:close() end
