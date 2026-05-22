@@ -6,13 +6,13 @@
 # silently stripped before — see CLAUDE.md.
 
 [default_session]
-startup_command = "tmux rename-window '\uE795  term'"
+startup_command = "tmux rename-window '\uE795  term' >/dev/null 2>&1"
 
 # Public, non-secret project
 [[session]]
 name = "dotfiles"
 path = "~/Code/dotfiles"
-startup_command = "tmux rename-window '\uE795  term'"
+startup_command = "tmux rename-window '\uE795  term' >/dev/null 2>&1"
 
 # NOTE: Other projects (e.g. REDACTED_ORG) are discovered dynamically via
 # zoxide history. Do not hardcode private project names here.
