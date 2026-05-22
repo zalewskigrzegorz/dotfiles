@@ -1,0 +1,21 @@
+[delta "catppuccin-mocha"]
+    blame-palette = "#181825 #1E1E2E #313244 #45475A #585B70"
+    commit-decoration-style = "#B347FF" box
+    dark = true
+    file-decoration-style = "#B347FF"
+    file-style = "#F0F0FF"
+    hunk-header-decoration-style = "#B347FF" box
+    hunk-header-file-style = "#FF80BF"
+    hunk-header-line-number-style = bold "#FFD700"
+    hunk-header-style = file line-number syntax
+    line-numbers = true
+    line-numbers-left-style = "#585B70"
+    line-numbers-minus-style = "#FF6B9D"
+    line-numbers-plus-style = "#50FA7B"
+    line-numbers-right-style = "#585B70"
+    line-numbers-zero-style = "#7F849C"
+    minus-emph-style = bold syntax "#FF6B9D"
+    minus-style = syntax "#3a2a3a"
+    plus-emph-style = bold syntax "#50FA7B"
+    plus-style = syntax "#2a3a2a"
+    syntax-theme = "Catppuccin Mocha"
