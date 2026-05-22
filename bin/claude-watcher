@@ -12,9 +12,7 @@ is_mac() { [[ "$(uname -s)" == "Darwin" ]]; }
 
 invalidate_and_notify() {
   rm -f "$CACHE_FILE"
-  if is_mac && command -v sketchybar >/dev/null 2>&1; then
-    sketchybar --trigger claude_sessions_changed 2>/dev/null || true
-  fi
+  "$(dirname "${BASH_SOURCE[0]}")/claude-sessions-render" 2>/dev/null || true
 }
 
 watch_mac() {

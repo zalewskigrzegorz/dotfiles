@@ -7,10 +7,8 @@ set -euo pipefail
 
 INTERVAL="${CLAUDE_IDLE_INTERVAL_SEC:-30}"
 
-is_mac() { [[ "$(uname -s)" == "Darwin" ]]; }
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 while sleep "$INTERVAL"; do
-  if is_mac && command -v sketchybar >/dev/null 2>&1; then
-    sketchybar --trigger claude_sessions_idle_check 2>/dev/null || true
-  fi
+  "$SCRIPT_DIR/claude-sessions-render" 2>/dev/null || true
 done
