@@ -34,7 +34,7 @@ $time\
 """
 
 [character]
-success_symbol = "[🦄](pink)"
+success_symbol = "[󱷁](pink)"
 error_symbol   = "[🚨](red)"
 
 [directory]
