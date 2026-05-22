@@ -39,9 +39,16 @@ out2=$("$BIN" count)
 echo "OK: cache hit returns same count"
 
 # --- Test 4: stale session (older than ACTIVE_WINDOW_SEC=600) ignored ---
-# touch -t YYYYMMDDhhmm.SS — back-date 1 hour
-old_date=$(date -v -1H +%Y%m%d%H%M.%S 2>/dev/null || date -d '1 hour ago' +%Y%m%d%H%M.%S)
-touch -t "$old_date" "$TMP_PROJECTS/-test-cwd/session1.jsonl"
+# Back-date 1 hour using portable timestamp-based approach
+old_ts=$(( $(date +%s) - 3600 ))   # 1 hour ago in seconds
+# Try macOS BSD `touch -A`, then GNU `touch -d @ts`, then fallback
+if ! touch -A -010000 "$TMP_PROJECTS/-test-cwd/session1.jsonl" 2>/dev/null; then
+  if ! touch -d "@$old_ts" "$TMP_PROJECTS/-test-cwd/session1.jsonl" 2>/dev/null; then
+    # POSIX fallback: derive YYYYMMDDhhmm.SS from epoch
+    old_date=$(date -r "$old_ts" +%Y%m%d%H%M.%S 2>/dev/null || date -d "@$old_ts" +%Y%m%d%H%M.%S)
+    touch -t "$old_date" "$TMP_PROJECTS/-test-cwd/session1.jsonl"
+  fi
+fi
 rm -f "$TMP_CACHE"
 
 out=$("$BIN" count)
