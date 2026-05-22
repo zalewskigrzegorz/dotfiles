@@ -18,6 +18,18 @@ Usage: claude-sessions <subcommand>
 EOF
 }
 
+# Map a target cwd (e.g. /Users/greg/Code/dotfiles) to a tmux session name
+# by searching tmux panes. Empty string if no tmux or no match.
+tmux_session_for_cwd() {
+  local target_cwd="$1"
+  command -v tmux >/dev/null 2>&1 || { echo ""; return; }
+  tmux list-panes -aF '#{session_name}'$'\t''#{pane_current_path}' 2>/dev/null \
+    | awk -F'\t' -v cwd="$target_cwd" '
+        index($2, cwd) == 1 { print $1; exit }
+      ' \
+    | head -n 1
+}
+
 rebuild_cache() {
   local now items=()
   now=$(date +%s)
@@ -36,12 +48,15 @@ rebuild_cache() {
     if [[ "$last_event" == "assistant_text_end" ]] && (( now - mtime > WAIT_THRESHOLD_SEC )); then
       waiting=true
     fi
+    local target_cwd="/$project"
+    local tmux_sess; tmux_sess=$(tmux_session_for_cwd "$target_cwd" || echo "")
     items+=("$(jq -n \
       --arg project "$project" \
       --arg sid "$sid" \
+      --arg tmux_session "$tmux_sess" \
       --argjson mtime "$mtime" \
       --argjson waiting "$waiting" \
-      '{project:$project, session_id:$sid, mtime:$mtime, waiting:$waiting}')")
+      '{project:$project, session_id:$sid, tmux_session:$tmux_session, mtime:$mtime, waiting:$waiting}')")
   done
   shopt -u nullglob
   local tmp="$CACHE_FILE.tmp.$$"

@@ -55,4 +55,16 @@ out=$("$BIN" count)
 [[ "$out" == "0" ]] || { echo "FAIL: stale session counted (got: $out)"; exit 1; }
 echo "OK: stale session (>600s) not counted"
 
+# --- Test 5: --json output has tmux_session key ---
+# Reset state: ensure we have one active session from earlier tests
+touch "$TMP_PROJECTS/-test-cwd/session1.jsonl"
+rm -f "$TMP_CACHE"
+
+json=$("$BIN" --json)
+echo "$json" | jq -e 'type == "array"' >/dev/null \
+  || { echo "FAIL: --json not an array (got: $json)"; exit 1; }
+echo "$json" | jq -e '.[0] | has("project") and has("session_id") and has("mtime") and has("waiting") and has("tmux_session")' >/dev/null \
+  || { echo "FAIL: --json entry missing required keys (got: $json)"; exit 1; }
+echo "OK: --json entry has tmux_session key"
+
 echo "All tests passed ✓"
