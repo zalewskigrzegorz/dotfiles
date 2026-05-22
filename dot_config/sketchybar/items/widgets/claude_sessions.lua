@@ -79,9 +79,13 @@ local function refresh()
 end
 
 claude_sessions:subscribe(
-  { "claude_sessions_changed", "claude_sessions_idle_check", "forced", "system_woke" },
+  { "claude_sessions_changed", "claude_sessions_idle_check", "forced", "system_woke", "routine" },
   refresh
 )
 
--- Initial render at sketchybar startup
-refresh()
+-- DO NOT call refresh() synchronously here — io.popen on claude-sessions
+-- can hang sketchybar init and leave sbar.end_config() unreached, which
+-- silently aborts ALL item registration. Initial render happens via
+-- 'routine' tick (sketchybar fires it at update_freq) and via the
+-- claude-watcher / claude-idle-timer triggers. We also fire a one-shot
+-- trigger from the shell after sketchybar is fully up (see sketchybarrc).
