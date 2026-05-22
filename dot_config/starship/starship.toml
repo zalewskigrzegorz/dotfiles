@@ -86,7 +86,7 @@ style = "bold gold"
 
 [custom.claude_sessions]
 command  = "claude-sessions count 2>/dev/null"
-when     = """ test "$(claude-sessions count 2>/dev/null)" -gt 0 2>/dev/null """
+when     = """ test -n "$SSH_TTY" && test "$(claude-sessions count 2>/dev/null)" -gt 0 2>/dev/null """
 format   = "[🔗 $output]($style) "
 style    = "bold green"
 
@@ -102,10 +102,16 @@ number_threshold = 1
 format = '[$symbol]($style)'
 
 [time]
-disabled = true
+disabled = false
+format = "[$time]($style) "
+style = "fg_muted"
+time_format = "%H:%M"
 
 [kubernetes]
 disabled = true
 
 [aws]
 disabled = true
+
+[profiles]
+transient = "$character"

@@ -9,28 +9,30 @@ def create_left_prompt [] {
     starship prompt --cmd-duration $env.CMD_DURATION_MS $'--status=($env.LAST_EXIT_CODE)'
 }
 
-# Configure nushell prompt to use starship
-$env.PROMPT_COMMAND = { || create_left_prompt }
-$env.PROMPT_COMMAND_RIGHT = ""
-
-# TODO: find the way to use Nerd Font icons
-$env.PROMPT_INDICATOR = "❯ "
-$env.PROMPT_INDICATOR_VI_INSERT = "❯ "
-$env.PROMPT_INDICATOR_VI_NORMAL = "❮ "
-$env.PROMPT_MULTILINE_INDICATOR = "├─ "
-
-# Create the transient (minimal) prompt shown on previous commands
-# Uses only Starship's `character` module for a compact arrow
-# Ref: https://www.nushell.sh/book/configuration.html#transient-prompt
-
-def create_transient_prompt [] {
-    ""
+# Create the right prompt — cmd_duration + time. Without this, starship's
+# `right_format` block is never rendered in nu.
+def create_right_prompt [] {
+    starship prompt --right --cmd-duration $env.CMD_DURATION_MS $'--status=($env.LAST_EXIT_CODE)'
 }
 
-# Enable Nushell's transient prompt support
+# Configure nushell prompt to use starship
+$env.PROMPT_COMMAND = { || create_left_prompt }
+$env.PROMPT_COMMAND_RIGHT = { || create_right_prompt }
+
+# starship's `[character]` module renders the prompt symbol. Leave nu's
+# PROMPT_INDICATOR empty so we don't double-print.
+$env.PROMPT_INDICATOR = ""
+$env.PROMPT_INDICATOR_VI_INSERT = ""
+$env.PROMPT_INDICATOR_VI_NORMAL = ""
+$env.PROMPT_MULTILINE_INDICATOR = "├─ "
+
+# Transient prompt uses starship's `[character]` only, via --profile transient
+def create_transient_prompt [] {
+    starship prompt --profile transient
+}
+
 $env.TRANSIENT_PROMPT_COMMAND = { || create_transient_prompt }
-$env.TRANSIENT_PROMPT_INDICATOR = "❯ "
-$env.TRANSIENT_PROMPT_INDICATOR_VI_INSERT = "❯ "
-$env.TRANSIENT_PROMPT_INDICATOR_VI_NORMAL = "❮ "
-# Blank to remove the tree icon on wrapped lines in command history
+$env.TRANSIENT_PROMPT_INDICATOR = ""
+$env.TRANSIENT_PROMPT_INDICATOR_VI_INSERT = ""
+$env.TRANSIENT_PROMPT_INDICATOR_VI_NORMAL = ""
 $env.TRANSIENT_PROMPT_MULTILINE_INDICATOR = ""
