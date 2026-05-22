@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# ~/Code/dotfiles/bin/usage-bar
+# Print a 5-cell unicode bar reflecting usage % for {session,week}.
+# Output: "▰▰▰▱▱" style, length 5.
+set -euo pipefail
+
+WINDOW="${1:-}"
+WIDTH=5
+
+PCT=$(/Users/greg/Code/dotfiles/bin/usage-pct "$WINDOW" 2>/dev/null || echo "?")
+if [ "$PCT" = "?" ] || ! [[ "$PCT" =~ ^[0-9]+$ ]]; then
+  # No limit configured — print dimmed dashes
+  printf '╌╌╌╌╌\n'
+  exit 0
+fi
+
+(( PCT > 100 )) && PCT=100
+full=$(( PCT * WIDTH / 100 ))
+(( full > WIDTH )) && full=$WIDTH
+empty=$(( WIDTH - full ))
+
+out=""
+for ((i=0; i<full;  i++)); do out+="▰"; done
+for ((i=0; i<empty; i++)); do out+="▱"; done
+echo "$out"
