@@ -1,13 +1,5 @@
 #!/usr/bin/env bash
 # Claude Code statusline.
-# Bars show % of period ELAPSED (visual countdown), text shows time-to-reset.
-# Reset times come from `/usage` — set them in settings.json env:
-#
-#   "CLAUDE_WEEKLY_RESET":        "2026-05-17T04:00"   # ISO local, auto-rolls +7d
-#   "CLAUDE_SESSION_RESET":       ""                   # leave empty; ccusage auto-detects
-#   "CLAUDE_SONNET_WEEKLY_RESET": ""                   # optional ISO local
-#
-# Re-run /usage and update CLAUDE_WEEKLY_RESET when it changes.
 
 input=$(cat)
 
@@ -63,39 +55,6 @@ if [ "$age" -gt 30 ] && command -v ccusage >/dev/null 2>&1; then
     && mv "$cache_file.tmp" "$cache_file"
 fi
 
-# --- session reset ---
-sess_start_ts=0; sess_end_ts=0
-if [ -n "${CLAUDE_SESSION_RESET:-}" ]; then
-  sess_end_ts=$(date -j -f "%Y-%m-%dT%H:%M" "$CLAUDE_SESSION_RESET" +%s 2>/dev/null \
-             || date -d "$CLAUDE_SESSION_RESET" +%s 2>/dev/null || echo 0)
-  sess_start_ts=$(( sess_end_ts - 18000 ))
-elif [ -f "$cache_file" ]; then
-  s=$(jq -r '.startTime // ""' "$cache_file" 2>/dev/null)
-  e=$(jq -r '.endTime   // ""' "$cache_file" 2>/dev/null)
-  [ -n "$s" ] && [ "$s" != "null" ] && sess_start_ts=$(date -j -u -f "%Y-%m-%dT%H:%M:%S" "${s%.*}" +%s 2>/dev/null || date -u -d "$s" +%s 2>/dev/null || echo 0)
-  [ -n "$e" ] && [ "$e" != "null" ] && sess_end_ts=$(date -j -u -f "%Y-%m-%dT%H:%M:%S"   "${e%.*}" +%s 2>/dev/null || date -u -d "$e" +%s 2>/dev/null || echo 0)
-fi
-
-# --- weekly reset (auto-roll +7d) ---
-roll_weekly() {
-  local raw=$1
-  local t=$(date -j -f "%Y-%m-%dT%H:%M" "$raw" +%s 2>/dev/null \
-         || date -d "$raw" +%s 2>/dev/null || echo 0)
-  [ "$t" -eq 0 ] && { echo 0; return; }
-  while [ "$t" -le "$now_ts" ]; do t=$(( t + 7 * 86400 )); done
-  echo "$t"
-}
-week_end_ts=0; week_start_ts=0
-if [ -n "${CLAUDE_WEEKLY_RESET:-}" ]; then
-  week_end_ts=$(roll_weekly "$CLAUDE_WEEKLY_RESET")
-  week_start_ts=$(( week_end_ts - 7 * 86400 ))
-fi
-
-sonnet_end_ts=0; sonnet_start_ts=0
-if [ -n "${CLAUDE_SONNET_WEEKLY_RESET:-}" ]; then
-  sonnet_end_ts=$(roll_weekly "$CLAUDE_SONNET_WEEKLY_RESET")
-  sonnet_start_ts=$(( sonnet_end_ts - 7 * 86400 ))
-fi
 
 # --- helpers ---
 fmt_count() {
@@ -163,7 +122,7 @@ tool_seg=""
 if [ -n "$transcript" ] && [ -f "$transcript" ]; then
   tool_count=$(jq -rs '[.[] | select(.type=="tool_use")] | length' "$transcript" 2>/dev/null || echo 0)
   if [ -n "$tool_count" ] && [ "$tool_count" != "null" ] && [ "$tool_count" -gt 0 ]; then
-    tool_seg="${SEP}${GOLD}⚒ ${tool_count}${N}"
+    tool_seg="${SEP}${GOLD}󰣖 ${tool_count}${N}"
   fi
 fi
 
@@ -172,54 +131,8 @@ comp_seg=""
 if [ -n "$transcript" ] && [ -f "$transcript" ]; then
   comp_count=$(jq -rs '[.[] | select(.type | test("^(compact|compaction)$"))] | length' "$transcript" 2>/dev/null || echo 0)
   if [ -n "$comp_count" ] && [ "$comp_count" != "null" ] && [ "$comp_count" -gt 0 ]; then
-    comp_seg="${SEP}${O}♻ ${comp_count}${N}"
+    comp_seg="${SEP}${O}󰑨 ${comp_count}${N}"
   fi
-fi
-
-sess_seg=""
-if [ -f "$cache_file" ]; then
-  sess_used=$(jq -r '.totalTokens // 0' "$cache_file" 2>/dev/null || echo 0)
-  [ -z "$sess_used" ] && sess_used=0
-  sess_limit="${CLAUDE_SESSION_TOKEN_LIMIT:-200000000}"
-  if [ "$sess_used" -gt 0 ] 2>/dev/null && [ "$sess_limit" -gt 0 ] 2>/dev/null; then
-    sess_pct=$(( sess_used * 100 / sess_limit ))
-    (( sess_pct > 100 )) && sess_pct=100
-    time_pct=0
-    if [ "$sess_end_ts" -gt 0 ]; then time_pct=$(pct_elapsed "$sess_start_ts" "$sess_end_ts"); fi
-    if   (( sess_pct > time_pct + 10 )); then sc="$R"
-    elif (( sess_pct > time_pct - 10 )); then sc="$Y"
-    else sc="$G"; fi
-    sr=""
-    if [ "$sess_end_ts" -gt 0 ]; then sr=" ${SEPC}↻${N}${PINK}$(fmt_remain $(( sess_end_ts - now_ts )))${N}"; fi
-    sess_seg="${SEP}${PINK}use${N} $(bar "$sess_pct" "$sc") ${sc}${B}${sess_pct}%${N}${sr}"
-  fi
-fi
-
-week_seg=""
-if command -v ccusage >/dev/null 2>&1; then
-  week_used=$(ccusage weekly --json --offline 2>/dev/null \
-    | jq -r '.weekly[-1].totalTokens // 0' 2>/dev/null || echo 0)
-  [ -z "$week_used" ] && week_used=0
-  week_limit="${CLAUDE_WEEKLY_TOKEN_LIMIT:-1100000000}"
-  if [ "$week_used" -gt 0 ] 2>/dev/null && [ "$week_limit" -gt 0 ] 2>/dev/null; then
-    week_pct=$(( week_used * 100 / week_limit ))
-    (( week_pct > 100 )) && week_pct=100
-    time_pct=0
-    if [ "$week_end_ts" -gt 0 ]; then time_pct=$(pct_elapsed "$week_start_ts" "$week_end_ts"); fi
-    if   (( week_pct > time_pct + 10 )); then wc="$R"
-    elif (( week_pct > time_pct - 10 )); then wc="$Y"
-    else wc="$G"; fi
-    wr=""
-    if [ "$week_end_ts" -gt 0 ]; then wr=" ${SEPC}↻${N}${CYAN}$(fmt_remain $(( week_end_ts - now_ts )))${N}"; fi
-    week_seg="${SEP}${CYAN}wk${N} $(bar "$week_pct" "$wc") ${wc}${B}${week_pct}%${N}${wr}"
-  fi
-fi
-
-sonnet_seg=""
-if [ "$sonnet_end_ts" -gt 0 ]; then
-  snp=$(pct_elapsed "$sonnet_start_ts" "$sonnet_end_ts")
-  snr=$(fmt_remain $(( sonnet_end_ts - now_ts )))
-  sonnet_seg="${SEP}${O}sonnet${N} $(bar "$snp" "$O") ${SEPC}↻${N}${O}${B}${snr}${N}"
 fi
 
 # Waiting badge — fires when last event is assistant_text_end AND idle > 30s
@@ -232,7 +145,7 @@ if [ -n "$transcript" ] && [ -f "$transcript" ]; then
     if (( idle > 30 )); then
       m=$(( idle / 60 ))
       if (( m > 0 )); then wait_fmt=$(printf '%dm' "$m"); else wait_fmt=$(printf '%ds' "$idle"); fi
-      wait_seg="${SEP}${R}🔔 wait ${wait_fmt}${N}"
+      wait_seg="${SEP}${R}󰂚 wait ${wait_fmt}${N}"
     fi
   fi
 fi
@@ -263,8 +176,7 @@ fi
 style_seg=""
 [ -n "$style" ] && [ "$style" != "default" ] && style_seg="${SEP}${GOLD}${style}${N}"
 
-printf '%s%s%s%s%s%s%s%s%s%s%s%s' \
+printf '%s%s%s%s%s%s%s%s%s' \
   "$model_seg" "$proj_seg" "$dur_seg" \
   "$tool_seg" "$comp_seg" \
-  "$sess_seg" "$week_seg" "$sonnet_seg" \
   "$wait_seg" "$ctx_seg" "$lines_seg" "$style_seg"
