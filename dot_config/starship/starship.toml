@@ -42,12 +42,25 @@ truncation_length = 3
 truncate_to_repo = true
 
 [git_branch]
-format = "[$symbol$branch]($style) "
+symbol = ""  # nf-pl-branch U+E0A0 — clean powerline branch
+format = "[$symbol $branch]($style) "
 style  = "cyan"
+truncation_length = 20
 
 [git_status]
-format = '([\[$all_status$ahead_behind\]]($style) )'
-style  = "pink"
+format = '([$conflicted$stashed$deleted$renamed$modified$staged$untracked$ahead_behind]($style) )'
+conflicted = "[](red)"
+stashed    = "[](mauve)"
+deleted    = "[](red)"
+renamed    = "[➜](pink)"
+modified   = "[](gold)"
+staged     = "[+](green)"
+untracked  = "[?](lavender)"
+ahead      = "[](green) "
+behind     = "[](red) "
+diverged   = "[](orange) "
+up_to_date = ""
+style      = "pink"
 
 [nodejs]
 disabled = true
@@ -82,13 +95,7 @@ number_threshold = 1
 format = '[$symbol]($style)'
 
 [time]
-disabled    = false
-format      = "[$time]($style)"
-style       = "fg_muted"
-time_format = "%H:%M"
-
-[transient_prompt]
-format = "[❯](mauve) "
+disabled = true
 
 [kubernetes]
 disabled = true
