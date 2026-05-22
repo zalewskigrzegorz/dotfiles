@@ -5,25 +5,25 @@ local colors = require("colors")
 local claude_sessions = sbar.add("item", "widgets.claude_sessions", {
   position = "right",
   icon = {
-    string = "",   -- nf-md-brain (U+F068B)
-    color = colors.green,
+    string = "\u{F0675}",   -- nf-md-creation (U+F0675) sparkle
+    color = colors.mauve,
     font = { family = "Iosevka Nerd Font", style = "Bold", size = 14.0 },
     padding_right = 4,
   },
   label = {
     string = "...",
-    color = colors.green,
+    color = colors.mauve,
     font = { family = "Iosevka Nerd Font", style = "Bold", size = 14.0 },
   },
   background = {
     border_width = 2,
-    border_color = colors.green,
+    border_color = colors.mauve,
     color = colors.bar.bg,
     corner_radius = 8,
     height = 24,
   },
-  padding_left = 8,
-  padding_right = 8,
+  padding_left = 12,
+  padding_right = 12,
   click_script = [[
     sess=$(/Users/greg/Code/dotfiles/bin/claude-sessions waiting 2>/dev/null | head -n 1 | awk -F'\t' '{print $1}')
     if [ -n "$sess" ]; then
@@ -64,7 +64,7 @@ local function refresh()
   end
 
   local label_text = (total > 0) and line or "0"
-  local color = (waiting_count > 0) and colors.yellow or colors.green
+  local color = (waiting_count > 0) and colors.magenta or colors.mauve
 
   claude_sessions:set({
     icon = { color = color },
@@ -77,7 +77,7 @@ local function refresh()
   local f = io.open(state_file, "r")
   if f then prev = tonumber(f:read("*l")) or 0; f:close() end
   if prev == 0 and waiting_count > 0 then
-    os.execute([[osascript -e 'display notification "Claude is waiting" with title " Mocha Neon" sound name "Tink"']])
+    os.execute("osascript -e 'display notification \"Claude is waiting\" with title \"\u{F0675} Mocha Neon\" sound name \"Tink\"'")
   end
   local fw = io.open(state_file, "w")
   if fw then fw:write(tostring(waiting_count)); fw:close() end

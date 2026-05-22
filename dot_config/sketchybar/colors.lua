@@ -1,9 +1,10 @@
-local settings = require("settings")
-
 -- Mocha Neon palette (Catppuccin Mocha + bumped accents)
+-- IMPORTANT: do NOT require("settings") here — settings.lua requires colors,
+-- creating a circular dep that crashes sketchybar with C stack overflow.
 -- Previous Dracula values preserved at bottom for 1-week rollback safety.
 return {
     purple    = 0xff9580ff,   -- lavender
+    mauve     = 0xffb347ff,   -- electric purple (Mocha Neon primary accent)
     black     = 0xff1e1e2e,   -- base
     white     = 0xfff0f0ff,   -- text bumped
     red       = 0xffff6b9d,   -- red bumped
