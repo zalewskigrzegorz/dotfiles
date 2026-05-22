@@ -11,13 +11,13 @@ local claude_sessions = sbar.add("item", "widgets.claude_sessions", {
   icon = {
     string = "🔗",
     color = colors.green,
-    font = { family = "JetBrainsMono Nerd Font", style = "Bold", size = 14.0 },
+    font = { family = "Iosevka Nerd Font", style = "Bold", size = 14.0 },
     padding_right = 4,
   },
   label = {
     string = "0",
     color = colors.green,
-    font = { family = "JetBrainsMono Nerd Font", style = "Bold", size = 14.0 },
+    font = { family = "Iosevka Nerd Font", style = "Bold", size = 14.0 },
   },
   background = {
     border_width = 2,
