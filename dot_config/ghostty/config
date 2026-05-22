@@ -35,7 +35,7 @@ window-position-x = 0
 window-position-y = 0
 
 # Fonts
-font-size = 16
+font-size = 17
 
 # monospace
 font-feature = "liga"
