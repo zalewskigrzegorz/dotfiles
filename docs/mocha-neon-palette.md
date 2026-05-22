@@ -48,4 +48,31 @@ After editing, run `chezmoi apply` to push to `~/.config/mocha-neon/`.
 
 ## Tier 2 GUI checklist (manual, one-time)
 
-<!-- Populated by Task 27 -->
+Apps where we DON'T control hex directly. Use the official Catppuccin Mocha port for each (mild pastel drift acceptable — terminal stack stays bright Mocha Neon). Tick off as you apply.
+
+| App | How to apply | Source |
+|---|---|---|
+| **Raycast** | Raycast → Themes → search "Catppuccin Mocha" → Apply | <https://github.com/catppuccin/raycast> |
+| **Slack** | Preferences → Sidebar → Custom → paste hex string from repo | <https://github.com/catppuccin/slack> |
+| **Spotify Desktop** | `spicetify install` (if not installed), `git clone https://github.com/catppuccin/spicetify ~/spicetify-themes/catppuccin`, then `spicetify config current_theme catppuccin && spicetify config color_scheme mocha && spicetify apply` | <https://github.com/catppuccin/spicetify> |
+| **Firefox Developer Edition** | Color → Import → paste JSON from `firefox-color/mocha.json` | <https://github.com/catppuccin/firefox-color> |
+| **Google Chrome** | Install Stylus extension → install Catppuccin userstyles bundle | <https://github.com/catppuccin/userstyles> |
+| **Cursor** | Extensions → search "Catppuccin for VSCode" → install → Cmd+Shift+P → "Color Theme" → "Catppuccin Mocha" | <https://marketplace.visualstudio.com/items?itemName=Catppuccin.catppuccin-vsc> |
+| **Obsidian** | Settings → Appearance → Themes → search "Catppuccin" → install → set flavor Mocha in plugin settings | <https://github.com/catppuccin/obsidian> |
+| **DataGrip / JetBrains** | Settings → Plugins → Marketplace → "Catppuccin Theme" → install → restart → set to Mocha | <https://github.com/catppuccin/jetbrains> |
+| **VLC** | Tools → Customize Interface → import skin manually (limited theming) | <https://github.com/catppuccin/vlc> |
+| **Insomnia** | Preferences → Themes → drag-and-drop Mocha theme JSON | <https://github.com/catppuccin/insomnia> |
+| **Comet (browser, if Chromium-based)** | Install Stylus, use the Chrome userstyles bundle | <https://github.com/catppuccin/userstyles> |
+
+### After applying
+
+- All Tier 2 apps will look "Catppuccin Mocha" — pastel, not Mocha Neon bright. Acceptable trade-off for ecosystem reach.
+- Tier 1 (terminal stack: statusline, tmux, sketchybar, starship, nvim, ghostty, lazygit, btop, nushell, zed, borders) uses the bumped neon variant per the palette table above.
+
+### Skipped apps (no Catppuccin port or system-only themes)
+
+- 1Password / Bitwarden — system dark mode only
+- Docker Desktop — system theme only
+- Setapp container — per-app theming
+- RapidAPI / Wooshy / Superwhisper / Remarkable / KeyCastr / Logi Options+ — minimal or no theming
+- chipmunk / SQL-tap / VIA — skip
