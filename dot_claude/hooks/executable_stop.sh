@@ -9,24 +9,17 @@
 set -u
 
 # 1a) macOS-native notification (primary path on Darwin).
-# Prefer terminal-notifier over `osascript display notification` because the
-# osascript variant ALWAYS opens Script Editor when clicked (notif is "owned"
-# by AppleScript host). terminal-notifier lets us set -activate to a real app
-# (Ghostty) and -group so successive notifs replace instead of stacking.
-# Fall back to osascript on machines that don't have terminal-notifier yet.
-# Sound is played via afplay separately so we can use a custom cyberpunk-vibe
-# mp3 (`-sound default` would use the system Tink sound).
+# osascript display notification works reliably for the BODY text (title/body
+# propagate to NotificationCenter sqlite as `req.titl` / `req.body`) but has
+# one known wart: clicking the banner opens Script Editor (notif is "owned" by
+# the AppleScript host). terminal-notifier 2.0 was tried 2026-05-23 but has
+# bugs where `-title` is ignored and stored as literal "Terminal" instead —
+# breaks the sketchybar notif_preview chip. See polish brainstorm for follow-up
+# (alerter, custom UNUserNotification swift binary, etc).
+# Sound is played via afplay separately so we can use a custom cyberpunk mp3
+# (osascript's `sound name "X"` only supports built-in macOS aiff sounds).
 if [ "$(uname -s)" = "Darwin" ]; then
-  if command -v terminal-notifier >/dev/null 2>&1; then
-    terminal-notifier \
-      -title "Claude" \
-      -message "Claude is waiting" \
-      -group "claude-code-stop" \
-      -activate "com.mitchellh.ghostty" \
-      >/dev/null 2>&1 || true
-  else
-    osascript -e 'display notification "Claude is waiting" with title "Claude"' >/dev/null 2>&1 || true
-  fi
+  osascript -e 'display notification "Claude is waiting" with title "Claude"' >/dev/null 2>&1 || true
   # Background-play the custom notification sound; never block hook exit.
   sound_file="$HOME/.claude/hooks/sounds/claude-done.mp3"
   [ -f "$sound_file" ] && (afplay "$sound_file" >/dev/null 2>&1 &)
