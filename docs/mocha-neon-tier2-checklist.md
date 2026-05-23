@@ -33,7 +33,11 @@ Screenshots: `~/Code/personal/bazgroly/dotfiles/screenshots/mocha-neon-tier2/<ap
 - [ ] **DataGrip** — Settings → Plugins → Catppuccin Theme → Mocha. Settings → Editor → Color Scheme: override 11 tokens. Screenshot: `mocha-neon-tier2/datagrip.png`.
 - [ ] **VLC** — manual import (limited theming support). Accept closest approximation. Screenshot: `mocha-neon-tier2/vlc.png`.
 - [ ] **Insomnia** — Preferences → Themes → Catppuccin Mocha. Check if 11-token override is exposed; if not, file upstream. Screenshot: `mocha-neon-tier2/insomnia.png`.
-- [ ] **Comet** — Chromium-based → use Chrome Stylus path. If not Chromium, TBD. Screenshot: `mocha-neon-tier2/comet.png`.
+- [⚠️] **Comet** — Chromium-based, very limited theming. Investigated 2026-05-23:
+  - **Browser chrome:** Comet only offers 12 preset profile-accent colors (no custom hex picker, no `userChrome.css` — Chromium doesn't support that). Closest to Mocha Neon mauve = **purple** preset. Accept as interim.
+  - **Browser theme:** install Catppuccin Mocha theme from Chrome Web Store (search "Catppuccin Mocha") — covers tab/toolbar tint with vanilla pastel. Accept pastel drift; can't bump without forking + repackaging the .crx.
+  - **Page-level (GitHub / YouTube / etc.):** install **Stylus** extension + import userstyles from `github.com/catppuccin/userstyles`. Patch hex with Mocha Neon manually per userstyle if pastel reads wrong.
+  - Screenshot: `mocha-neon-tier2/comet.png`.
 
 ## Out of scope until upstream fixes land
 
