@@ -15,9 +15,12 @@ if [ ! -f "$SRC" ]; then
 fi
 
 # Candidate profile roots on macOS — regular Firefox + Developer Edition + Nightly.
+# macOS keeps regular + Dev Edition + Nightly profiles all under
+# `~/Library/Application Support/Firefox/Profiles/` — distinguish by folder
+# suffix (.default vs .dev-edition-default vs .release). The Firefox Nightly
+# install uses a separate path though, so try both roots.
 ROOTS=(
   "$HOME/Library/Application Support/Firefox/Profiles"
-  "$HOME/Library/Application Support/Firefox Developer Edition/Profiles"
   "$HOME/Library/Application Support/Firefox Nightly/Profiles"
 )
 
@@ -30,7 +33,7 @@ for root in "${ROOTS[@]}"; do
     cp -f "$SRC" "$prof/chrome/userChrome.css"
     echo "firefox-userchrome-sync: synced → $prof/chrome/userChrome.css"
     found_any=1
-  done < <(find "$root" -maxdepth 1 -type d -name "*.default*" -o -name "*.dev-edition-default*" -o -name "*release*" 2>/dev/null)
+  done < <(find "$root" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
 done
 
 if [ "$found_any" -eq 0 ]; then
