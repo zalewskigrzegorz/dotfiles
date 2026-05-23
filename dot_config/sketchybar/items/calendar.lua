@@ -36,7 +36,7 @@ local cal = sbar.add("item", {
         color = colors.bg1, -- solid base — was bg2 (surface grey) which made it drift
         height = 26, -- match bracketed widget group (settings.items.height)
         corner_radius = 6,
-        border_color = colors.mauve, -- universal chip token, was rainbow[end]
+        border_color = colors.yellow, -- gold — semantic: time. Per-chip varied accent.
         border_width = 1
     }
 })
