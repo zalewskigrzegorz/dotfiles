@@ -104,18 +104,21 @@ func tick(st *state) {
 	notifMu.Lock()
 	defer notifMu.Unlock()
 
-	// Notification dismissed (rec_id gone) → clear our preview if it matched.
+	// macOS auto-dismisses notifications quickly when the source app is
+	// foregrounded (Ghostty with Claude inside fires Stop hook → notif →
+	// notif gone from sqlite within a tick or two). Per memory rule
+	// `feedback_notif_preview_no_ttl`, the chip MUST persist until the user
+	// explicitly acknowledges (click, workspace focus, or new notif replacing).
+	// So when sqlite reports `latest == nil`, we DO NOTHING — keep showing.
+	// The chip is cleared only by:
+	//   - the Lua click_script (in items/widgets/notif_preview.lua)
+	//   - clearNotifPreviewForWorkspace() on aerospace workspace focus
+	//   - a strictly newer recID arriving (handled below)
 	if latest == nil {
-		if notifCurrent != nil {
-			notifCurrent = nil
-			pushClear()
-		}
 		return
 	}
-	// Already shown this notif? Keep showing — preview persists until the
-	// macOS notification is dismissed (latest==nil branch above), the user
-	// clicks the preview (Lua handler clears it locally), or focusing the
-	// notif's workspace clears it (see clearNotifPreviewForWorkspace).
+	// Already shown this notif? Keep showing — preview persists until user
+	// explicitly dismisses (see comment above).
 	if latest.recID <= lastShownRecID {
 		return
 	}
