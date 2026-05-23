@@ -294,8 +294,8 @@ func renderPreview(n *notifPreview) {
 		"label=" + short,
 		"width=dynamic",
 		"scroll_texts=off",
-		"background.color=0xff22212c",
-		"background.border_color=0xff454158",
+		"background.color=0xff1e1e2e",   // Mocha Neon bg1 (was Dracula 22212c)
+		"background.border_color=0xffb347ff", // Mocha Neon mauve (was Dracula dark_grey)
 		"background.border_width=1",
 		"drawing=on",
 		"click_script=" + clickScript,

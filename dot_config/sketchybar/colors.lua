@@ -20,12 +20,15 @@ return {
     bright_green = 0xff50fa7b,
     transparent = 0x00000000,
 
+    -- Solid Mocha Neon base — no transparency. Previously 0xd0... = 82% alpha
+    -- which bled the desktop wallpaper through the bar; user explicitly rejected.
     bar = {
-        bg = 0xd01e1e2e,
+        bg = 0xff1e1e2e,
         border = 0xff585b70
     },
+    -- Popups keep slight translucency (focus on content, dim what's behind).
     popup = {
-        bg = 0xc01e1e2e,
+        bg = 0xee1e1e2e,
         border = 0xffb347ff
     },
     bg1 = 0xff1e1e2e,

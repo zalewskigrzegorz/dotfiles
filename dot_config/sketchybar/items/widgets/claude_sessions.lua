@@ -2,31 +2,43 @@
 local sbar = require("sketchybar")
 local colors = require("colors")
 
+-- settings is needed for the universal chip token (font/padding alignment).
+local settings = require("settings")
+
 local claude_sessions = sbar.add("item", "widgets.claude_sessions", {
   position = "right",
   icon = {
     string = "󰧑",  -- nf-md-creation U+F0675 sparkle — verified renders in Iosevka
     color = colors.mauve,
     font = { family = "Iosevka Nerd Font", style = "Bold", size = 14.0 },
-    padding_left = 4,
+    padding_left = 8,
     padding_right = 6,
   },
   label = {
     string = "...",
     color = colors.mauve,
-    font = { family = "Iosevka Nerd Font", style = "Bold", size = 14.0 },
-    padding_left = 4,
-    padding_right = 4,
+    -- Switch from Iosevka size 14 to FiraCode size 12 so this label matches
+    -- the rest of the chip family (battery / cpu / calendar / notif_preview).
+    font = {
+      family = settings.font.numbers,
+      style = settings.font.style_map["Bold"],
+      size = 12.0,
+    },
+    padding_left = 0,
+    padding_right = 8,
   },
+  -- Universal chip token: solid bg1, height 22, mauve border 1px, radius 6.
+  -- Previously: border_width=2 (thicker), height=26 (taller), color=bar.bg
+  -- (the 82%-alpha translucent base) — caused this chip to stand out wrongly.
   background = {
-    border_width = 2,
+    border_width = 1,
     border_color = colors.mauve,
-    color = colors.bar.bg,
-    corner_radius = 8,
-    height = 26,
+    color = colors.bg1,
+    corner_radius = 6,
+    height = 22,
   },
-  padding_left = 8,
-  padding_right = 8,
+  padding_left = settings.group_paddings,
+  padding_right = settings.group_paddings,
   click_script = [[
     sess=$(/Users/greg/Code/dotfiles/bin/claude-sessions --json 2>/dev/null | /opt/homebrew/bin/jq -r '[.[] | select(.waiting)] | .[0].tmux_session // empty')
     if [ -n "$sess" ]; then
