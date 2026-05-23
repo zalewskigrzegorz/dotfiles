@@ -33,8 +33,16 @@ style=$(printf '%s' "$input" | jq -r '.output_style.name // ""')
 transcript=$(printf '%s' "$input" | jq -r '.transcript_path // ""')
 cwd=$(printf '%s' "$input" | jq -r '.workspace.current_dir // .cwd // ""')
 
-mm=$(( dur_ms / 60000 )); ss=$(( (dur_ms % 60000) / 1000 ))
-dur_fmt=$(printf '%dm%02ds' "$mm" "$ss")
+# Duration format scales with magnitude:
+#   < 1h   → "0m45s" / "37m12s"   (minute precision)
+#   < 1d   → "5h23m"               (drop seconds, add hours)
+#   ≥ 1d   → "2d05h"               (drop minutes, add days)
+# A 1049-minute session was reading as "1049m16s" which nobody parses at a glance.
+total_s=$(( dur_ms / 1000 ))
+if   (( total_s < 3600 ));   then dur_fmt=$(printf '%dm%02ds' $(( total_s / 60 )) $(( total_s % 60 )))
+elif (( total_s < 86400 ));  then dur_fmt=$(printf '%dh%02dm' $(( total_s / 3600 )) $(( (total_s % 3600) / 60 )))
+else                              dur_fmt=$(printf '%dd%02dh' $(( total_s / 86400 )) $(( (total_s % 86400) / 3600 )))
+fi
 
 # --- palette (Mocha Neon — Catppuccin Mocha + bumped accents) ---
 B=$'\033[1m'
