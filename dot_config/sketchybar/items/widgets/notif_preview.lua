@@ -36,11 +36,11 @@ local notif = sbar.add("item", "notif_preview", {
         padding_left = 0,
         padding_right = 8,
     },
-    -- Match the universal Mocha Neon chip token: solid bg1, height 22,
-    -- mauve border 1px, corner radius 6. Same as battery / cpu / calendar.
+    -- Universal Mocha Neon chip token: solid bg1, height matches the
+    -- bracketed widget group (settings.items.height = 26), mauve border 1px.
     background = {
         color = colors.bg1,
-        height = 22,
+        height = 26,
         corner_radius = 6,
         border_color = colors.mauve,
         border_width = 1,

@@ -27,15 +27,14 @@ local claude_sessions = sbar.add("item", "widgets.claude_sessions", {
     padding_left = 0,
     padding_right = 8,
   },
-  -- Universal chip token: solid bg1, height 22, mauve border 1px, radius 6.
-  -- Previously: border_width=2 (thicker), height=26 (taller), color=bar.bg
-  -- (the 82%-alpha translucent base) — caused this chip to stand out wrongly.
+  -- Universal chip token: solid bg1, height 26 (matches bracketed widgets),
+  -- mauve border 1px, radius 6. Previously: border_width=2 + translucent bg.
   background = {
     border_width = 1,
     border_color = colors.mauve,
     color = colors.bg1,
     corner_radius = 6,
-    height = 22,
+    height = 26,
   },
   padding_left = settings.group_paddings,
   padding_right = settings.group_paddings,
