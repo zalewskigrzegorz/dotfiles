@@ -13,18 +13,35 @@ The user wants to work through open PR review feedback on the **current branch**
 
 All analysis, fix plans, and suggested replies are **English**, even if the conversation is in another language.
 
-## Constraints (prepare-only)
+## Constraints (prepare-only by default)
 
-- Do **not** run `gh pr review`, `gh pr comment`, `gh api ... -X POST/PATCH/DELETE`, or any write call against GitHub.
+- Do **not** run `gh pr review`, `gh pr comment`, `gh api ... -X POST/PATCH/DELETE`, or any write call against GitHub **by default**.
 - Do **not** edit source files, run `git commit`, or push.
 - Output is for manual copy-paste and manual fixes. Posting or applying later is a separate step.
+
+### Opt-in exception: pending draft review
+
+The user can explicitly opt in to submitting the prepared replies as a **PENDING** GitHub review (a draft that the user submits manually from the GitHub UI). Triggers:
+
+- Polish: "wrzuć jako draft", "zrób draft review", "wrzuć do draftu".
+- English: "submit as pending review", "post as draft", "draft this review on GitHub".
+
+When opted in, follow **Step 8 — Submit as pending draft review** below. Without an explicit opt-in, never write to GitHub.
 
 ## Output style rules
 
 Mirror `g-pr-review` where applicable.
 
 1. **No semicolons in prose** inside suggested replies or plan text. Use new sentences, commas, or em dashes. Literal code may use `;`.
-2. **Clickable markdown links** to the file, workspace-relative, e.g. `[apps/api/src/foo.ts](apps/api/src/foo.ts)`. Show the line as `(L42)` or `` `L42` ``. Include the GitHub **thread** URL from GraphQL when available.
+2. **Clickable GitHub blob links** for every file reference (Claude Code does not resolve workspace-relative paths the way Cursor did). Format:
+
+   ```
+   [<path> (L<line>)](https://github.com/<OWNER>/<REPO>/blob/<headRefOid>/<path>#L<line>)
+   ```
+
+   For a range, append `-L<endLine>` to the anchor. Example:
+   `[apps/api/src/foo.ts (L42)](https://github.com/acme/api/blob/abc123/apps/api/src/foo.ts#L42)`.
+   When the comment is anchored to a GraphQL **thread**, also show the thread URL on its own line — both links coexist.
 3. **Paste-ready replies** inside a fenced block: `` ```text `` — only the reply inside the fence.
 4. **Small inline fixes** as GitHub `` ```suggestion `` blocks when one-click accept makes sense.
 5. **Tone**: friendly, casual, professional. Light humor is fine when it fits.
@@ -182,14 +199,14 @@ Rules:
 Use escaped inner fences so the outer example stays valid markdown. Emit this shape in chat after the user picks an action:
 
 ```
-### Thread <n> · <SEVERITY> · [<path>](<path>) (L<line>)
+### Thread <n> · <SEVERITY> · [<path> (L<line>)](https://github.com/<OWNER>/<REPO>/blob/<SHA>/<path>#L<line>)
 Reviewer: @<login> — <one-line summary>
 Thread: <github thread url>
 Recommendation: <fix | reply | both | skip>  ·  Feasibility: <easy | needs-discussion | out-of-scope>
 
 Fix plan (when fix or both):
 - What: <one or two sentences>
-- Where: [<path>](<path>) (L<line>)[, other files]
+- Where: [<path> (L<line>)](https://github.com/<OWNER>/<REPO>/blob/<SHA>/<path>#L<line>)[, other files]
 - Feasible: yes | needs-discussion | no — <why>
 - Alt 1: <if any>
 - Alt 2: <if any>
@@ -216,7 +233,70 @@ For **`isOutdated: true`**, keep the thread if still unresolved, mark **`outdate
 - Counts by **recommendation** and by **severity**
 - Count of **already-replied** threads skipped (if any), with the one-line opt-in reminder
 - Manual next steps in order: apply fixes → paste replies → push → resolve threads on GitHub
-- Reminder: this skill did not post or edit anything
+- Reminder: this skill did not post or edit anything **unless** the user opted in to Step 8
+- One-line nudge if not opted in: `Tip: say "wrzuć jako draft" / "submit as pending review" to upload these replies as a PENDING GitHub review you can submit from the UI.`
+
+---
+
+## Step 8 — Submit as pending draft review (opt-in only)
+
+Runs only when the user explicitly opts in (see triggers in **Constraints**). The skill creates a **PENDING** GitHub review containing every prepared `reply` / `both` reply as an inline comment, scoped to the `(path, line)` of the source thread. Nothing is submitted — the user reviews and submits from the GitHub UI.
+
+### Preconditions
+
+- Step 1 captured `OWNER`, `REPO`, `NUMBER`, `headRefOid` (= `SHA`).
+- Every reply targets a real `(path, line)` from the source thread (use `line` from GraphQL — fall back to `originalLine` only when `line` is null).
+- `skip`-only and PR-level review bodies cannot be attached as inline comments — list them at the end of the body of the review instead, or omit.
+
+### Build the payload
+
+Collect the prepared replies into a JSON array. Each entry MUST have `path`, `line`, `body`, and `side` (default `"RIGHT"`). For multi-line ranges, also include `start_line` and `start_side: "RIGHT"`.
+
+```bash
+COMMENTS_JSON=$(jq -n '[
+  {path: "src/auth.ts", line: 17, side: "RIGHT", body: "Reply text\n\n```suggestion\nif (!user) throw new UnauthorizedException();\n```"},
+  {path: "src/user.controller.ts", line: 88, side: "RIGHT", body: "Fair point — see thread for the trade-off."}
+]')
+```
+
+### Create the pending review
+
+```bash
+jq -n \
+  --arg sha "$SHA" \
+  --arg body "Draft review prepared by g-pr-triage. Submit or discard from the PR UI." \
+  --argjson comments "$COMMENTS_JSON" \
+  '{commit_id: $sha, body: $body, comments: $comments}' \
+| gh api "repos/$OWNER/$REPO/pulls/$NUMBER/reviews" \
+    -X POST --input - --jq '.id'
+```
+
+`event` is **omitted on purpose** — that's what makes the review PENDING. The response `id` is the review id; show it to the user.
+
+### After submit (chat output)
+
+```
+✅ Pending review created on PR #<NUMBER>.
+Open in browser: <PR_URL>/files
+Review id: <id>
+Inline comments: <count>  ·  Skipped (no anchor): <count>
+
+Submit or discard from the PR UI — this skill did not auto-submit.
+```
+
+### Failure cases (do not retry silently)
+
+| Failure | Action |
+|---------|--------|
+| 422 `pull_request_review_thread.line must be part of the diff` | The `(path, line)` no longer matches the PR diff at `SHA` (outdated thread). Drop that comment from the payload, report which one was skipped, retry. |
+| 401 / 403 | Auth issue — tell the user to run `gh auth status`, stop. |
+| Non-2xx other | Print the API error verbatim, stop. Do **not** auto-retry. |
+
+### Things to avoid
+
+- Never pass `event: "COMMENT" | "APPROVE" | "REQUEST_CHANGES"` — that auto-submits.
+- Never call `gh pr review --approve` / `--request-changes` / `--comment`.
+- Never delete or edit existing comments / reviews on the PR.
 
 ---
 
@@ -224,7 +304,7 @@ For **`isOutdated: true`**, keep the thread if still unresolved, mark **`outdate
 
 ### Reply only (style)
 
-**Thread line:** `### Thread 1 · LOW · [apps/api/src/user.controller.ts](apps/api/src/user.controller.ts) (L88)`  
+**Thread line:** `### Thread 1 · LOW · [apps/api/src/user.controller.ts (L88)](https://github.com/acme/api/blob/abc123/apps/api/src/user.controller.ts#L88)`  
 **Reviewer:** `@alice` — prefers `readonly` on injected services  
 **Thread URL:** `https://github.com/acme/api/pull/42#discussion_r123`  
 **Recommendation:** `reply` · **Feasibility:** `easy`
@@ -237,11 +317,11 @@ Fair point. We keep constructor params without `readonly` in this module for con
 
 ### Fix with suggestion
 
-**Thread line:** `### Thread 2 · HIGH · [apps/api/src/auth/guard.ts](apps/api/src/auth/guard.ts) (L17)`  
+**Thread line:** `### Thread 2 · HIGH · [apps/api/src/auth/guard.ts (L17)](https://github.com/acme/api/blob/abc123/apps/api/src/auth/guard.ts#L17)`  
 **Reviewer:** `@bob` — missing null check on `user`  
 **Recommendation:** `fix` · **Feasibility:** `easy`
 
-Fix plan bullets: return 401 when `user` is nullish before reading `user.id` at [apps/api/src/auth/guard.ts](apps/api/src/auth/guard.ts) (L17). Feasible — single guard.
+Fix plan bullets: return 401 when `user` is nullish before reading `user.id` at [apps/api/src/auth/guard.ts (L17)](https://github.com/acme/api/blob/abc123/apps/api/src/auth/guard.ts#L17). Feasible — single guard.
 
 Optional suggested change:
 
@@ -274,7 +354,7 @@ Optional suggested change:
 - [ ] Severity + recommendation + feasibility per remaining (live) thread or cluster
 - [ ] Summary table shown before `AskUserQuestion` rounds, with `Status` and skipped-count note
 - [ ] `AskUserQuestion` per thread or cluster, recommended option first
-- [ ] Per-thread block: severity, links, fenced reply, optional `suggestion`
+- [ ] Per-thread block: severity, GitHub blob link + thread URL, fenced reply, optional `suggestion`
 - [ ] No semicolons in prose inside replies
-- [ ] No GitHub writes, no repo edits
-- [ ] Wrap-up with counts and manual next steps
+- [ ] No GitHub writes by default — Step 8 only on explicit opt-in
+- [ ] Wrap-up with counts, manual next steps, and pending-draft opt-in nudge
