@@ -15,9 +15,11 @@ The entire review (summary, findings, suggested comments) must be **English**, e
 
 ## Resolve what to review
 
-1. **Current branch:** run `gh pr view --json number,url,title,baseRefName,headRefName` (from repo root). If no PR exists for HEAD, fall back to `git diff <default-branch>...HEAD` after detecting default branch (`main` / `master` via `gh repo view --json defaultBranchRef` or `git symbolic-ref refs/remotes/origin/HEAD`).
-2. **PR number:** `gh pr view <n> --json ...` and `gh pr diff <n>` in the current repo; if repo is ambiguous, use `-R owner/repo` from context.
+1. **Current branch:** run `gh pr view --json number,url,title,baseRefName,headRefName,headRefOid,headRepositoryOwner,headRepository` (from repo root). If no PR exists for HEAD, fall back to `git diff <default-branch>...HEAD` after detecting default branch (`main` / `master` via `gh repo view --json defaultBranchRef` or `git symbolic-ref refs/remotes/origin/HEAD`).
+2. **PR number:** `gh pr view <n> --json number,url,title,baseRefName,headRefName,headRefOid,headRepositoryOwner,headRepository` and `gh pr diff <n>` in the current repo; if repo is ambiguous, use `-R owner/repo` from context.
 3. **PR URL:** parse `owner`, `repo`, and `number`, then `gh pr diff <n> -R owner/repo` and `gh pr view`.
+
+Capture `OWNER` (from `headRepositoryOwner.login`), `REPO` (from `headRepository.name`), `SHA` (from `headRefOid`), and the PR URL. These are needed for clickable GitHub links in the output.
 
 Gather the full diff (`gh pr diff`) and optionally the list of changed files from `gh pr view --json files`.
 
@@ -39,23 +41,41 @@ Missing coverage for new behavior, tests that do not assert behavior, flaky patt
 
 Use this structure. **No automatic `gh pr review`** unless the user explicitly requests it.
 
+### Link format
+
+Every `File:line` reference MUST be a clickable GitHub blob link (Claude Code does not resolve workspace-relative paths the way Cursor does). Use:
+
+```
+[<path> (L<line>)](https://github.com/<OWNER>/<REPO>/blob/<SHA>/<path>#L<line>)
+```
+
+For a range, append `-L<end>` to the anchor. `<SHA>` is `headRefOid` captured in **Resolve what to review**. Example:
+
+```
+[apps/api/src/auth/guard.ts (L17)](https://github.com/acme/api/blob/abc123/apps/api/src/auth/guard.ts#L17)
+```
+
+### Structure
+
 ```markdown
 ## Code review summary
 
+PR: <PR_URL>
+
 ### Critical (must fix)
-- **File:line** — [issue]
+- [<path> (L<line>)](<github-blob-url>) — [issue]
   - **Why:** …
   - **Suggested fix:** …
   - **Suggested review comment (paste on GitHub):** …
 
 ### Suggestions (should consider)
-- **File:line** — …
+- [<path> (L<line>)](<github-blob-url>) — …
   - **Why:** …
   - **Suggested fix:** …
   - **Suggested review comment (paste on GitHub):** …
 
 ### Nits (optional)
-- **File:line** — …
+- [<path> (L<line>)](<github-blob-url>) — …
   - **Suggested review comment (paste on GitHub):** …
 
 ### What is working well
