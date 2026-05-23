@@ -1,5 +1,5 @@
 {
-  "manifest_version": 2,
+  "manifest_version": 3,
   "name": "Mocha Neon",
   "description": "Mocha Neon — bumped Catppuccin Mocha with neon accents",
   "version": "1.0.0",

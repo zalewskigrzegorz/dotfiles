@@ -29,7 +29,11 @@ Screenshots: `~/Code/personal/bazgroly/dotfiles/screenshots/mocha-neon-tier2/<ap
 - [ ] **Obsidian** — Settings → Appearance → Themes → Catppuccin. Custom CSS snippet (Settings → Appearance → CSS snippets) with the 11 token overrides. Screenshot: `mocha-neon-tier2/obsidian.png`.
 - [ ] **Spotify (Spicetify)** — `spicetify install catppuccin && spicetify config current_theme catppuccin && spicetify apply`. Edit `~/.config/spicetify/Themes/catppuccin/color.ini` `[Frappe]` (or active flavor) section with bumped hex. Re-`spicetify apply`. Screenshot: `mocha-neon-tier2/spotify.png`.
 - [ ] **Firefox Developer Edition** — Firefox Color extension → import Mocha Neon JSON (hand-authored from palette doc). Screenshot: `mocha-neon-tier2/firefox.png`.
-- [x] **Google Chrome / Comet** — Mocha Neon Chromium theme extension forked from Dracula PRO. Repo source: `dot_config/chrome/themes/mocha-neon/manifest.json` (unpacked extension — load via `chrome://extensions` → Developer mode → Load unpacked → select that dir). Covers tabs, toolbar, omnibox, NTP. Same `.crx`-less directory works in Comet (`comet://extensions`). Screenshot: `mocha-neon-tier2/chrome.png`.
+- [⚠️] **Google Chrome / Comet** — Mocha Neon Chromium theme extension forked from Dracula PRO. Repo source: `dot_config/chrome/themes/mocha-neon/manifest.json` (unpacked, `manifest_version: 2`).
+  - **Vanilla Chrome:** load via `chrome://extensions` → Developer mode → Load unpacked. Covers tabs/toolbar/omnibox/NTP. Works.
+  - **Comet (Perplexity Chromium):** loads only **MV3** themes (`manifest_version: 3`). MV2 themes are silently ignored. Theme does NOT appear in `comet://extensions` list or `Settings → Appearance → Themes` UI — but the bumped accent IS visible. Confirm by toggling profile color to "default": if the mauve accent disappears, the theme isn't loaded; if it stays, ✅.
+  - **Profile color preset:** stack with the unpacked theme — `purple` preset is the closest profile-accent match for Mocha Neon mauve.
+  - Screenshot: `mocha-neon-tier2/chrome.png`.
 - [⚠️] **DataGrip / JetBrains IDEs** — Catppuccin plugin already installed. Set:
   - **UI Theme:** Settings → Appearance & Behavior → Appearance → Theme → "Catppuccin Mocha" (or "Islands Catppuccin Mocha" — Islands variant adds tab/pane styling).
   - **Editor color scheme:** Settings → Editor → Color Scheme → "Catppuccin Mocha" (NOT Latte/Frappé/Macchiato).
