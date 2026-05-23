@@ -94,18 +94,20 @@ inner.horizontal = 8
 inner.vertical = 8
 outer.left = 5
 outer.bottom = 5
-# outer.top must be ≥ sketchybar bar.height (36). Value below = bar + 2 px
-# breathing room. Borders plugin adds its own 8 px ring on focused window —
-# perceived top gap ≈ (outer.top - bar.height) + border. To shrink further
-# reduce borders width in dot_config/borders/bordersrc.
+# outer.top — gap from screen TOP edge to workspace area (NOT from sketchybar
+# bottom). macOS reserves ~32 px above the workspace for menubar/notch, so the
+# perceived gap below the bar = outer.top + (macOS reserved area - bar.height).
+# Sketchybar has sticky=on so it always overlays windows; tested 2026-05-23
+# that outer.top = 4 produces no window/bar collision because the workspace
+# area is already below the menubar zone.
 #
 # Monitor pattern: aerospace does substring match, so "Built-in" matches the
 # actual MacBook display name "Built-in Retina Display".
 outer.top = [
-  { monitor."Built-in"     = 38 },
-  { monitor.'DELL U3225QE' = 38 },
-  { monitor.'C34H89x'      = 38 },
-  38,
+  { monitor."Built-in"     = 4 },
+  { monitor.'DELL U3225QE' = 4 },
+  { monitor.'C34H89x'      = 4 },
+  4,
 ]
 outer.right = 5
 
