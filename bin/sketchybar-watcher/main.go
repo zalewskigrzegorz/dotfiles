@@ -58,26 +58,31 @@ var workspaceOrder = []string{
 	"chat", "term", "code", "misc", "notes", "web", "media", "test", "mail", "mac",
 }
 
+// Workspace icon colors — Mocha Neon palette (matches dot_config/sketchybar/colors.lua + spaces.lua).
+// Was Dracula palette pre-2026-05-23 which read as pastel/wrong-theme on the bar.
 var workspaceColors = map[string]string{
-	"chat":  "0xffa2ff99",
-	"web":   "0xff80ffea",
-	"term":  "0xffffca80",
-	"code":  "0xffff80bf",
-	"media": "0xffffaa99",
-	"test":  "0xffffff80",
-	"misc":  "0xff7970a9",
-	"notes": "0xff8aff80",
-	"mail":  "0xffff9580",
-	"mac":   "0xfff8f8f2",
+	"chat":  "0xff50fa7b", // green bumped
+	"web":   "0xff8be9fd", // sky bumped
+	"term":  "0xffff8c42", // peach bumped
+	"code":  "0xffff80bf", // pink bumped
+	"media": "0xffff6b9d", // red bumped
+	"test":  "0xffffd700", // gold bumped
+	"misc":  "0xff9580ff", // lavender (was pastel grey)
+	"notes": "0xff50fa7b", // green
+	"mail":  "0xffff6b9d", // red bumped
+	"mac":   "0xff8be9fd", // blue/sky (was off-white pastel)
 }
 
+// Named tokens — Mocha Neon. Active workspace = colorMauve to match the
+// primary border accent used in chips and aerospace/borders.
 const (
-	colorPurple      = "0xff9580ff"
-	colorMagenta     = "0xffff80bf"
-	colorYellow      = "0xffffff80"
-	colorRed         = "0xffff9580"
-	colorGrey        = "0xff7970a9"
-	colorCyan        = "0xff80ffea"
+	colorMauve       = "0xffb347ff" // electric purple — primary Mocha Neon accent
+	colorPurple      = "0xff9580ff" // lavender
+	colorMagenta     = "0xffff80bf" // pink bumped
+	colorYellow      = "0xffffd700" // gold bumped (was Dracula 0xffffff80)
+	colorRed         = "0xffff6b9d" // red bumped (was Dracula 0xffff9580)
+	colorGrey        = "0xff7f849c" // overlay1 (was Dracula 0xff7970a9)
+	colorCyan        = "0xff8be9fd" // sky bumped (was Dracula 0xff80ffea)
 	colorTransparent = "0x00000000"
 	colorDim         = "0x60" // alpha prefix used when E3 dims a workspace
 )
@@ -396,7 +401,7 @@ func pushToSketchybar(labels []string, focused string, recent []string, svc bool
 		}
 		drawColor := color
 		if selected {
-			drawColor = colorPurple
+			drawColor = colorMauve
 		} else if !isRecent(ws, recent) {
 			// E3: dim non-recent workspaces
 			drawColor = dimColor(color)
@@ -407,7 +412,7 @@ func pushToSketchybar(labels []string, focused string, recent []string, svc bool
 		}
 		bgColor := colorTransparent
 		if selected {
-			bgColor = "0x199580ff"
+			bgColor = "0x19b347ff"
 		}
 		label := " —"
 		if i <= len(labels) {
@@ -426,7 +431,8 @@ func pushToSketchybar(labels []string, focused string, recent []string, svc bool
 		)
 	}
 	// Apple item: service > kindaVim N/V/C/R > unicorn (insert or default).
-	appleColor := colorPurple
+	// Default = mauve (primary Mocha Neon accent) to match focused workspace + chip borders.
+	appleColor := colorMauve
 	appleBorder := "1"
 	appleString := "🦄"
 	appleHighlight := "false"
@@ -446,7 +452,7 @@ func pushToSketchybar(labels []string, focused string, recent []string, svc bool
 		case "R":
 			appleColor = colorYellow
 		default:
-			appleColor = colorPurple
+			appleColor = colorMauve // N = normal mode — primary accent
 		}
 	}
 	args = append(args,
@@ -527,8 +533,8 @@ func animatePulse(pulsed []string, st *state) {
 		baseBg := colorTransparent
 		baseBorderW := "1"
 		if ws == focused {
-			baseBorder = colorPurple
-			baseBg = "0x199580ff"
+			baseBorder = colorMauve
+			baseBg = "0x19b347ff"
 			baseBorderW = "3"
 		}
 		go pulseCycles(item, baseBg, baseBorder, baseBorderW)
