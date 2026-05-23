@@ -1,22 +1,5 @@
 # Git - Version control utilities
 
-# Delete merged branches (excluding master/main)
-def delete-branches [] {
-  let branches = (git branch --merged | lines | where $it !~ '\*' | str trim | where $it != 'master' and $it != 'main')
-  if ($branches | is-empty) {
-    echo "No merged branches to delete."
-  } else {
-    echo "The following branches will be deleted:"
-    echo $branches
-    if (input "Are you sure you want to delete these branches? (y/n) ") == "y" {
-      $branches | each { |it| git branch -d $it }
-      echo "Branches deleted successfully."
-    } else {
-      echo "Operation cancelled."
-    }
-  }
-}
-
 # Parse CODEOWNERS file
 def parse-codeowners [] {
     open ($env.WORK_PROJECT_DIR | path join ".github/CODEOWNERS")
