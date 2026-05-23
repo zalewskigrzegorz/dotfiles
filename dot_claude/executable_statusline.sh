@@ -93,7 +93,8 @@ fmt_count() {
     BEGIN {
       if (n >= 1e9)      printf "%.1fG", n / 1e9
       else if (n >= 1e6) printf "%.1fM", n / 1e6
-      else if (n >= 1e3) printf "%.0fK", n / 1e3
+      else if (n >= 1e4) printf "%dK",   n / 1e3   # 10K+ → integer K
+      else if (n >= 1e3) printf "%.1fK", n / 1e3   # 1.0K–9.9K → one decimal
       else               printf "%d", n
     }
   '
@@ -199,7 +200,7 @@ fi
 [ -z "$ctx_seg" ] && [ "$over200k" = "true" ] && ctx_seg="${SEP}${R}ctx >200k${N}"
 
 if [ "$added" -gt 0 ] || [ "$removed" -gt 0 ]; then
-  lines_seg="${SEP}${MINT}${B}+${added}${N} ${R}${B}-${removed}${N}"
+  lines_seg="${SEP}${MINT}${B}+$(fmt_count "$added")${N} ${R}${B}-$(fmt_count "$removed")${N}"
 else
   lines_seg=""
 fi
