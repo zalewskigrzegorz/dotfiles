@@ -50,8 +50,8 @@ file_panel_item_selected_fg = "#B347FF"
 file_panel_item_selected_bg = "#1e1e2e"
 
 # ========= Sidebar Special Items =========
-sidebar_title = "#8BE9FD"
-sidebar_item_selected_fg = "#8BE9FD"
+sidebar_title = "#B347FF"
+sidebar_item_selected_fg = "#B347FF"
 sidebar_item_selected_bg = "#1e1e2e"
 sidebar_divider = "#868686"
 
@@ -60,8 +60,8 @@ modal_cancel_fg = "#383838"
 modal_cancel_bg = "#FF6B9D"
 
 modal_confirm_fg = "#383838"
-modal_confirm_bg = "#8BE9FD"
+modal_confirm_bg = "#B347FF"
 
 # ========= Help Menu =========
-help_menu_hotkey = "#8BE9FD"
+help_menu_hotkey = "#FF80BF"
 help_menu_title = "#FF6B9D"
