@@ -9,12 +9,24 @@
 set -u
 
 # 1a) macOS-native notification (primary path on Darwin).
-# osascript works without a controlling TTY — important because Claude Code
-# hooks run in a subprocess without /dev/tty, which makes OSC 9 silently fail.
+# Prefer terminal-notifier over `osascript display notification` because the
+# osascript variant ALWAYS opens Script Editor when clicked (notif is "owned"
+# by AppleScript host). terminal-notifier lets us set -activate to a real app
+# (Ghostty) and -group so successive notifs replace instead of stacking.
+# Fall back to osascript on machines that don't have terminal-notifier yet.
 # Sound is played via afplay separately so we can use a custom cyberpunk-vibe
-# mp3 (osascript's `sound name "X"` only supports built-in macOS aiff sounds).
+# mp3 (`-sound default` would use the system Tink sound).
 if [ "$(uname -s)" = "Darwin" ]; then
-  osascript -e 'display notification "Claude is waiting" with title "Claude"' >/dev/null 2>&1 || true
+  if command -v terminal-notifier >/dev/null 2>&1; then
+    terminal-notifier \
+      -title "Claude" \
+      -message "Claude is waiting" \
+      -group "claude-code-stop" \
+      -activate "com.mitchellh.ghostty" \
+      >/dev/null 2>&1 || true
+  else
+    osascript -e 'display notification "Claude is waiting" with title "Claude"' >/dev/null 2>&1 || true
+  fi
   # Background-play the custom notification sound; never block hook exit.
   sound_file="$HOME/.claude/hooks/sounds/claude-done.mp3"
   [ -f "$sound_file" ] && (afplay "$sound_file" >/dev/null 2>&1 &)
