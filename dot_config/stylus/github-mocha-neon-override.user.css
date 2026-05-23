@@ -96,7 +96,7 @@
     background-color: #B347FF !important;
   }
 
-  /* ─── Fonts: OpenDyslexic for body, Iosevka for code ─── */
+  /* ─── Fonts: OpenDyslexic for body, JetBrainsMono for code ─── */
   body,
   .markdown-body,
   .Header,
@@ -118,6 +118,6 @@
   [class*="font-mono"],
   [class*="prismjs"],
   .react-blob-print-hide {
-    font-family: "FantasqueSansMono Nerd Font", "FantasqueSansM Nerd Font", "Fantasque Sans Mono", "Iosevka Nerd Font Propo", "Iosevka Nerd Font", ui-monospace, "SFMono-Regular", Menlo, monospace !important;
+    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace !important;
   }
 }

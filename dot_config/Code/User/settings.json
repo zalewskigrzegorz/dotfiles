@@ -61,7 +61,7 @@
         "markdown": true,
         "scminput": false
     },
-    "editor.fontFamily": "Iosevka Nerd Font, monospace",
+    "editor.fontFamily": "JetBrainsMono Nerd Font, monospace",
     "editor.fontLigatures": true,
     "editor.linkedEditing": true,
     "wallaby.codeLensFeature.runTest": true,
@@ -220,8 +220,8 @@
             "inputOption.activeBackground": "#B347FF55"
         }
     },
-    "workbench.font.family": "Iosevka Nerd Font, Arial, sans-serif",
-    "terminal.integrated.fontFamily": "Iosevka Nerd Font Mono, monospace",
+    "workbench.font.family": "JetBrainsMono Nerd Font, Arial, sans-serif",
+    "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font Mono, monospace",
     "editor.tokenColorCustomizations": {
         "[Catppuccin Mocha]": {
             "comments": "#A6ADC8",
