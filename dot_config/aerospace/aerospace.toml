@@ -94,20 +94,26 @@ inner.horizontal = 8
 inner.vertical = 8
 outer.left = 5
 outer.bottom = 5
-# outer.top — gap from screen TOP edge to workspace area (NOT from sketchybar
-# bottom). macOS reserves ~32 px above the workspace for menubar/notch, so the
-# perceived gap below the bar = outer.top + (macOS reserved area - bar.height).
-# Sketchybar has sticky=on so it always overlays windows; tested 2026-05-23
-# that outer.top = 4 produces no window/bar collision because the workspace
-# area is already below the menubar zone.
+# outer.top — gap from screen TOP edge to workspace area.
+# Sketchybar is sticky=on + topmost=window + height=36, so it overlays windows.
+# JankyBorders draws a border around each window — empirically only 4 px of it
+# sticks out above the window top (the 8 px stroke straddles the window edge),
+# so we add +4 px to whatever closes the gap to the bar.
+#
+# Built-in Retina Display: macOS reserves ~32 px (menubar + notch); 32 + 4 = 36
+# closes the bar gap, +4 for border → outer.top = 8.
+# External displays (DELL, Samsung C34H89x): no notch. Need to clear the full
+# bar height (36) + border slack (4) → outer.top = 40. Tested 2026-05-24.
+#
+# If you change settings.bar.height (sketchybar) or width (borders), mirror here.
 #
 # Monitor pattern: aerospace does substring match, so "Built-in" matches the
 # actual MacBook display name "Built-in Retina Display".
 outer.top = [
-  { monitor."Built-in"     = 4 },
-  { monitor.'DELL U3225QE' = 4 },
-  { monitor.'C34H89x'      = 4 },
-  4,
+  { monitor."Built-in"     = 8 },
+  { monitor.'DELL U3225QE' = 40 },
+  { monitor.'C34H89x'      = 40 },
+  40,
 ]
 outer.right = 5
 
