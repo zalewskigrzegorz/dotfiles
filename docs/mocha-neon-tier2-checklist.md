@@ -48,6 +48,12 @@ Screenshots: `~/Code/personal/bazgroly/dotfiles/screenshots/mocha-neon-tier2/<ap
   - **Page-level (GitHub / YouTube / etc.):** install **Stylus** extension + import userstyles from `github.com/catppuccin/userstyles`. Patch hex with Mocha Neon manually per userstyle if pastel reads wrong.
   - Screenshot: `mocha-neon-tier2/comet.png`.
 
+- [x] **Spark Mail (email account color coding)** — Spark exposes a 5×4 preset grid (no custom hex). Top row picks for all three accounts:
+  - `maksim009@gmail.com` → Row 1, col 3 (orange) → peach proxy
+  - `grzegorz.zalewski@redocly.com` → Row 1, col 1 (deep purple) → mauve proxy (work = primary)
+  - `zalewski.grzegorz@icloud.com` → Row 1, col 4 (green) → green proxy
+  - Settings → Appearance → Color coding for accounts. Top-row alignment is the canon — change if Spark ever adds custom hex picker.
+
 ## Out of scope until upstream fixes land
 
 - Apps without theming support at all (most macOS native apps) — accept system appearance.
