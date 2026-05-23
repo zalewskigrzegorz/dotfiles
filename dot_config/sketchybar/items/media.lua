@@ -192,12 +192,12 @@ local function update_media_info()
     end)
 end
 
--- Update media info every 2 seconds
+-- Update media info every 10 seconds
 local media_updater = sbar.add("item", {
     drawing = false,
     updates = true,
     script = "sleep 2",
-    update_freq = 2
+    update_freq = 10
 })
 
 media_updater:subscribe("routine", function()
