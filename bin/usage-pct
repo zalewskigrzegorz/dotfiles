@@ -6,10 +6,18 @@
 #   integer N (0..100) on success
 #   "?" if no limit configured or ccusage unavailable
 #
+# Window semantics:
+#   session — current ccusage 5 h block (`.blocks[0]` with --active).
+#   week    — tokens from `last_reset` until now, where `last_reset` is the
+#             most recent past reset computed by rolling CLAUDE_WEEKLY_RESET
+#             (anchor: YYYY-MM-DDTHH:MM, local) forward in 7-day periods.
+#             This matches the plan's reset cadence (e.g. Sun 04:00 local),
+#             not ccusage's ISO calendar week which can flip a day early and
+#             show 1% while claude.ai still reports 75%.
+#
 # Caches ccusage output for CACHE_TTL_SECS. Without this, tmux status-right
 # (4× per status-interval) spawns ccusage continuously at ~100% CPU each —
-# observed runaway when status-interval=10s. Cache mirrors what statusline.sh
-# does internally.
+# observed runaway when status-interval=10s.
 set -euo pipefail
 
 WINDOW="${1:-}"
@@ -17,11 +25,42 @@ CACHE_TTL_SECS=30
 uid="${UID:-$(id -u)}"
 cache_dir="${TMPDIR:-/tmp}"
 
-# Return the cached `totalTokens` for {blocks, weekly}, refreshing via ccusage
-# only when the cache file is missing or older than CACHE_TTL_SECS.
+# Parse "YYYY-MM-DDTHH:MM" (local, no TZ) to epoch — portable across BSD/GNU date.
+parse_iso_local() {
+  local s="$1"
+  if date -j -f "%Y-%m-%dT%H:%M" "$s" +%s 2>/dev/null; then
+    return
+  fi
+  date -d "${s/T/ }" +%s
+}
+
+# Compute most recent past plan reset (epoch seconds) by rolling CLAUDE_WEEKLY_RESET
+# anchor forward in 7-day periods. Defaults to a known-good past Sunday 04:00.
+compute_last_reset() {
+  local anchor="${CLAUDE_WEEKLY_RESET:-2026-05-17T04:00}"
+  local anchor_epoch now_epoch diff periods
+  anchor_epoch=$(parse_iso_local "$anchor")
+  now_epoch=$(date +%s)
+  diff=$(( now_epoch - anchor_epoch ))
+  if (( diff < 0 )); then
+    echo $(( anchor_epoch - 7 * 86400 ))
+    return
+  fi
+  periods=$(( diff / (7 * 86400) ))
+  echo $(( anchor_epoch + periods * 7 * 86400 ))
+}
+
+# Convert epoch to UTC ISO ("YYYY-MM-DDTHH:MM:SSZ") for jq string comparison.
+epoch_to_iso_utc() {
+  local e="$1"
+  date -u -r "$e" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d "@$e" +%Y-%m-%dT%H:%M:%SZ
+}
+
+# Cached ccusage fetch. `kind` is a cache key; `cmd` is the ccusage subcommand
+# (whitespace-split); `jq_path` is run on stdout.
 fetch_used() {
-  local kind="$1"   # blocks | weekly
-  local cmd="$2"    # ccusage subcommand
+  local kind="$1"
+  local cmd="$2"
   local jq_path="$3"
   local cache_file="$cache_dir/claude-usage-${kind}-${uid}.txt"
   local now age
@@ -40,6 +79,30 @@ fetch_used() {
   printf '%s' "$fresh"
 }
 
+# Same as fetch_used but the jq filter is parameterised by `last_reset` (ISO UTC).
+# Cache key includes the reset bucket so we don't reuse stale sums across resets.
+fetch_used_since() {
+  local kind="$1"
+  local cmd="$2"
+  local jq_filter="$3"
+  local reset_iso="$4"
+  local cache_file="$cache_dir/claude-usage-${kind}-${reset_iso//[:T]/-}-${uid}.txt"
+  local now age
+  now=$(date +%s)
+  if [[ -f "$cache_file" ]]; then
+    age=$(( now - $(stat -f %m "$cache_file" 2>/dev/null || echo 0) ))
+    if (( age < CACHE_TTL_SECS )); then
+      cat "$cache_file"
+      return
+    fi
+  fi
+  local fresh
+  fresh=$(ccusage $cmd 2>/dev/null | jq --arg reset "$reset_iso" "$jq_filter" 2>/dev/null || echo 0)
+  [[ -z "$fresh" || "$fresh" == "null" ]] && fresh=0
+  printf '%s' "$fresh" > "$cache_file" 2>/dev/null || true
+  printf '%s' "$fresh"
+}
+
 case "$WINDOW" in
   session)
     LIMIT="${CLAUDE_SESSION_TOKEN_LIMIT:-0}"
@@ -49,7 +112,14 @@ case "$WINDOW" in
   week)
     LIMIT="${CLAUDE_WEEKLY_TOKEN_LIMIT:-${CLAUDE_WEEKLY_TOKEN_LIMIT_OPUS:-0}}"
     [[ "$LIMIT" -eq 0 ]] && { echo "?"; exit 0; }
-    USED=$(fetch_used "weekly" "weekly --json --offline" '.weekly[-1].totalTokens // 0')
+    last_reset_epoch=$(compute_last_reset)
+    last_reset_iso=$(epoch_to_iso_utc "$last_reset_epoch")
+    # Sum totalTokens for every block that started at or after the last plan
+    # reset. Sub-block precision is ~5 h (a block straddling the reset
+    # contributes 0); for a weekly window this is well within noise.
+    USED=$(fetch_used_since "blocks-since-reset" "blocks --json --offline" \
+      '[.blocks[]? | select(.startTime >= $reset) | .totalTokens] | add // 0' \
+      "$last_reset_iso")
     ;;
   *)
     echo "usage: usage-pct <session|week>" >&2
