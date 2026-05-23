@@ -295,7 +295,7 @@ func renderPreview(n *notifPreview) {
 		"width=dynamic",
 		"scroll_texts=off",
 		"background.color=0xff1e1e2e",   // Mocha Neon bg1
-		"background.border_color=0xffb347ff", // Mocha Neon mauve
+		"background.border_color=0xffff80bf", // Mocha Neon pink (per-widget semantic: alerts)
 		"background.border_width=1",
 		"background.height=26",         // match bracketed widget group
 		"drawing=on",

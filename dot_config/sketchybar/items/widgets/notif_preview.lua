@@ -36,13 +36,14 @@ local notif = sbar.add("item", "notif_preview", {
         padding_left = 0,
         padding_right = 8,
     },
-    -- Universal Mocha Neon chip token: solid bg1, height matches the
-    -- bracketed widget group (settings.items.height = 26), mauve border 1px.
+    -- Mocha Neon chip token: bg1 + height 26 + 1px border. Per-widget border
+    -- color (here: pink for notifications/alerts) keeps each chip distinct
+    -- so the right side reads as a colorful row, not a wall of mauve.
     background = {
         color = colors.bg1,
         height = 26,
         corner_radius = 6,
-        border_color = colors.mauve,
+        border_color = colors.magenta, -- pink — semantic: alerts
         border_width = 1,
     },
     -- Outer gap from neighbor chip (claude_sessions / next widget).
