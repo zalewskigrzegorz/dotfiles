@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# ~/Code/dotfiles/bin/usage-bg
+# Print bg hex for {session,week} based on % thresholds:
+#   < 60%  → base color (pink for session, sky for week)
+#   60-84% → peach (#FF8C42)  — warning
+#   ≥ 85%  → red (#FF6B9D)    — danger
+#
+# Used by tmux status-right to color-shift the session/week chip per pace.
+# Shares the 30s ccusage cache via usage-pct (no extra ccusage spawn here).
+set -euo pipefail
+
+WINDOW="${1:-}"
+PCT=$(usage-pct "$WINDOW" 2>/dev/null || echo "?")
+
+# Base color per window (matches existing tmux chip palette).
+case "$WINDOW" in
+  session) BASE="#FF80BF" ;;
+  week)    BASE="#8BE9FD" ;;
+  *)       BASE="#B347FF" ;;
+esac
+
+# Unknown percent (no limit configured) → keep base.
+if [ "$PCT" = "?" ] || ! [[ "$PCT" =~ ^[0-9]+$ ]]; then
+  printf '%s' "$BASE"
+  exit 0
+fi
+
+if   (( PCT >= 85 )); then printf '#FF6B9D'   # red — danger
+elif (( PCT >= 60 )); then printf '#FF8C42'   # peach — warning
+else                       printf '%s' "$BASE"
+fi

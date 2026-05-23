@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# ~/Code/dotfiles/bin/claude-waiting-count
+# Print count of Claude sessions whose waiting state has lasted ≥ THRESHOLD_SECS
+# for the given tmux session name.
+#
+# Threshold avoids the indicator flickering on momentary pauses — only fires
+# once a session has actually been idle long enough that the user probably
+# wants attention.
+#
+# Usage:
+#   claude-waiting-count <tmux_session_name>
+#
+# Used by tmux window-status-current-format to conditionally render the
+# waiting "!" badge.
+set -euo pipefail
+
+TMUX_SESSION="${1:-}"
+THRESHOLD_SECS="${CLAUDE_WAITING_THRESHOLD_SECS:-60}"
+
+[ -z "$TMUX_SESSION" ] && { echo 0; exit 0; }
+
+NOW=$(date +%s)
+~/Code/dotfiles/bin/claude-sessions --json 2>/dev/null \
+  | /opt/homebrew/bin/jq --arg s "$TMUX_SESSION" --argjson now "$NOW" --argjson th "$THRESHOLD_SECS" \
+      '[.[] | select(.waiting and .tmux_session == $s and ($now - .mtime >= $th))] | length' \
+      2>/dev/null \
+  || echo 0
