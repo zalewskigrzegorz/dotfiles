@@ -1,0 +1,21 @@
+{
+  "author": "Grzegorz Zalewski",
+  "authorUsername": "zalewskigrzegorz",
+  "version": "1",
+  "name": "Mocha Neon",
+  "appearance": "dark",
+  "colors": {
+    "background": "#1E1E2E",
+    "backgroundSecondary": "#1E1E2E",
+    "text": "#F0F0FF",
+    "selection": "#B347FF",
+    "loader": "#B347FF",
+    "red": "#FF6B9D",
+    "orange": "#FF8C42",
+    "yellow": "#FFD700",
+    "green": "#50FA7B",
+    "blue": "#8BE9FD",
+    "purple": "#9580FF",
+    "magenta": "#FF80BF"
+  }
+}

@@ -17,33 +17,10 @@ Screenshots: `~/Code/personal/bazgroly/dotfiles/screenshots/mocha-neon-tier2/<ap
 
 ## Checklist
 
-- [x] **Raycast** — Beta supports Theme Studio (Settings → Themes → Theme Studio). Built a Mocha Neon fork from the bundled Catppuccin Mocha theme; saved deeplink for re-import on any machine. Screenshot: `mocha-neon-tier2/raycast.png`.
-  - Re-import URL: `https://themes.ray.so?version=1&name=Catppuccin%20Mocha&author=Grzegorz%20Zalewski&authorUsername=zalewskigrzegorz&colors=%231E1E2E,%231E1E2E,%23F0F0FF,%23B347FF,%23B347FF,%23FF6B9D,%23FF8C42,%23FFD700,%2350FA7B,%238BE9FD,%239580FF,%23FF80BF&appearance=dark&addToRaycast`
-  - Token order in the URL: `bg, bgSecondary, text, selection, loader, red, orange, yellow, green, blue, purple, magenta` (matches Theme Studio sidebar order).
-  - JSON (Theme Studio import format — paste into the Studio "Import" field):
-    ```json
-    {
-      "author": "Grzegorz Zalewski",
-      "authorUsername": "zalewskigrzegorz",
-      "version": "1",
-      "name": "Catppuccin Mocha",
-      "appearance": "dark",
-      "colors": {
-        "background": "#1E1E2E",
-        "backgroundSecondary": "#1E1E2E",
-        "text": "#F0F0FF",
-        "selection": "#B347FF",
-        "loader": "#B347FF",
-        "red": "#FF6B9D",
-        "orange": "#FF8C42",
-        "yellow": "#FFD700",
-        "green": "#50FA7B",
-        "blue": "#8BE9FD",
-        "purple": "#9580FF",
-        "magenta": "#FF80BF"
-      }
-    }
-    ```
+- [x] **Raycast** — Beta supports Theme Studio (Settings → Themes → Theme Studio). Built a Mocha Neon fork from the bundled Catppuccin Mocha theme. Screenshot: `mocha-neon-tier2/raycast.png`.
+  - **Repo source of truth:** `dot_config/raycast/themes/mocha-neon.json`. To re-import on a fresh machine: open the file, copy contents, paste into Theme Studio's import field.
+  - **One-click deeplink:** `https://themes.ray.so?version=1&name=Mocha%20Neon&author=Grzegorz%20Zalewski&authorUsername=zalewskigrzegorz&colors=%231E1E2E,%231E1E2E,%23F0F0FF,%23B347FF,%23B347FF,%23FF6B9D,%23FF8C42,%23FFD700,%2350FA7B,%238BE9FD,%239580FF,%23FF80BF&appearance=dark&addToRaycast`
+  - Token order: `background, backgroundSecondary, text, selection, loader, red, orange, yellow, green, blue, purple, magenta` (matches Theme Studio sidebar order).
 - [ ] **Slack** — Preferences → Sidebar → Custom → paste Mocha Neon hex sequence (see palette doc for sidebar role order). Screenshot: `mocha-neon-tier2/slack.png`.
 - [ ] **Cursor** — Extensions → Catppuccin for VSCode → Mocha. Then `~/Library/Application Support/Cursor/User/settings.json` workbench.colorCustomizations: override 11 tokens. Screenshot: `mocha-neon-tier2/cursor.png`.
 - [ ] **Obsidian** — Settings → Appearance → Themes → Catppuccin. Custom CSS snippet (Settings → Appearance → CSS snippets) with the 11 token overrides. Screenshot: `mocha-neon-tier2/obsidian.png`.
