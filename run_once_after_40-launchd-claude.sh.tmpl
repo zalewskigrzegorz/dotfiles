@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+{{- if eq .chezmoi.os "darwin" }}
+# Idempotent install + load of claude-watcher + claude-idle-timer LaunchAgents.
+# `run_once_*` per chezmoi semantics — re-runs only when this script's content
+# changes. To force a re-bootstrap (e.g. after editing the plists), bump the
+# version stamp in the comment below.
+#
+# Version: 2026-05-23.1
+set -eu
+
+SRC_DIR="${HOME}/.config/launchd"
+DST_DIR="${HOME}/Library/LaunchAgents"
+mkdir -p "$DST_DIR"
+
+for label in com.greg.claude-watcher com.greg.claude-idle-timer; do
+  src="${SRC_DIR}/${label}.plist"
+  dst="${DST_DIR}/${label}.plist"
+  if [[ ! -f "$src" ]]; then
+    echo "[skip] $src not found"
+    continue
+  fi
+  cp -f "$src" "$dst"
+  # Unload if already loaded — bootout is safe even if the label isn't there.
+  launchctl bootout "gui/$(id -u)/${label}" 2>/dev/null || true
+  launchctl bootstrap "gui/$(id -u)" "$dst"
+  echo "[ok] $label bootstrapped"
+done
+{{- end }}
