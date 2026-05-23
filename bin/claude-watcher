@@ -13,6 +13,10 @@ is_mac() { [[ "$(uname -s)" == "Darwin" ]]; }
 invalidate_and_notify() {
   rm -f "$CACHE_FILE"
   "$(dirname "${BASH_SOURCE[0]}")/claude-sessions-render" 2>/dev/null || true
+  # One-line trace so `tail -f /tmp/com.greg.claude-watcher.log` shows activity
+  # — without this the log stays empty and the user can't tell if it's working.
+  printf '%s [trigger] jsonl change → cache invalidated + render re-fired\n' \
+    "$(date '+%F %T')"
 }
 
 watch_mac() {
