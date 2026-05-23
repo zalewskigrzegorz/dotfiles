@@ -294,9 +294,10 @@ func renderPreview(n *notifPreview) {
 		"label=" + short,
 		"width=dynamic",
 		"scroll_texts=off",
-		"background.color=0xff1e1e2e",   // Mocha Neon bg1 (was Dracula 22212c)
-		"background.border_color=0xffb347ff", // Mocha Neon mauve (was Dracula dark_grey)
+		"background.color=0xff1e1e2e",   // Mocha Neon bg1
+		"background.border_color=0xffb347ff", // Mocha Neon mauve
 		"background.border_width=1",
+		"background.height=26",         // match bracketed widget group
 		"drawing=on",
 		"click_script=" + clickScript,
 	}
