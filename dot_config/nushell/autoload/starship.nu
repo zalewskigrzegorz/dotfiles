@@ -19,13 +19,13 @@ def create_right_prompt [] {
 $env.PROMPT_COMMAND = { || create_left_prompt }
 $env.PROMPT_COMMAND_RIGHT = { || create_right_prompt }
 
-# Vi-mode prompt indicators — user wants distinct glyphs per mode.
-# starship's `[character]` renders the unicorn (left prompt); these nu
-# indicators show AFTER starship's prompt to mark the current vi mode.
-#   insert  → ❯ (forward chevron)  — typing/insert mode
-#   normal  → ❮ (backward chevron) — command/normal mode
-$env.PROMPT_INDICATOR_VI_INSERT = "❯ "
-$env.PROMPT_INDICATOR_VI_NORMAL = "❮ "
+# Vi-mode prompt indicators — synthwave/cyberpunk power glyphs.
+# nu/reedline only supports two indicators (no VISUAL / REPLACE env var
+# as of nushell 0.x — see polish-brainstorm for workaround ideas).
+#   insert  → ⚡ (zap)   — active/energized, typing
+#   normal  → ⏸ (pause) — halted, command mode
+$env.PROMPT_INDICATOR_VI_INSERT = "⚡ "
+$env.PROMPT_INDICATOR_VI_NORMAL = "⏸ "
 # Plain shell mode (non-vi) — keep empty so starship's [character] owns it.
 $env.PROMPT_INDICATOR = ""
 $env.PROMPT_MULTILINE_INDICATOR = "├─ "
