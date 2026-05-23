@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+# ~/Code/dotfiles/bin/mocha-neon-reload
+# One-command reload for the whole Mocha Neon stack.
+#
+# Touches every surface that depends on chezmoi-synced sources, in order:
+#   1. chezmoi apply       — propagate source → live
+#   2. sketchybar-restart  — clean watcher + bar restart
+#   3. tmux source-file    — reload tmux.conf (if a server is running)
+#   4. aerospace reload    — reapply gaps + bindings
+#   5. borders reload      — bordersrc changes
+#   6. report status       — summary of what got refreshed
+#
+# Idempotent. Safe to run repeatedly. Skips steps gracefully when a tool
+# isn't installed or the related daemon isn't running.
+
+set -uo pipefail
+
+GREEN='\033[38;2;80;250;123m'
+PEACH='\033[38;2;255;140;66m'
+RED='\033[38;2;255;107;157m'
+MAUVE='\033[38;2;179;71;255m'
+GREY='\033[38;2;127;132;156m'
+N='\033[0m'
+
+ok()    { printf "  ${GREEN}✓${N} %s\n" "$1"; }
+warn()  { printf "  ${PEACH}⚠${N} %s\n" "$1"; }
+skip()  { printf "  ${GREY}•${N} %s\n" "$1"; }
+err()   { printf "  ${RED}✗${N} %s\n" "$1"; }
+step()  { printf "${MAUVE}▸${N} %s\n" "$1"; }
+
+# 1. chezmoi apply
+step "chezmoi apply"
+if command -v chezmoi >/dev/null 2>&1; then
+  if chezmoi apply >/tmp/mocha-neon-reload-chezmoi.log 2>&1; then
+    ok "applied"
+  else
+    warn "non-zero exit (some hooks may have prompted) — see /tmp/mocha-neon-reload-chezmoi.log"
+  fi
+else
+  skip "chezmoi not on PATH"
+fi
+
+# 2. sketchybar (Darwin only)
+step "sketchybar"
+if [ "$(uname -s)" = "Darwin" ] && command -v sketchybar >/dev/null 2>&1; then
+  if [ -x "$HOME/Code/dotfiles/bin/sketchybar-restart" ]; then
+    "$HOME/Code/dotfiles/bin/sketchybar-restart" >/dev/null 2>&1 && ok "restarted via bin/sketchybar-restart" || err "restart failed"
+  else
+    sketchybar --reload >/dev/null 2>&1 && ok "reloaded (no restart helper)" || err "reload failed"
+  fi
+else
+  skip "sketchybar not available (not Darwin or not installed)"
+fi
+
+# 3. tmux source-file (only if a server is running)
+step "tmux"
+if command -v tmux >/dev/null 2>&1 && tmux info >/dev/null 2>&1; then
+  if tmux source-file "$HOME/.config/tmux/tmux.conf" >/dev/null 2>&1; then
+    ok "reloaded tmux.conf"
+  else
+    err "source-file failed (check tmux.conf syntax)"
+  fi
+else
+  skip "no tmux server running"
+fi
+
+# 4. aerospace (Darwin only)
+step "aerospace"
+if [ "$(uname -s)" = "Darwin" ] && command -v aerospace >/dev/null 2>&1; then
+  if pgrep -x AeroSpace >/dev/null 2>&1; then
+    aerospace reload-config >/dev/null 2>&1 && ok "config reloaded" || err "reload failed"
+  else
+    skip "AeroSpace.app not running"
+  fi
+else
+  skip "aerospace not available"
+fi
+
+# 5. borders (Darwin only)
+step "borders"
+if [ "$(uname -s)" = "Darwin" ] && command -v borders >/dev/null 2>&1; then
+  if pgrep -x borders >/dev/null 2>&1; then
+    pkill -USR1 -x borders 2>/dev/null && ok "SIGUSR1 sent (reloads bordersrc)" || ok "running (no reload signal needed for most changes)"
+  else
+    if [ -x "$HOME/.config/borders/bordersrc" ]; then
+      nohup "$HOME/.config/borders/bordersrc" >/dev/null 2>&1 &
+      ok "started fresh"
+    else
+      skip "bordersrc not executable / missing"
+    fi
+  fi
+else
+  skip "borders not available"
+fi
+
+# 6. status summary
+step "summary"
+printf "  ${MAUVE}▸${N} sketchybar widgets:\n"
+for n in apple widgets.claude_sessions notif_preview widgets.battery widgets.cpu; do
+  if /opt/homebrew/bin/sketchybar --query "$n" >/dev/null 2>&1; then
+    ok "$n"
+  else
+    err "$n  (missing)"
+  fi
+done 2>/dev/null
+
+printf "\n${MAUVE}done.${N} reopen any nu shells / Claude Code instances to pick up\nstarship + statusline changes (the running processes keep their old env).\n"
