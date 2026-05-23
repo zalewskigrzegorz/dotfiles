@@ -35,33 +35,33 @@ footer_fg = "#a6adc8"
 modal_fg = "#a6adc8"
 
 # ========= Special Color =========
-cursor = "#f5e0dc"
+cursor = "#F0F0FF"
 correct = "#50FA7B"
 error = "#FF6B9D"
-hint = "#73c7ec"
-cancel = "#eba0ac"
+hint = "#8BE9FD"
+cancel = "#FF6B9D"
 # Gradient color can only have two color!
-gradient_color = ["#89b4fa", "#B347FF"]
+gradient_color = ["#9580FF", "#B347FF"]
 
 # ========= File Panel Special Items =========
 file_panel_top_directory_icon = "#50FA7B"
-file_panel_top_path = "#89b5fa"
-file_panel_item_selected_fg = "#98D0FD"
+file_panel_top_path = "#9580FF"
+file_panel_item_selected_fg = "#9580FF"
 file_panel_item_selected_bg = "#1e1e2e"
 
 # ========= Sidebar Special Items =========
-sidebar_title = "#74c7ec"
-sidebar_item_selected_fg = "#A6DBF7"
+sidebar_title = "#8BE9FD"
+sidebar_item_selected_fg = "#8BE9FD"
 sidebar_item_selected_bg = "#1e1e2e"
 sidebar_divider = "#868686"
 
 # ========= Modal Special Items =========
 modal_cancel_fg = "#383838"
-modal_cancel_bg = "#eba0ac"
+modal_cancel_bg = "#FF6B9D"
 
 modal_confirm_fg = "#383838"
 modal_confirm_bg = "#8BE9FD"
 
 # ========= Help Menu =========
 help_menu_hotkey = "#8BE9FD"
-help_menu_title = "#eba0ac"
+help_menu_title = "#FF6B9D"
