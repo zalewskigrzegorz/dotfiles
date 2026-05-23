@@ -1,18 +1,17 @@
 # Sesh: fuzzy tmux session manager
 # https://github.com/joshmedeski/sesh
-
-# NOTE: window name uses  (U+E795 = nf-dev-terminal) stored as literal
-# UTF-8. Wrapped in bash -c so nushell (tmux default-command) never tries to
-# parse >/dev/null 2>&1 (nushell uses out+err> syntax and errors on 2>&1).
+#
+# startup_command removed 2026-05-23 — sesh sends it via `tmux send-keys`,
+# which leaves the literal bash invocation visible in terminal scrollback
+# as if the user typed it. Window naming is now handled by the
+# tmux-nerd-font-window-name plugin (automatic-rename-format) which is silent.
 
 [default_session]
-startup_command = "bash -c \"tmux rename-window '  term' >/dev/null 2>&1\""
 
 # Public, non-secret project
 [[session]]
 name = "dotfiles"
 path = "~/Code/dotfiles"
-startup_command = "bash -c \"tmux rename-window '  term' >/dev/null 2>&1\""
 
 # NOTE: Other projects (e.g. REDACTED_ORG) are discovered dynamically via
 # zoxide history. Do not hardcode private project names here.
