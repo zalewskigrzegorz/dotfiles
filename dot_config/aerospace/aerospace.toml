@@ -94,11 +94,18 @@ inner.horizontal = 8
 inner.vertical = 8
 outer.left = 5
 outer.bottom = 5
+# outer.top must be ≥ sketchybar bar.height (36). Value below = bar + 2 px
+# breathing room. Borders plugin adds its own 8 px ring on focused window —
+# perceived top gap ≈ (outer.top - bar.height) + border. To shrink further
+# reduce borders width in dot_config/borders/bordersrc.
+#
+# Monitor pattern: aerospace does substring match, so "Built-in" matches the
+# actual MacBook display name "Built-in Retina Display".
 outer.top = [
-  { monitor."Built-in"     = 40 },
-  { monitor.'DELL U3225QE' = 40 },
-  { monitor.'C34H89x'      = 40 },
-  40,
+  { monitor."Built-in"     = 38 },
+  { monitor.'DELL U3225QE' = 38 },
+  { monitor.'C34H89x'      = 38 },
+  38,
 ]
 outer.right = 5
 
