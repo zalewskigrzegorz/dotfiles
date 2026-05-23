@@ -8,7 +8,16 @@
 #   4) Optional cross-machine TTS via Tine (opt-in via CLAUDE_TINE_NOTIFY=1)
 set -u
 
-# 1) OSC 9 — universal terminal notification, survives SSH tunnels
+# 1a) macOS-native notification (primary path on Darwin).
+# osascript works without a controlling TTY — important because Claude Code
+# hooks run in a subprocess without /dev/tty, which makes OSC 9 silently fail.
+if [ "$(uname -s)" = "Darwin" ]; then
+  osascript -e 'display notification "Claude is waiting" with title "Claude" sound name "Tink"' >/dev/null 2>&1 || true
+fi
+
+# 1b) OSC 9 — fallback for SSH / Linux terminals (survives ssh tunnels).
+# Silently no-ops in hook-subprocess context (no /dev/tty) but lights up
+# when the script is run interactively from a terminal.
 printf '\033]9;Claude is waiting\007' > /dev/tty 2>/dev/null || true
 
 # 2) Invalidate claude-sessions cache (fswatch may not catch the .jsonl mtime in time)
