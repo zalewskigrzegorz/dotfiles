@@ -221,5 +221,16 @@
         }
     },
     "workbench.font.family": "Iosevka Nerd Font, Arial, sans-serif",
-    "terminal.integrated.fontFamily": "Iosevka Nerd Font Mono, monospace"
+    "terminal.integrated.fontFamily": "Iosevka Nerd Font Mono, monospace",
+    "editor.tokenColorCustomizations": {
+        "[Catppuccin Mocha]": {
+            "comments": "#A6ADC8",
+            "keywords": "#B347FF",
+            "strings": "#50FA7B",
+            "numbers": "#FFD700",
+            "types": "#8BE9FD",
+            "functions": "#FF80BF",
+            "variables": "#F0F0FF"
+        }
+    }
 }
