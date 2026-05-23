@@ -437,7 +437,7 @@ func pushToSketchybar(labels []string, focused string, recent []string, svc bool
 	appleString := "🦄"
 	appleHighlight := "false"
 	if svc {
-		appleString = "💀"
+		appleString = "☢️"
 		appleColor = colorRed
 		appleBorder = "3"
 		appleHighlight = "true"

@@ -7,7 +7,7 @@ return {
     empire = "",
     gear = "􀍟",
     cpu = "􀫥",
-    nuke = "💀",
+    nuke = "☢️",
     clipboard = "􀉄",
 
     switch = {
