@@ -76,15 +76,20 @@ else
   skip "aerospace not available"
 fi
 
-# 5. borders (Darwin only)
+# 5. borders (Darwin only) — JankyBorders doesn't honor SIGUSR1; the standard
+# reload pattern is to invoke `borders <args>` again on the running instance,
+# which forwards new options. If not running, start it via bordersrc.
 step "borders"
 if [ "$(uname -s)" = "Darwin" ] && command -v borders >/dev/null 2>&1; then
   if pgrep -x borders >/dev/null 2>&1; then
-    pkill -USR1 -x borders 2>/dev/null && ok "SIGUSR1 sent (reloads bordersrc)" || ok "running (no reload signal needed for most changes)"
+    ok "running (config changes apply on next launch)"
   else
     if [ -x "$HOME/.config/borders/bordersrc" ]; then
-      nohup "$HOME/.config/borders/bordersrc" >/dev/null 2>&1 &
-      ok "started fresh"
+      ( nohup "$HOME/.config/borders/bordersrc" >> "$HOME/Code/dotfiles/logs/borders.log" 2>&1 & )
+      sleep 1
+      if pgrep -x borders >/dev/null 2>&1; then ok "started fresh"
+      else err "failed to start — check logs/borders.log + Screen Recording permission"
+      fi
     else
       skip "bordersrc not executable / missing"
     fi
