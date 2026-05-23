@@ -3,9 +3,15 @@
 # Print human-readable consumed-tokens for the current Claude session block
 # or the current week. Reads from ccusage cache (no network).
 # Output examples: "73.2M", "1.7G", "428K", "?" if unavailable
+#
+# Shares cache files with usage-pct (claude-usage-{blocks,weekly}-${uid}.txt)
+# so any hot-path caller (tmux, future status segments) reuses the same data.
 set -euo pipefail
 
 WINDOW="${1:-}"
+CACHE_TTL_SECS=30
+uid="${UID:-$(id -u)}"
+cache_dir="${TMPDIR:-/tmp}"
 
 fmt_count() {
   local n="${1:-0}"
@@ -20,14 +26,33 @@ fmt_count() {
   '
 }
 
+fetch_used() {
+  local kind="$1"
+  local cmd="$2"
+  local jq_path="$3"
+  local cache_file="$cache_dir/claude-usage-${kind}-${uid}.txt"
+  local now age
+  now=$(date +%s)
+  if [[ -f "$cache_file" ]]; then
+    age=$(( now - $(stat -f %m "$cache_file" 2>/dev/null || echo 0) ))
+    if (( age < CACHE_TTL_SECS )); then
+      cat "$cache_file"
+      return
+    fi
+  fi
+  local fresh
+  fresh=$(ccusage $cmd 2>/dev/null | jq "$jq_path" 2>/dev/null || echo 0)
+  [[ -z "$fresh" || "$fresh" == "null" ]] && fresh=0
+  printf '%s' "$fresh" > "$cache_file" 2>/dev/null || true
+  printf '%s' "$fresh"
+}
+
 case "$WINDOW" in
   session)
-    USED=$(ccusage blocks --json --active --offline 2>/dev/null \
-      | jq '.blocks[0].totalTokens // 0' 2>/dev/null || echo 0)
+    USED=$(fetch_used "blocks" "blocks --json --active --offline" '.blocks[0].totalTokens // 0')
     ;;
   week)
-    USED=$(ccusage weekly --json --offline 2>/dev/null \
-      | jq '.weekly[-1].totalTokens // 0' 2>/dev/null || echo 0)
+    USED=$(fetch_used "weekly" "weekly --json --offline" '.weekly[-1].totalTokens // 0')
     ;;
   *)
     echo "usage: usage-fmt <session|week>" >&2
