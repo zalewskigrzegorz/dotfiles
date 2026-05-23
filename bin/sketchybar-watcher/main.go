@@ -40,7 +40,7 @@ const (
 	windowCacheTTLMs = 150        // A3: TTL for `aerospace list-windows`
 	retryDelayMs     = 500        // B3: base backoff
 	retryMaxAttempts = 3          // B3: bounded retry
-	readinessMaxMs   = 5000       // B2: max wait for sketchybar items to exist
+	readinessMaxMs   = 15000      // B2: max wait for sketchybar items to exist (cold boot needs more headroom)
 	readinessStepMs  = 50         // B2: initial probe interval
 	recentLRUSize    = 3          // E3: recent-workspace LRU
 	pulseDurationMs  = 600        // E4: app-launch pulse
@@ -606,7 +606,14 @@ func handleEvent(st *state, event string, env map[string]string) {
 			go animatePulse([]string{ws}, st)
 		}
 	case "sketchybar_ready": // Lua signals sketchybar config finished loading
+		// Reset retry counter so failures during pre-ready window don't
+		// carry over and immediately trip the give-up cap after reload.
+		st.retryAttempt = 0
 		rehydrateNotifPreview()
+		// Re-push workspace items (item.1..10) and apple icon, which
+		// sketchybar wipes on every reload. Without this, widgets go
+		// blank until the next aerospace focus/window event.
+		scheduleRefresh(st)
 	case "enter_service":
 		st.setServiceMode(true)
 		scheduleRefresh(st)
