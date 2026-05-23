@@ -51,3 +51,7 @@ def --wrapped lazydocker [...args] { _tui_window $"\u{f0868}  docker" "lazydocke
 
 # System monitor — nf-fa-tachometer (U+F0E4)
 def --wrapped btop   [...args] { _tui_window $"\u{f0e4}  btop"      "btop"   ...$args }
+
+# File manager (superfile) — nf-md-folder (U+F024B). Both `spf` and `superfile` bind.
+def --wrapped spf       [...args] { _tui_window $"\u{f024b}  spf"   "spf"       ...$args }
+def --wrapped superfile [...args] { _tui_window $"\u{f024b}  spf"   "superfile" ...$args }
