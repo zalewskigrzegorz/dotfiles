@@ -22,8 +22,8 @@ local notif = sbar.add("item", "notif_preview", {
         font = settings.icons, -- sketchybar-app-font:Regular:16.0
         string = "",
         color = colors.white,
-        padding_left = 6,
-        padding_right = 4,
+        padding_left = 8,
+        padding_right = 6,
     },
     label = {
         string = "",
@@ -36,14 +36,18 @@ local notif = sbar.add("item", "notif_preview", {
         padding_left = 0,
         padding_right = 8,
     },
+    -- Match the universal Mocha Neon chip token: solid bg1, height 22,
+    -- mauve border 1px, corner radius 6. Same as battery / cpu / calendar.
     background = {
         color = colors.bg1,
         height = 22,
         corner_radius = 6,
-        border_color = colors.bg1,
-        border_width = 0,
+        border_color = colors.mauve,
+        border_width = 1,
     },
-    padding_right = settings.paddings,
+    -- Outer gap from neighbor chip (claude_sessions / next widget).
+    padding_left = settings.group_paddings,
+    padding_right = settings.group_paddings,
     popup = {
         align = "center",
     },

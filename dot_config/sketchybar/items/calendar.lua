@@ -12,25 +12,31 @@ local cal = sbar.add("item", {
         color = colors.white,
         padding_left = 8,
         font = {
-            size = 22.0
+            family = settings.font.text, -- FiraCode Nerd Font Mono
+            style = settings.font.style_map["Regular"],
+            size = 16.0, -- match the visual weight of cpu/battery icons
         }
     },
     label = {
         color = colors.white,
         padding_right = 8,
-        width = 80,
+        width = 96, -- wider than 80 so "05/23 02:23" doesn't truncate
         align = "right",
         font = {
-            family = settings.icons
+            family = settings.font.numbers, -- FiraCode Nerd Font Mono (NOT sketchybar-app-font)
+            style = settings.font.style_map["Regular"],
+            size = 12.0, -- same scale as notif_preview label
         }
     },
     position = "right",
     update_freq = 30,
-    padding_left = 1,
-    padding_right = 1,
+    padding_left = settings.group_paddings,
+    padding_right = settings.group_paddings,
     background = {
-        color = colors.bg2,
-        border_color = colors.rainbow[#colors.rainbow],
+        color = colors.bg1, -- solid base — was bg2 (surface grey) which made it drift
+        height = 22,
+        corner_radius = 6,
+        border_color = colors.mauve, -- universal chip token, was rainbow[end]
         border_width = 1
     }
 })

@@ -4,7 +4,13 @@ local settings = require("settings")
 
 -- Execute the event provider binary which provides the event "cpu_update" for
 -- the cpu load data, which is fired every 2.0 seconds.
-sbar.exec("killall cpu_load >/dev/null; $CONFIG_DIR/helpers/event_providers/cpu_load/bin/cpu_load cpu_update 2.0")
+--
+-- IMPORTANT: We use os.execute with shell-backgrounding (&) instead of
+-- sbar.exec. SbarLua sync exec hangs lua init when the command spawns a
+-- long-running daemon (sketchybar v2.23.0 on macOS 26.4.1).
+-- Symptom: lua process stuck in __wait4_nocancel, NO items ever register.
+-- Workaround: use os.execute with `&` to detach properly.
+os.execute("killall cpu_load >/dev/null 2>&1; $CONFIG_DIR/helpers/event_providers/cpu_load/bin/cpu_load cpu_update 2.0 >/dev/null 2>&1 &")
 
 local cpu = sbar.add("graph", "widgets.cpu", 42, {
     position = "right",
