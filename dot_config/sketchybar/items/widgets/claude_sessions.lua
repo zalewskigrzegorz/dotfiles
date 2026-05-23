@@ -76,8 +76,11 @@ local function refresh()
   end
 
   if label_text == "" then
-    -- Hide widget entirely when no sessions
-    claude_sessions:set({ drawing = "off" })
+    -- Hide widget entirely when no sessions.
+    -- Use lua bool — SbarLua's `drawing` accepts true/false reliably; the
+    -- string form "off"/"on" silently no-ops for top-level item drawing
+    -- (works only for nested icon/label/background.drawing).
+    claude_sessions:set({ drawing = false })
     local fw = io.open(state_file, "w")
     if fw then fw:write("0"); fw:close() end
     return
@@ -88,7 +91,7 @@ local function refresh()
   local color = (waiting_count > 0) and colors.magenta or colors.mauve
 
   claude_sessions:set({
-    drawing = "on",
+    drawing = true,
     icon = { color = color },
     label = { string = label_text, color = color },
     background = { border_color = color },
