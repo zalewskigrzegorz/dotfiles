@@ -21,7 +21,10 @@ Screenshots: `~/Code/personal/bazgroly/dotfiles/screenshots/mocha-neon-tier2/<ap
   - **Repo source of truth:** `dot_config/raycast/themes/mocha-neon.json`. To re-import on a fresh machine: open the file, copy contents, paste into Theme Studio's import field.
   - **One-click deeplink:** `https://themes.ray.so?version=1&name=Mocha%20Neon&author=Grzegorz%20Zalewski&authorUsername=zalewskigrzegorz&colors=%231E1E2E,%231E1E2E,%23F0F0FF,%23B347FF,%23B347FF,%23FF6B9D,%23FF8C42,%23FFD700,%2350FA7B,%238BE9FD,%239580FF,%23FF80BF&appearance=dark&addToRaycast`
   - Token order: `background, backgroundSecondary, text, selection, loader, red, orange, yellow, green, blue, purple, magenta` (matches Theme Studio sidebar order).
-- [ ] **Slack** — Preferences → Sidebar → Custom → paste Mocha Neon hex sequence (see palette doc for sidebar role order). Screenshot: `mocha-neon-tier2/slack.png`.
+- [x] **Slack (standard / Reunite)** — Two flavors stored in `dot_config/slack/`:
+  - **Standard Slack** (10-hex sidebar) → `mocha-neon-sidebar.txt`. Paste the comma-separated line into Preferences → Sidebar → Customize → Color Picker bottom field.
+  - **Reunite** (REDACTED_ORG's client, 4-color custom theme + Window gradient toggle) → `mocha-neon-reunite.json`. Reunite uses a different model: `systemNavigation`, `selectedItems`, `presenceIndication`, `notifications`. Paste each hex into the matching color picker under Preferences → Appearance → Custom theme; leave **Window gradient** checked.
+  - Screenshot: `mocha-neon-tier2/slack.png`.
 - [ ] **Cursor** — Extensions → Catppuccin for VSCode → Mocha. Then `~/Library/Application Support/Cursor/User/settings.json` workbench.colorCustomizations: override 11 tokens. Screenshot: `mocha-neon-tier2/cursor.png`.
 - [ ] **Obsidian** — Settings → Appearance → Themes → Catppuccin. Custom CSS snippet (Settings → Appearance → CSS snippets) with the 11 token overrides. Screenshot: `mocha-neon-tier2/obsidian.png`.
 - [ ] **Spotify (Spicetify)** — `spicetify install catppuccin && spicetify config current_theme catppuccin && spicetify apply`. Edit `~/.config/spicetify/Themes/catppuccin/color.ini` `[Frappe]` (or active flavor) section with bumped hex. Re-`spicetify apply`. Screenshot: `mocha-neon-tier2/spotify.png`.
