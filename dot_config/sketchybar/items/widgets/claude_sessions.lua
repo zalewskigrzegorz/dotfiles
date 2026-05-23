@@ -8,17 +8,17 @@ local settings = require("settings")
 local claude_sessions = sbar.add("item", "widgets.claude_sessions", {
   position = "right",
   icon = {
-    string = "󰧑",  -- nf-md-creation U+F0675 sparkle — verified renders in Iosevka
+    string = "󰧑",  -- nf-md-creation U+F0675 sparkle — verified renders in JetBrainsMono Nerd Font
     color = colors.mauve,
-    font = { family = "Iosevka Nerd Font", style = "Bold", size = 14.0 },
+    font = { family = "JetBrainsMono Nerd Font", style = "Bold", size = 14.0 },
     padding_left = 8,
     padding_right = 6,
   },
   label = {
     string = "...",
     color = colors.mauve,
-    -- Switch from Iosevka size 14 to FiraCode size 12 so this label matches
-    -- the rest of the chip family (battery / cpu / calendar / notif_preview).
+    -- Use the chip-family font (JetBrainsMono Nerd Font, size 12) so this label
+    -- matches battery / cpu / calendar / notif_preview.
     font = {
       family = settings.font.numbers,
       style = settings.font.style_map["Bold"],

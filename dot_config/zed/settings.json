@@ -35,8 +35,8 @@
     "border":         "#585B70",
     "border.focused": "#B347FF"
   },
-  "buffer_font_family": "Iosevka Nerd Font",
-  "ui_font_family": "Iosevka Nerd Font",
+  "buffer_font_family": "JetBrainsMono Nerd Font",
+  "ui_font_family": "JetBrainsMono Nerd Font",
   "buffer_font_features": {
     "liga": true,
     "calt": true

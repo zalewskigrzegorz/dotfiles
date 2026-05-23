@@ -29,7 +29,7 @@ for i, workspace in ipairs(workspace_order) do
 
     local space = sbar.add("item", "item." .. i, {
         icon = {
-            font = { family = "Iosevka Nerd Font", size = 16.0 },
+            font = { family = "JetBrainsMono Nerd Font", size = 16.0 },
             string = workspace_icons[workspace] or workspace,
             padding_left = 12,
             padding_right = 6,
