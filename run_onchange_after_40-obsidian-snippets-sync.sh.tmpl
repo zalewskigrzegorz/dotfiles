@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+{{- if eq .chezmoi.os "darwin" }}
+# Sync Mocha Neon CSS snippet into every Obsidian vault registered in
+# ~/Library/Application Support/obsidian/obsidian.json.
+#
+# Obsidian stores per-vault snippets under <vault>/.obsidian/snippets/. This
+# hook discovers vaults from Obsidian's own config (no hard-coded paths), then
+# copies dot_config/obsidian/snippets/*.css into each vault.
+#
+# fingerprint: {{ output "bash" "-c" (printf "cd %q && find dot_config/obsidian -type f -name '*.css' -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
+
+set -eu
+
+OBSIDIAN_JSON="$HOME/Library/Application Support/obsidian/obsidian.json"
+SRC_DIR="$HOME/.config/obsidian/snippets"
+
+if [ ! -f "$OBSIDIAN_JSON" ]; then
+  echo "obsidian-snippets-sync: Obsidian not installed (no obsidian.json) — skipping."
+  exit 0
+fi
+if [ ! -d "$SRC_DIR" ]; then
+  echo "obsidian-snippets-sync: $SRC_DIR missing — skipping."
+  exit 0
+fi
+
+# Extract vault paths from JSON using python (jq may not be on PATH).
+vaults=$(python3 -c "
+import json, os
+with open(os.path.expanduser('$OBSIDIAN_JSON')) as f:
+    data = json.load(f)
+for v in data.get('vaults', {}).values():
+    print(v.get('path', ''))
+")
+
+if [ -z "$vaults" ]; then
+  echo "obsidian-snippets-sync: no vaults registered — skipping."
+  exit 0
+fi
+
+while IFS= read -r vault; do
+  [ -z "$vault" ] && continue
+  [ ! -d "$vault" ] && { echo "obsidian-snippets-sync: vault path missing → $vault (skip)"; continue; }
+  dest="$vault/.obsidian/snippets"
+  mkdir -p "$dest"
+  for css in "$SRC_DIR"/*.css; do
+    [ -f "$css" ] || continue
+    name="$(basename "$css")"
+    cp -f "$css" "$dest/$name"
+    echo "obsidian-snippets-sync: $name → $dest/"
+  done
+done <<<"$vaults"
+{{- end }}

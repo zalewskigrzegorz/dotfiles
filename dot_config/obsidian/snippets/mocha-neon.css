@@ -1,0 +1,108 @@
+/* Mocha Neon — Obsidian CSS snippet.
+ *
+ * Activates by toggling Settings → Appearance → CSS snippets → mocha-neon.
+ * Designed to layer on top of the Catppuccin Mocha theme (install from
+ * Community themes). Without that base theme some selectors won't match
+ * because Obsidian's default theme uses different class names.
+ *
+ * Sync: dot_config/obsidian/snippets/mocha-neon.css →
+ *       <vault>/.obsidian/snippets/mocha-neon.css
+ * via run_onchange_after_40-obsidian-snippets-sync.sh.tmpl.
+ */
+
+.theme-dark {
+  /* Mocha Neon palette */
+  --mn-base:    #1E1E2E;
+  --mn-surface: #45475A;
+  --mn-overlay: #7F849C;
+  --mn-text:    #F0F0FF;
+  --mn-mauve:   #B347FF;
+  --mn-pink:    #FF80BF;
+  --mn-lavender:#9580FF;
+  --mn-green:   #50FA7B;
+  --mn-gold:    #FFD700;
+  --mn-peach:   #FF8C42;
+  --mn-red:     #FF6B9D;
+  --mn-sky:     #8BE9FD;
+
+  /* Obsidian semantic tokens override */
+  --interactive-accent:        var(--mn-mauve);
+  --interactive-accent-hover:  var(--mn-lavender);
+  --text-accent:               var(--mn-mauve);
+  --text-accent-hover:         var(--mn-pink);
+  --text-selection:            #B347FF55;
+  --background-modifier-active-hover: var(--mn-mauve);
+  --background-modifier-border-focus: var(--mn-mauve);
+  --background-modifier-success: var(--mn-green);
+  --background-modifier-error:   var(--mn-red);
+  --background-modifier-error-hover: var(--mn-pink);
+
+  /* Sidebar / file explorer */
+  --nav-item-color-active:        var(--mn-mauve);
+  --nav-item-background-active:   #B347FF22;
+  --nav-collapse-icon-color-collapsed: var(--mn-mauve);
+
+  /* Tabs */
+  --tab-text-color-focused-active: var(--mn-text);
+  --tab-background-active:         var(--mn-base);
+  --tab-outline-color:             var(--mn-mauve);
+  --tab-outline-width:             2px;
+
+  /* Status bar */
+  --status-bar-background:    var(--mn-base);
+  --status-bar-text-color:    var(--mn-text);
+  --status-bar-border-color:  var(--mn-mauve);
+
+  /* Headings — bumped neon accents */
+  --h1-color: var(--mn-mauve);
+  --h2-color: var(--mn-pink);
+  --h3-color: var(--mn-sky);
+  --h4-color: var(--mn-gold);
+  --h5-color: var(--mn-green);
+  --h6-color: var(--mn-peach);
+
+  /* Links + tags */
+  --link-color:        var(--mn-mauve);
+  --link-color-hover:  var(--mn-pink);
+  --link-external-color: var(--mn-sky);
+  --tag-color:         var(--mn-pink);
+  --tag-background:    #FF80BF22;
+
+  /* Code */
+  --code-background:   var(--mn-surface);
+  --code-normal:       var(--mn-text);
+  --code-keyword:      var(--mn-mauve);
+  --code-string:       var(--mn-green);
+  --code-number:       var(--mn-gold);
+  --code-function:     var(--mn-pink);
+  --code-comment:      var(--mn-overlay);
+  --code-property:     var(--mn-sky);
+
+  /* Callouts */
+  --callout-info:     var(--mn-sky);
+  --callout-success:  var(--mn-green);
+  --callout-warning:  var(--mn-peach);
+  --callout-error:    var(--mn-red);
+  --callout-tip:      var(--mn-mauve);
+  --callout-quote:    var(--mn-lavender);
+}
+
+/* Focused workspace cursor / caret = mauve */
+.theme-dark .markdown-source-view .CodeMirror-cursor,
+.theme-dark .cm-editor .cm-cursorLayer .cm-cursor {
+  border-color: var(--mn-mauve) !important;
+}
+
+/* Active line gutter — subtle mauve highlight */
+.theme-dark .CodeMirror-activeline-background,
+.theme-dark .cm-active.cm-line {
+  background: #B347FF11 !important;
+}
+
+/* Graph view: links mauve, nodes pink */
+.theme-dark .graph-view {
+  --graph-line:        var(--mn-mauve);
+  --graph-node:        var(--mn-pink);
+  --graph-node-tag:    var(--mn-gold);
+  --graph-node-focused:var(--mn-mauve);
+}
