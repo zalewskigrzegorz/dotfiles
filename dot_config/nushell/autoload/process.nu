@@ -1,46 +1,6 @@
 # Process Management Utilities
 # Functions for managing and killing processes
 
-# Kill all Vitest test runner processes
-# Finds and kills all running Vitest processes that are consuming CPU
-# Usage: kill-vitest
-export def kill-vitest [] {
-    print "Searching for Vitest processes..."
-    
-    # Use pgrep to find PIDs of processes containing "vitest" in command line
-    let pids = (
-        ^pgrep -f "vitest" 
-        | lines 
-        | each {|line| $line | into int }
-    )
-    
-    if ($pids | is-empty) {
-        print "✓ No Vitest processes found"
-        return
-    }
-    
-    # Get process details for display
-    for $pid in $pids {
-        let proc_info = (ps | where pid == $pid | first)
-        if ($proc_info | is-not-empty) {
-            print $"Found Vitest process: PID ($pid), CPU: ($proc_info.cpu)%, MEM: ($proc_info.mem)"
-        }
-    }
-    
-    # Kill all processes
-    for $pid in $pids {
-        try {
-            kill -9 $pid
-            print $"✓ Killed Vitest process (PID: $pid)"
-        } catch {|err|
-            let err_msg = try { $err.msg } catch { $err | describe }
-            print $"✗ Failed to kill process PID ($pid): ($err_msg)"
-        }
-    }
-    
-    print "✓ Done"
-}
-
 # Kill processes by name pattern
 # More flexible function to kill any process matching a pattern
 # Usage: kill-process "vitest" or kill-process "node.*vitest"
@@ -122,47 +82,5 @@ export def high-mem [
     | sort-by {|row| $row.mem | into int } --reverse 
     | select pid cpu mem name 
     | table
-}
-
-# Monitor Vitest processes
-# Watch for Vitest processes and optionally auto-kill them
-# Usage: watch-vitest [--auto-kill]
-export def watch-vitest [
-    --auto-kill (-k)  # Automatically kill Vitest processes when found
-] {
-    print "Monitoring for Vitest processes..."
-    print "Press Ctrl+C to stop"
-    
-    loop {
-        let pids = (
-            ^pgrep -f "vitest" 
-            | lines 
-            | each {|line| $line | into int }
-        )
-        
-        if not ($pids | is-empty) {
-            let count = ($pids | length)
-            mut total_cpu = 0.0
-            
-            for $pid in $pids {
-                let proc_info = (ps | where pid == $pid | first)
-                if ($proc_info | is-not-empty) {
-                    $total_cpu = $total_cpu + ($proc_info.cpu | into float)
-                    print $"  PID ($pid): CPU ($proc_info.cpu)%, MEM ($proc_info.mem)"
-                }
-            }
-            
-            let plural = if $count == 1 { "process" } else { "processes" }
-            print $"⚠️  Found ($count) Vitest ($plural) using ($total_cpu | math round --precision 1)% CPU"
-            
-            if $auto_kill {
-                process kill-vitest
-            }
-        } else {
-            print "✓ No Vitest processes running"
-        }
-        
-        sleep 5sec
-    }
 }
 

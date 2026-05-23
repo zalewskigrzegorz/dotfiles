@@ -17,6 +17,3 @@ def f [
 ] {
     ^fzf ...$args
 }
-
-# Shortcuts helper using navi
-alias n = navi 
