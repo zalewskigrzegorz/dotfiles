@@ -54,3 +54,26 @@ without losing OpenDyslexic's dyslexia-friendly letter shapes. If you ever feel
 - Explicit user request ("daj tu Atkinson zamiast OpenDyslexic" → fine).
 - A single site via Stylus extension userstyle, if a particular site renders
   OpenDyslexic unreadable.
+
+## Per-site userstyle overrides (Stylus)
+
+For daily-driver sites where you want OpenDyslexic + neon palette but the
+site's own font stack blocks generic-family fallback (Apple system / Mona Sans
+/ Inter loaded by site), use a Stylus userstyle to force it.
+
+| Site | Userstyle file | What it forces |
+|---|---|---|
+| github.com | `dot_config/stylus/github-mocha-neon-override.user.css` | Mocha Neon palette override + body=OpenDyslexicM, code=FantasqueSansMono→Iosevka |
+
+## Code font preference
+
+Stack for any "code" / monospace usage in browser userstyles:
+
+```css
+font-family: "FantasqueSansMono Nerd Font", "FantasqueSansM Nerd Font",
+             "Fantasque Sans Mono", "Iosevka Nerd Font Propo",
+             "Iosevka Nerd Font", ui-monospace, "SFMono-Regular", Menlo, monospace;
+```
+
+Primary = FantasqueSansMono, fallback = Iosevka. Order matters — list naming
+variants together because Nerd Font PostScript names differ across distros.
