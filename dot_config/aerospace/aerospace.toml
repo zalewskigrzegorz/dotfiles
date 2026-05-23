@@ -12,7 +12,6 @@ after-login-command = []
 
 after-startup-command = [
   'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher >> $HOME/Code/dotfiles/logs/sketchybar-watcher.log 2>&1',
-  'exec-and-forget sketchybar >> $HOME/Code/dotfiles/logs/sketchybar.log 2>&1',
   'exec-and-forget /opt/homebrew/bin/borders >> $HOME/Code/dotfiles/logs/borders.log 2>&1',
 ]
 
@@ -95,7 +94,12 @@ inner.horizontal = 8
 inner.vertical = 8
 outer.left = 5
 outer.bottom = 5
-outer.top = [{ monitor."Built-in" = 10 }, { monitor.'DELL U3225QE' = 45 }, { monitor.'C34H89x' = 45 }, 24]
+outer.top = [
+  { monitor."Built-in"     = 40 },
+  { monitor.'DELL U3225QE' = 40 },
+  { monitor.'C34H89x'      = 40 },
+  40,
+]
 outer.right = 5
 
 # 'main' binding mode declaration
