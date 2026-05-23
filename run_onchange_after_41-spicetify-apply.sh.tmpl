@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+{{- if eq .chezmoi.os "darwin" }}
+# Sync Mocha Neon Spicetify color.ini → live theme dir + spicetify apply.
+# Requires: spicetify-cli installed (via Brewfile) + Spotify.app present + one-time
+# `spicetify backup apply` ran (this hook does NOT auto-init because the backup
+# touches Spotify.app binary and needs user attention on first run).
+#
+# fingerprint: {{ output "bash" "-c" (printf "cd %q && find dot_config/spicetify -type f -name 'color.ini' -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
+
+set -eu
+
+if ! command -v spicetify >/dev/null 2>&1; then
+  echo "spicetify-apply: spicetify-cli not on PATH — skipping."
+  exit 0
+fi
+
+SRC="$HOME/.config/spicetify/Themes/catppuccin/color.ini"
+REPO="$HOME/Code/dotfiles/dot_config/spicetify/Themes/catppuccin/color.ini"
+
+if [ ! -f "$REPO" ]; then
+  echo "spicetify-apply: $REPO missing — skipping."
+  exit 0
+fi
+
+# Ensure theme dir exists (catppuccin theme must be cloned once).
+if [ ! -d "$HOME/.config/spicetify/Themes/catppuccin" ]; then
+  echo "spicetify-apply: ~/.config/spicetify/Themes/catppuccin missing — run:"
+  echo "  git clone https://github.com/catppuccin/spicetify /tmp/cps && \\"
+  echo "  cp -r /tmp/cps/catppuccin ~/.config/spicetify/Themes/catppuccin"
+  echo "Then re-run this hook (touch its fingerprint or chezmoi apply --force)."
+  exit 0
+fi
+
+cp -f "$REPO" "$SRC"
+spicetify config current_theme catppuccin >/dev/null 2>&1 || true
+spicetify config color_scheme mocha >/dev/null 2>&1 || true
+spicetify apply >/dev/null 2>&1 || echo "spicetify-apply: apply failed — Spotify may need 'spicetify backup apply' first."
+echo "spicetify-apply: Mocha Neon applied."
+{{- end }}
