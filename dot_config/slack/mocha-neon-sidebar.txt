@@ -1,0 +1,7 @@
+# Slack sidebar theme — Mocha Neon (paste into Preferences → Sidebar → Customize → Color Picker)
+# 10 hex codes comma-separated, order matters: column_bg, menu_hover, active_item,
+# active_item_text, hover_item, text, active_presence, mention_badge, top_nav_bg, top_nav_text.
+#
+# Source of truth: docs/mocha-neon-palette.md.
+
+#1E1E2E,#45475A,#B347FF,#1E1E2E,#9580FF,#F0F0FF,#50FA7B,#FF6B9D,#1E1E2E,#F0F0FF

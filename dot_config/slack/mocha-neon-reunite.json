@@ -1,0 +1,12 @@
+{
+  "_note": "Reunite (Redocly Slack client) custom theme. 4-color model, NOT the 10-hex standard Slack format. Paste each value into Preferences → Appearance → Custom theme.",
+  "name": "Mocha Neon",
+  "appearance": "dark",
+  "windowGradient": true,
+  "colors": {
+    "systemNavigation": "#1E1E2E",
+    "selectedItems": "#B347FF",
+    "presenceIndication": "#50FA7B",
+    "notifications": "#FF6B9D"
+  }
+}
