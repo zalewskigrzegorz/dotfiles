@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+{{- if eq .chezmoi.os "darwin" }}
+# Sync Cursor user settings from chezmoi source (dot_config/cursor/User/settings.json)
+# → real Cursor load path (~/Library/Application Support/Cursor/User/settings.json).
+# Cursor on macOS reads from Library/Application Support, NOT ~/.config — same issue
+# as superfile. Without this hook a fresh-machine apply leaves Mocha Neon overrides
+# in `~/.config/cursor/` where Cursor never looks.
+#
+# fingerprint: {{ output "bash" "-c" (printf "cd %q && find dot_config/cursor -type f -name '*.json' -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
+
+set -eu
+
+SRC="$HOME/.config/cursor/User/settings.json"
+DST="$HOME/Library/Application Support/Cursor/User/settings.json"
+
+if [ ! -f "$SRC" ]; then
+  echo "cursor-settings-sync: $SRC missing — skipping."
+  exit 0
+fi
+
+mkdir -p "$(dirname "$DST")"
+
+# Preserve a timestamped backup so if the user has unmerged local changes we
+# don't silently nuke them. Keep last 3.
+if [ -f "$DST" ]; then
+  ts="$(date +%s)"
+  cp "$DST" "${DST}.bak-${ts}"
+  ls -1t "${DST}.bak-"* 2>/dev/null | tail -n +4 | xargs rm -f 2>/dev/null || true
+fi
+
+cp -f "$SRC" "$DST"
+echo "cursor-settings-sync: settings.json synced to Library/Application Support."
+{{- end }}
