@@ -11,8 +11,13 @@ set -u
 # 1a) macOS-native notification (primary path on Darwin).
 # osascript works without a controlling TTY — important because Claude Code
 # hooks run in a subprocess without /dev/tty, which makes OSC 9 silently fail.
+# Sound is played via afplay separately so we can use a custom cyberpunk-vibe
+# mp3 (osascript's `sound name "X"` only supports built-in macOS aiff sounds).
 if [ "$(uname -s)" = "Darwin" ]; then
-  osascript -e 'display notification "Claude is waiting" with title "Claude" sound name "Tink"' >/dev/null 2>&1 || true
+  osascript -e 'display notification "Claude is waiting" with title "Claude"' >/dev/null 2>&1 || true
+  # Background-play the custom notification sound; never block hook exit.
+  sound_file="$HOME/.claude/hooks/sounds/claude-done.mp3"
+  [ -f "$sound_file" ] && (afplay "$sound_file" >/dev/null 2>&1 &)
 fi
 
 # 1b) OSC 9 — fallback for SSH / Linux terminals (survives ssh tunnels).
