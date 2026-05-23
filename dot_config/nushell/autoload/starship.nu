@@ -19,13 +19,14 @@ def create_right_prompt [] {
 $env.PROMPT_COMMAND = { || create_left_prompt }
 $env.PROMPT_COMMAND_RIGHT = { || create_right_prompt }
 
-# Vi-mode prompt indicators — synthwave/cyberpunk power glyphs.
+# Vi-mode prompt indicators — Mocha Neon color-coded.
 # nu/reedline only supports two indicators (no VISUAL / REPLACE env var
-# as of nushell 0.x — see polish-brainstorm for workaround ideas).
-#   insert  → ⚡ (zap)   — active/energized, typing
-#   normal  → ⏸ (pause) — halted, command mode
-$env.PROMPT_INDICATOR_VI_INSERT = "⚡ "
-$env.PROMPT_INDICATOR_VI_NORMAL = "⏸ "
+# as of current nushell — see polish-brainstorm for workaround ideas).
+#   insert  → ❯ (chevron, default text color)  — natural typing mode
+#   normal  → ⚡ (gold zap, #FFD700)             — energized command mode
+# Inline ANSI 24-bit escape so the color survives any terminal theme.
+$env.PROMPT_INDICATOR_VI_INSERT = "❯ "
+$env.PROMPT_INDICATOR_VI_NORMAL = $"(ansi -e {fg: '#FFD700' attr: b})⚡ (ansi reset)"
 # Plain shell mode (non-vi) — keep empty so starship's [character] owns it.
 $env.PROMPT_INDICATOR = ""
 $env.PROMPT_MULTILINE_INDICATOR = "├─ "
