@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+{{- if eq .chezmoi.os "darwin" }}
+# Sync superfile theme + config from chezmoi-managed source (dot_config/superfile/)
+# to superfile's real macOS load path (~/Library/Application Support/superfile/).
+#
+# Why this hook exists: superfile on macOS reads its theme + config from
+# `~/Library/Application Support/superfile/`, NOT `~/.config/superfile/`. The
+# chezmoi-managed `dot_config/superfile/` directory therefore needs to be
+# mirrored into the Library path or the Mocha Neon theme falls back to vanilla
+# Catppuccin Mocha.
+#
+# fingerprint: {{ output "bash" "-c" (printf "cd %q && find dot_config/superfile -type f \\( -name '*.toml' \\) -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
+
+set -eu
+
+SRC="$HOME/.config/superfile"
+DST="$HOME/Library/Application Support/superfile"
+
+if [ ! -d "$SRC" ]; then
+  echo "superfile-theme-sync: $SRC missing — skipping."
+  exit 0
+fi
+
+mkdir -p "$DST/theme"
+
+# Copy theme(s) — only mocha-neon (others ship with superfile binary).
+if [ -f "$SRC/theme/mocha-neon.toml" ]; then
+  cp -f "$SRC/theme/mocha-neon.toml" "$DST/theme/mocha-neon.toml"
+  echo "superfile-theme-sync: mocha-neon.toml synced."
+fi
+
+# Point config.toml at mocha-neon. Don't clobber the whole file — only the
+# theme key — so user-managed keys (e.g. file_size_use_si) survive.
+if [ -f "$DST/config.toml" ]; then
+  if grep -qE '^theme\s*=' "$DST/config.toml"; then
+    /usr/bin/sed -i.bak -E "s/^theme[[:space:]]*=.*/theme = 'mocha-neon'/" "$DST/config.toml"
+    rm -f "$DST/config.toml.bak"
+    echo "superfile-theme-sync: config.toml theme key set to mocha-neon."
+  else
+    echo "theme = 'mocha-neon'" >> "$DST/config.toml"
+    echo "superfile-theme-sync: config.toml theme key appended."
+  fi
+elif [ -f "$SRC/config.toml" ]; then
+  cp "$SRC/config.toml" "$DST/config.toml"
+  echo "superfile-theme-sync: seeded config.toml from chezmoi source."
+fi
+{{- end }}
