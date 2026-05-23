@@ -1,0 +1,142 @@
+prSections:
+- title: "👾 Cyberpunks"
+  filters: >-
+    is:open
+    review-requested:@me
+    team-review-requested:Redocly/cyberpunks
+    -author:@me
+    -author:app/renovate
+    -author:app/dependabot
+  type: null
+- title: "👷🏼 Staff Engineers"
+  filters: >-
+    is:open
+    review-requested:@me
+    team-review-requested:Redocly/staff-engineers
+    -author:@me
+    -author:app/renovate
+    -author:app/dependabot
+  type: null
+- title: "🤖 Renovate"
+  filters: >-
+    is:open
+    review-requested:@me
+    author:app/renovate
+  type: null
+- title: "🤖 Dependabot"
+  filters: >-
+    is:open
+    review-requested:@me
+    author:app/dependabot
+  type: null
+- title: My Pull Requests
+  filters: is:open author:@me
+  type: null
+- title: Needs My Review
+  filters: >-
+    is:open
+    review-requested:@me
+    -author:@me
+    -author:app/renovate
+    -author:app/dependabot
+  type: null
+- title: Involved
+  filters: is:open involves:@me -author:@me
+  type: null
+issuesSections:
+- title: My Issues
+  filters: is:open author:@me
+- title: Assigned
+  filters: is:open assignee:@me
+- title: Involved
+  filters: is:open involves:@me -author:@me
+repo:
+  branchesRefetchIntervalSeconds: 30
+  prsRefetchIntervalSeconds: 60
+defaults:
+  preview:
+    open: true
+    width: 50
+  prsLimit: 20
+  prApproveComment: LGTM
+  issuesLimit: 20
+  view: prs
+  layout:
+    prs:
+      updatedAt:
+        width: 5
+      createdAt:
+        width: 5
+      repo:
+        width: 20
+      author:
+        width: 15
+      authorIcon:
+        hidden: false
+      assignees:
+        width: 20
+        hidden: true
+      base:
+        width: 15
+        hidden: true
+      lines:
+        width: 15
+    issues:
+      updatedAt:
+        width: 5
+      createdAt:
+        width: 5
+      repo:
+        width: 15
+      creator:
+        width: 10
+      creatorIcon:
+        hidden: false
+      assignees:
+        width: 20
+        hidden: true
+  refetchIntervalMinutes: 30
+keybindings:
+  universal: []
+  issues: []
+  prs: []
+  branches: []
+repoPaths:
+  "zalewskigrzegorz/dotfiles": "/Users/greg/Code/dotfiles"
+  "zalewskigrzegorz/home-lab": "/Users/greg/Code/home-lab"
+  "Labs/*": "/Users/greg/Code/Labs"
+  "Redocly/redocly": "/Users/greg/Code/Redocly/redocly"
+theme:
+  ui:
+    sectionsShowCount: true
+    table:
+      showSeparator: true
+      compact: false
+  colors:
+    background:
+      selected: "#45475A"
+    border:
+      primary: "#B347FF"
+      secondary: "#9580FF"
+      faint: "#A6ADC8"
+    text:
+      primary: "#F0F0FF"
+      secondary: "#A6ADC8"
+      inverted: "#1E1E2E"
+      faint: "#6C7086"
+      warning: "#FFD700"
+      success: "#50FA7B"
+      error: "#FF6B9D"
+      actor: "#A6ADC8"
+    icon:
+      newcontributor: "#50FA7B"
+      contributor: "#8BE9FD"
+      collaborator: "#FFD700"
+      member: "#B347FF"
+      owner: "#FF80BF"
+      unknownrole: "#FF8C42"
+pager:
+  diff: ""
+confirmQuit: false
+showAuthorIcons: true
+smartFilteringAtLaunch: true

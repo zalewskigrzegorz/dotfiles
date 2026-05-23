@@ -242,7 +242,12 @@ ctrl-shift-space = [
 # 'service' binding mode declaration.
 # See: https://nikitabobko.github.io/AeroSpace/guide#binding-modes
 [mode.service.binding]
-esc = ['reload-config', 'mode main', 'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event leave_service', 'exec-and-forget sketchybar --reload']
+# esc = clean exit from service mode (no reload-config, no sketchybar reload).
+# Reload is on 'r' (flatten-workspace-tree). Accidental ctrl-shift-space → esc
+# should just dismiss the skull, not rebuild the world.
+esc = ['mode main', 'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event leave_service']
+# Re-pressing the entry shortcut also toggles out of service mode.
+ctrl-shift-space = ['mode main', 'exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher notify --event leave_service']
 r = [
   'flatten-workspace-tree',
   'mode main',

@@ -162,9 +162,6 @@
     "security-guidance@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true,
-    {{- if eq .chezmoi.os "darwin" }}
-    "superwhisper@superwhisper": true,
-    {{- end }}
     "typescript-lsp@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
@@ -173,14 +170,7 @@
         "source": "github",
         "repo": "anthropics/claude-plugins-official"
       }
-    }{{- if eq .chezmoi.os "darwin" }},
-    "superwhisper": {
-      "source": {
-        "source": "github",
-        "repo": "superultrainc/superwhisper-claude-code"
-      }
     }
-    {{- end }}
   },
   "outputStyle": "pl-en-short",
   "theme": "custom:dracula-pro",

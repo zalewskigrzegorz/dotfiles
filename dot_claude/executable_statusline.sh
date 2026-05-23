@@ -156,12 +156,47 @@ if [ -n "$transcript" ] && [ -f "$transcript" ]; then
   fi
 fi
 
-# Compaction counter — uses test() so it matches multiple possible marker names
+# Compaction segment — three states:
+#   1) "compacted Xm ago" (mauve) — last isCompactSummary within last 30min
+#   2) " auto Nx" / " manual Nx" — total count + last trigger when older
+#   3) (omitted) — never compacted in this transcript
 comp_seg=""
 if [ -n "$transcript" ] && [ -f "$transcript" ]; then
-  comp_count=$(jq -rs '[.[] | select(.type | test("^(compact|compaction)$"))] | length' "$transcript" 2>/dev/null || echo 0)
-  if [ -n "$comp_count" ] && [ "$comp_count" != "null" ] && [ "$comp_count" -gt 0 ]; then
-    comp_seg="${SEP}${O}󰑨 ${comp_count}${N}"
+  comp_info=$(jq -rs '
+    [.[] | select(.isCompactSummary == true)] as $cs |
+    if ($cs | length) == 0 then "none"
+    else
+      ($cs | length) as $n |
+      ($cs | last) as $last |
+      ($last.timestamp // "") as $ts |
+      ($last.compactMetadata.trigger // "manual") as $trig |
+      "\($n)|\($ts)|\($trig)"
+    end
+  ' "$transcript" 2>/dev/null || echo none)
+  if [ "$comp_info" != "none" ] && [ -n "$comp_info" ]; then
+    comp_count=${comp_info%%|*}
+    rest=${comp_info#*|}
+    comp_ts=${rest%%|*}
+    comp_trig=${rest#*|}
+    # parse ISO ts → epoch (gnu/bsd date both, fallback 0)
+    if [ -n "$comp_ts" ]; then
+      comp_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${comp_ts%.*}" +%s 2>/dev/null \
+                || date -d "$comp_ts" +%s 2>/dev/null || echo 0)
+    else
+      comp_epoch=0
+    fi
+    age=$(( now_ts - comp_epoch ))
+    if [ "$comp_epoch" -gt 0 ] && [ "$age" -lt 1800 ]; then
+      # < 30min ago — fresh, prominent badge
+      if (( age < 60 )); then age_fmt="just now"
+      elif (( age < 600 )); then age_fmt="$((age / 60))m ago"
+      else age_fmt="$((age / 60))m ago"
+      fi
+      comp_seg="${SEP}${LABEL}󰑨 compacted ${age_fmt}${N}"
+    else
+      # older — show count + last trigger
+      comp_seg="${SEP}${O}󰑨 ${comp_trig} ×${comp_count}${N}"
+    fi
   fi
 fi
 
@@ -195,6 +230,14 @@ if [ -n "$transcript" ] && [ -f "$transcript" ]; then
     elif [ "$ctx_pct" -ge 60 ]; then cc="$O"
     else cc="$G"; fi
     ctx_seg="${SEP}${AMBER}ctx${N} $(bar "$ctx_pct" "$cc") ${cc}${B}${ctx_pct}%${N}"
+    # Auto-compact imminence warning — Claude Code auto-compacts somewhere
+    # between 90–95% of context. Surface this BEFORE it happens so user
+    # knows a compaction is coming, not just "ctx is high".
+    if [ "$ctx_pct" -ge 90 ]; then
+      ctx_seg="${ctx_seg} ${R}${B}󰁪 auto-compact imminent${N}"
+    elif [ "$ctx_pct" -ge 80 ]; then
+      ctx_seg="${ctx_seg} ${O}󰁪 compact soon${N}"
+    fi
   fi
 fi
 [ -z "$ctx_seg" ] && [ "$over200k" = "true" ] && ctx_seg="${SEP}${R}ctx >200k${N}"

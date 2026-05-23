@@ -1,0 +1,26 @@
+[metadata]
+name = "tools"
+description = "Browse installed brew formulae + casks with descriptions. Natural-language search across name + purpose."
+requirements = ["brew", "jq"]
+
+[source]
+# Builds tab-separated rows: <name>\t<desc>\t<kind>
+# Both formulae (CLI) and casks (apps) so 'tools' is the one place you ask
+# "what do I have for X". Sorted alphabetically.
+command = """
+brew info --json=v2 --installed 2>/dev/null \
+  | jq -r '
+      ([.formulae[] | "\\(.name)\\t\\(.desc // "(no description)")\\t[cli]"] +
+       [.casks[]    | "\\(.token)\\t\\(.desc // "(no description)")\\t[app]"])
+      | sort[]
+    '
+"""
+output = "{split:\t:0}"
+display = "{split:\t:0..}"
+
+[preview]
+# Full brew info on the focused row.
+command = "brew info {split:\\t:0}"
+
+[ui.preview_panel]
+size = 60
