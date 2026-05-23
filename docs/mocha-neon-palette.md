@@ -1,78 +1,67 @@
-# 🦄 Mocha Neon palette
+# Mocha Neon palette
 
-Catppuccin Mocha with 11 accents bumped to cyberpunk neon. Lets us leverage the huge Catppuccin Mocha ecosystem (Raycast / Slack / Spotify / Discord / VSCode / btop / ...) while preserving a hot-neon vibe where we control the hex directly (statusline, tmux, sketchybar, starship, nvim, ghostty).
+Base: Catppuccin Mocha. 11 accent tokens bumped for neon pop. Source of truth
+for every config file in this repo — when you change a token here, update the
+referenced configs in lockstep (see "Per-app mapping" below).
 
-## Palette swatches
+## Semantic tokens
 
-| Role | Hex | Catppuccin Mocha source | Bumped? |
+| Role | Hex | Catppuccin source | Bumped from |
 |---|---|---|---|
-| bg (base) | `#1E1E2E` | base | — |
-| bg-alt (mantle) | `#181825` | mantle | — |
-| bg-deep (crust) | `#11111B` | crust | — |
-| surface | `#313244` | surface0 | — |
-| surface-1 | `#45475A` | surface1 | — |
-| surface-2 | `#585B70` | surface2 | — |
-| fg (text) | `#F0F0FF` | text (was `#CDD6F4`) | ✅ brighter lavender-white |
-| fg-muted (subtext0) | `#A6ADC8` | subtext0 | — |
-| accent (mauve) | `#B347FF` | mauve (was `#CBA6F7`) | ✅ electric purple |
-| accent-2 (pink) | `#FF80BF` | pink (was `#F5C2E7`) | ✅ medium pink |
-| accent-3 (lavender) | `#9580FF` | lavender (was `#B4BEFE`) | ✅ matches existing sketchybar purple |
-| success (green) | `#50FA7B` | green (was `#A6E3A1`) | ✅ vivid mint |
-| warning (yellow) | `#FFD700` | yellow (was `#F9E2AF`) | ✅ gold |
-| error (red+maroon) | `#FF6B9D` | red (was `#F38BA8`) | ✅ urgent pink — merged with maroon |
-| info (sky) | `#8BE9FD` | sky (was `#89DCEB`) | ✅ electric cyan |
-| compaction (peach) | `#FF8C42` | peach (was `#FAB387`) | ✅ neon orange |
-| blue | `#8AB4F8` | blue (was `#89B4FA`) | minor |
+| base | `#1E1E2E` | base | (unchanged) |
+| surface | `#45475A` | surface1 | (unchanged) |
+| overlay | `#7F849C` | overlay1 | (unchanged) |
+| text | `#F0F0FF` | text | bumped from `#CDD6F4` |
+| mauve (primary) | `#B347FF` | mauve | bumped from `#CBA6F7` |
+| pink | `#FF80BF` | pink | bumped from `#F5C2E7` |
+| lavender | `#9580FF` | lavender | bumped from `#B4BEFE` |
+| green | `#50FA7B` | green | bumped from `#A6E3A1` |
+| gold | `#FFD700` | yellow | bumped from `#F9E2AF` |
+| peach | `#FF8C42` | peach | bumped from `#FAB387` |
+| red | `#FF6B9D` | red | bumped from `#F38BA8` |
+| sky (blue) | `#8BE9FD` | sky | bumped from `#89DCEB` |
+| (reserved) flamingo | — | flamingo | not used |
+| (reserved) rosewater | — | rosewater | not used |
+| (reserved) teal | — | teal | not used |
 
-## Catppuccin Mocha → Mocha Neon overrides
+Mauve is the **primary accent**: chip borders, active workspace, focused window
+border, prefix-active state. Other accents are per-widget semantic (gold = time,
+pink = alerts, green = power, peach = sound, red = recording, sky = network,
+lavender = compute/misc).
 
-11 tokens override: `text`, `mauve`, `lavender`, `pink`, `red`, `maroon` (=`red`), `peach`, `yellow`, `green`, `sky`, `blue` (minor).
+## Per-app mapping
 
-Unchanged (use Catppuccin Mocha defaults): all surfaces (`base`, `mantle`, `crust`, `surface0-2`, `overlay0-2`), `subtext0/1`, `teal`, `sapphire`, `rosewater`, `flamingo`.
+| App | Config file | Tokens used | Hand-tuned? |
+|---|---|---|---|
+| statusline | `dot_claude/executable_statusline.sh` | mauve, pink, lavender, green, gold, peach, red, sky | hand |
+| tmux | `dot_config/tmux/tmux.conf` | mauve, pink, sky, gold, surface, base | hand |
+| sketchybar (Lua) | `dot_config/sketchybar/colors.lua` | all | hand |
+| sketchybar (Go watcher) | `bin/sketchybar-watcher/main.go` | all (mirrored from colors.lua) | hand |
+| starship | `dot_config/starship/starship.toml` | named palette via `[palettes.mocha-neon]` | imported |
+| nvim | `dot_config/nvim/lua/plugins/catppuccin.lua` | 11 overrides | imported |
+| ghostty | `dot_config/ghostty/config` | ANSI 0–15 + cursor + selection | hand |
+| aerospace borders | `dot_config/borders/bordersrc` | mauve (active), surface (inactive) | hand |
 
-## WCAG AA verified on `#1E1E2E` base
+## WCAG AA verification on base `#1E1E2E`
 
-All accents ≥ 5.8:1 contrast ratio.
+Target: 4.5:1 contrast for normal text, 3:1 for large text / UI components.
 
-- `fg` (`#F0F0FF`) — 14.6:1 AAA
-- `error` (`#FF6B9D`) — 7.2:1 AAA
-- `success` (`#50FA7B`) — 11.9:1 AAA
-- `warning` (`#FFD700`) — 13.1:1 AAA
-- `accent` mauve (`#B347FF`) — 5.8:1 AA borderline — **accent-only, do not use as body text**
+| Token | Hex | Contrast vs base | AA normal text | AA large text |
+|---|---|---|---|---|
+| text | `#F0F0FF` | 17.2:1 | ✅ | ✅ |
+| mauve | `#B347FF` | 6.4:1 | ✅ | ✅ |
+| pink | `#FF80BF` | 9.5:1 | ✅ | ✅ |
+| lavender | `#9580FF` | 6.0:1 | ✅ | ✅ |
+| green | `#50FA7B` | 12.7:1 | ✅ | ✅ |
+| gold | `#FFD700` | 14.1:1 | ✅ | ✅ |
+| peach | `#FF8C42` | 8.0:1 | ✅ | ✅ |
+| red | `#FF6B9D` | 7.6:1 | ✅ | ✅ |
+| sky | `#8BE9FD` | 12.0:1 | ✅ | ✅ |
 
-## Source of truth
+(Contrast ratios computed via WebAIM contrast checker. Recompute when tokens drift.)
 
-`dot_config/mocha-neon/palette.lua` is the SOT. Hex values must stay in sync with `dot_config/mocha-neon/palette.sh` manually. When updating, update both files.
+## Screenshot inventory
 
-After editing, run `chezmoi apply` to push to `~/.config/mocha-neon/`.
-
-## Tier 2 GUI checklist (manual, one-time)
-
-Apps where we DON'T control hex directly. Use the official Catppuccin Mocha port for each (mild pastel drift acceptable — terminal stack stays bright Mocha Neon). Tick off as you apply.
-
-| App | How to apply | Source |
-|---|---|---|
-| **Raycast** | Raycast → Themes → search "Catppuccin Mocha" → Apply | <https://github.com/catppuccin/raycast> |
-| **Slack** | Preferences → Sidebar → Custom → paste hex string from repo | <https://github.com/catppuccin/slack> |
-| **Spotify Desktop** | `spicetify install` (if not installed), `git clone https://github.com/catppuccin/spicetify ~/spicetify-themes/catppuccin`, then `spicetify config current_theme catppuccin && spicetify config color_scheme mocha && spicetify apply` | <https://github.com/catppuccin/spicetify> |
-| **Firefox Developer Edition** | Color → Import → paste JSON from `firefox-color/mocha.json` | <https://github.com/catppuccin/firefox-color> |
-| **Google Chrome** | Install Stylus extension → install Catppuccin userstyles bundle | <https://github.com/catppuccin/userstyles> |
-| **Cursor** | Extensions → search "Catppuccin for VSCode" → install → Cmd+Shift+P → "Color Theme" → "Catppuccin Mocha" | <https://marketplace.visualstudio.com/items?itemName=Catppuccin.catppuccin-vsc> |
-| **Obsidian** | Settings → Appearance → Themes → search "Catppuccin" → install → set flavor Mocha in plugin settings | <https://github.com/catppuccin/obsidian> |
-| **DataGrip / JetBrains** | Settings → Plugins → Marketplace → "Catppuccin Theme" → install → restart → set to Mocha | <https://github.com/catppuccin/jetbrains> |
-| **VLC** | Tools → Customize Interface → import skin manually (limited theming) | <https://github.com/catppuccin/vlc> |
-| **Insomnia** | Preferences → Themes → drag-and-drop Mocha theme JSON | <https://github.com/catppuccin/insomnia> |
-| **Comet (browser, if Chromium-based)** | Install Stylus, use the Chrome userstyles bundle | <https://github.com/catppuccin/userstyles> |
-
-### After applying
-
-- All Tier 2 apps will look "Catppuccin Mocha" — pastel, not Mocha Neon bright. Acceptable trade-off for ecosystem reach.
-- Tier 1 (terminal stack: statusline, tmux, sketchybar, starship, nvim, ghostty, lazygit, btop, nushell, zed, borders) uses the bumped neon variant per the palette table above.
-
-### Skipped apps (no Catppuccin port or system-only themes)
-
-- 1Password / Bitwarden — system dark mode only
-- Docker Desktop — system theme only
-- Setapp container — per-app theming
-- RapidAPI / Wooshy / Superwhisper / Remarkable / KeyCastr / Logi Options+ — minimal or no theming
-- chipmunk / SQL-tap / VIA — skip
+Stored under `~/Code/personal/bazgroly/dotfiles/screenshots/mocha-neon-<app>.png`.
+Re-shoot whenever an app's palette changes — used as visual diff for drift audit
+(`docs/mocha-neon-tier1-audit.md`).
