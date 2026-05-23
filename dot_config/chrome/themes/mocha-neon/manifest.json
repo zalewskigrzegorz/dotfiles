@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "Mocha Neon",
+  "description": "Mocha Neon — bumped Catppuccin Mocha with neon accents",
+  "version": "1.0.0",
+  "theme": {
+    "colors": {
+      "frame": [30, 30, 46],
+      "frame_inactive": [30, 30, 46],
+      "frame_incognito": [69, 71, 90],
+      "frame_incognito_inactive": [69, 71, 90],
+      "background_tab": [30, 30, 46],
+      "background_tab_inactive": [30, 30, 46],
+      "background_tab_incognito": [30, 30, 46],
+      "background_tab_incognito_inactive": [30, 30, 46],
+      "bookmark_text": [240, 240, 255],
+      "tab_text": [240, 240, 255],
+      "tab_background_text": [127, 132, 156],
+      "tab_background_text_inactive": [127, 132, 156],
+      "tab_background_text_incognito": [127, 132, 156],
+      "tab_background_text_incognito_inactive": [127, 132, 156],
+      "toolbar": [69, 71, 90],
+      "toolbar_text": [240, 240, 255],
+      "toolbar_button_icon": [179, 71, 255],
+      "omnibox_text": [240, 240, 255],
+      "omnibox_background": [30, 30, 46],
+      "ntp_background": [30, 30, 46],
+      "ntp_header": [69, 71, 90],
+      "ntp_link": [179, 71, 255],
+      "ntp_link_underline": [179, 71, 255],
+      "ntp_text": [240, 240, 255],
+      "ntp_section": [30, 30, 46],
+      "ntp_section_text": [127, 132, 156],
+      "ntp_section_link": [179, 71, 255],
+      "button_background": [69, 71, 90],
+      "control_background": [69, 71, 90],
+      "tab_background_inactive_frame_active": [69, 71, 90],
+      "tab_background_inactive_frame_inactive": [30, 30, 46]
+    },
+    "tints": {
+      "buttons": [-1, -1, 0.85]
+    },
+    "properties": {
+      "ntp_background_alignment": "bottom"
+    }
+  }
+}

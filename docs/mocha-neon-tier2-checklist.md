@@ -29,7 +29,7 @@ Screenshots: `~/Code/personal/bazgroly/dotfiles/screenshots/mocha-neon-tier2/<ap
 - [ ] **Obsidian** — Settings → Appearance → Themes → Catppuccin. Custom CSS snippet (Settings → Appearance → CSS snippets) with the 11 token overrides. Screenshot: `mocha-neon-tier2/obsidian.png`.
 - [ ] **Spotify (Spicetify)** — `spicetify install catppuccin && spicetify config current_theme catppuccin && spicetify apply`. Edit `~/.config/spicetify/Themes/catppuccin/color.ini` `[Frappe]` (or active flavor) section with bumped hex. Re-`spicetify apply`. Screenshot: `mocha-neon-tier2/spotify.png`.
 - [ ] **Firefox Developer Edition** — Firefox Color extension → import Mocha Neon JSON (hand-authored from palette doc). Screenshot: `mocha-neon-tier2/firefox.png`.
-- [ ] **Google Chrome** — Stylus extension → import Mocha Neon userstyle (fork of catppuccin/userstyles with bumped hex). Screenshot: `mocha-neon-tier2/chrome.png`.
+- [x] **Google Chrome / Comet** — Mocha Neon Chromium theme extension forked from Dracula PRO. Repo source: `dot_config/chrome/themes/mocha-neon/manifest.json` (unpacked extension — load via `chrome://extensions` → Developer mode → Load unpacked → select that dir). Covers tabs, toolbar, omnibox, NTP. Same `.crx`-less directory works in Comet (`comet://extensions`). Screenshot: `mocha-neon-tier2/chrome.png`.
 - [⚠️] **DataGrip / JetBrains IDEs** — Catppuccin plugin already installed. Set:
   - **UI Theme:** Settings → Appearance & Behavior → Appearance → Theme → "Catppuccin Mocha" (or "Islands Catppuccin Mocha" — Islands variant adds tab/pane styling).
   - **Editor color scheme:** Settings → Editor → Color Scheme → "Catppuccin Mocha" (NOT Latte/Frappé/Macchiato).
@@ -37,10 +37,10 @@ Screenshots: `~/Code/personal/bazgroly/dotfiles/screenshots/mocha-neon-tier2/<ap
   - Repo: `dot_config/jetbrains/MochaNeon.icls` (saved for later refinement when bumped JetBrains scheme is feasible).
   - Screenshot: `mocha-neon-tier2/datagrip.png`.
 - [ ] **VLC** — manual import (limited theming support). Accept closest approximation. Screenshot: `mocha-neon-tier2/vlc.png`.
-- [ ] **Insomnia** — Preferences → Themes → Catppuccin Mocha. Check if 11-token override is exposed; if not, file upstream. Screenshot: `mocha-neon-tier2/insomnia.png`.
+- [x] **Insomnia** — Mocha Neon plugin theme forked from Dracula PRO. Repo source: `dot_config/insomnia/plugins/insomnia-plugin-theme-mocha-neon/`. `run_onchange_after_44-insomnia-plugins-sync` rsyncs every plugin into `~/Library/Application Support/Insomnia/plugins/` on apply. Activate via Preferences → Plugins (ensure `insomnia-plugin-theme-mocha-neon` enabled) → Themes → **Mocha Neon**. Screenshot: `mocha-neon-tier2/insomnia.png`.
 - [⚠️] **Comet** — Chromium-based, very limited theming. Investigated 2026-05-23:
   - **Browser chrome:** Comet only offers 12 preset profile-accent colors (no custom hex picker, no `userChrome.css` — Chromium doesn't support that). Closest to Mocha Neon mauve = **purple** preset. Accept as interim.
-  - **Browser theme:** install Catppuccin Mocha theme from Chrome Web Store (search "Catppuccin Mocha") — covers tab/toolbar tint with vanilla pastel. Accept pastel drift; can't bump without forking + repackaging the .crx.
+  - **Browser theme:** Mocha Neon unpacked extension at `dot_config/chrome/themes/mocha-neon/` — load via `comet://extensions` → Developer mode → Load unpacked. Replaces Catppuccin pastel with bumped neon. Covers tab/toolbar tint without forking a `.crx`.
   - **Page-level (GitHub / YouTube / etc.):** install **Stylus** extension + import userstyles from `github.com/catppuccin/userstyles`. Patch hex with Mocha Neon manually per userstyle if pastel reads wrong.
   - Screenshot: `mocha-neon-tier2/comet.png`.
 
