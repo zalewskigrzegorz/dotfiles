@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+{{- if eq .chezmoi.os "darwin" }}
+# Sync Insomnia plugins from chezmoi source → Insomnia's real plugin dir on macOS.
+# Insomnia reads plugins from `~/Library/Application Support/Insomnia/plugins/`.
+#
+# fingerprint: {{ output "bash" "-c" (printf "cd %q && find dot_config/insomnia/plugins -type f \\( -name '*.js' -o -name '*.json' \\) -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
+
+set -eu
+
+SRC_DIR="$HOME/.config/insomnia/plugins"
+DST_DIR="$HOME/Library/Application Support/Insomnia/plugins"
+
+if [ ! -d "$SRC_DIR" ]; then
+  echo "insomnia-plugins-sync: $SRC_DIR missing — skipping."
+  exit 0
+fi
+if [ ! -d "$(dirname "$DST_DIR")" ]; then
+  echo "insomnia-plugins-sync: Insomnia not installed — skipping."
+  exit 0
+fi
+
+mkdir -p "$DST_DIR"
+
+for plugin in "$SRC_DIR"/*/; do
+  [ -d "$plugin" ] || continue
+  name="$(basename "$plugin")"
+  rsync -a --delete "$plugin" "$DST_DIR/$name/"
+  echo "insomnia-plugins-sync: $name → $DST_DIR/$name/"
+done
+{{- end }}

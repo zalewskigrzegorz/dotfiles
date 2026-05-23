@@ -1,0 +1,11 @@
+{
+  "name": "insomnia-plugin-theme-mocha-neon",
+  "description": "Mocha Neon — bumped Catppuccin Mocha with neon accents",
+  "license": "MIT",
+  "version": "1.0.0",
+  "main": "index.js",
+  "insomnia": {
+    "name": "theme-mocha-neon",
+    "description": "Mocha Neon — bumped Catppuccin Mocha with neon accents"
+  }
+}
