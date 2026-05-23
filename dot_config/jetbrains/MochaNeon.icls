@@ -1,9 +1,9 @@
-<scheme name="Mocha Neon" version="142" parent_scheme="Darcula">
+<scheme name="Mocha Neon - bumped" version="142" parent_scheme="_@user_Mocha Neon">
   <metaInfo>
     <property name="created">2026-05-23T17:00:00</property>
     <property name="ide">DataGrip</property>
     <property name="modified">2026-05-23T17:00:00</property>
-    <property name="originalScheme">Darcula</property>
+    <property name="originalScheme">Default</property>
   </metaInfo>
   <colors>
     <option name="CARET_COLOR" value="b347ff" />
