@@ -102,10 +102,9 @@ number_threshold = 1
 format = '[$symbol]($style)'
 
 [time]
-disabled = false
-format = "[$time]($style) "
-style = "fg_muted"
-time_format = "%H:%M"
+# Disabled — time lives on sketchybar calendar widget. User explicitly rejected
+# duplicate clock in the right prompt (2026-05-23 polish wave).
+disabled = true
 
 [kubernetes]
 disabled = true
