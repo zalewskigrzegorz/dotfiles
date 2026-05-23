@@ -30,7 +30,12 @@ Screenshots: `~/Code/personal/bazgroly/dotfiles/screenshots/mocha-neon-tier2/<ap
 - [ ] **Spotify (Spicetify)** — `spicetify install catppuccin && spicetify config current_theme catppuccin && spicetify apply`. Edit `~/.config/spicetify/Themes/catppuccin/color.ini` `[Frappe]` (or active flavor) section with bumped hex. Re-`spicetify apply`. Screenshot: `mocha-neon-tier2/spotify.png`.
 - [ ] **Firefox Developer Edition** — Firefox Color extension → import Mocha Neon JSON (hand-authored from palette doc). Screenshot: `mocha-neon-tier2/firefox.png`.
 - [ ] **Google Chrome** — Stylus extension → import Mocha Neon userstyle (fork of catppuccin/userstyles with bumped hex). Screenshot: `mocha-neon-tier2/chrome.png`.
-- [ ] **DataGrip** — Settings → Plugins → Catppuccin Theme → Mocha. Settings → Editor → Color Scheme: override 11 tokens. Screenshot: `mocha-neon-tier2/datagrip.png`.
+- [⚠️] **DataGrip / JetBrains IDEs** — Catppuccin plugin already installed. Set:
+  - **UI Theme:** Settings → Appearance & Behavior → Appearance → Theme → "Catppuccin Mocha" (or "Islands Catppuccin Mocha" — Islands variant adds tab/pane styling).
+  - **Editor color scheme:** Settings → Editor → Color Scheme → "Catppuccin Mocha" (NOT Latte/Frappé/Macchiato).
+  - Both vanilla Catppuccin pastel → **bumped Mocha Neon accents parked** (would need custom JB plugin .theme.json + Kotlin packaging — out of scope here). ICLS-only override attempts failed to validate in JB 2025.1.
+  - Repo: `dot_config/jetbrains/MochaNeon.icls` (saved for later refinement when bumped JetBrains scheme is feasible).
+  - Screenshot: `mocha-neon-tier2/datagrip.png`.
 - [ ] **VLC** — manual import (limited theming support). Accept closest approximation. Screenshot: `mocha-neon-tier2/vlc.png`.
 - [ ] **Insomnia** — Preferences → Themes → Catppuccin Mocha. Check if 11-token override is exposed; if not, file upstream. Screenshot: `mocha-neon-tier2/insomnia.png`.
 - [⚠️] **Comet** — Chromium-based, very limited theming. Investigated 2026-05-23:
