@@ -4,6 +4,27 @@
 input=$(cat)
 
 model=$(printf '%s' "$input" | jq -r '.model.display_name // .model.id // "claude"')
+# Compact long model strings so the statusline doesn't burn half the line on
+# the model token. Maps common API-style ids to short aliases:
+#   "Claude 3.7 Sonnet" / "claude-3-7-sonnet-20241022" → "sonnet 3.7"
+#   "Claude 3 Opus" / "claude-3-opus-20240229"         → "opus 3"
+#   "Claude 4.7 Opus (1M context)"                     → "opus 4.7 1M"
+# Falls through unchanged for already-short names.
+case "$model" in
+  *[Cc]laude*[Ss]onnet*|*[Ss]onnet*)
+    model=$(printf '%s' "$model" | sed -E 's/.*[Cc]laude[- ]*([0-9.]+)[- ]*[Ss]onnet.*/sonnet \1/; s/.*([Ss])onnet[- ]*([0-9.]+).*/\L\1\E\2/' | head -1)
+    ;;
+  *[Cc]laude*[Oo]pus*|*[Oo]pus*)
+    model=$(printf '%s' "$model" | sed -E 's/.*[Cc]laude[- ]*([0-9.]+)[- ]*[Oo]pus.*\(([^)]+)\)/opus \1 \2/; s/.*[Cc]laude[- ]*([0-9.]+)[- ]*[Oo]pus.*/opus \1/; s/.*[Oo]pus[- ]*([0-9.]+).*/opus \1/' | head -1 | tr '[:upper:]' '[:lower:]')
+    ;;
+  *[Cc]laude*[Hh]aiku*|*[Hh]aiku*)
+    model=$(printf '%s' "$model" | sed -E 's/.*[Cc]laude[- ]*([0-9.]+)[- ]*[Hh]aiku.*/haiku \1/; s/.*[Hh]aiku[- ]*([0-9.]+).*/haiku \1/' | head -1 | tr '[:upper:]' '[:lower:]')
+    ;;
+esac
+# Hard cap: trim anything still too long (e.g. unknown future model).
+if [ "${#model}" -gt 20 ]; then
+  model="${model:0:18}…"
+fi
 dur_ms=$(printf '%s' "$input" | jq -r '.cost.total_duration_ms // 0')
 added=$(printf '%s' "$input" | jq -r '.cost.total_lines_added // 0')
 removed=$(printf '%s' "$input" | jq -r '.cost.total_lines_removed // 0')
@@ -158,9 +179,11 @@ if [ -n "$transcript" ] && [ -f "$transcript" ]; then
   if [ -n "$ctx_tokens" ] && [ "$ctx_tokens" != "null" ] && [ "$ctx_tokens" -gt 0 ]; then
     if [ "$over200k" = "true" ]; then ctx_max=1000000; else ctx_max=200000; fi
     ctx_pct=$(( ctx_tokens * 100 / ctx_max ))
-    # compaction warning: red ≥85% (compact ~90%), yellow ≥60%, green otherwise
+    # compaction warning: red ≥85% (compact ~90%), peach ≥60% (warning),
+    # green otherwise. Peach instead of yellow to match the warning-vs-info
+    # convention used elsewhere in the Mocha Neon stack.
     if   [ "$ctx_pct" -ge 85 ]; then cc="$R"
-    elif [ "$ctx_pct" -ge 60 ]; then cc="$Y"
+    elif [ "$ctx_pct" -ge 60 ]; then cc="$O"
     else cc="$G"; fi
     ctx_seg="${SEP}${AMBER}ctx${N} $(bar "$ctx_pct" "$cc") ${cc}${B}${ctx_pct}%${N}"
   fi
