@@ -5,22 +5,51 @@
 # Output:
 #   integer N (0..100) on success
 #   "?" if no limit configured or ccusage unavailable
+#
+# Caches ccusage output for CACHE_TTL_SECS. Without this, tmux status-right
+# (4× per status-interval) spawns ccusage continuously at ~100% CPU each —
+# observed runaway when status-interval=10s. Cache mirrors what statusline.sh
+# does internally.
 set -euo pipefail
 
 WINDOW="${1:-}"
+CACHE_TTL_SECS=30
+uid="${UID:-$(id -u)}"
+cache_dir="${TMPDIR:-/tmp}"
+
+# Return the cached `totalTokens` for {blocks, weekly}, refreshing via ccusage
+# only when the cache file is missing or older than CACHE_TTL_SECS.
+fetch_used() {
+  local kind="$1"   # blocks | weekly
+  local cmd="$2"    # ccusage subcommand
+  local jq_path="$3"
+  local cache_file="$cache_dir/claude-usage-${kind}-${uid}.txt"
+  local now age
+  now=$(date +%s)
+  if [[ -f "$cache_file" ]]; then
+    age=$(( now - $(stat -f %m "$cache_file" 2>/dev/null || echo 0) ))
+    if (( age < CACHE_TTL_SECS )); then
+      cat "$cache_file"
+      return
+    fi
+  fi
+  local fresh
+  fresh=$(ccusage $cmd 2>/dev/null | jq "$jq_path" 2>/dev/null || echo 0)
+  [[ -z "$fresh" || "$fresh" == "null" ]] && fresh=0
+  printf '%s' "$fresh" > "$cache_file" 2>/dev/null || true
+  printf '%s' "$fresh"
+}
 
 case "$WINDOW" in
   session)
     LIMIT="${CLAUDE_SESSION_TOKEN_LIMIT:-0}"
     [[ "$LIMIT" -eq 0 ]] && { echo "?"; exit 0; }
-    USED=$(ccusage blocks --json --active --offline 2>/dev/null \
-      | jq '.blocks[0].totalTokens // 0' 2>/dev/null || echo 0)
+    USED=$(fetch_used "blocks" "blocks --json --active --offline" '.blocks[0].totalTokens // 0')
     ;;
   week)
     LIMIT="${CLAUDE_WEEKLY_TOKEN_LIMIT:-${CLAUDE_WEEKLY_TOKEN_LIMIT_OPUS:-0}}"
     [[ "$LIMIT" -eq 0 ]] && { echo "?"; exit 0; }
-    USED=$(ccusage weekly --json --offline 2>/dev/null \
-      | jq '.weekly[-1].totalTokens // 0' 2>/dev/null || echo 0)
+    USED=$(fetch_used "weekly" "weekly --json --offline" '.weekly[-1].totalTokens // 0')
     ;;
   *)
     echo "usage: usage-pct <session|week>" >&2
