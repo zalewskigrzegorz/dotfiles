@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+{{- if eq .chezmoi.os "darwin" }}
+# Sync Mocha Neon userChrome.css into ALL Firefox profiles (regular + Dev Edition + Nightly).
+# Firefox auto-loads userChrome.css from <profile>/chrome/ when about:config flag
+# `toolkit.legacyUserProfileCustomizations.stylesheets = true` is set (one-time per profile).
+#
+# fingerprint: {{ output "bash" "-c" (printf "cd %q && find dot_config/firefox -type f -name 'userChrome.css' -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
+
+set -eu
+
+SRC="$HOME/.config/firefox/userChrome.css"
+if [ ! -f "$SRC" ]; then
+  echo "firefox-userchrome-sync: $SRC missing — skipping."
+  exit 0
+fi
+
+# Candidate profile roots on macOS — regular Firefox + Developer Edition + Nightly.
+ROOTS=(
+  "$HOME/Library/Application Support/Firefox/Profiles"
+  "$HOME/Library/Application Support/Firefox Developer Edition/Profiles"
+  "$HOME/Library/Application Support/Firefox Nightly/Profiles"
+)
+
+found_any=0
+for root in "${ROOTS[@]}"; do
+  [ -d "$root" ] || continue
+  while IFS= read -r prof; do
+    [ -n "$prof" ] || continue
+    mkdir -p "$prof/chrome"
+    cp -f "$SRC" "$prof/chrome/userChrome.css"
+    echo "firefox-userchrome-sync: synced → $prof/chrome/userChrome.css"
+    found_any=1
+  done < <(find "$root" -maxdepth 1 -type d -name "*.default*" -o -name "*.dev-edition-default*" -o -name "*release*" 2>/dev/null)
+done
+
+if [ "$found_any" -eq 0 ]; then
+  echo "firefox-userchrome-sync: no Firefox profiles found — skipping."
+fi
+{{- end }}

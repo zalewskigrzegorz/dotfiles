@@ -1,0 +1,86 @@
+/* Mocha Neon — Firefox userChrome.css overlay.
+ *
+ * Auto-loaded by Firefox when about:config flag
+ * `toolkit.legacyUserProfileCustomizations.stylesheets = true` is set.
+ *
+ * This file is chezmoi-synced into the Firefox profile's chrome/ folder
+ * by run_onchange_after_39-firefox-userchrome-sync.sh.tmpl.
+ *
+ * Tokens follow docs/mocha-neon-palette.md. Edit there first, then run
+ * `bin/mocha-neon-reload` (which triggers chezmoi apply).
+ */
+
+:root {
+  --mn-base:    #1E1E2E;
+  --mn-surface: #45475A;
+  --mn-text:    #F0F0FF;
+  --mn-mauve:   #B347FF;
+  --mn-pink:    #FF80BF;
+  --mn-red:     #FF6B9D;
+  --mn-gold:    #FFD700;
+  --mn-green:   #50FA7B;
+  --mn-sky:     #8BE9FD;
+}
+
+/* Tab bar + toolbar background — solid Mocha base */
+#navigator-toolbox,
+#TabsToolbar,
+#nav-bar,
+#PersonalToolbar {
+  background: var(--mn-base) !important;
+  color: var(--mn-text) !important;
+}
+
+/* Selected tab: mauve accent */
+.tabbrowser-tab[selected="true"] .tab-background {
+  background: linear-gradient(180deg, var(--mn-base) 0%, var(--mn-base) 90%, var(--mn-mauve) 100%) !important;
+  border-top: 2px solid var(--mn-mauve) !important;
+}
+.tabbrowser-tab[selected="true"] .tab-label,
+.tabbrowser-tab[selected="true"] .tab-icon-image {
+  color: var(--mn-text) !important;
+  fill: var(--mn-text) !important;
+}
+
+/* Address bar: mauve focus border */
+#urlbar {
+  background: var(--mn-surface) !important;
+  color: var(--mn-text) !important;
+  border-radius: 6px;
+}
+#urlbar[focused="true"] {
+  outline: 2px solid var(--mn-mauve) !important;
+  outline-offset: -1px;
+}
+
+/* Address-bar dropdown (autocomplete popup) */
+#urlbar-results,
+.urlbarView {
+  background: var(--mn-base) !important;
+  color: var(--mn-text) !important;
+}
+.urlbarView-row[selected="true"],
+.urlbarView-row:hover {
+  background: var(--mn-mauve) !important;
+  color: var(--mn-base) !important;
+}
+
+/* Sidebar (bookmarks/history) */
+#sidebar-box,
+#sidebar-header {
+  background: var(--mn-base) !important;
+  color: var(--mn-text) !important;
+}
+
+/* Menu popups */
+menupopup, panel {
+  --arrowpanel-background: var(--mn-base) !important;
+  --arrowpanel-color: var(--mn-text) !important;
+  --arrowpanel-border-color: var(--mn-mauve) !important;
+}
+
+/* Notification (attention) badges */
+.toolbarbutton-badge[value]:not([value=""]) {
+  background: var(--mn-red) !important;
+  color: var(--mn-base) !important;
+}
