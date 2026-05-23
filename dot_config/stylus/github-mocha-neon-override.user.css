@@ -1,0 +1,123 @@
+/* ==UserStyle==
+@name           GitHub — Mocha Neon override
+@namespace      github.com/zalewskigrzegorz
+@version        1.0.0
+@description    Bumps Catppuccin Mocha (catppuccin/github userstyle) accents to Mocha Neon hex on github.com. Source of truth for hex: docs/mocha-neon-palette.md.
+@author         Grzegorz Zalewski
+@updateURL      none
+==/UserStyle== */
+
+@-moz-document domain("github.com") {
+  :root,
+  [data-color-mode="dark"],
+  [data-color-mode="dark"][data-dark-theme="catppuccin-mocha"],
+  [data-color-mode="auto"][data-dark-theme="catppuccin-mocha"] {
+    /* Catppuccin Mocha palette → Mocha Neon bumped */
+    --ctp-mocha-text: #F0F0FF !important;
+    --ctp-mocha-mauve: #B347FF !important;
+    --ctp-mocha-pink: #FF80BF !important;
+    --ctp-mocha-lavender: #9580FF !important;
+    --ctp-mocha-green: #50FA7B !important;
+    --ctp-mocha-yellow: #FFD700 !important;
+    --ctp-mocha-peach: #FF8C42 !important;
+    --ctp-mocha-red: #FF6B9D !important;
+    --ctp-mocha-sky: #8BE9FD !important;
+    --ctp-mocha-blue: #8BE9FD !important;
+    --ctp-mocha-sapphire: #8BE9FD !important;
+    --ctp-mocha-teal: #8BE9FD !important;
+    --ctp-mocha-maroon: #FF6B9D !important;
+    --ctp-mocha-flamingo: #FF80BF !important;
+    --ctp-mocha-rosewater: #F0F0FF !important;
+
+    /* Primer (GitHub native) vars — direct override for cases where Catppuccin doesn't reach */
+    --fgColor-default: #F0F0FF !important;
+    --fgColor-muted: #7F849C !important;
+    --fgColor-accent: #B347FF !important;
+    --fgColor-success: #50FA7B !important;
+    --fgColor-attention: #FFD700 !important;
+    --fgColor-danger: #FF6B9D !important;
+    --fgColor-done: #B347FF !important;
+    --fgColor-sponsors: #FF80BF !important;
+
+    --bgColor-accent-emphasis: #B347FF !important;
+    --bgColor-success-emphasis: #50FA7B !important;
+    --bgColor-attention-emphasis: #FFD700 !important;
+    --bgColor-danger-emphasis: #FF6B9D !important;
+    --bgColor-done-emphasis: #B347FF !important;
+    --bgColor-sponsors-emphasis: #FF80BF !important;
+
+    --borderColor-accent-emphasis: #B347FF !important;
+    --borderColor-success-emphasis: #50FA7B !important;
+    --borderColor-danger-emphasis: #FF6B9D !important;
+
+    /* Buttons */
+    --button-primary-bgColor-rest: #B347FF !important;
+    --button-primary-bgColor-hover: #C66BFF !important;
+    --button-primary-fgColor-rest: #1E1E2E !important;
+
+    /* Links & focus */
+    --color-accent-fg: #B347FF !important;
+    --color-accent-emphasis: #B347FF !important;
+    --color-fg-accent: #B347FF !important;
+
+    /* Diff colors (PR view) */
+    --diffBlob-additionLine-bgColor: rgba(80, 250, 123, 0.15) !important;
+    --diffBlob-additionWord-bgColor: rgba(80, 250, 123, 0.35) !important;
+    --diffBlob-deletionLine-bgColor: rgba(255, 107, 157, 0.15) !important;
+    --diffBlob-deletionWord-bgColor: rgba(255, 107, 157, 0.35) !important;
+
+    /* Syntax highlighting (code blocks) */
+    --color-prettylights-syntax-comment: #7F849C !important;
+    --color-prettylights-syntax-constant: #FFD700 !important;
+    --color-prettylights-syntax-entity: #FF80BF !important;
+    --color-prettylights-syntax-storage-modifier-import: #F0F0FF !important;
+    --color-prettylights-syntax-entity-tag: #B347FF !important;
+    --color-prettylights-syntax-keyword: #B347FF !important;
+    --color-prettylights-syntax-string: #50FA7B !important;
+    --color-prettylights-syntax-variable: #FF8C42 !important;
+    --color-prettylights-syntax-brackethighlighter-unmatched: #FF6B9D !important;
+    --color-prettylights-syntax-markup-heading: #B347FF !important;
+    --color-prettylights-syntax-markup-list: #FFD700 !important;
+    --color-prettylights-syntax-markup-bold: #FF8C42 !important;
+    --color-prettylights-syntax-markup-italic: #F0F0FF !important;
+    --color-prettylights-syntax-markup-inserted-text: #50FA7B !important;
+    --color-prettylights-syntax-markup-deleted-text: #FF6B9D !important;
+  }
+
+  /* Star / fork / watch buttons (hover) */
+  .btn-primary:hover,
+  .Button--primary:hover {
+    background-color: #C66BFF !important;
+  }
+
+  /* Selected items in sidebars */
+  .ActionList-item--navActive::before,
+  .ActionList-item.ActionList-item--navActive::before {
+    background-color: #B347FF !important;
+  }
+
+  /* ─── Fonts: OpenDyslexic for body, Iosevka for code ─── */
+  body,
+  .markdown-body,
+  .Header,
+  .Layout,
+  .Box,
+  .ActionListItem,
+  .btn, .Button,
+  input, textarea, select,
+  .CodeMirror-line span:not(.cm-pre) {
+    font-family: "OpenDyslexicM Nerd Font Propo", -apple-system, BlinkMacSystemFont, sans-serif !important;
+  }
+
+  code, pre, tt, kbd, samp,
+  .blob-code, .blob-code-inner,
+  .react-code-text, .react-code-line-contents,
+  .CodeMirror, .CodeMirror pre,
+  .highlight, .highlight pre,
+  .font-mono,
+  [class*="font-mono"],
+  [class*="prismjs"],
+  .react-blob-print-hide {
+    font-family: "FantasqueSansMono Nerd Font", "FantasqueSansM Nerd Font", "Fantasque Sans Mono", "Iosevka Nerd Font Propo", "Iosevka Nerd Font", ui-monospace, "SFMono-Regular", Menlo, monospace !important;
+  }
+}
