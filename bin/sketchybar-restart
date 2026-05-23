@@ -1,13 +1,29 @@
 #!/usr/bin/env bash
 # ~/Code/dotfiles/bin/sketchybar-restart
-# Restart sketchybar and force item registration via --reload.
-# Works around the init race where items land empty on `brew services start`.
+# Clean restart: kill watcher → kill sketchybar → restart service → wait for ready → start watcher.
 set -e
 
+# 1. Stop watcher first so its retry loop doesn't fight us.
+pkill -9 -f sketchybar-watcher 2>/dev/null || true
+
+# 2. Stop sketchybar (service + any orphan).
 brew services stop sketchybar >/dev/null 2>&1 || true
-pkill -9 -f sketchybar 2>/dev/null || true
-sleep 2
+pkill -9 -x sketchybar 2>/dev/null || true
+sleep 1
+
+# 3. Restart sketchybar daemon.
 brew services start sketchybar >/dev/null 2>&1
-sleep 4
-/opt/homebrew/bin/sketchybar --reload >/dev/null 2>&1
-echo "sketchybar restarted with items committed"
+
+# 4. Wait until the bar responds before relaunching watcher.
+for _ in $(seq 1 50); do
+    if /opt/homebrew/bin/sketchybar --query bar >/dev/null 2>&1; then
+        break
+    fi
+    sleep 0.2
+done
+
+# 5. Relaunch watcher (aerospace will not, because we removed the line in Task 5).
+nohup "$HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher" \
+    >> "$HOME/Code/dotfiles/logs/sketchybar-watcher.log" 2>&1 &
+
+echo "sketchybar restarted cleanly; watcher PID $!"
