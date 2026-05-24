@@ -6,6 +6,20 @@
 
 set -e
 
+# chezmoi runs hooks with a minimal PATH. Extend it so the lab's
+# ~/.local/bin/claude (npm-style install) and brew installs on either
+# platform are discoverable before the `command -v claude` check.
+for d in \
+  "/opt/homebrew/bin" \
+  "/home/linuxbrew/.linuxbrew/bin" \
+  "${HOME}/.local/bin" \
+  "${HOME}/.local/share/claude/bin" \
+  "${HOME}/node_modules/.bin" \
+; do
+  [[ -d "$d" ]] && PATH="$d:$PATH"
+done
+export PATH
+
 if ! command -v claude >/dev/null 2>&1; then
   echo "claude-plugins sync: claude CLI not on PATH — skipping."
   exit 0
