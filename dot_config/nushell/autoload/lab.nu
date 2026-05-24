@@ -5,9 +5,10 @@
 #
 # Full architecture + service inventory lives in:
 #   ~/Code/personal/bazgroly/home-lab/analyze/ONBOARDING.md
-# Quick recap from there: "The Mac is dev-only — Docker runs on the lab,
-# deploy is `push → ssh lab → ./deploy.sh`. deploy.sh handles permissions,
-# builds, pulls, force-recreates. update.sh for routine pulls."
+# Quick recap: "The Mac is dev-only — Docker runs on the lab, flow is
+# `push → ssh lab → git pull → ./update.sh`. update.sh pulls images, builds
+# local ones, deploys per-service with snapshot + interactive rollback.
+# reload.sh just restarts services one-by-one without changing anything."
 
 # `lab-sync` — pull latest dotfiles + apply on the lab.
 #
@@ -20,22 +21,26 @@ def lab-sync [] {
     print "✓  lab dotfiles synced"
 }
 
-# `lab-deploy` — run the homelab deploy script on the lab.
+# `lab-update` — pull images, build local images, deploy per-service.
 #
 # The homelab repo lives only at `lab:/opt/homelab/` (no Mac checkout, per
-# memory `reference_homelab_repo.md`). `deploy.sh` rebuilds + restarts Docker
-# stacks. Use after committing changes there (via `ssh lab` + edit), or after
-# pulling new compose/service definitions inside that repo.
-def lab-deploy [] {
-    print "🚀  Running homelab deploy on lab..."
-    ^ssh -t lab 'cd /opt/homelab && ./deploy.sh'
-    print "✓  homelab deploy done"
-}
-
-# `lab-update` — same as deploy.sh's sibling `update.sh` (pulls images + restarts
-# without rebuilding). Faster than deploy when only image tags changed.
+# memory `reference_homelab_repo.md`). `update.sh` snapshots image digests +
+# compose.yaml before each service, then health-checks after `up -d` and
+# prompts interactively before any rollback. Use after committing changes
+# (via `ssh lab` + edit), or after pulling new compose/service definitions.
 def lab-update [] {
     print "⬆️   Running homelab update on lab..."
     ^ssh -t lab 'cd /opt/homelab && ./update.sh'
     print "✓  homelab update done"
+}
+
+# `lab-reload` — restart-only, no image/config changes.
+#
+# Per-service rolling restart (`down` → `up -d` for each, one at a time).
+# Use when Traefik lost track of services or the stack got into a weird
+# state but you don't want to pull new images.
+def lab-reload [] {
+    print "🔁  Reloading homelab services on lab..."
+    ^ssh -t lab 'cd /opt/homelab && ./reload.sh'
+    print "✓  homelab reload done"
 }
