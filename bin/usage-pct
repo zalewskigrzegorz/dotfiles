@@ -26,12 +26,15 @@ uid="${UID:-$(id -u)}"
 cache_dir="${TMPDIR:-/tmp}"
 
 # Parse "YYYY-MM-DDTHH:MM" (local, no TZ) to epoch — portable across BSD/GNU date.
+# BSD `date -j -f` does NOT zero out fields missing from the format string —
+# seconds default to the current wall-clock seconds, producing a moving target
+# (e.g. anchor_epoch jitters ±60s every call). We force ":00" seconds.
 parse_iso_local() {
   local s="$1"
-  if date -j -f "%Y-%m-%dT%H:%M" "$s" +%s 2>/dev/null; then
+  if date -j -f "%Y-%m-%dT%H:%M:%S" "${s}:00" +%s 2>/dev/null; then
     return
   fi
-  date -d "${s/T/ }" +%s
+  date -d "${s/T/ }:00" +%s
 }
 
 # Compute most recent past plan reset (epoch seconds) by rolling CLAUDE_WEEKLY_RESET
@@ -56,26 +59,69 @@ epoch_to_iso_utc() {
   date -u -r "$e" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d "@$e" +%Y-%m-%dT%H:%M:%SZ
 }
 
+# Read cache if fresh enough; print value and return 0, else return 1.
+_read_fresh_cache() {
+  local cache_file="$1"
+  local now age
+  [[ -f "$cache_file" ]] || return 1
+  now=$(date +%s)
+  age=$(( now - $(stat -f %m "$cache_file" 2>/dev/null || echo 0) ))
+  (( age < CACHE_TTL_SECS )) || return 1
+  cat "$cache_file"
+}
+
+# Acquire portable mutex via `mkdir` (atomic on POSIX). Returns 0 if we own
+# the lock, 1 if another live process holds it (caller should fall back to
+# stale cache). Stale locks (>60s) are reclaimed automatically.
+_acquire_lock() {
+  local lock_dir="$1"
+  local i lock_age
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    if mkdir "$lock_dir" 2>/dev/null; then
+      return 0
+    fi
+    lock_age=$(( $(date +%s) - $(stat -f %m "$lock_dir" 2>/dev/null || echo 0) ))
+    if (( lock_age > 60 )); then
+      rmdir "$lock_dir" 2>/dev/null || true
+      continue
+    fi
+    sleep 0.2
+  done
+  return 1
+}
+
 # Cached ccusage fetch. `kind` is a cache key; `cmd` is the ccusage subcommand
 # (whitespace-split); `jq_path` is run on stdout.
+# A mkdir-based mutex serializes ccusage spawns — without it, tmux status-right
+# spawns 3 concurrent `ccusage blocks` every 30s when the cache expires
+# (~100% CPU each).
 fetch_used() {
   local kind="$1"
   local cmd="$2"
   local jq_path="$3"
   local cache_file="$cache_dir/claude-usage-${kind}-${uid}.txt"
-  local now age
-  now=$(date +%s)
-  if [[ -f "$cache_file" ]]; then
-    age=$(( now - $(stat -f %m "$cache_file" 2>/dev/null || echo 0) ))
-    if (( age < CACHE_TTL_SECS )); then
-      cat "$cache_file"
-      return
-    fi
+  local lock_dir="$cache_file.lock.d"
+
+  _read_fresh_cache "$cache_file" && return
+
+  if ! _acquire_lock "$lock_dir"; then
+    # Couldn't get lock — return stale cache if any, else 0.
+    [[ -f "$cache_file" ]] && cat "$cache_file" || printf '0'
+    return
+  fi
+  trap 'rmdir "$lock_dir" 2>/dev/null' RETURN
+  # Re-check inside the lock; a peer may have refreshed it while we waited.
+  if _read_fresh_cache "$cache_file"; then
+    rmdir "$lock_dir" 2>/dev/null
+    trap - RETURN
+    return
   fi
   local fresh
   fresh=$(ccusage $cmd 2>/dev/null | jq "$jq_path" 2>/dev/null || echo 0)
   [[ -z "$fresh" || "$fresh" == "null" ]] && fresh=0
   printf '%s' "$fresh" > "$cache_file" 2>/dev/null || true
+  rmdir "$lock_dir" 2>/dev/null
+  trap - RETURN
   printf '%s' "$fresh"
 }
 
@@ -87,19 +133,26 @@ fetch_used_since() {
   local jq_filter="$3"
   local reset_iso="$4"
   local cache_file="$cache_dir/claude-usage-${kind}-${reset_iso//[:T]/-}-${uid}.txt"
-  local now age
-  now=$(date +%s)
-  if [[ -f "$cache_file" ]]; then
-    age=$(( now - $(stat -f %m "$cache_file" 2>/dev/null || echo 0) ))
-    if (( age < CACHE_TTL_SECS )); then
-      cat "$cache_file"
-      return
-    fi
+  local lock_dir="$cache_file.lock.d"
+
+  _read_fresh_cache "$cache_file" && return
+
+  if ! _acquire_lock "$lock_dir"; then
+    [[ -f "$cache_file" ]] && cat "$cache_file" || printf '0'
+    return
+  fi
+  trap 'rmdir "$lock_dir" 2>/dev/null' RETURN
+  if _read_fresh_cache "$cache_file"; then
+    rmdir "$lock_dir" 2>/dev/null
+    trap - RETURN
+    return
   fi
   local fresh
   fresh=$(ccusage $cmd 2>/dev/null | jq --arg reset "$reset_iso" "$jq_filter" 2>/dev/null || echo 0)
   [[ -z "$fresh" || "$fresh" == "null" ]] && fresh=0
   printf '%s' "$fresh" > "$cache_file" 2>/dev/null || true
+  rmdir "$lock_dir" 2>/dev/null
+  trap - RETURN
   printf '%s' "$fresh"
 }
 
