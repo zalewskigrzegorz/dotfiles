@@ -1,6 +1,8 @@
 #!/bin/bash
 # Blocks writes to build artifacts, binary files, and dependency directories.
-# Used as a PreToolUse hook for Edit|Write operations.
+# PreToolUse hook for Edit|Write operations. Does NOT inspect file size despite
+# the original filename ("warn-large-files.sh") — that name was historical, the
+# script always operated on paths + extensions. Renamed 2026-05-24.
 # Exit 2 = block the action. Exit 0 = allow.
 
 # Requires jq for JSON parsing. Fail closed if missing
