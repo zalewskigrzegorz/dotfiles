@@ -1,0 +1,27 @@
+# POSIX login profile — sourced by bash login shells (mac if used, lab/Debian primary).
+#
+# Greg's primary shell is nushell, but the lab uses bash for login (chsh hasn't been
+# run there yet — see CLAUDE.md "Lab — connect & cold-start"). chezmoi itself,
+# `~/.local/bin/chezmoi apply`, and any cron job on the lab also run under bash.
+# This file makes sure those non-nushell entry points get the same `op` zero-prompt
+# treatment as `env.nu.tmpl` configures for nushell.
+
+# 1Password Service Account token (zero-prompt op access).
+# Mirrors the loader in dot_config/nushell/env.nu.tmpl. Setup is the same:
+#   1) 1Password.com → Developer → Service Accounts → create, vault=Dotfiles, read-only
+#   2) mkdir -p ~/.config/op && printf '%s' 'ops_xxx' > ~/.config/op/sa-token
+#   3) chmod 600 ~/.config/op/sa-token
+if [ -r "$HOME/.config/op/sa-token" ]; then
+    OP_SERVICE_ACCOUNT_TOKEN="$(cat "$HOME/.config/op/sa-token")"
+    export OP_SERVICE_ACCOUNT_TOKEN
+fi
+
+# Linuxbrew (lab) — add to PATH so `chezmoi`, `gh`, `op` etc. are found by
+# chezmoi-spawned subshells that don't inherit the interactive nu env.
+if [ -d "/home/linuxbrew/.linuxbrew/bin" ]; then
+    PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
+fi
+if [ -d "$HOME/.local/bin" ]; then
+    PATH="$HOME/.local/bin:$PATH"
+fi
+export PATH

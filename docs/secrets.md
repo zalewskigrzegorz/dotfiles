@@ -73,3 +73,44 @@ Do **not** use `$(op signin)` in Nushell; it prints bash exports and does not up
 For headless servers, prefer a **1Password service account token** (`OP_SERVICE_ACCOUNT_TOKEN` in the environment for `op` and for `sync`) instead of interactive sign-in.
 
 If `sync` still prints `Skipping private file restore`, run `command -v op` in the same shell; it must print a path. The restore script also prepends common Linuxbrew paths, but a stale session before `brew install` may not see `op` until you restart the shell.
+
+## Zero-prompt op access (Service Account Token)
+
+To eliminate Touch ID prompts on Mac and `op signin` failures over non-TTY SSH on the lab, drop a Service Account token at `~/.config/op/sa-token` (chmod 600) on each machine. Both `dot_config/nushell/env.nu.tmpl` and `dot_profile` auto-export it as `OP_SERVICE_ACCOUNT_TOKEN` when the file exists, so `op` runs headless everywhere.
+
+### One-time setup per machine
+
+1. **Create the token** (once, total — same token for every machine):
+   - Go to <https://my.1password.com> → **Developer** → **Service Accounts** → **Create Service Account**.
+   - Name: `Dotfiles sync` (or similar).
+   - Vault access: **Dotfiles**, **Read items** only. Do NOT grant write — these tokens never need to mutate the vault.
+   - Copy the `ops_xxx...` token. It's shown ONCE, save it immediately.
+
+2. **Drop it on each machine**:
+
+   ```bash
+   mkdir -p ~/.config/op
+   printf '%s' 'ops_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' > ~/.config/op/sa-token
+   chmod 600 ~/.config/op/sa-token
+   ```
+
+3. **Reload the shell** (`exec nu` on Mac, new SSH session on lab). Verify:
+
+   ```bash
+   echo "${OP_SERVICE_ACCOUNT_TOKEN:0:8}…"   # should print "ops_xxxx…"
+   op whoami                                  # should not prompt
+   ```
+
+After this, `sync` / `chezmoi apply` / `lab-sync` all run without password prompts.
+
+### File location is INTENTIONAL
+
+`~/.config/op/sa-token` is **outside the dotfiles repo**. Do not run `chezmoi add` on it — the token would land in `dot_config/op/sa-token` in the git source and leak. The dotfiles config (`env.nu.tmpl` + `dot_profile`) only references the live path.
+
+### Token rotation
+
+Tokens rotate by deleting the old Service Account in 1Password.com (revokes immediately) and creating a new one. Drop the new value at `~/.config/op/sa-token` on each machine, reload the shell. No code change required.
+
+### Why not store the SA token in 1Password itself?
+
+Chicken-and-egg: `op` needs the SA token before it can read anything from 1Password. Storing the token in 1Password means we need a different `op` session to fetch it, which defeats the purpose. The token lives in a plain mode-600 file by design.
