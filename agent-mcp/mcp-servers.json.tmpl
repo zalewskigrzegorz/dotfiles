@@ -64,7 +64,7 @@
       ],
       "env": {
         "GRAFANA_URL": "https://grafana.REDACTED_ORG.com",
-        "GRAFANA_SERVICE_ACCOUNT_TOKEN": {{ onepasswordRead (printf "op://%s/GRAFANA_SERVICE_ACCOUNT_TOKEN/password" (index . "onePasswordVault" | default "Dotfiles")) | quote }}
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN": {{ if lookPath "op" }}{{ onepasswordRead (printf "op://%s/GRAFANA_SERVICE_ACCOUNT_TOKEN/password" (index . "onePasswordVault" | default "Dotfiles")) | quote }}{{ else }}""{{ end }}
       }
     },
     "grafana-dashboards": {
@@ -85,7 +85,7 @@
       ],
       "env": {
         "GRAFANA_URL": "https://grafana.REDACTED_ORG.com",
-        "GRAFANA_SERVICE_ACCOUNT_TOKEN": {{ onepasswordRead (printf "op://%s/GRAFANA_SERVICE_ACCOUNT_TOKEN/password" (index . "onePasswordVault" | default "Dotfiles")) | quote }}
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN": {{ if lookPath "op" }}{{ onepasswordRead (printf "op://%s/GRAFANA_SERVICE_ACCOUNT_TOKEN/password" (index . "onePasswordVault" | default "Dotfiles")) | quote }}{{ else }}""{{ end }}
       }
     },
     "awslabs-cloudwatch-mcp-server": {
