@@ -1,57 +1,94 @@
 -- Snacks dashboard header — Mocha Neon heraldic unicorn (chafa braille render
--- from openclipart.org/detail/338103, CC0). Subtle breathing animation:
--- whole body cycles mauve <-> pink over 4s, horn stays static gold.
---
--- If you want mane-specific animation later, split the art string per row
--- into chunks by column range and assign two highlight groups (one static,
--- one cycling). Region map: mane=lines 3-7 cols 0-7, tail=lines 2-7 cols
--- 25-31, horn=line 0 cols 10-17, body/legs=everything else.
+-- from openclipart.org/detail/338103, CC0).
+-- Two animated regions:
+--   * SnacksDashUnicornBody  — whole body cycles through the 8 Mocha Neon
+--                              accents (mauve → pink → lavender → cyan →
+--                              green → gold → orange → red → mauve), 20s
+--                              total cycle, smooth lerp between neighbours.
+--   * SnacksDashUnicornFlame — speed-trail behind back hooves (right edge of
+--                              body_lines[14] + body_lines[15]). Red → orange
+--                              → gold flicker, 200ms per frame.
+-- Horn stays static gold.
 
 return {
   "folke/snacks.nvim",
   opts = function(_, opts)
     local palette = {
-      horn = "#FFD700", -- gold
-      a    = "#B347FF", -- mauve (cycle start)
-      b    = "#FF80BF", -- pink  (cycle end)
+      horn  = "#FFD700",
+      -- 8-stop color cycle for the body. Only colors that read clearly on
+      -- the #1E1E2E base — surface / overlay / muted greys are skipped.
+      cycle = {
+        "#B347FF", -- mauve
+        "#FF80BF", -- pink
+        "#9580FF", -- lavender
+        "#8BE9FD", -- cyan
+        "#50FA7B", -- green
+        "#FFD700", -- gold
+        "#FF8C42", -- orange
+        "#FF6B9D", -- red
+      },
+      flame = { "#FF6B9D", "#FF8C42", "#FFD700" },
     }
 
     vim.api.nvim_set_hl(0, "SnacksDashUnicornHorn", { fg = palette.horn, bold = true })
-    vim.api.nvim_set_hl(0, "SnacksDashUnicornBody", { fg = palette.a, bold = true })
 
-    -- Triangle-wave color interpolation between mauve and pink, 4s cycle.
-    -- Updates the SnacksDashUnicornBody highlight in place. 100ms tick keeps
-    -- CPU negligible and motion smooth.
     local function hex(c) return tonumber(c, 16) end
-    local function lerp(c1, c2, t) return math.floor(c1 + (c2 - c1) * t + 0.5) end
-    local function color_at(t)
-      local r = lerp(hex(palette.a:sub(2, 3)), hex(palette.b:sub(2, 3)), t)
-      local g = lerp(hex(palette.a:sub(4, 5)), hex(palette.b:sub(4, 5)), t)
-      local b = lerp(hex(palette.a:sub(6, 7)), hex(palette.b:sub(6, 7)), t)
-      return string.format("#%02x%02x%02x", r, g, b)
+    local function lerp_hex(c1, c2, t)
+      local function l(a, b) return math.floor(a + (b - a) * t + 0.5) end
+      return string.format("#%02x%02x%02x",
+        l(hex(c1:sub(2, 3)), hex(c2:sub(2, 3))),
+        l(hex(c1:sub(4, 5)), hex(c2:sub(4, 5))),
+        l(hex(c1:sub(6, 7)), hex(c2:sub(6, 7))))
     end
 
-    -- Stop any previous timer (config reload safety).
-    if _G.__SnacksDashUnicornTimer then
-      pcall(function() _G.__SnacksDashUnicornTimer:stop() end)
-      pcall(function() _G.__SnacksDashUnicornTimer:close() end)
+    if _G.__SnacksDashUnicornTimers then
+      for _, t in ipairs(_G.__SnacksDashUnicornTimers) do
+        pcall(function() t:stop() end)
+        pcall(function() t:close() end)
+      end
     end
-    local timer = vim.uv.new_timer()
-    _G.__SnacksDashUnicornTimer = timer
-    local tick = 0
-    timer:start(0, 100, vim.schedule_wrap(function()
-      tick = (tick + 1) % 40
-      local t = tick < 20 and tick / 20 or (40 - tick) / 20
-      vim.api.nvim_set_hl(0, "SnacksDashUnicornBody", { fg = color_at(t), bold = true })
-    end))
+    _G.__SnacksDashUnicornTimers = {}
+    local function start_timer(ms, fn)
+      local t = vim.uv.new_timer()
+      table.insert(_G.__SnacksDashUnicornTimers, t)
+      t:start(0, ms, vim.schedule_wrap(fn))
+    end
 
-    -- Two-section header: horn on its own line (static gold), body below
-    -- (animated mauve <-> pink). Each section centers itself in the dashboard.
-    -- 32×16 braille render (chafa from openclipart 338103). Biggest size
-    -- before menu items risk falling off screen on a 1440-ish vertical
-    -- terminal. Reduce to 28×14 / 24×12 here if you ever shrink the term.
+    -- Body color cycle: smooth lerp through every palette stop.
+    -- 12 ticks per segment × 8 segments × 100ms = ~10s full cycle (2× speed).
+    local seg_ticks = 12
+    local total_ticks = #palette.cycle * seg_ticks
+    local body_tick = 0
+    start_timer(100, function()
+      body_tick = (body_tick + 1) % total_ticks
+      local seg = math.floor(body_tick / seg_ticks)
+      local t = (body_tick % seg_ticks) / seg_ticks
+      local c1 = palette.cycle[seg + 1]
+      local c2 = palette.cycle[(seg + 1) % #palette.cycle + 1]
+      vim.api.nvim_set_hl(0, "SnacksDashUnicornBody",
+        { fg = lerp_hex(c1, c2, t), bold = true })
+    end)
+
+    -- Flame flicker: discrete red → orange → gold frame rotation, 200ms each.
+    local flame_tick = 0
+    start_timer(200, function()
+      flame_tick = (flame_tick + 1) % 3
+      vim.api.nvim_set_hl(0, "SnacksDashUnicornFlame",
+        { fg = palette.flame[flame_tick + 1], bold = true })
+    end)
+
+    -- 32×16 braille unicorn. body_lines[14] + [15] carry trail splits.
     local horn = "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⡀⠀⢀⡠⠔⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"
-    local body = table.concat({
+
+    -- body_lines[14]: keep up to col 25, trail at cols 26-31.
+    local b14_prefix = "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣶⢿⡟⡟⠇⠀⠀⠀⠀⠀⢠⣶⡿⡙⠄"
+    local b14_trail  = "⣀⣀⣄⣄⠆⠂"
+
+    -- body_lines[15]: keep up to col 23, trail at cols 24-31.
+    local b15_prefix = "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠛⠛⠁⠀⠀⠀⠀⠀⠀⢀⢾⣿⠉⠁"
+    local b15_trail  = "⣶⣶⣦⣄⠆⠂⠁⠁"
+
+    local body_lines = {
       "⠀⠀⠀⠀⢀⠀⠀⣀⣤⣤⣿⣶⣞⣤⠖⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
       "⠀⠀⠀⠀⠈⠻⣿⣟⣿⣿⣿⣿⣟⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢐⣹⠆",
       "⠈⢦⣀⣀⣤⣾⣿⣽⣿⣿⣿⠿⣿⡿⢷⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣶⠾⠻⢧⡠",
@@ -65,20 +102,40 @@ return {
       "⠀⠀⠐⠿⡿⠹⠙⠀⠀⠀⠀⠀⠀⠻⣿⣿⡁⠀⠙⢿⣿⣿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀",
       "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢿⣷⡄⠀⠀⠈⠉⠛⢻⣿⠇⠀⠀⠀⠀⠀⠀",
       "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⡾⠛⠁⠀⠀⠀⠀⠀⣸⣏⠀⠀⠀⠀⠀⠀⠀",
-      "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣶⢿⡟⡟⠇⠀⠀⠀⠀⠀⢠⣶⡿⡙⠄⠀⠀⠀⠀⠀⠀",
-      "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠛⠛⠁⠀⠀⠀⠀⠀⠀⢀⢾⣿⠉⠁⠀⠀⠀⠀⠀⠀⠀⠀",
-    }, "\n")
-
-    -- Sections: unicorn header (horn + animated body) → keys menu → 3 recent
-    -- files → startup line. No projects section (user finds it noisy).
-    opts.dashboard = opts.dashboard or {}
-    opts.dashboard.sections = {
-      { text = { { horn, hl = "SnacksDashUnicornHorn" } }, align = "center" },
-      { text = { { body, hl = "SnacksDashUnicornBody" } }, align = "center" },
-      { padding = 1 },
-      { section = "keys", gap = 1, padding = 1 },
-      { section = "recent_files", icon = " ", padding = 1, limit = 3 },
-      { section = "startup" },
+      "<<SPLIT_TRAIL_14>>",
+      "<<SPLIT_TRAIL_15>>",
     }
+
+    -- Build per-line sections (padding=0 so they stack tight like one block).
+    local function plain(line)
+      return { text = { { line, hl = "SnacksDashUnicornBody" } }, align = "center", padding = 0 }
+    end
+    local function chunks(c) return { text = c, align = "center", padding = 0 } end
+
+    local sections = {
+      chunks({ { horn, hl = "SnacksDashUnicornHorn" } }),
+    }
+    for _, line in ipairs(body_lines) do
+      if line == "<<SPLIT_TRAIL_14>>" then
+        table.insert(sections, chunks({
+          { b14_prefix, hl = "SnacksDashUnicornBody"  },
+          { b14_trail,  hl = "SnacksDashUnicornFlame" },
+        }))
+      elseif line == "<<SPLIT_TRAIL_15>>" then
+        table.insert(sections, chunks({
+          { b15_prefix, hl = "SnacksDashUnicornBody"  },
+          { b15_trail,  hl = "SnacksDashUnicornFlame" },
+        }))
+      else
+        table.insert(sections, plain(line))
+      end
+    end
+    table.insert(sections, { padding = 1 })
+    table.insert(sections, { section = "keys", gap = 1, padding = 1 })
+    table.insert(sections, { section = "recent_files", icon = " ", padding = 1, limit = 3 })
+    table.insert(sections, { section = "startup" })
+
+    opts.dashboard = opts.dashboard or {}
+    opts.dashboard.sections = sections
   end,
 }
