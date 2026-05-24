@@ -1,11 +1,17 @@
 # Private environment variables rendered from 1Password.
 # Local variable names live in ignored chezmoi data, not in git.
+#
+# Fallback: when the `op` CLI isn't on PATH (e.g. on the Debian lab where
+# 1Password CLI lives outside homebrew), we render empty strings instead of
+# crashing chezmoi apply. The env vars are still defined so downstream nu code
+# can rely on their existence, just with empty values until op is installed.
 {{- $vault := "Dotfiles" -}}
 {{- with (index . "onePasswordVault") -}}
 {{- $vault = . -}}
 {{- end -}}
+{{- $hasOp := lookPath "op" -}}
 {{- range (index . "privateEnvVars" | default list) }}
-$env.{{ . }} = {{ onepasswordRead (printf "op://%s/%s/password" $vault .) | quote }}
+$env.{{ . }} = {{ if $hasOp }}{{ onepasswordRead (printf "op://%s/%s/password" $vault .) | quote }}{{ else }}""{{ end }}
 {{- end }}
 {{- range (index . "privateEnvExpressions" | default list) }}
 $env.{{ .name }} = {{ .value }}
