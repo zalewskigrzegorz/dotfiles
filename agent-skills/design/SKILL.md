@@ -66,7 +66,7 @@ python3 ~/.claude/skills/design/scripts/logo/generate.py --prompt "coffee shop v
 
 **IMPORTANT:** When scripts fail, try to fix them directly.
 
-After generation, **ALWAYS** ask user about HTML preview via `AskUserQuestion`. If yes, invoke `/ui-ux-pro-max` for gallery.
+After generation, **ALWAYS** ask user about HTML preview via `AskUserQuestion`. If yes, build the gallery yourself using your design judgment (the previously-referenced `ui-ux-pro-max` skill was removed 2026-05-24).
 
 ## CIP Design (Built-in)
 
@@ -138,9 +138,9 @@ Load `references/banner-sizes-and-styles.md` for complete sizes and styles refer
 ### Banner: Workflow
 
 1. **Gather requirements** via `AskUserQuestion` — purpose, platform, content, brand, style, quantity
-2. **Research** — Activate `ui-ux-pro-max`, browse Pinterest for references
-3. **Design** — Create HTML/CSS banner with `frontend-design`, generate visuals with `ai-artist`/`ai-multimodal`
-4. **Export** — Screenshot to PNG at exact dimensions via `chrome-devtools`
+2. **Research** — browse Pinterest / web for references; use your own design judgment for style/palette/typography choices (the previously-referenced `ui-ux-pro-max`, `frontend-design`, `ai-artist`, `ai-multimodal` skills are not installed in this setup)
+3. **Design** — Hand-write HTML/CSS for the banner; if image generation is needed, use whichever image-generation tool is available in the current session
+4. **Export** — Screenshot to PNG at exact dimensions via the `agent-browser` skill
 5. **Present** — Show all options side-by-side, iterate on feedback
 
 ### Banner: Quick Size Reference
@@ -216,7 +216,7 @@ python3 ~/.claude/skills/design/scripts/icon/generate.py --prompt "user profile"
 
 ## Social Photos (Built-in)
 
-Multi-platform social image design: HTML/CSS → screenshot export. Uses `ui-ux-pro-max`, `brand`, `design-system`, `chrome-devtools` skills.
+Multi-platform social image design: HTML/CSS → screenshot export. Uses `brand`, `design-system`, and the `agent-browser` skill for screenshotting (the previously-referenced `ui-ux-pro-max` + `chrome-devtools` were both dropped 2026-05-24).
 
 Load `references/social-photos-design.md` for sizes, templates, best practices.
 
@@ -225,9 +225,9 @@ Load `references/social-photos-design.md` for sizes, templates, best practices.
 1. **Orchestrate** — `project-management` skill for TODO tasks; parallel subagents for independent work
 2. **Analyze** — Parse prompt: subject, platforms, style, brand context, content elements
 3. **Ideate** — 3-5 concepts, present via `AskUserQuestion`
-4. **Design** — `/ckm:brand` → `/ckm:design-system` → randomly invoke `/ck:ui-ux-pro-max` OR `/ck:frontend-design`; HTML per idea × size
-5. **Export** — `chrome-devtools` or Playwright screenshot at exact px (2x deviceScaleFactor)
-6. **Verify** — Use Chrome MCP or `chrome-devtools` skill to visually inspect exported designs; fix layout/styling issues and re-export
+4. **Design** — `/ckm:brand` → `/ckm:design-system` → hand-write HTML per idea × size (the `/ck:ui-ux-pro-max` / `/ck:frontend-design` skills referenced previously are not installed in this setup; use your own design judgment)
+5. **Export** — screenshot via `agent-browser` at exact px (2× device scale via `--device-scale-factor 2`)
+6. **Verify** — re-screenshot via `agent-browser`, fix layout/styling issues, re-export
 7. **Report** — Summary to `plans/reports/` with design decisions
 8. **Organize** — Invoke `assets-organizing` skill to sort output files and reports
 
@@ -298,5 +298,5 @@ pip install google-genai pillow
 
 ## Integration
 
-**External sub-skills:** brand, design-system, ui-styling
-**Related Skills:** frontend-design, ui-ux-pro-max, ai-multimodal, chrome-devtools
+**External sub-skills (installed):** brand, design-system, ui-styling, banner-design, slides
+**Related Skills (NOT installed in this dotfiles setup):** ~~frontend-design~~, ~~ui-ux-pro-max~~ (removed 2026-05-24), ~~ai-multimodal~~, ~~chrome-devtools~~ (replaced by `agent-browser`)
