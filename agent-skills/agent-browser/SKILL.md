@@ -1,6 +1,6 @@
 ---
 name: agent-browser
-description: Automate browser interactions via the agent-browser CLI (Chrome/CDP, accessibility-tree snapshots with @eN refs). Use when the user asks to navigate, click, fill, extract text, take screenshots, log into a site, test a web app, or automate any browser task. Prefer this over the playwright-cli skill while the playwright MCP is disabled.
+description: Automate browser interactions via the agent-browser CLI (Chrome/CDP, accessibility-tree snapshots with @eN refs). Use when the user asks to navigate, click, fill, extract text, take screenshots, log into a site, test a web app, or automate any browser task. Browser automation in this setup goes through agent-browser exclusively — playwright-cli skill + playwright MCP were dropped 2026-05-24 as agent-browser proved faster and cheaper in tokens.
 allowed-tools: Bash(agent-browser:*) Bash(npx agent-browser:*)
 ---
 
@@ -97,4 +97,4 @@ agent-browser chat "open google.com and search for cats"
 - Snapshot output is ~200-400 tokens vs. raw HTML — prefer `snapshot -i` over `get html`.
 - Default engine is Chrome. `AGENT_BROWSER_ENGINE=lightpanda` for headless light engine.
 - For credentials use `agent-browser auth save/login` instead of shell history.
-- Currently we test agent-browser as a replacement for the playwright MCP. If it underperforms, re-enable `playwright` in `agent-mcp/mcp-servers.json.tmpl`.
+- If you ever need to write actual Playwright `.spec.ts` files (test authoring vs ad-hoc automation), re-enable the `playwright` block in `agent-mcp/mcp-servers.json.tmpl` and reinstall the playwright-cli skill from a marketplace. Both were removed 2026-05-24 because agent-browser covered every automation case we hit.
