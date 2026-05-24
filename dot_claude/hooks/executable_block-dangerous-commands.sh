@@ -35,55 +35,103 @@ BR_REGEX=$(printf '%s' "$PROTECTED_BRANCHES" | tr ',' '\n' | awk 'NF{printf "%s%
 contains_cmd() { printf '%s' "$COMMAND" | grep -qE "$1"; }
 contains_icmd() { printf '%s' "$COMMAND" | grep -qiE "$1"; }
 
-# ── Repo allowlist (skip protected-branch push checks) ──────────────────
-# Some personal repos legitimately commit + push to master directly (no PR flow).
-# Default: bazgroly (AI-doc destination repo, autopushed after every Write/Edit).
-# Override with CLAUDE_PUSH_ALLOWLIST=path1,path2 (absolute paths to repo roots).
-PUSH_ALLOWLIST="${CLAUDE_PUSH_ALLOWLIST:-$HOME/Code/personal/bazgroly}"
-PUSH_ALLOWED=0
-if contains_cmd 'git[[:space:]]+push'; then
-  # Try to infer the target repo from the command text first (cd <path>, git -C <path>),
-  # falling back to the hook's own cwd. Tilde and $HOME are expanded.
-  CMD_TARGET=""
-  CMD_TARGET=$(printf '%s' "$COMMAND" | grep -oE 'git[[:space:]]+-C[[:space:]]+[^[:space:];&|]+' | head -1 | awk '{print $NF}')
-  if [ -z "$CMD_TARGET" ]; then
-    CMD_TARGET=$(printf '%s' "$COMMAND" | grep -oE '(^|[;&|]|[[:space:]])cd[[:space:]]+[^[:space:];&|]+' | head -1 | awk '{print $NF}')
+# ── Repo resolution helpers ─────────────────────────────────────────────
+resolve_target_repo() {
+  # Infer the target repo root from a command string (git -C <path>, cd <path>),
+  # falling back to the hook's own cwd. Empty if not inside any repo.
+  local cmd="$1" target=""
+  target=$(printf '%s' "$cmd" | grep -oE 'git[[:space:]]+-C[[:space:]]+[^[:space:];&|]+' | head -1 | awk '{print $NF}')
+  if [ -z "$target" ]; then
+    target=$(printf '%s' "$cmd" | grep -oE '(^|[;&|]|[[:space:]])cd[[:space:]]+[^[:space:];&|]+' | head -1 | awk '{print $NF}')
   fi
-  CMD_TARGET="${CMD_TARGET//\~/$HOME}"
-  CMD_TARGET="${CMD_TARGET//\$HOME/$HOME}"
-  if [ -n "$CMD_TARGET" ] && [ -d "$CMD_TARGET" ]; then
-    REPO_ROOT=$(git -C "$CMD_TARGET" rev-parse --show-toplevel 2>/dev/null || true)
+  target="${target//\~/$HOME}"
+  target="${target//\$HOME/$HOME}"
+  if [ -n "$target" ] && [ -d "$target" ]; then
+    git -C "$target" rev-parse --show-toplevel 2>/dev/null || true
   else
-    REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
+    git rev-parse --show-toplevel 2>/dev/null || true
   fi
-  if [ -n "$REPO_ROOT" ]; then
-    IFS=',' read -ra _allow <<< "$PUSH_ALLOWLIST"
-    for p in "${_allow[@]}"; do
-      [ -z "$p" ] && continue
-      # Expand ~ / $HOME in allowlist entries
-      p="${p//\~/$HOME}"
-      p="${p//\$HOME/$HOME}"
-      if [ "$REPO_ROOT" = "$p" ]; then PUSH_ALLOWED=1; break; fi
-    done
+}
+
+path_in_list() {
+  # path_in_list "/repo/root" "p1,p2,p3" — exit 0 if root matches an entry.
+  local root="$1" list="$2" p
+  IFS=',' read -ra _arr <<< "$list"
+  for p in "${_arr[@]}"; do
+    [ -z "$p" ] && continue
+    p="${p//\~/$HOME}"
+    p="${p//\$HOME/$HOME}"
+    [ "$root" = "$p" ] && return 0
+  done
+  return 1
+}
+
+# ── Repo allowlists ─────────────────────────────────────────────────────
+# Push allowlist: Claude may `git push` to a protected branch from these repos.
+# Default: bazgroly (AI-doc destination, autopushed after every Write/Edit).
+# Override: CLAUDE_PUSH_ALLOWLIST=path1,path2 (absolute paths to repo roots).
+PUSH_ALLOWLIST="${CLAUDE_PUSH_ALLOWLIST:-$HOME/Code/personal/bazgroly}"
+
+# Commit allowlist: Claude may `git commit` while HEAD is a protected branch here.
+# Default: bazgroly + dotfiles + home-lab. Personal repos where master is the working branch.
+# Override: CLAUDE_COMMIT_ALLOWLIST=path1,path2.
+COMMIT_ALLOWLIST="${CLAUDE_COMMIT_ALLOWLIST:-$HOME/Code/personal/bazgroly,$HOME/Code/dotfiles,$HOME/Code/home-lab}"
+
+# Manual-push repos: commits OK on master, but push blocked with "Greg pushes manually".
+# Claude can iterate fast (commit), Greg reviews and pushes himself.
+# Override: CLAUDE_MANUAL_PUSH_REPOS=path1,path2.
+MANUAL_PUSH_REPOS="${CLAUDE_MANUAL_PUSH_REPOS:-$HOME/Code/dotfiles,$HOME/Code/home-lab}"
+
+# ── Push classification ─────────────────────────────────────────────────
+PUSH_ALLOWED=0
+PUSH_MANUAL=0
+if contains_cmd 'git[[:space:]]+push'; then
+  PUSH_REPO_ROOT=$(resolve_target_repo "$COMMAND")
+  if [ -n "$PUSH_REPO_ROOT" ]; then
+    if path_in_list "$PUSH_REPO_ROOT" "$PUSH_ALLOWLIST"; then
+      PUSH_ALLOWED=1
+    elif path_in_list "$PUSH_REPO_ROOT" "$MANUAL_PUSH_REPOS"; then
+      PUSH_MANUAL=1
+    fi
   fi
 fi
 
 # ── Git push protections ────────────────────────────────────────────────
 if [ "$PUSH_ALLOWED" -eq 0 ] && contains_cmd '(^|[;&|()]+[[:space:]]*)git[[:space:]]+push'; then
+  if [ "$PUSH_MANUAL" -eq 1 ]; then
+    DENY_PUSH="Blocked: Greg will push this manually after review. Commit only — no push from Claude in this repo."
+  else
+    DENY_PUSH="Blocked: pushing to a protected branch isn't allowed in this repo. Create a feature branch and open a PR."
+  fi
+
   # Explicit refspec to a protected branch (origin main, :main, HEAD:main, remote branch)
   if contains_cmd "git[[:space:]]+push[[:space:]]+[^[:space:]]+[[:space:]]+([^[:space:]]*:)?($BR_REGEX)(\$|[[:space:]])"; then
-    MATCHED_BRANCH=$(printf '%s' "$COMMAND" | grep -oE "($BR_REGEX)(\$|[[:space:]])" | head -1 | tr -d '[:space:]')
-    emit_deny "Blocked: push to protected branch '${MATCHED_BRANCH:-main}'. Use a feature branch and open a PR."
+    emit_deny "$DENY_PUSH"
   fi
   if contains_cmd "git[[:space:]]+push.*:($BR_REGEX)(\$|[[:space:]])"; then
-    MATCHED_BRANCH=$(printf '%s' "$COMMAND" | grep -oE ":($BR_REGEX)(\$|[[:space:]])" | head -1 | tr -d ': [:space:]')
-    emit_deny "Blocked: push to protected branch '${MATCHED_BRANCH:-main}' via refspec. Use a feature branch and open a PR."
+    emit_deny "$DENY_PUSH"
   fi
   # Bare `git push` while on protected branch
   if contains_cmd 'git[[:space:]]+push[[:space:]]*($|[;&|])'; then
     CURRENT=$(git branch --show-current 2>/dev/null || true)
     if [ -n "$CURRENT" ] && printf '%s' ",$PROTECTED_BRANCHES," | grep -q ",$CURRENT,"; then
-      emit_deny "Blocked: you are on '$CURRENT' (a protected branch). Switch to a feature branch."
+      emit_deny "$DENY_PUSH"
+    fi
+  fi
+fi
+
+# ── Git commit on a protected branch ────────────────────────────────────
+# Block `git commit` (incl. --amend) when HEAD is on a protected branch and the
+# repo isn't in COMMIT_ALLOWLIST. Forces branching in work repos before committing —
+# saves having to repeat "create a branch first" in every conversation.
+if contains_cmd '(^|[;&|()]+[[:space:]]*)git[[:space:]]+commit'; then
+  COMMIT_REPO_ROOT=$(resolve_target_repo "$COMMAND")
+  if [ -n "$COMMIT_REPO_ROOT" ]; then
+    COMMIT_BRANCH=$(git -C "$COMMIT_REPO_ROOT" branch --show-current 2>/dev/null || true)
+    if [ -n "$COMMIT_BRANCH" ] && printf '%s' ",$PROTECTED_BRANCHES," | grep -q ",$COMMIT_BRANCH,"; then
+      if ! path_in_list "$COMMIT_REPO_ROOT" "$COMMIT_ALLOWLIST"; then
+        emit_deny "Blocked: committing to protected branch '$COMMIT_BRANCH' isn't allowed in this repo. Create a feature branch first (\`git checkout -b <branch>\`) and commit there."
+      fi
     fi
   fi
 fi
