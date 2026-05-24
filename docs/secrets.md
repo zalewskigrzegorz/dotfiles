@@ -94,7 +94,14 @@ To eliminate Touch ID prompts on Mac and `op signin` failures over non-TTY SSH o
    chmod 600 ~/.config/op/sa-token
    ```
 
-3. **Reload the shell** (`exec nu` on Mac, new SSH session on lab). Verify:
+3. **Tell chezmoi to use the service-account mode** (one-time, per machine). chezmoi's default `onepassword.mode = "account"` ignores the SA token AND throws `onepassword.mode is account, but OP_SERVICE_ACCOUNT_TOKEN is set` on first template render. Edit `~/.config/chezmoi/chezmoi.toml` (NOT in the dotfiles repo — it's the chezmoi-itself bootstrap config) and add near the top:
+
+   ```toml
+   [onepassword]
+   mode = "service-account"
+   ```
+
+4. **Reload the shell** (`exec nu` on Mac, new SSH session on lab). Verify:
 
    ```bash
    echo "${OP_SERVICE_ACCOUNT_TOKEN:0:8}…"   # should print "ops_xxxx…"
