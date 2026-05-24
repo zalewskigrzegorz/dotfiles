@@ -27,7 +27,25 @@ from pathlib import Path
 
 cfg = json.loads(Path(sys.argv[1]).read_text())
 servers = cfg.get("mcpServers", {})
+desired = set(servers.keys())
 
+# 1) Drop user-scoped servers that the template no longer declares. Without
+#    this step, removing an entry from mcp-servers.json.tmpl leaves the old
+#    server hanging in ~/.claude.json forever (bit us 2026-05-24 when
+#    MCP_DOCKER + chrome-devtools survived their removal from the template).
+claude_home = Path.home() / ".claude.json"
+if claude_home.exists():
+    try:
+        live = json.loads(claude_home.read_text())
+        current = set((live.get("mcpServers") or {}).keys())
+    except json.JSONDecodeError:
+        current = set()
+    for orphan in sorted(current - desired):
+        subprocess.run(["claude", "mcp", "remove", "--scope", "user", orphan],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print(f"  - {orphan}")
+
+# 2) Upsert every desired server (remove-then-add is idempotent).
 for name, spec in servers.items():
     subprocess.run(["claude", "mcp", "remove", "--scope", "user", name],
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
