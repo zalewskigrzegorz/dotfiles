@@ -58,4 +58,20 @@ def --wrapped superfile [...args] { _tui_window $"\u{f024b}  spf"   "superfile" 
 
 # Spotify TUI — nf-fa-spotify (U+F1BC). Without the wrapper, tmux auto-rename
 # picks up the prompt buffer text as the window title instead of "spotify".
-def --wrapped spotify_player [...args] { _tui_window $"\u{f1bc}  spotify"  "spotify_player" ...$args }
+# KITTY_WINDOW_ID is forced so viuer (the image-rendering lib spotify_player
+# uses) treats this pane as kitty-graphics-capable. Without it, TERM_PROGRAM
+# inside tmux is "tmux", viuer can't detect Ghostty's identity, and the
+# album cover falls back to block-art instead of proper image escape codes.
+def --wrapped spotify_player [...args] {
+    if ($env.TMUX? != null) {
+        let name = $"\u{f1bc}  spotify"
+        let wid = (^tmux new-window -d -P -F "#{window_id}" -n $name -e "KITTY_WINDOW_ID=1" -c $env.PWD "spotify_player" ...$args | str trim)
+        ^tmux set-window-option -t $wid automatic-rename off
+        ^tmux rename-window -t $wid $name
+        ^tmux select-window -t $wid
+    } else {
+        with-env { KITTY_WINDOW_ID: "1" } {
+            run-external "spotify_player" ...$args
+        }
+    }
+}
