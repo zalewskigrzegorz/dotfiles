@@ -43,6 +43,11 @@ brew "jq"
 brew "just"
 brew "lazydocker"
 brew "lazygit"
+# libsixel — required to build spotify_player with `sixel` cargo feature
+# (kitty/iTerm2/sixel graphics in Ghostty). Brew bottle stays for the
+# header + dylib; the binary is cargo-installed (see docs/spotify-player.md
+# if added).
+brew "libsixel"
 brew "lnav"
 brew "lua"
 brew "mise"
@@ -93,7 +98,10 @@ brew "fswatch"
 brew "gnu-sed"
 brew "nowplaying-cli"
 brew "nss"
-brew "spotify_player"
+# spotify_player is cargo-installed (not brew) so we can enable the
+# `sixel` + `pixelate` cargo features that the brew formula hard-codes off
+# — needed for proper album-art rendering in Ghostty's kitty graphics path.
+# See docs/spotify-player.md for the cargo install command.
 brew "spotifyd"
 brew "switchaudio-osx"
 brew "timrogers/tap/litra"
