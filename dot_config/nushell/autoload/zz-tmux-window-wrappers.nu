@@ -55,3 +55,7 @@ def --wrapped btop   [...args] { _tui_window $"\u{f0e4}  btop"      "btop"   ...
 # File manager (superfile) — nf-md-folder (U+F024B). Both `spf` and `superfile` bind.
 def --wrapped spf       [...args] { _tui_window $"\u{f024b}  spf"   "spf"       ...$args }
 def --wrapped superfile [...args] { _tui_window $"\u{f024b}  spf"   "superfile" ...$args }
+
+# Spotify TUI — nf-fa-spotify (U+F1BC). Without the wrapper, tmux auto-rename
+# picks up the prompt buffer text as the window title instead of "spotify".
+def --wrapped spotify_player [...args] { _tui_window $"\u{f1bc}  spotify"  "spotify_player" ...$args }
