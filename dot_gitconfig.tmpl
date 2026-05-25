@@ -1,0 +1,52 @@
+[core]
+    pager = delta
+
+[interactive]
+    diffFilter = delta --color-only
+
+[delta]
+    navigate = true
+    dark = true
+    side-by-side = true
+    line-numbers = true
+    # TODO: pin a Mocha Neon bat theme once it's built. Default (no syntax-theme)
+    # falls back to bat's default — better than Dracula (banned by Mocha Neon rule).
+
+[merge]
+    conflictstyle = zdiff3
+
+[diff]
+    colorMoved = default
+
+[user]
+    email = grzegorz.zalewski@redocly.com
+    name = Grzegorz Zalewski
+{{- if eq .profile "workstation" }}
+    signingKey = F38BCBF8BCEB902DD0F002F4964AFA51FDB3DDF8
+{{- end }}
+
+{{- if eq .profile "workstation" }}
+
+[gpg]
+    program = /opt/homebrew/bin/gpg
+    format = openpgp
+
+[commit]
+    gpgSign = true
+
+[tag]
+    forceSignAnnotated = true
+
+[gpg "ssh"]
+    program = ssh-keygen
+    allowedSignersFile =
+{{- end }}
+
+[init]
+    defaultBranch = main
+
+[pull]
+    rebase = true
+
+[push]
+    default = current
