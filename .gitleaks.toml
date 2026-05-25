@@ -17,4 +17,10 @@ path = '''(^|/)project-update\.md$|(^|/)statuses/'''
 [allowlist]
 paths = [
   '''^docs/dotfiles-inventory\.md$''',
+  '''^dot_gitconfig\.tmpl$''',
+]
+# GPG public-key fingerprints are not secrets — they're derived from public keys
+# and published on keyservers / GitHub commit metadata. Allow them anywhere.
+regexes = [
+  '''signingKey = [A-F0-9]{40}''',
 ]
