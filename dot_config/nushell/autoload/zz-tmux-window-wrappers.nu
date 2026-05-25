@@ -58,23 +58,4 @@ def --wrapped superfile [...args] { _tui_window $"\u{f024b}  spf"   "superfile" 
 
 # Spotify TUI — nf-fa-spotify (U+F1BC). Without the wrapper, tmux auto-rename
 # picks up the prompt buffer text as the window title instead of "spotify".
-#
-# Cover-art fix: spotify_player uses `viuer` for image rendering. Viuer
-# detects kitty graphics protocol via TERM containing "kitty". Inside tmux
-# our TERM is "tmux-256color" → block-art fallback. Forcing TERM=xterm-kitty
-# (terminfo shipped by Ghostty.app) + KITTY_WINDOW_ID=1 makes viuer emit
-# kitty graphics escapes, which Ghostty understands and tmux passes through
-# (allow-passthrough is on globally).
-def --wrapped spotify_player [...args] {
-    if ($env.TMUX? != null) {
-        let name = $"\u{f1bc}  spotify"
-        let wid = (^tmux new-window -d -P -F "#{window_id}" -n $name -e "KITTY_WINDOW_ID=1" -e "TERM=xterm-kitty" -c $env.PWD "spotify_player" ...$args | str trim)
-        ^tmux set-window-option -t $wid automatic-rename off
-        ^tmux rename-window -t $wid $name
-        ^tmux select-window -t $wid
-    } else {
-        with-env { KITTY_WINDOW_ID: "1", TERM: "xterm-kitty" } {
-            run-external "spotify_player" ...$args
-        }
-    }
-}
+def --wrapped spotify_player [...args] { _tui_window $"\u{f1bc}  spotify"  "spotify_player" ...$args }
