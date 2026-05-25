@@ -59,3 +59,17 @@ def --wrapped superfile [...args] { _tui_window $"\u{f024b}  spf"   "superfile" 
 # Spotify TUI — nf-fa-spotify (U+F1BC). Without the wrapper, tmux auto-rename
 # picks up the prompt buffer text as the window title instead of "spotify".
 def --wrapped spotify_player [...args] { _tui_window $"\u{f1bc}  spotify"  "spotify_player" ...$args }
+
+# chezmoi — nf-md-home (U+F02DC). Only spawn a tmux window for the
+# long-running TUI-ish subcommands (edit / cd / merge / edit-config);
+# quick `chezmoi diff` / `apply` / `update` pass through to the
+# current window so output stays where the prompt is.
+def --wrapped chezmoi [...args] {
+    let tui_subs = ["edit" "cd" "merge" "edit-config"]
+    let sub = (if ($args | is-empty) { "" } else { $args | first })
+    if ($env.TMUX? != null) and ($sub in $tui_subs) {
+        _tui_window $"\u{f02dc}  chezmoi" "chezmoi" ...$args
+    } else {
+        run-external chezmoi ...$args
+    }
+}
