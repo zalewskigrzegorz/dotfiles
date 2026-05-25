@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # bin/tmux-now-playing
-# Cached now-playing string for tmux status-right (5s TTL).
-# Pulls from macOS Now Playing system via `nowplaying-cli` so it works for
-# Spotify (any client), Apple Music, YouTube Music tabs, etc. Outputs nothing
-# when no track is active.
+# Emits a complete tmux status chip for the currently-playing track, OR an
+# empty string when nothing is playing (paused / stopped / not started).
+# Self-contained #[…] tmux format escapes mean the chip can be dropped into
+# status-right without surrounding bg directives.
+#
+# Cached 5s. Pulls from macOS Now Playing (works for any client).
 set -euo pipefail
 
 CACHE_TTL=5
@@ -18,20 +20,27 @@ if [[ -f "$cache" ]]; then
   fi
 fi
 
-command -v nowplaying-cli >/dev/null || { : > "$cache"; exit 0; }
+emit() { printf '%s' "$1" > "$cache.tmp" && mv "$cache.tmp" "$cache"; printf '%s' "$1"; }
+
+command -v nowplaying-cli >/dev/null || { emit ""; exit 0; }
+
+# Playback state: 1.0 = playing, 0 = paused / stopped. macOS may return
+# "null" when no media app has ever registered Now Playing.
+rate=$(nowplaying-cli get playbackRate 2>/dev/null | tr -d '\n')
+[[ "$rate" == "1" || "$rate" == "1.0" ]] || { emit ""; exit 0; }
 
 title=$(nowplaying-cli get title 2>/dev/null | head -c 30 | tr -d '\n')
 artist=$(nowplaying-cli get artist 2>/dev/null | head -c 20 | tr -d '\n')
 
 if [[ -z "$title" || "$title" == "null" || "$title" == "(null)" ]]; then
-  : > "$cache"
+  emit ""
   exit 0
 fi
 
+label="$title"
 if [[ -n "$artist" && "$artist" != "null" && "$artist" != "(null)" ]]; then
-  printf '%s — %s' "$title" "$artist" > "$cache.tmp"
-else
-  printf '%s' "$title" > "$cache.tmp"
+  label="$title — $artist"
 fi
-mv "$cache.tmp" "$cache"
-cat "$cache"
+
+# Mocha Neon green chip (matches palette green token, not Spotify brand).
+emit "#[bg=#50FA7B,fg=#1E1E2E,bold] ♪ ${label} #[bg=#1E1E2E,fg=#F0F0FF,nobold]"
