@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# bin/tmux-now-playing
+# Cached now-playing string for tmux status-right (5s TTL).
+# Pulls from macOS Now Playing system via `nowplaying-cli` so it works for
+# Spotify (any client), Apple Music, YouTube Music tabs, etc. Outputs nothing
+# when no track is active.
+set -euo pipefail
+
+CACHE_TTL=5
+uid="${UID:-$(id -u)}"
+cache="${TMPDIR:-/tmp}/tmux-now-playing-${uid}"
+
+if [[ -f "$cache" ]]; then
+  mtime=$(stat -f %m "$cache" 2>/dev/null || echo 0)
+  if (( $(date +%s) - mtime < CACHE_TTL )); then
+    cat "$cache"
+    exit 0
+  fi
+fi
+
+command -v nowplaying-cli >/dev/null || { : > "$cache"; exit 0; }
+
+title=$(nowplaying-cli get title 2>/dev/null | head -c 30 | tr -d '\n')
+artist=$(nowplaying-cli get artist 2>/dev/null | head -c 20 | tr -d '\n')
+
+if [[ -z "$title" || "$title" == "null" || "$title" == "(null)" ]]; then
+  : > "$cache"
+  exit 0
+fi
+
+if [[ -n "$artist" && "$artist" != "null" && "$artist" != "(null)" ]]; then
+  printf '%s — %s' "$title" "$artist" > "$cache.tmp"
+else
+  printf '%s' "$title" > "$cache.tmp"
+fi
+mv "$cache.tmp" "$cache"
+cat "$cache"

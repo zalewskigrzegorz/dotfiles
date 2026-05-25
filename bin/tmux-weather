@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# bin/tmux-weather
+# Cached weather string for tmux status-right (5min TTL). Uses wttr.in with
+# IP-based location lookup + metric units. Returns empty string when offline
+# or wttr is having a bad day, so the status bar stays clean.
+set -euo pipefail
+
+CACHE_TTL=300   # 5 min
+uid="${UID:-$(id -u)}"
+cache="${TMPDIR:-/tmp}/tmux-weather-${uid}"
+
+if [[ -f "$cache" ]]; then
+  mtime=$(stat -f %m "$cache" 2>/dev/null || echo 0)
+  if (( $(date +%s) - mtime < CACHE_TTL )); then
+    cat "$cache"
+    exit 0
+  fi
+fi
+
+# `%c` = condition icon, `%t` = feels-like temp, `%p` = precip; `m` = metric.
+# Auto-location via client IP (default behavior of wttr.in).
+out=$(curl -s --max-time 3 'wttr.in/?format=%c+%t+%p&m' 2>/dev/null || echo "")
+
+# Reject error strings ("Unknown location", HTML, etc.) and obvious garbage.
+if [[ -z "$out" || "$out" =~ "Unknown" || "$out" =~ "<" || "$out" =~ "Sorry" ]]; then
+  exit 0
+fi
+
+# Trim leading/trailing whitespace (wttr returns "  ☀️ +18°C 0.0mm")
+out="${out#"${out%%[![:space:]]*}"}"
+out="${out%"${out##*[![:space:]]}"}"
+
+printf '%s' "$out" > "$cache.tmp" && mv "$cache.tmp" "$cache"
+cat "$cache"
