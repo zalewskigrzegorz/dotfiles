@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # bin/tmux-weather
-# Emits an alert-only weather chip for tmux status-right. The chip stays
-# HIDDEN (empty output) on calm + clear days. Surfaces only when one of:
-#   * rain / snow predicted now or in next 4h (precip_mm >= 0.2)
-#   * wind > 30 km/h
-#   * thunderstorm / fog / blizzard in description
-#   * temp < -5°C or > 35°C
+# Emits a weather chip for tmux status-right.
+#   * Always shows the current temperature on a neutral chip.
+#   * Upgrades to a colored alert chip (icon + bg + +4h forecast + precip) when:
+#       - rain / snow predicted now or in next 4h (precip_mm >= 0.1 or chance >= 20%)
+#       - wind > 20 km/h
+#       - thunderstorm / fog / blizzard in description
+#       - temp <= 0°C or >= 30°C
 # Format on alert: " <icon> now <temp> → in <Nh> <icon2> <peak> " with
 # per-condition bg colour (rain=lavender, wind=cyan, storm=red, snow=white,
 # heat=orange, cold=blue, AQI=mauve).
@@ -73,30 +74,35 @@ if   contains "thunder" "$cur_desc" || contains "thunder" "$next_desc"; then
   icon="⛈"; bg="#FF6B9D"; alert="storm"
 elif contains "blizzard" "$cur_desc" || contains "blizzard" "$next_desc"; then
   icon="❄"; bg="#F0F0FF"; alert="blizzard"
-elif contains "snow" "$cur_desc" || contains "snow" "$next_desc" || (( next_chance_snow >= 50 )); then
+elif contains "snow" "$cur_desc" || contains "snow" "$next_desc" || (( next_chance_snow >= 20 )); then
   icon="❄"; bg="#8BE9FD"; alert="snow"
 elif contains "fog" "$cur_desc" || contains "fog" "$next_desc" || contains "mist" "$cur_desc"; then
   icon="🌫"; bg="#7F849C"; alert="fog"
-elif awk "BEGIN{exit !($next_rain >= 0.2 || $next_chance_rain >= 50)}"; then
+elif awk "BEGIN{exit !($next_rain >= 0.1 || $next_chance_rain >= 20)}"; then
   icon="🌧"; bg="#9580FF"; alert="rain"
-elif awk "BEGIN{exit !($cur_wind > 30 || $next_wind > 30)}"; then
+elif awk "BEGIN{exit !($cur_wind > 20 || $next_wind > 20)}"; then
   icon="💨"; bg="#8BE9FD"; alert="wind"
-elif awk "BEGIN{exit !($cur_temp != \"\" && ($cur_temp + 0) >= 35)}"; then
+elif awk "BEGIN{exit !($cur_temp != \"\" && ($cur_temp + 0) >= 30)}"; then
   icon="🔥"; bg="#FF8C42"; alert="heat"
-elif awk "BEGIN{exit !($cur_temp != \"\" && ($cur_temp + 0) <= -5)}"; then
+elif awk "BEGIN{exit !($cur_temp != \"\" && ($cur_temp + 0) <= 0)}"; then
   icon="🥶"; bg="#9580FF"; alert="cold"
 fi
 
-[[ -z "$alert" ]] && { emit ""; exit 0; }
-
-# Compose: " <icon> now <cur_temp>° → +<Nh> <next_temp>° "
+# Always show temperature. Alert (if any) adds icon + colored bg + forecast.
 hrs_ahead=4
+if [[ -z "$alert" ]]; then
+  # Calm chip: just current temp on neutral surface.
+  [[ -z "$cur_temp" ]] && { emit ""; exit 0; }
+  emit "#[bg=#313244,fg=#CDD6F4,nobold] ${cur_temp}° #[bg=#1E1E2E,fg=#F0F0FF]"
+  exit 0
+fi
+
 chip=" ${icon} ${cur_temp}°"
 if [[ -n "$next_temp" && "$next_temp" != "$cur_temp" ]]; then
   chip+=" → +${hrs_ahead}h ${next_temp}°"
 fi
 # Add precip mm if material.
-if awk "BEGIN{exit !($next_rain >= 0.2)}"; then
+if awk "BEGIN{exit !($next_rain >= 0.1)}"; then
   chip+=" ${next_rain}mm"
 fi
 chip+=" "
