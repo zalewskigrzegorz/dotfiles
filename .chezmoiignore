@@ -34,7 +34,6 @@ agent-mcp/**
 .config/zed/prompts/**
 .config/lnav/**
 .config/atuin/atuin-receipt.json
-.config/spotify-player/clientid
 
 {{- $profile := "workstation" -}}
 {{- with (index . "profile") -}}
