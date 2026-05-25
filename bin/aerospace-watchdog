@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# bin/aerospace-watchdog
+# Restarts AeroSpace.app if it isn't running. Idempotent — exits 0 either way.
+# Wired up as a launchd job with StartInterval=30 (see
+# dot_config/launchd/com.greg.aerospace-watchdog.plist.tmpl) so that even when
+# the in-app `Leader+X` rebind is unreachable (because AeroSpace is the dead
+# process), the bar comes back automatically within 30s.
+
+if ! pgrep -x AeroSpace >/dev/null 2>&1; then
+  /usr/bin/open -a AeroSpace
+  echo "$(date +%FT%T): aerospace was dead, restarted"
+fi
