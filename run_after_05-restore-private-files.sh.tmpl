@@ -26,6 +26,15 @@ if ! command -v op >/dev/null 2>&1; then
   exit 0
 fi
 
+# When chezmoi runs over ssh without a login shell, nushell's env.nu hasn't
+# fired to set OP_SERVICE_ACCOUNT_TOKEN. Source the same file that env.nu reads
+# so headless `chezmoi update` on the lab can authenticate.
+op_sa_file="${HOME}/.config/op/sa-token"
+if [[ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" && -f "$op_sa_file" ]]; then
+  OP_SERVICE_ACCOUNT_TOKEN=$(tr -d '[:space:]' < "$op_sa_file")
+  export OP_SERVICE_ACCOUNT_TOKEN
+fi
+
 # Never block chezmoi on 1Password first-run prompts (e.g. "add an account now?").
 # Those come from commands like `op vault get` when no account exists yet.
 run_op() {
