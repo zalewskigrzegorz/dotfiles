@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
 # bin/tmux-weather
-# Cached weather string for tmux status-right (5min TTL). Uses wttr.in with
-# IP-based location lookup + metric units. Returns empty string when offline
-# or wttr is having a bad day, so the status bar stays clean.
+# Emits an alert-only weather chip for tmux status-right. The chip stays
+# HIDDEN (empty output) on calm + clear days. Surfaces only when one of:
+#   * rain / snow predicted now or in next 4h (precip_mm >= 0.2)
+#   * wind > 30 km/h
+#   * thunderstorm / fog / blizzard in description
+#   * temp < -5°C or > 35°C
+# Format on alert: " <icon> now <temp> → in <Nh> <icon2> <peak> " with
+# per-condition bg colour (rain=lavender, wind=cyan, storm=red, snow=white,
+# heat=orange, cold=blue, AQI=mauve).
+#
+# Cached 5min. wttr.in JSON with IP-based location, metric units.
 set -euo pipefail
 
-CACHE_TTL=300   # 5 min
+CACHE_TTL=300
 uid="${UID:-$(id -u)}"
 cache="${TMPDIR:-/tmp}/tmux-weather-${uid}"
 
@@ -17,18 +25,80 @@ if [[ -f "$cache" ]]; then
   fi
 fi
 
-# `%c` = condition icon, `%t` = feels-like temp, `%p` = precip; `m` = metric.
-# Auto-location via client IP (default behavior of wttr.in).
-out=$(curl -s --max-time 3 'wttr.in/?format=%c+%t+%p&m' 2>/dev/null || echo "")
+emit() { printf '%s' "$1" > "$cache.tmp" && mv "$cache.tmp" "$cache"; printf '%s' "$1"; }
 
-# Reject error strings ("Unknown location", HTML, etc.) and obvious garbage.
-if [[ -z "$out" || "$out" =~ "Unknown" || "$out" =~ "<" || "$out" =~ "Sorry" ]]; then
-  exit 0
+command -v jq >/dev/null || { emit ""; exit 0; }
+
+json=$(curl -sS --max-time 4 'wttr.in/?format=j1' 2>/dev/null || true)
+[[ -z "$json" || ! "$json" =~ ^\{ ]] && { emit ""; exit 0; }
+
+# Current snapshot.
+cur_temp=$(echo "$json"     | jq -r '.current_condition[0].temp_C        // empty')
+cur_desc=$(echo "$json"     | jq -r '.current_condition[0].weatherDesc[0].value // empty' | tr '[:upper:]' '[:lower:]')
+cur_wind=$(echo "$json"     | jq -r '.current_condition[0].windspeedKmph // 0')
+
+# Next-4h forecast. wttr's hourly[] is indexed by 3h slots (0, 300, 600, 900, ...)
+# within "today" first, then weather[1].hourly[] for tomorrow. We pull from
+# weather[0..1] flat and find the slot whose `time` is between now+2h and now+5h.
+now_hhmm=$(date +%H%M)
+now_mins=$(( 10#${now_hhmm:0:2} * 60 + 10#${now_hhmm:2:2} ))
+target_mins=$(( now_mins + 240 ))  # +4h
+wrap_target=$target_mins
+if (( wrap_target >= 1440 )); then
+  wrap_target=$(( wrap_target - 1440 ))
+  day_index=1
+else
+  day_index=0
 fi
 
-# Trim leading/trailing whitespace (wttr returns "  ☀️ +18°C 0.0mm")
-out="${out#"${out%%[![:space:]]*}"}"
-out="${out%"${out##*[![:space:]]}"}"
+next=$(echo "$json" | jq --argjson t "$wrap_target" --argjson d "$day_index" '
+  .weather[$d].hourly
+  | map({time: (.time|tonumber|((./100|floor)*60 + (.%100))), data: .})
+  | (map(select(.time >= $t)) | first) // (.[-1])
+  | .data
+' 2>/dev/null)
 
-printf '%s' "$out" > "$cache.tmp" && mv "$cache.tmp" "$cache"
-cat "$cache"
+next_temp=$(echo "$next" | jq -r '.tempC          // empty')
+next_desc=$(echo "$next" | jq -r '.weatherDesc[0].value // empty' | tr '[:upper:]' '[:lower:]')
+next_rain=$(echo "$next" | jq -r '.precipMM       // 0')
+next_wind=$(echo "$next" | jq -r '.windspeedKmph  // 0')
+next_chance_rain=$(echo "$next" | jq -r '.chanceofrain // 0')
+next_chance_snow=$(echo "$next" | jq -r '.chanceofsnow // 0')
+
+# Pick category by current-or-next signal. Order = priority.
+icon=""; bg=""; alert=""
+contains() { case "$2" in *"$1"*) return 0;; *) return 1;; esac; }
+
+if   contains "thunder" "$cur_desc" || contains "thunder" "$next_desc"; then
+  icon="⛈"; bg="#FF6B9D"; alert="storm"
+elif contains "blizzard" "$cur_desc" || contains "blizzard" "$next_desc"; then
+  icon="❄"; bg="#F0F0FF"; alert="blizzard"
+elif contains "snow" "$cur_desc" || contains "snow" "$next_desc" || (( next_chance_snow >= 50 )); then
+  icon="❄"; bg="#8BE9FD"; alert="snow"
+elif contains "fog" "$cur_desc" || contains "fog" "$next_desc" || contains "mist" "$cur_desc"; then
+  icon="🌫"; bg="#7F849C"; alert="fog"
+elif awk "BEGIN{exit !($next_rain >= 0.2 || $next_chance_rain >= 50)}"; then
+  icon="🌧"; bg="#9580FF"; alert="rain"
+elif awk "BEGIN{exit !($cur_wind > 30 || $next_wind > 30)}"; then
+  icon="💨"; bg="#8BE9FD"; alert="wind"
+elif awk "BEGIN{exit !($cur_temp != \"\" && ($cur_temp + 0) >= 35)}"; then
+  icon="🔥"; bg="#FF8C42"; alert="heat"
+elif awk "BEGIN{exit !($cur_temp != \"\" && ($cur_temp + 0) <= -5)}"; then
+  icon="🥶"; bg="#9580FF"; alert="cold"
+fi
+
+[[ -z "$alert" ]] && { emit ""; exit 0; }
+
+# Compose: " <icon> now <cur_temp>° → +<Nh> <next_temp>° "
+hrs_ahead=4
+chip=" ${icon} ${cur_temp}°"
+if [[ -n "$next_temp" && "$next_temp" != "$cur_temp" ]]; then
+  chip+=" → +${hrs_ahead}h ${next_temp}°"
+fi
+# Add precip mm if material.
+if awk "BEGIN{exit !($next_rain >= 0.2)}"; then
+  chip+=" ${next_rain}mm"
+fi
+chip+=" "
+
+emit "#[bg=${bg},fg=#1E1E2E,bold]${chip}#[bg=#1E1E2E,fg=#F0F0FF,nobold]"
