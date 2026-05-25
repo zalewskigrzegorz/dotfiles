@@ -11,12 +11,12 @@
 # @raycast.description Runs end-to-end tests on GitHub by toggling the run_e2e label.
 # @raycast.author Grzegorz Zalewski
 # @raycast.authorURL https://raycast.com/zalewskigrzegorz
-{{- $vault := "Dotfiles" -}}
+
+{{ $vault := "Dotfiles" -}}
 {{- with (index . "onePasswordVault") -}}
 {{- $vault = . -}}
 {{- end }}
-
-{{- $hasOp := lookPath "op" -}}
+{{ $hasOp := lookPath "op" -}}
 workspace_dir={{ if $hasOp }}{{ onepasswordRead (printf "op://%s/WORKSPACE_DIR/password" $vault) | quote }}{{ else }}""{{ end }}
 work_company={{ if $hasOp }}{{ onepasswordRead (printf "op://%s/WORK_COMPANY/password" $vault) | quote }}{{ else }}""{{ end }}
 work_main_project={{ if $hasOp }}{{ onepasswordRead (printf "op://%s/WORK_MAIN_PROJECT/password" $vault) | quote }}{{ else }}""{{ end }}
