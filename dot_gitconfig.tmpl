@@ -21,14 +21,14 @@
 [user]
     email = grzegorz.zalewski@REDACTED_ORG.com
     name = Grzegorz Zalewski
-{{- if eq .profile "workstation" }}
     signingKey = F38BCBF8BCEB902DD0F002F4964AFA51FDB3DDF8
-{{- end }}
-
-{{- if eq .profile "workstation" }}
 
 [gpg]
+{{- if eq .chezmoi.os "darwin" }}
     program = /opt/homebrew/bin/gpg
+{{- else }}
+    program = /usr/bin/gpg
+{{- end }}
     format = openpgp
 
 [commit]
@@ -40,7 +40,6 @@
 [gpg "ssh"]
     program = ssh-keygen
     allowedSignersFile =
-{{- end }}
 
 [init]
     defaultBranch = main

@@ -154,3 +154,34 @@ restore_password_field "GITLEAKS_PRIVATE_CONFIG" "$secret_dir/gitleaks-private.t
 
 mkdir -p "$secret_dir/statuses"
 chmod 700 "$secret_dir/statuses"
+
+# GPG signing key: import from 1Password once. Idempotent — if the fingerprint
+# is already in the local keyring, skip. Same key on every machine so the
+# `Verified` badge on GitHub stays consistent across workstation + lab.
+gpg_fingerprint="F38BCBF8BCEB902DD0F002F4964AFA51FDB3DDF8"
+if command -v gpg >/dev/null 2>&1; then
+  mkdir -p "$HOME/.gnupg"
+  chmod 700 "$HOME/.gnupg"
+
+  if gpg --list-secret-keys "$gpg_fingerprint" >/dev/null 2>&1; then
+    echo "GPG key $gpg_fingerprint already imported."
+  else
+    gpg_tmp="$(mktemp -d)"
+    chmod 700 "$gpg_tmp"
+    trap 'rm -rf "$gpg_tmp"' EXIT
+
+    if restore_document "GPG_SECRET_KEY" "$gpg_tmp/secret.asc" \
+       && restore_document "GPG_PUBLIC_KEY" "$gpg_tmp/public.asc" \
+       && restore_document "GPG_OWNERTRUST" "$gpg_tmp/ownertrust.txt"; then
+      gpg --batch --import "$gpg_tmp/public.asc" 2>/dev/null || true
+      gpg --batch --import "$gpg_tmp/secret.asc" 2>/dev/null || true
+      gpg --import-ownertrust "$gpg_tmp/ownertrust.txt" 2>/dev/null || true
+      echo "Imported GPG key $gpg_fingerprint."
+    else
+      echo "Skipping GPG import: one or more documents missing in vault '$vault'."
+    fi
+
+    rm -rf "$gpg_tmp"
+    trap - EXIT
+  fi
+fi
