@@ -1,5 +1,6 @@
 [[themes]]
 name = "mocha-neon"
+
 [themes.palette]
 background = "#1E1E2E"
 foreground = "#F0F0FF"
@@ -7,7 +8,37 @@ black      = "#11111B"
 red        = "#FF6B9D"
 green      = "#50FA7B"
 yellow     = "#FFD700"
-blue       = "#8AB4F8"
+blue       = "#9580FF"   # lavender — was generic blue
 magenta    = "#B347FF"
 cyan       = "#8BE9FD"
 white      = "#F0F0FF"
+
+[themes.component_style]
+# Section headers (Playlists / Albums / Artists / Playback) — mauve, bold.
+block_title       = { fg = "Magenta", modifiers = ["Bold"] }
+# Box borders — mauve to match titles (was default white).
+border            = { fg = "Magenta" }
+# Now-playing track block.
+playback_status   = { fg = "Magenta", modifiers = ["Bold"] }
+playback_track    = { fg = "White",   modifiers = ["Bold"] }
+playback_artists  = { fg = "Cyan",    modifiers = ["Bold"] }
+playback_album    = { fg = "Yellow" }
+playback_genres   = { fg = "Blue",    modifiers = ["Italic"] }
+playback_metadata = { fg = "Blue" }
+# Progress bar — was Green by default; mauve fills + dimmed unfilled.
+playback_progress_bar          = { bg = "Black", fg = "Magenta" }
+playback_progress_bar_unfilled = { bg = "Black", fg = "Blue" }
+# Highlighted "currently playing" row in any list.
+current_playing   = { fg = "Red",     modifiers = ["Bold"] }
+# Page / playlist descriptions.
+page_desc         = { fg = "Cyan",    modifiers = ["Bold"] }
+playlist_desc     = { fg = "Blue",    modifiers = ["Dim"] }
+# Table column headers (track listings).
+table_header      = { fg = "Magenta", modifiers = ["Bold"] }
+# Selection (cursor row) — inverted block.
+selection         = { modifiers = ["Reversed", "Bold"] }
+# Liked / heart indicator.
+like              = { fg = "Red" }
+# Lyrics view (when supported).
+lyrics_played     = { modifiers = ["Dim"] }
+lyrics_playing    = { fg = "Magenta", modifiers = ["Bold"] }
