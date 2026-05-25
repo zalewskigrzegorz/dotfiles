@@ -1,17 +1,46 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env nu
 
-secret_dir="${DOTFILES_SECRET_DIR:-$HOME/.local/state/dotfiles/secrets}"
-script="${DOTFILES_WEEKLY_PROJECT_UPDATE_SCRIPT:-$secret_dir/weekly-slack-board-update.nu}"
+# Wrapper for the private Slack-board weekly update script.
+# - resolves the script path (env override → secrets dir)
+# - if --since isn't passed, interactively prompts with a sensible default
+#   (previous Monday strictly before today)
+# - forwards all args to the nu script
 
-if [[ ! -f "$script" ]]; then
-  cat >&2 <<EOF
-Weekly project update script was not found:
-  $script
+def main [
+    --since: string = ""
+    --until: string = ""
+    --output (-o): string = ""
+] {
+    let secret_dir = ($env.DOTFILES_SECRET_DIR? | default $"($env.HOME)/.local/state/dotfiles/secrets")
+    let script = ($env.DOTFILES_WEEKLY_PROJECT_UPDATE_SCRIPT? | default $"($secret_dir)/weekly-slack-board-update.nu")
 
-Set DOTFILES_WEEKLY_PROJECT_UPDATE_SCRIPT or restore the local secret file.
-EOF
-  exit 1
-fi
+    if not ($script | path exists) {
+        print -e $"Weekly project update script was not found:\n  ($script)\n\nSet DOTFILES_WEEKLY_PROJECT_UPDATE_SCRIPT or restore the local secret file."
+        exit 1
+    }
 
-exec nu "$script" "$@"
+    let resolved_since = if ($since | is-empty) {
+        # Default: previous Monday strictly before today (Mon = %u 1 .. Sun = 7).
+        let dow = (date now | format date "%u" | into int)
+        let days_back = if $dow == 1 { 7 } else { $dow - 1 }
+        let default_since = (date now | $in - ($days_back * 1day) | format date "%Y-%m-%d")
+
+        let typed = (input $"since \(YYYY-MM-DD\) [($default_since)]: ")
+        let picked = (if ($typed | str trim | is-empty) { $default_since } else { $typed | str trim })
+
+        if not ($picked =~ '^\d{4}-\d{2}-\d{2}$') {
+            print -e $"error: expected YYYY-MM-DD, got '($picked)'"
+            exit 2
+        }
+        print $"→ --since ($picked)"
+        $picked
+    } else {
+        $since
+    }
+
+    mut extra: list<string> = []
+    if not ($until | is-empty)  { $extra = ($extra | append ["--until" $until]) }
+    if not ($output | is-empty) { $extra = ($extra | append ["--output" $output]) }
+
+    nu $script --since $resolved_since ...$extra
+}
