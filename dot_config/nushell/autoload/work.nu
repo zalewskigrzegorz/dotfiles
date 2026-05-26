@@ -81,3 +81,54 @@ def "work truncate-session" [name: string, max: int = 28]: nothing -> string {
         $name
     }
 }
+
+# Conventional commit defaults (fallback when `extends config-conventional`).
+const WORK_CONVENTIONAL_DEFAULTS = [
+    "build" "chore" "ci" "docs" "feat" "fix"
+    "perf" "refactor" "revert" "style" "test"
+]
+
+# Load allowed commit type prefixes from a repo's commitlint config.
+# Returns empty list if no config found (= no enforcement).
+# Returns conventional defaults if config extends config-conventional without override.
+# Returns explicit type-enum list if found.
+def "work load-commitlint-types" [repo_path: path]: nothing -> list<string> {
+    let candidates = [
+        ($repo_path | path join "commitlint.config.js")
+        ($repo_path | path join "commitlint.config.cjs")
+        ($repo_path | path join "commitlint.config.mjs")
+        ($repo_path | path join "package.json")
+    ]
+    let found = ($candidates | where { |p| $p | path exists })
+
+    if ($found | is-empty) {
+        return []
+    }
+
+    let config_file = ($found | first)
+    let content = (open --raw $config_file)
+
+    # Look for a 'type-enum' line: 'type-enum': [2, 'always', ['a', 'b', ...]]
+    let type_lines = ($content | lines | where { |l| $l | str contains "'type-enum'" })
+
+    if ($type_lines | is-empty) {
+        # No type-enum override — check for extends config-conventional
+        if ($content | str contains "config-conventional") {
+            return $WORK_CONVENTIONAL_DEFAULTS
+        }
+        print $"⚠️  ($config_file) — type-enum not found. Use --type to force a prefix."
+        return []
+    }
+
+    let type_line = ($type_lines | first)
+
+    # Split at '[' — last bracket group = the enum array
+    let parts = ($type_line | split row "[")
+    if ($parts | length) < 2 {
+        return $WORK_CONVENTIONAL_DEFAULTS
+    }
+    let inner = ($parts | last | str replace --all "]" "" | str replace --all "," "" | str trim)
+
+    # Extract quoted identifiers from the inner string
+    $inner | parse --regex "'([^']+)'" | get capture0
+}
