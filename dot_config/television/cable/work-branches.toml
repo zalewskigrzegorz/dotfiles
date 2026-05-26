@@ -1,0 +1,10 @@
+[metadata]
+name = "work-branches"
+description = "Local + remote branches available for `work new` (pass repo path via WORK_REPO env)"
+requirements = ["git"]
+
+[source]
+command = "bash -c 'cd \"${WORK_REPO:-.}\" 2>/dev/null && { git for-each-ref --format=\"%(refname:short)\" refs/heads/; git for-each-ref --format=\"%(refname:short)\" refs/remotes/origin/ | grep -v HEAD; echo \"+ Create new branch...\"; }'"
+
+[preview]
+command = "bash -c 'cd \"${WORK_REPO:-.}\" 2>/dev/null; echo \"Branch: {}\"; echo; git log --oneline -10 -- {} 2>/dev/null || echo \"(special: + Create new branch...)\"'"
