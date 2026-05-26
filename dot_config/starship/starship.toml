@@ -7,7 +7,10 @@ ${custom.mac_host}\
 $directory\
 ${custom.repo_on}\
 $git_branch\
+$git_commit\
+$git_state\
 $git_status\
+${custom.worktree}\
 ${custom.via}\
 $nodejs\
 $bun\
@@ -70,19 +73,43 @@ style  = "bold cyan"
 # ticket-id / meaningful suffix. Full branch is more useful than a cut prefix.
 
 [git_status]
-format = '([$conflicted$stashed$deleted$renamed$modified$staged$untracked$ahead_behind]($style) )'
-conflicted = "[](red)"
-stashed    = "[](mauve)"
-deleted    = "[](red)"
-renamed    = "[➔](pink)"
-modified   = "[](gold)"
-staged     = "[+](green)"
-untracked  = ""
+# Trailing space inside each glyph keeps icons from colliding when several
+# statuses fire at once; empty values contribute nothing.
+format = '([$conflicted$stashed$deleted$renamed$modified$staged$untracked$ahead_behind]($style))'
+conflicted = "[](red) "
+stashed    = "[](mauve) "
+deleted    = "[](red) "
+renamed    = "[➔](pink) "
+modified   = "[](gold) "
+staged     = "[+](green) "
+untracked  = " "
 ahead      = "[](green) "
 behind     = "[](red) "
 diverged   = "[](orange) "
 up_to_date = ""
 style      = "bold pink"
+
+[git_commit]
+# Surface short SHA only on detached HEAD (bisect / `git checkout <tag>` /
+# `git checkout <sha>`). Stays invisible while on a branch.
+only_detached       = true
+commit_hash_length  = 7
+format              = "[ $hash$tag]($style) "
+style               = "bold gold"
+tag_disabled        = false
+
+[git_state]
+# Surface REBASING / MERGING / CHERRY-PICKING / BISECTING / AM / REVERTING.
+# Common during worktree workflows (parallel rebases, conflict resolution).
+format = '\([$state( $progress_current/$progress_total)]($style)\) '
+style  = "bold mauve"
+rebase           = "REBASING"
+merge            = "MERGING"
+revert           = "REVERTING"
+cherry_pick      = "CHERRY-PICKING"
+bisect           = "BISECTING"
+am               = "AM"
+am_or_rebase     = "AM/REBASE"
 
 [hostname]
 ssh_only = true
@@ -102,6 +129,17 @@ when    = "git rev-parse --is-inside-work-tree"
 command = "echo on"
 format  = "[$output ]($style)"
 style   = "fg_muted"
+shell   = ["sh"]
+
+[custom.worktree]
+# Show ⎇ <worktree-name> only when cwd is a git worktree (not the main
+# checkout). Detection: in a worktree the per-tree `git-dir` lives under
+# `<common>/.git/worktrees/<name>`, so `git-common-dir != git-dir`.
+# `basename "$(git rev-parse --git-dir)"` yields the worktree name.
+when    = """ test "$(git rev-parse --git-common-dir 2>/dev/null)" != "$(git rev-parse --git-dir 2>/dev/null)" """
+command = "basename \"$(git rev-parse --git-dir 2>/dev/null)\""
+format  = "[⎇ $output ]($style)"
+style   = "bold orange"
 shell   = ["sh"]
 
 [custom.via]
