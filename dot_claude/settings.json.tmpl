@@ -103,7 +103,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/bazgroly-autopush.sh",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/bazgroly-autostage.sh",
             "timeout": 30000
           }
         ]
@@ -115,6 +115,15 @@
           {
             "type": "command",
             "command": "mempalace hook run --hook session-start --harness claude-code"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/bazgroly-autopush-on-start.sh",
+            "timeout": 30000
           }
         ]
       }
@@ -134,6 +143,15 @@
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/stop.sh",
             "timeout": 5000
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/bazgroly-autopush-on-stop.sh",
+            "timeout": 30000
           }
         ]
       }
