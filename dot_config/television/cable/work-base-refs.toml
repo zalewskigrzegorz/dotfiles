@@ -1,0 +1,10 @@
+[metadata]
+name = "work-base-refs"
+description = "Base refs for `work new --from <ref>` (defaults to origin/<default> sorted first)"
+requirements = ["git"]
+
+[source]
+command = "bash -c 'cd \"${WORK_REPO:-.}\" 2>/dev/null && { default=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed s,refs/remotes/origin/,origin/,); echo \"$default\"; git for-each-ref --format=\"%(refname:short)\" refs/remotes/origin/ | grep -v HEAD | grep -v \"^${default}$\"; git for-each-ref --format=\"%(refname:short)\" refs/heads/; }'"
+
+[preview]
+command = "bash -c 'cd \"${WORK_REPO:-.}\" 2>/dev/null; echo \"Base ref: {}\"; echo; git log --oneline -10 {} 2>/dev/null'"
