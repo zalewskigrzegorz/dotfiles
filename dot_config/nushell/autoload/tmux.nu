@@ -48,6 +48,45 @@ def --env tk [
     if ($name | is-empty) { tmux kill-server } else { tmux kill-session -t $name }
 }
 
+# Work — set up a 4-window layout in the current tmux session:
+#   1: terminal (current shell, renamed)
+#   2: git      (lazygit)
+#   3: claude   (claude code)
+#   4: nvim     (editor)
+# Icons mirror zz-tmux-window-wrappers.nu. Idempotent: re-running skips
+# windows that already exist by name.
+def work [] {
+    if ($env.TMUX? == null) {
+        print "work: not inside tmux. Run `tn` first."
+        return
+    }
+
+    let term = $"\u{f120}  terminal"
+    let git  = $"\u{e725}  git"
+    let cc   = $"\u{f06a9}  claude"
+    let edit = $"\u{e62b}  nvim"
+
+    # Window 1: rename caller window to terminal, lock auto-rename off.
+    ^tmux set-window-option automatic-rename off
+    ^tmux rename-window $term
+
+    let existing = (^tmux list-windows -F "#{window_name}" | lines)
+
+    for spec in [
+        { name: $git,  cmd: "lazygit" }
+        { name: $cc,   cmd: "claude" }
+        { name: $edit, cmd: "nvim" }
+    ] {
+        if not ($spec.name in $existing) {
+            let wid = (^tmux new-window -d -P -F "#{window_id}" -n $spec.name -c $env.PWD $spec.cmd | str trim)
+            ^tmux set-window-option -t $wid automatic-rename off
+            ^tmux rename-window -t $wid $spec.name
+        }
+    }
+
+    ^tmux select-window -t:1
+}
+
 def basti-nomad [
     target?: string = "nomad-prod" # Autocoplete from tv 
 ] {
