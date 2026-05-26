@@ -99,38 +99,54 @@ def "work load-commitlint-types" [repo_path: path]: nothing -> list<string> {
         ($repo_path | path join "commitlint.config.mjs")
         ($repo_path | path join "package.json")
     ]
-    let found = ($candidates | where { |p| $p | path exists })
+    let config_file = (
+        $candidates
+        | where { |p| $p | path exists }
+        | first
+    )
 
-    if ($found | is-empty) {
+    if ($config_file | is-empty) {
         return []
     }
 
-    let config_file = ($found | first)
     let content = (open --raw $config_file)
 
-    # Look for a 'type-enum' line: 'type-enum': [2, 'always', ['a', 'b', ...]]
-    let type_lines = ($content | lines | where { |l| $l | str contains "'type-enum'" })
+    # package.json: parse as JSON, only look inside commitlint key (avoid false positives).
+    if ($config_file | str ends-with "package.json") {
+        let pkg = (try { open $config_file } catch { return [] })
+        let cl = ($pkg | get -o "commitlint")
+        if ($cl == null) { return [] }
+        let type_enum = ($cl | get -o "rules" | default {} | get -o "type-enum")
+        if ($type_enum != null and ($type_enum | length) >= 3) {
+            return ($type_enum | get 2)  # [level, when, [types]] format
+        }
+        let extends_list = ($cl | get -o "extends" | default [])
+        if ($extends_list | any { |e| $e | str contains "config-conventional" }) {
+            return $WORK_CONVENTIONAL_DEFAULTS
+        }
+        return []
+    }
 
-    if ($type_lines | is-empty) {
-        # No type-enum override — check for extends config-conventional
+    # .js/.cjs/.mjs: multi-line tolerant regex on full content.
+    # (?s) makes . match newlines so .*? spans multi-line arrays.
+    # Accepts both single and double quotes around type-enum key.
+    let match = (
+        $content
+        | parse --regex `(?s)["']type-enum["']\s*:\s*\[\s*\d+\s*,\s*["'][^"']+["']\s*,\s*\[(.*?)\]`
+    )
+
+    if ($match | is-empty) {
         if ($content | str contains "config-conventional") {
             return $WORK_CONVENTIONAL_DEFAULTS
         }
-        print $"⚠️  ($config_file) — type-enum not found. Use --type to force a prefix."
+        print $"⚠️  ($config_file) — type-enum niewykryty. Użyj --type aby wymusić prefix."
         return []
     }
 
-    let type_line = ($type_lines | first)
-
-    # Split at '[' — last bracket group = the enum array
-    let parts = ($type_line | split row "[")
-    if ($parts | length) < 2 {
-        return $WORK_CONVENTIONAL_DEFAULTS
-    }
-    let inner = ($parts | last | str replace --all "]" "" | str replace --all "," "" | str trim)
-
-    # Extract quoted identifiers from the inner string
-    $inner | parse --regex "'([^']+)'" | get capture0
+    # Extract quoted identifiers from the captured array body
+    $match.capture0.0
+    | parse --regex `["']([^"']+)["']`
+    | get capture0
 }
 
 # Resolve repo info regardless of whether we're in parent or worktree.
@@ -143,7 +159,11 @@ def "work repo-info" []: nothing -> record {
     }
     let worktree_path = ($toplevel.stdout | str trim)
 
-    let common_dir_raw = (^git rev-parse --path-format=absolute --git-common-dir | str trim)
+    let common_dir_r = (do { ^git rev-parse --path-format=absolute --git-common-dir } | complete)
+    if $common_dir_r.exit_code != 0 {
+        error make { msg: "Failed to resolve git common dir" }
+    }
+    let common_dir_raw = ($common_dir_r.stdout | str trim)
     # common_dir = "/Users/greg/Code/realm/.git"
     # Strip trailing /.git to get parent repo root
     let parent_root = (
@@ -184,8 +204,15 @@ def "work worktree-path" [repo: string, branch: string]: nothing -> path {
 
 # Compute bazgroly path for current repo (always uses parent repo name).
 def "work bazgroly-path" []: nothing -> path {
-    let info = (work repo-info)
-    $env.HOME | path join "Code" "personal" "bazgroly" $info.name
+    let in_repo = ((do { ^git rev-parse --show-toplevel } | complete | get exit_code) == 0)
+    let name = (
+        if $in_repo {
+            (work repo-info | get name)
+        } else {
+            "scratch"
+        }
+    )
+    $env.HOME | path join "Code" "personal" "bazgroly" $name
 }
 
 # Verify all required CLI tools are available. Errors with install hint if missing.
