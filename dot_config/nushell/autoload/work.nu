@@ -187,3 +187,21 @@ def "work bazgroly-path" []: nothing -> path {
     let info = (work repo-info)
     $env.HOME | path join "Code" "personal" "bazgroly" $info.name
 }
+
+# Verify all required CLI tools are available. Errors with install hint if missing.
+def "work deps-preflight" []: nothing -> nothing {
+    let required = ["git" "tmux" "sesh" "tv" "jq" "flock"]
+    let optional = ["gtimeout" "fzf"]  # gtimeout = coreutils, fzf = fallback for tv
+
+    let missing = ($required | where { |c| (which $c | is-empty) })
+    if ($missing | is-not-empty) {
+        error make {
+            msg: $"Missing required dependencies: ($missing | str join ', '). Install: brew install ($missing | str join ' ')"
+        }
+    }
+
+    let missing_optional = ($optional | where { |c| (which $c | is-empty) })
+    if ($missing_optional | is-not-empty) {
+        print $"⚠️  Optional missing: ($missing_optional | str join ', '). Install via: brew install coreutils fzf"
+    }
+}
