@@ -1,17 +1,22 @@
 #!/usr/bin/env bash
 # bin/tmux-weather
 # Emits a weather chip for tmux status-right.
-#   * Always shows the current temperature on a neutral chip.
-#   * Upgrades to a colored alert chip (icon + bg + +4h forecast + precip) when:
-#       - rain / snow predicted now or in next 4h (precip_mm >= 0.1 or chance >= 20%)
-#       - wind > 20 km/h
-#       - thunderstorm / fog / blizzard in description
-#       - temp <= 0°C or >= 30°C
-# Format on alert: " <icon> now <temp> → in <Nh> <icon2> <peak> " with
-# per-condition bg colour (rain=lavender, wind=cyan, storm=red, snow=white,
-# heat=orange, cold=blue, AQI=mauve).
 #
-# Cached 5min. wttr.in JSON with IP-based location, metric units.
+# Source: open-meteo (ICON-D2 for Europe, ~2km grid). Free, no key.
+# Location:
+#   * If an external monitor is connected (aerospace reports >1 monitor) AND
+#     ~/.local/state/dotfiles/secrets/tmux-weather-home.env exists with
+#     HOME_LAT/HOME_LON, use those coords ("docked at home" case).
+#   * Otherwise fall back to IP-based geolocation via ipinfo.io.
+#
+# Chip rules:
+#   * Calm  → neutral chip with current temp only.
+#   * Alert → colored chip with icon + current temp + wind/gust or +4h forecast.
+# Alert categories (priority order): storm > snow > fog > rain > wind > heat > cold.
+#   - wind alert triggers at sustained >18 km/h OR gusts >30 km/h
+#   - on wind alert the chip shows actual wind+gust instead of temp forecast
+#
+# Cached 5min.
 set -euo pipefail
 
 CACHE_TTL=300
@@ -28,83 +33,170 @@ fi
 
 emit() { printf '%s' "$1" > "$cache.tmp" && mv "$cache.tmp" "$cache"; printf '%s' "$1"; }
 
-command -v jq >/dev/null || { emit ""; exit 0; }
+command -v jq >/dev/null   || { emit ""; exit 0; }
+command -v curl >/dev/null || { emit ""; exit 0; }
 
-json=$(curl -sS --max-time 4 'wttr.in/?format=j1' 2>/dev/null || true)
-[[ -z "$json" || ! "$json" =~ ^\{ ]] && { emit ""; exit 0; }
-
-# Current snapshot.
-cur_temp=$(echo "$json"     | jq -r '.current_condition[0].temp_C        // empty')
-cur_desc=$(echo "$json"     | jq -r '.current_condition[0].weatherDesc[0].value // empty' | tr '[:upper:]' '[:lower:]')
-cur_wind=$(echo "$json"     | jq -r '.current_condition[0].windspeedKmph // 0')
-
-# Next-4h forecast. wttr's hourly[] is indexed by 3h slots (0, 300, 600, 900, ...)
-# within "today" first, then weather[1].hourly[] for tomorrow. We pull from
-# weather[0..1] flat and find the slot whose `time` is between now+2h and now+5h.
-now_hhmm=$(date +%H%M)
-now_mins=$(( 10#${now_hhmm:0:2} * 60 + 10#${now_hhmm:2:2} ))
-target_mins=$(( now_mins + 240 ))  # +4h
-wrap_target=$target_mins
-if (( wrap_target >= 1440 )); then
-  wrap_target=$(( wrap_target - 1440 ))
-  day_index=1
-else
-  day_index=0
+# ─── Location resolution ──────────────────────────────────────────────────────
+secret_file="${HOME}/.local/state/dotfiles/secrets/tmux-weather-home.env"
+home_lat=""; home_lon=""
+if [[ -r "$secret_file" ]]; then
+  # shellcheck disable=SC1090
+  source "$secret_file"
+  home_lat="${LAT:-${HOME_LAT:-}}"
+  home_lon="${LON:-${HOME_LON:-}}"
 fi
 
-next=$(echo "$json" | jq --argjson t "$wrap_target" --argjson d "$day_index" '
-  .weather[$d].hourly
-  | map({time: (.time|tonumber|((./100|floor)*60 + (.%100))), data: .})
-  | (map(select(.time >= $t)) | first) // (.[-1])
-  | .data
-' 2>/dev/null)
+docked=0
+if command -v aerospace >/dev/null 2>&1; then
+  mon_count=$(aerospace list-monitors 2>/dev/null | wc -l | tr -d ' ')
+  [[ "${mon_count:-0}" -gt 1 ]] && docked=1
+fi
 
-next_temp=$(echo "$next" | jq -r '.tempC          // empty')
-next_desc=$(echo "$next" | jq -r '.weatherDesc[0].value // empty' | tr '[:upper:]' '[:lower:]')
-next_rain=$(echo "$next" | jq -r '.precipMM       // 0')
-next_wind=$(echo "$next" | jq -r '.windspeedKmph  // 0')
-next_chance_rain=$(echo "$next" | jq -r '.chanceofrain // 0')
-next_chance_snow=$(echo "$next" | jq -r '.chanceofsnow // 0')
+lat=""; lon=""
+if (( docked )) && [[ -n "$home_lat" && -n "$home_lon" ]]; then
+  lat="$home_lat"; lon="$home_lon"
+else
+  # IP geolocation fallback (cached separately so we don't hammer ipinfo).
+  ip_cache="${TMPDIR:-/tmp}/tmux-weather-ip-${uid}"
+  if [[ -f "$ip_cache" ]] && (( $(date +%s) - $(stat -f %m "$ip_cache" 2>/dev/null || echo 0) < 3600 )); then
+    IFS=, read -r lat lon < "$ip_cache" || true
+  fi
+  if [[ -z "$lat" || -z "$lon" ]]; then
+    loc=$(curl -sS --max-time 4 'https://ipinfo.io/loc' 2>/dev/null | tr -d '[:space:]' || true)
+    if [[ "$loc" =~ ^-?[0-9.]+,-?[0-9.]+$ ]]; then
+      echo -n "$loc" > "$ip_cache"
+      IFS=, read -r lat lon <<<"$loc"
+    fi
+  fi
+fi
 
-# Pick category by current-or-next signal. Order = priority.
+[[ -z "$lat" || -z "$lon" ]] && { emit ""; exit 0; }
+
+# ─── Open-meteo fetch ─────────────────────────────────────────────────────────
+url="https://api.open-meteo.com/v1/forecast"
+url+="?latitude=${lat}&longitude=${lon}"
+url+="&current=temperature_2m,wind_speed_10m,wind_gusts_10m,weather_code,precipitation"
+url+="&hourly=temperature_2m,precipitation,precipitation_probability,weather_code"
+url+="&forecast_hours=6&wind_speed_unit=kmh&timezone=auto"
+
+json=$(curl -sS --max-time 5 "$url" 2>/dev/null || true)
+
+cur_temp=""; cur_wind=0; cur_gust=0; cur_code=0
+next_temp=""; next_code=0; next_prec=0; next_pop=0
+
+if [[ -n "$json" && "$json" =~ ^\{ ]]; then
+  cur_temp=$(echo "$json" | jq -r '.current.temperature_2m  // empty')
+  cur_wind=$(echo "$json" | jq -r '.current.wind_speed_10m  // 0')
+  cur_gust=$(echo "$json" | jq -r '.current.wind_gusts_10m  // 0')
+  cur_code=$(echo "$json" | jq -r '.current.weather_code    // 0')
+
+  # +4h forecast (hourly[4] when forecast_hours=6 starts at current hour).
+  next_temp=$(echo "$json" | jq -r '.hourly.temperature_2m[4]         // empty')
+  next_code=$(echo "$json" | jq -r '.hourly.weather_code[4]           // 0')
+  next_prec=$(echo "$json" | jq -r '.hourly.precipitation[4]          // 0')
+  next_pop=$(echo  "$json" | jq -r '.hourly.precipitation_probability[4] // 0')
+fi
+
+# Fallback: open-meteo unavailable → wttr.in (no gusts, but temp/wind survive).
+if [[ -z "$cur_temp" ]]; then
+  wjson=$(curl -sS --max-time 4 "wttr.in/${lat},${lon}?format=j1" 2>/dev/null || true)
+  if [[ -n "$wjson" && "$wjson" =~ ^\{ ]]; then
+    cur_temp=$(echo "$wjson" | jq -r '.current_condition[0].temp_C        // empty')
+    cur_wind=$(echo "$wjson" | jq -r '.current_condition[0].windspeedKmph // 0')
+    cur_gust=0
+    case "$(echo "$wjson" | jq -r '.current_condition[0].weatherDesc[0].value // empty' | tr '[:upper:]' '[:lower:]')" in
+      *thunder*)  cur_code=95 ;;
+      *snow*)     cur_code=71 ;;
+      *fog*|*mist*) cur_code=45 ;;
+      *rain*|*drizzle*|*shower*) cur_code=61 ;;
+      *) cur_code=0 ;;
+    esac
+    next_temp=$(echo "$wjson" | jq -r '.weather[0].hourly[4].tempC // empty' 2>/dev/null)
+    next_prec=$(echo "$wjson" | jq -r '.weather[0].hourly[4].precipMM // 0' 2>/dev/null)
+    next_pop=$(echo  "$wjson" | jq -r '.weather[0].hourly[4].chanceofrain // 0' 2>/dev/null)
+  fi
+fi
+
+[[ -z "$cur_temp" ]] && { printf ''; exit 0; }
+
+# WMO weather_code → category. https://open-meteo.com/en/docs
+# 0 clear, 1-3 partly/cloudy, 45/48 fog, 51-67 rain, 71-77 snow, 80-82 showers,
+# 85-86 snow showers, 95-99 thunderstorm.
+cat_of() {
+  local c="${1:-0}"
+  case "$c" in
+    95|96|99) echo storm ;;
+    71|72|73|75|77|85|86) echo snow ;;
+    45|48) echo fog ;;
+    51|53|55|56|57|61|63|65|66|67|80|81|82) echo rain ;;
+    *) echo clear ;;
+  esac
+}
+cur_cat=$(cat_of "$cur_code")
+next_cat=$(cat_of "$next_code")
+
+# Numeric coercion for awk comparisons.
+num() { awk -v v="${1:-0}" 'BEGIN{print v+0}'; }
+cur_temp_n=$(num "$cur_temp")
+cur_wind_n=$(num "$cur_wind")
+cur_gust_n=$(num "$cur_gust")
+next_pop_n=$(num "$next_pop")
+next_prec_n=$(num "$next_prec")
+
 icon=""; bg=""; alert=""
-contains() { case "$2" in *"$1"*) return 0;; *) return 1;; esac; }
-
-if   contains "thunder" "$cur_desc" || contains "thunder" "$next_desc"; then
+if   [[ "$cur_cat" == storm || "$next_cat" == storm ]]; then
   icon="⛈"; bg="#FF6B9D"; alert="storm"
-elif contains "blizzard" "$cur_desc" || contains "blizzard" "$next_desc"; then
-  icon="❄"; bg="#F0F0FF"; alert="blizzard"
-elif contains "snow" "$cur_desc" || contains "snow" "$next_desc" || (( next_chance_snow >= 20 )); then
+elif [[ "$cur_cat" == snow  || "$next_cat" == snow  ]]; then
   icon="❄"; bg="#8BE9FD"; alert="snow"
-elif contains "fog" "$cur_desc" || contains "fog" "$next_desc" || contains "mist" "$cur_desc"; then
+elif [[ "$cur_cat" == fog   || "$next_cat" == fog   ]]; then
   icon="🌫"; bg="#7F849C"; alert="fog"
-elif awk "BEGIN{exit !($next_rain >= 0.1 || $next_chance_rain >= 20)}"; then
+elif [[ "$cur_cat" == rain  || "$next_cat" == rain  ]] \
+  || awk "BEGIN{exit !($next_prec_n >= 0.2 || $next_pop_n >= 40)}"; then
   icon="🌧"; bg="#9580FF"; alert="rain"
-elif awk "BEGIN{exit !($cur_wind > 20 || $next_wind > 20)}"; then
+elif awk "BEGIN{exit !($cur_wind_n > 18 || $cur_gust_n > 30)}"; then
   icon="💨"; bg="#8BE9FD"; alert="wind"
-elif awk "BEGIN{exit !($cur_temp != \"\" && ($cur_temp + 0) >= 30)}"; then
+elif awk "BEGIN{exit !($cur_temp_n >= 30)}"; then
   icon="🔥"; bg="#FF8C42"; alert="heat"
-elif awk "BEGIN{exit !($cur_temp != \"\" && ($cur_temp + 0) <= 0)}"; then
+elif awk "BEGIN{exit !($cur_temp_n <= 0)}"; then
   icon="🥶"; bg="#9580FF"; alert="cold"
 fi
 
-# Always show temperature. Alert (if any) adds icon + colored bg + forecast.
-hrs_ahead=4
+# ─── Render ───────────────────────────────────────────────────────────────────
 if [[ -z "$alert" ]]; then
-  # Calm chip: just current temp on neutral surface.
   [[ -z "$cur_temp" ]] && { emit ""; exit 0; }
-  emit "#[bg=#313244,fg=#CDD6F4,nobold] ${cur_temp}° #[bg=#1E1E2E,fg=#F0F0FF]"
+  emit "#[bg=#313244,fg=#CDD6F4,nobold] ${cur_temp%.*}° #[bg=#1E1E2E,fg=#F0F0FF]"
   exit 0
 fi
 
-chip=" ${icon} ${cur_temp}°"
-if [[ -n "$next_temp" && "$next_temp" != "$cur_temp" ]]; then
-  chip+=" → +${hrs_ahead}h ${next_temp}°"
-fi
-# Add precip mm if material.
-if awk "BEGIN{exit !($next_rain >= 0.1)}"; then
-  chip+=" ${next_rain}mm"
-fi
+# Round helper.
+r() { awk -v v="$1" 'BEGIN{printf "%d", v+0.5}'; }
+
+chip=" ${icon} $(r "$cur_temp_n")°"
+case "$alert" in
+  wind)
+    # Show actual wind + gust instead of temp forecast.
+    chip+=" $(r "$cur_wind_n")"
+    if awk "BEGIN{exit !($cur_gust_n > $cur_wind_n + 1)}"; then
+      chip+="↑$(r "$cur_gust_n")"
+    fi
+    chip+=" km/h"
+    ;;
+  rain|storm|snow)
+    if [[ -n "$next_temp" ]]; then
+      chip+=" → 4h $(r "$(num "$next_temp")")°"
+    fi
+    if awk "BEGIN{exit !($next_prec_n >= 0.2)}"; then
+      chip+=" ${next_prec_n}mm"
+    elif awk "BEGIN{exit !($next_pop_n >= 40)}"; then
+      chip+=" ${next_pop_n}%"
+    fi
+    ;;
+  *)
+    if [[ -n "$next_temp" ]]; then
+      chip+=" → 4h $(r "$(num "$next_temp")")°"
+    fi
+    ;;
+esac
 chip+=" "
 
 emit "#[bg=${bg},fg=#1E1E2E,bold]${chip}#[bg=#1E1E2E,fg=#F0F0FF,nobold]"

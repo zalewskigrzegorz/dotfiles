@@ -161,6 +161,34 @@ restore_password_field() {
 restore_document "WEEKLY_PROJECT_UPDATE_SCRIPT" "$secret_dir/weekly-slack-board-update.nu"
 restore_password_field "GITLEAKS_PRIVATE_CONFIG" "$secret_dir/gitleaks-private.toml"
 
+# tmux-weather home location: two custom fields (lat, lon) on a 1P item.
+# Rendered as a sourceable env file consumed by bin/tmux-weather.
+restore_env_pair() {
+  local item="$1"
+  local out_file="$2"
+  local field_a="$3"
+  local field_b="$4"
+
+  local val_a val_b
+  val_a="$(run_op op read "op://$vault/$item/$field_a" 2>/dev/null || true)"
+  val_b="$(run_op op read "op://$vault/$item/$field_b" 2>/dev/null || true)"
+
+  if [[ -z "$val_a" || -z "$val_b" ]]; then
+    echo "Skipping $item: $field_a/$field_b not found in 1Password vault '$vault'."
+    return
+  fi
+
+  mkdir -p "$(dirname "$out_file")"
+  {
+    printf '%s=%s\n' "$(echo "$field_a" | tr '[:lower:]' '[:upper:]')" "$val_a"
+    printf '%s=%s\n' "$(echo "$field_b" | tr '[:lower:]' '[:upper:]')" "$val_b"
+  } > "$out_file"
+  chmod 600 "$out_file"
+  echo "Restored $item → $out_file."
+}
+
+restore_env_pair "TMUX_WEATHER_HOME" "$secret_dir/tmux-weather-home.env" "lat" "lon"
+
 mkdir -p "$secret_dir/statuses"
 chmod 700 "$secret_dir/statuses"
 
