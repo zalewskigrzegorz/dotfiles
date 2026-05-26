@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Auto-commits and pushes any Write/Edit inside ~/Code/personal/bazgroly/
-# to origin/master. PostToolUse hook for Edit|Write operations.
+# Auto-stages any Write/Edit inside ~/Code/personal/bazgroly/ for later
+# commit in the Stop hook (bazgroly-autopush-on-stop.sh). PostToolUse hook
+# for Edit|Write operations.
 # Always exits 0 — failures only log, never block follow-up tools.
 
 set -uo pipefail
@@ -28,20 +29,9 @@ REL="${FILE_PATH#$BAZGROLY/}"
 
 {
   echo "---"
-  echo "[$(date -Iseconds)] autopush triggered for $REL"
+  echo "[$(date -Iseconds)] autostage triggered for $REL"
   cd "$BAZGROLY" || exit 0
-
-  if ! git diff --quiet -- "$REL" 2>/dev/null || ! git ls-files --error-unmatch -- "$REL" >/dev/null 2>&1; then
-    git add -- "$REL" 2>&1 || true
-    if ! git diff --cached --quiet; then
-      git commit -m "chore: update $REL 📝" 2>&1 || true
-      git push origin master 2>&1 || true
-    else
-      echo "nothing to commit after add"
-    fi
-  else
-    echo "no changes detected for $REL"
-  fi
+  git add -- "$REL" 2>&1 || true
 } >>"$LOG" 2>&1
 
 exit 0
