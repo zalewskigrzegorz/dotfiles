@@ -1,0 +1,10 @@
+[metadata]
+name = "worktrees"
+description = "Git worktrees in ~/Code/tree/wt-<repo>/<branch>/ pool"
+requirements = ["fd", "git"]
+
+[source]
+command = "bash -c 'fd -t d --min-depth 2 --max-depth 3 . \"$HOME/Code/tree\" 2>/dev/null'"
+
+[preview]
+command = "bash -c 'echo \"📍 $(git -C {} config --worktree work.base 2>/dev/null || echo unknown)\"; echo; git -C {} log --oneline -10 2>/dev/null; echo; git -C {} status -sb 2>/dev/null'"
