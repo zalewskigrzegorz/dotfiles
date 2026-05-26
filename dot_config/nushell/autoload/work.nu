@@ -205,3 +205,57 @@ def "work deps-preflight" []: nothing -> nothing {
         print $"⚠️  Optional missing: ($missing_optional | str join ', '). Install via: brew install coreutils fzf"
     }
 }
+
+# Stub — full cheatsheet implemented in Phase 7.
+def "work help" []: nothing -> nothing {
+    print "work help — full cheatsheet in Phase 7. For now use the plan/spec docs."
+}
+
+# Set up 4-window layout in current tmux session.
+# Windows: terminal | git (lazygit) | claude | nvim (bazgroly/<repo>/)
+# Idempotent — skips windows that already exist by name.
+# Use this from inside any session (parent repo or worktree).
+def work [
+    --help (-h)  # Show cheatsheet (delegates to `work help`)
+]: nothing -> nothing {
+    if $help {
+        work help
+        return
+    }
+
+    if ($env.TMUX? == null) {
+        print "work: not inside tmux. Run `tn` first."
+        return
+    }
+
+    let term = $"\u{f120}  terminal"
+    let git  = $"\u{e725}  git"
+    let cc   = $"\u{f06a9}  claude"
+    let edit = $"\u{e62b}  nvim"
+
+    # BUG FIX from audit: use parent repo name even when in worktree.
+    let bazgroly = (work bazgroly-path)
+    if not ($bazgroly | path exists) {
+        mkdir $bazgroly
+    }
+
+    # Window 1: rename caller window to terminal, lock auto-rename off.
+    ^tmux set-window-option automatic-rename off
+    ^tmux rename-window $term
+
+    let existing = (^tmux list-windows -F "#{window_name}" | lines)
+
+    for spec in [
+        { name: $git,  cwd: $env.PWD, cmd: ["lazygit"] }
+        { name: $cc,   cwd: $env.PWD, cmd: ["claude"] }
+        { name: $edit, cwd: $bazgroly, cmd: ["nvim" $bazgroly] }
+    ] {
+        if not ($spec.name in $existing) {
+            let wid = (^tmux new-window -d -P -F "#{window_id}" -n $spec.name -c $spec.cwd ...$spec.cmd | str trim)
+            ^tmux set-window-option -t $wid automatic-rename off
+            ^tmux rename-window -t $wid $spec.name
+        }
+    }
+
+    ^tmux select-window -t:1
+}
