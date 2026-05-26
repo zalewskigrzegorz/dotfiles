@@ -132,3 +132,58 @@ def "work load-commitlint-types" [repo_path: path]: nothing -> list<string> {
     # Extract quoted identifiers from the inner string
     $inner | parse --regex "'([^']+)'" | get capture0
 }
+
+# Resolve repo info regardless of whether we're in parent or worktree.
+# Returns record with: name (basename of common dir parent), root (parent repo path),
+# default_branch, common_dir (.git path), is_worktree (bool), worktree_path (if worktree).
+def "work repo-info" []: nothing -> record {
+    let toplevel = (do { ^git rev-parse --show-toplevel } | complete)
+    if $toplevel.exit_code != 0 {
+        error make { msg: "Not inside a git repository." }
+    }
+    let worktree_path = ($toplevel.stdout | str trim)
+
+    let common_dir_raw = (^git rev-parse --path-format=absolute --git-common-dir | str trim)
+    # common_dir = "/Users/greg/Code/realm/.git"
+    # Strip trailing /.git to get parent repo root
+    let parent_root = (
+        if ($common_dir_raw | str ends-with "/.git") {
+            $common_dir_raw | str substring 0..(($common_dir_raw | str length) - 6)
+        } else {
+            $common_dir_raw | path dirname
+        }
+    )
+    let name = ($parent_root | path basename)
+
+    let git_dir = (^git rev-parse --git-dir | str trim)
+    let is_worktree = ($git_dir != ".git" and $git_dir != $common_dir_raw)
+
+    let head_ref = (do { ^git symbolic-ref refs/remotes/origin/HEAD } | complete)
+    let default_branch = (
+        if $head_ref.exit_code == 0 {
+            $head_ref.stdout | str trim | str replace "refs/remotes/origin/" ""
+        } else {
+            "master"
+        }
+    )
+
+    {
+        name: $name
+        root: $parent_root
+        default_branch: $default_branch
+        common_dir: $common_dir_raw
+        is_worktree: $is_worktree
+        worktree_path: (if $is_worktree { $worktree_path } else { null })
+    }
+}
+
+# Compute path for a worktree based on repo name + branch.
+def "work worktree-path" [repo: string, branch: string]: nothing -> path {
+    $env.HOME | path join "Code" "tree" $"wt-($repo)" $branch
+}
+
+# Compute bazgroly path for current repo (always uses parent repo name).
+def "work bazgroly-path" []: nothing -> path {
+    let info = (work repo-info)
+    $env.HOME | path join "Code" "personal" "bazgroly" $info.name
+}
