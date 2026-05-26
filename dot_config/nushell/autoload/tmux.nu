@@ -49,12 +49,14 @@ def --env tk [
 }
 
 # Work — set up a 4-window layout in the current tmux session:
-#   1: terminal (current shell, renamed)
-#   2: git      (lazygit)
-#   3: claude   (claude code)
-#   4: nvim     (editor)
-# Icons mirror zz-tmux-window-wrappers.nu. Idempotent: re-running skips
-# windows that already exist by name.
+#   1: terminal (current shell, renamed)             — pwd
+#   2: git      (lazygit)                            — pwd
+#   3: claude   (claude code)                        — pwd
+#   4: nvim     (editor on bazgroly/<repo>/)         — AI specs + plans
+# The nvim window points at the bazgroly mirror for the current repo
+# (~/Code/personal/bazgroly/<repo-basename>/), created on demand.
+# Outside a git repo it falls back to bazgroly/scratch/.
+# Idempotent: re-running skips windows that already exist by name.
 def work [] {
     if ($env.TMUX? == null) {
         print "work: not inside tmux. Run `tn` first."
@@ -66,6 +68,18 @@ def work [] {
     let cc   = $"\u{f06a9}  claude"
     let edit = $"\u{e62b}  nvim"
 
+    # Resolve the bazgroly dir matching the current repo (or scratch).
+    let repo_root = (do { ^git rev-parse --show-toplevel } | complete)
+    let repo_name = (if $repo_root.exit_code == 0 {
+        $repo_root.stdout | str trim | path basename
+    } else {
+        "scratch"
+    })
+    let bazgroly = ($env.HOME | path join "Code" "personal" "bazgroly" $repo_name)
+    if not ($bazgroly | path exists) {
+        mkdir $bazgroly
+    }
+
     # Window 1: rename caller window to terminal, lock auto-rename off.
     ^tmux set-window-option automatic-rename off
     ^tmux rename-window $term
@@ -73,12 +87,12 @@ def work [] {
     let existing = (^tmux list-windows -F "#{window_name}" | lines)
 
     for spec in [
-        { name: $git,  cmd: "lazygit" }
-        { name: $cc,   cmd: "claude" }
-        { name: $edit, cmd: "nvim" }
+        { name: $git,  cwd: $env.PWD, cmd: ["lazygit"] }
+        { name: $cc,   cwd: $env.PWD, cmd: ["claude"] }
+        { name: $edit, cwd: $bazgroly, cmd: ["nvim" $bazgroly] }
     ] {
         if not ($spec.name in $existing) {
-            let wid = (^tmux new-window -d -P -F "#{window_id}" -n $spec.name -c $env.PWD $spec.cmd | str trim)
+            let wid = (^tmux new-window -d -P -F "#{window_id}" -n $spec.name -c $spec.cwd ...$spec.cmd | str trim)
             ^tmux set-window-option -t $wid automatic-rename off
             ^tmux rename-window -t $wid $spec.name
         }
