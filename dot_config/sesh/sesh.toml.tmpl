@@ -1,0 +1,41 @@
+# Sesh: fuzzy tmux session manager
+# https://github.com/joshmedeski/sesh
+#
+# Rendered from sesh.toml.tmpl by chezmoi — the work session's name/path
+# come from 1Password (privateEnvVars in chezmoi data) so they never land
+# in git. Public projects are listed inline below.
+#
+# After editing this file, run `chezmoi apply` to re-render
+# ~/.config/sesh/sesh.toml.
+
+[default_session]
+
+# --- Public projects ---
+
+[[session]]
+name = "dotfiles"
+path = "~/Code/dotfiles"
+
+[[session]]
+name = "home-lab"
+path = "~/Code/home-lab"
+
+# Home-lab over SSH (alias `lab` in ~/.ssh/config). startup_command echoes
+# `ssh lab` into the pane on connect — that's fine here, it's the actual
+# command we'd type by hand.
+[[session]]
+name = "lab"
+startup_command = "ssh lab"
+
+# --- Work project (rendered from 1Password — never committed) ---
+{{- $vault := index . "onePasswordVault" -}}
+{{- $hasOp := lookPath "op" }}
+{{- if $hasOp }}
+{{- $workCompany := onepasswordRead (printf "op://%s/WORK_COMPANY/password" $vault) }}
+{{- $workProject := onepasswordRead (printf "op://%s/WORK_MAIN_PROJECT/password" $vault) }}
+{{- $workspaceDir := onepasswordRead (printf "op://%s/WORKSPACE_DIR/password" $vault) }}
+
+[[session]]
+name = {{ $workProject | quote }}
+path = {{ (joinPath $workspaceDir $workCompany $workProject) | quote }}
+{{- end }}
