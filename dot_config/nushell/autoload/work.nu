@@ -676,9 +676,9 @@ def "work scan-worktrees" []: nothing -> list<record> {
         let session_r = (do { ^git -C $wt.path config --worktree work.session } | complete)
         let session = ($session_r.stdout | str trim)
 
-        # Bug 3: session_active must be false when session string is empty
+        # Bug 3/8b: session_active must be false when session is empty or non-🌿
         let has_sess = (
-            if ($session | is-empty) {
+            if ($session | is-empty) or (not ($session | str starts-with "🌿")) {
                 false
             } else {
                 ((do { ^tmux has-session -t $session } | complete).exit_code == 0)
@@ -735,13 +735,18 @@ def "work cache-invalidate" []: nothing -> nothing {
     if ($cache | path exists) { rm $cache }
 }
 
-# Read cache if fresh enough. Returns null if stale or missing.
+# Read cache if fresh enough. Returns null if stale, missing, or old schema version.
 def "work cache-read" []: nothing -> any {
     let cache = (work cache-path)
     if not ($cache | path exists) { return null }
 
     let content = (try { open $cache } catch { return null })
     if ($content | is-empty) { return null }
+
+    # Version guard — old caches (missing version or version != 2) are rejected
+    if (($content | get -o version | default 1) != 2) {
+        return null
+    }
 
     let generated = (try { $content.generated_at | into datetime } catch { return null })
     let age = ((date now) - $generated)
@@ -758,6 +763,7 @@ def "work cache-write" [worktrees: list]: nothing -> nothing {
     let pool = ($env.HOME | path join "Code" "tree")
     if not ($pool | path exists) { return }
     {
+        version: 2
         generated_at: (date now | format date "%+")
         worktrees: $worktrees
     } | to json | save -f $cache
@@ -793,14 +799,64 @@ def "work rm" [
         }
     )
 
-    let wt_path = (work worktree-path $info.name $target_branch)
-    if not ($wt_path | path exists) {
-        error make { msg: $"Worktree path doesn't exist: ($wt_path)" }
-    }
+    let wt_path_local = (work worktree-path $info.name $target_branch)
+    let wt_path = (
+        if ($wt_path_local | path exists) {
+            $wt_path_local
+        } else {
+            # Search across all pools for branch in any repo
+            let matches = (
+                work scan-worktrees
+                | where branch == $target_branch
+            )
+            if ($matches | length) == 0 {
+                error make { msg: $"No worktree for branch '($target_branch)' found in any repo." }
+            } else if ($matches | length) > 1 {
+                let repos = ($matches | get repo | str join ", ")
+                error make { msg: $"Ambiguous branch '($target_branch)' — exists in: ($repos). Run `cd ~/Code/<repo> && work rm ($target_branch)` to disambiguate." }
+            } else {
+                let m = ($matches | first)
+                let cur = $info.name
+                let repo = $m.repo
+                print $"Found ($target_branch) in repo ($repo) — switching from ($cur)."
+                $m.path
+            }
+        }
+    )
 
-    # Refuse to rm current worktree (before any prompts)
+    # Resolve which parent repo this worktree belongs to
+    let _common_r = (do { ^git -C $wt_path rev-parse --path-format=absolute --git-common-dir } | complete)
+    if $_common_r.exit_code != 0 {
+        error make { msg: $"Cannot resolve git-common-dir for ($wt_path)" }
+    }
+    let _cd = ($_common_r.stdout | str trim)
+    let target_repo_root = (
+        if ($_cd | str ends-with "/.git") {
+            $_cd | str substring 0..(($_cd | str length) - 6)
+        } else {
+            $_cd | path dirname
+        }
+    )
+    let target_repo_name = ($target_repo_root | path basename)
+
+    # Auto-switch away if we're inside the worktree we're trying to remove
     if $info.is_worktree and ($info.worktree_path == $wt_path) {
-        error make { msg: "You're inside this worktree. Switch session first." }
+        let other_sessions = (
+            do { ^tmux list-sessions -F "#{session_name}" } | complete
+            | get stdout | lines
+            | where { |s| not ($s | str starts-with "🌿") }
+        )
+        let parent_session = (
+            if ($other_sessions | is-empty) {
+                ^tmux new-session -d -s "main"
+                "main"
+            } else {
+                $other_sessions | first
+            }
+        )
+        print $"🔀 Switching to ($parent_session) before removing ($target_branch)..."
+        ^tmux switch-client -t $parent_session
+        # Continue — tmux kill-session below will work because focus has moved
     }
 
     # Dirty check
@@ -812,11 +868,11 @@ def "work rm" [
         if $yn != "y" { error make { msg: "Aborted." } }
     }
 
-    let session = (work session-name $info.name $target_branch)
+    let session = (work session-name $target_repo_name $target_branch)
     do { ^tmux kill-session -t $session } | complete | ignore
-    ^git -C $info.root worktree remove $wt_path --force
+    ^git -C $target_repo_root worktree remove $wt_path --force
     if not $keep_branch {
-        let r = (do { ^git -C $info.root branch -d $target_branch } | complete)
+        let r = (do { ^git -C $target_repo_root branch -d $target_branch } | complete)
         if $r.exit_code != 0 {
             print $"⚠️  Branch ($target_branch) not fully merged — use 'git branch -D ($target_branch)' to force-delete."
         }
