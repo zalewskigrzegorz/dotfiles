@@ -721,6 +721,16 @@ def "work ls" [
     if $json {
         return ($worktrees | to json)
     }
+
+    # Warn about stale 🌿 sessions that have no corresponding worktree
+    let stale = (work stale-sessions)
+    if ($stale | is-not-empty) {
+        print $"⚠️  ($stale | length) stale 🌿 session\(s\) without worktree:"
+        for s in $stale { print $"    ($s)" }
+        print "    Run `work clean-stale-sessions` to kill them."
+        print ""
+    }
+
     $worktrees
 }
 
@@ -856,7 +866,10 @@ def "work rm" [
         )
         print $"🔀 Switching to ($parent_session) before removing ($target_branch)..."
         ^tmux switch-client -t $parent_session
-        # Continue — tmux kill-session below will work because focus has moved
+        # cd to repo root so nushell's $env.PWD stays valid after worktree dir is removed.
+        # Without this, nushell raises "PWD points to a non-existent directory" at every
+        # subsequent command boundary and the branch-delete + kill-session never run.
+        cd $target_repo_root
     }
 
     # Dirty check
@@ -869,7 +882,10 @@ def "work rm" [
     }
 
     let session = (work session-name $target_repo_name $target_branch)
-    do { ^tmux kill-session -t $session } | complete | ignore
+
+    # Cleanup ORDER: worktree first, then branch, then cache, then output, FINALLY session-kill.
+    # kill-session is last because in self-worktree mode it SIGHUPs the current nu shell,
+    # killing every command that follows it.
     ^git -C $target_repo_root worktree remove $wt_path --force
     if not $keep_branch {
         let r = (do { ^git -C $target_repo_root branch -d $target_branch } | complete)
@@ -881,10 +897,13 @@ def "work rm" [
     work cache-invalidate
 
     if $json {
-        return { removed: $target_branch, path: $wt_path, session: $session }
-    } else {
-        print $"✅ Removed: ($target_branch)"
+        let result = { removed: $target_branch, path: $wt_path, session: $session }
+        do { ^tmux kill-session -t $session } | complete | ignore
+        return $result
     }
+
+    print $"✅ Removed: ($target_branch)"
+    do { ^tmux kill-session -t $session } | complete | ignore
 }
 
 # Batch-remove all worktrees whose branch is merged into the default branch
