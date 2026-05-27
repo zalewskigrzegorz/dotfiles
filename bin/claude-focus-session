@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Focus a Claude session: switch tmux to <session> (if given) and raise Ghostty.
+# Shared by the Notification hook (alerter -execute) and the sketchybar chip click.
+set -u
+sess="${1:-}"
+TMUX_BIN="${TMUX_BIN:-/opt/homebrew/bin/tmux}"
+OPEN_BIN="${OPEN_BIN:-/usr/bin/open}"
+if [ -n "$sess" ]; then
+  "$TMUX_BIN" switch-client -t "$sess" >/dev/null 2>&1 || true
+fi
+"$OPEN_BIN" -a Ghostty >/dev/null 2>&1 || true
+exit 0
