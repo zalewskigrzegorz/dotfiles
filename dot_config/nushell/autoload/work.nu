@@ -434,15 +434,17 @@ def "work new" [
     ^tmux new-session -d -s $session -c $wt_path
     ^tmux send-keys -t $session "work" Enter
 
+    let result = {
+        repo: $repo
+        branch: $branch_name
+        path: $wt_path
+        session: $session
+        base: $base_ref
+        created: true
+    }
+
     if $json {
-        print ({
-            repo: $repo
-            branch: $branch_name
-            path: $wt_path
-            session: $session
-            base: $base_ref
-            created: true
-        } | to json)
+        return $result
     }
 
     ^sesh connect $session
