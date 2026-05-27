@@ -256,71 +256,155 @@ def "work clean-stale-sessions" []: nothing -> nothing {
 
 # Print cheatsheet for the work command family.
 # In a worktree, also shows base/branch/path of the current worktree.
-def "work help" []: nothing -> nothing {
-    let in_repo = (try { work repo-info | is-not-empty } catch { false })
+def "work help" [
+    command?: string  # Pokaż szczegóły konkretnej komendy (np `work help new`)
+]: nothing -> nothing {
+    if ($command | is-not-empty) {
+        work _help-cmd $command
+        return
+    }
 
     print "📖 Work — worktree workflow"
     print ""
-    print "KOMENDY"
-    print "  work                       4-window layout (terminal/git/claude/nvim)"
-    print "  work new                   Picker po branchach + Create new..."
-    print "  work new <name>            Nowy worktree z origin/master (collision → prompt)"
-    print "  work new <name> --pick-from  Picker po base ref, potem worktree"
-    print "  work new <name> --from <r> Worktree z custom base ref"
-    print "  work new <name> --type <t> Force prefix bez picker (skip commitlint)"
-    print "  work ls                    Zwraca listę worktree jako nu records (tabela)"
-    print "  work switch (sw)           Picker po worktree → przełącz sesję (sesh)"
-    print "  work rm [branch]           Usuń worktree + branch + sesję (atomowo)"
-    print "  work prune                 Batch: usuń wszystkie merged-into-master"
-    print "  work prune --dry-run       Wypisz kandydatów bez usuwania"
-    print "  work stale-sessions        Lista sesji 🌿* bez worktree"
-    print "  work clean-stale-sessions  Usuń stare sesje 🌿* bez worktree"
-    print "  work help                  Ten ekran"
+    print "🔄 WORKFLOW (start → praca → merge → cleanup)"
+    print "  1. START     work new <name>    nowy worktree + sesja + layout"
+    print "  2. PRACA     w worktree: git commit / push (okno git=lazygit, okno claude)"
+    print "  3. MERGE     okno git → lazygit: M = merge do master → push"
+    print "  4. CLEANUP   work rm <name>     po merge: usuń worktree+branch+sesja"
+    print "               work prune         batch: wszystkie merged naraz"
     print ""
-    print "Komendy zwracają nu data — dopisz `| to json` gdy chcesz JSON (np `work ls | to json`)."
-    print ""
-    print "🆕 NOWY BRANCH ZAWSZE ZE ŚWIEŻEGO ORIGIN/MASTER"
-    print "  work new fix-auth          → git fetch origin master"
-    print "                             → git worktree add -b fix-auth <path> origin/master"
-    print ""
-    print "📍 BASE REF PERSISTENCE"
-    print "  work new zapisuje base/session/branch w git config --worktree."
-    print "  Widzisz w: work ls preview, tmux status-right, work help (w sesji)."
+    print "KOMENDY  (szczegóły: `work help <komenda>`)"
+    print "  work               4-window layout (terminal/git/claude/nvim)"
+    print "  work new           nowy worktree (picker / <name> / --from / --type)"
+    print "  work ls            lista worktree (nu data; `| to json` dla JSON)"
+    print "  work switch (sw)   picker po worktree → przełącz sesję"
+    print "  work rm            usuń worktree + branch + sesję (atomowo)"
+    print "  work prune         batch cleanup merged-into-master"
+    print "  work stale-sessions / clean-stale-sessions   osierocone 🌿 sesje"
+    print "  work help <cmd>    szczegóły komendy (new/ls/switch/rm/prune/model)"
 
-    # If we're inside a worktree, print its context
+    # Jeśli jesteśmy w worktree — pokaż jego kontekst
+    let in_repo = (try { work repo-info | is-not-empty } catch { false })
     if $in_repo {
-        # Re-resolve via work repo-info to get the record
         let info = (work repo-info)
         if $info.is_worktree {
-            let wt_path = $info.worktree_path
-            let base_r = (do { ^git -C $wt_path config --worktree work.base } | complete)
-            let base = ($base_r.stdout | str trim)
-            let branch_r = (do { ^git -C $wt_path config --worktree work.branch } | complete)
-            let branch = ($branch_r.stdout | str trim)
+            let base = (do { ^git -C $info.worktree_path config --worktree work.base } | complete | get stdout | str trim)
+            let branch = (do { ^git -C $info.worktree_path config --worktree work.branch } | complete | get stdout | str trim)
             print ""
             print "🌿 JESTEŚ W WORKTREE:"
-            print $"  branch: ($branch)"
-            print $"  base:   ($base)"
-            print $"  path:   ($wt_path)"
+            print $"  branch: ($branch)   base: ($base)"
+            print $"  path:   ($info.worktree_path)"
         }
     }
+}
 
-    print ""
-    print "💾 COMMIT + PUSH W WORKTREE"
-    print "  Commit ZAWSZE leci na branch feature. Parent repo nietknięty."
-    print "  cd <worktree-path>; git commit; git push -u origin <branch>"
-    print "  (lazygit w oknie git robi to samo wizualnie)"
-    print ""
-    print "🔀 EMOJI-PREFIX MAPPING (commitlint integration)"
-    print "  feat/     → ✨   fix/      → 🐛   hotfix/   → 🚑"
-    print "  docs/     → 📝   tests/    → 🧪   chore/    → 🧹"
-    print "  refactor/ → ♻    perf/     → ⚡   build/    → 📦"
-    print "  ci/       → 👷   revert/   → ⏪   style/    → 💄"
-    print ""
-    print "🧠 MENTAL MODEL"
-    print "  Worktree = osobny katalog wskazujący na branch."
-    print "  Każdy worktree = własny HEAD → commitujesz niezależnie."
-    print "  Wszystkie dzielą jedno .git/ (objects, refs)."
+# Per-command help details. Called by `work help <command>`.
+def "work _help-cmd" [command: string]: nothing -> nothing {
+    match $command {
+        "new" => {
+            print "work new — nowy worktree + tmux sesja + layout"
+            print ""
+            print "UŻYCIE"
+            print "  work new                     interaktywny picker po branchach (+ Create new...)"
+            print "  work new <name>              nowy branch <name> ze świeżego origin/master"
+            print "  work new <name> --from <r>   base ref = <r> zamiast origin/master"
+            print "  work new <name> --pick-from  picker po base ref"
+            print "  work new <name> --type <t>   wymuś prefix <t>/ (pomiń commitlint picker)"
+            print "  work new <name> --no-prefix  pomiń commitlint enforcement"
+            print ""
+            print "CO ROBI (po kolei)"
+            print "  1. git fetch origin <default>  — świeży base, ZAWSZE"
+            print "  2. git worktree add -b <name> ~/Code/tree/wt-<repo>/<name> origin/<default>"
+            print "  3. zapisuje base/session/branch w git config --worktree"
+            print "  4. tmux sesja 🌿<repo>/<emoji><name> + layout (terminal/git/claude/nvim)"
+            print "  5. sesh connect → przełącza Cię tam"
+            print ""
+            print "COMMITLINT (repo z commitlint.config.*)"
+            print "  work new billing  → picker typu (✨feat 🐛fix 🚑hotfix 🧹chore 📝docs 🧪tests)"
+            print "  Wybór → branch feat/billing. Repo bez commitlint → branch as-is."
+            print ""
+            print "KOLIZJA NAZW (branch już istnieje lokalnie/origin)"
+            print "  [c] checkout istniejący   [n] nowa nazwa   [a] abort"
+            print ""
+            print "EMOJI-PREFIX (tylko w nazwie sesji — branch zostaje czysty)"
+            print "  feat→✨ fix→🐛 hotfix→🚑 docs→📝 tests→🧪 chore→🧹"
+            print "  refactor→♻ perf→⚡ build→📦 ci→👷 revert→⏪ style→💄"
+        }
+        "ls" => {
+            print "work ls — lista wszystkich worktree (NIE przełącza — to dane)"
+            print ""
+            print "  work ls             nu tabela (repo/branch/path/base/session/status/head)"
+            print "  work ls | to json   JSON string (do scriptingu)"
+            print "  work ls --no-cache  wymuś re-scan (pomija 5s cache)"
+            print ""
+            print "FILTRY (zwykły nu pipe)"
+            print "  work ls | where status == \"dirty\""
+            print "  work ls | where session_active"
+            print ""
+            print "Ostrzega o stale 🌿 sesjach (na stderr, nie psuje JSON)."
+        }
+        "switch" | "sw" => {
+            print "work switch (sw) — picker po worktree → przełącz sesję"
+            print ""
+            print "  TV picker (tylko worktree) → sesh connect. Twój główny switcher."
+            print ""
+            print "ALTERNATYWY"
+            print "  s <nazwa>      direct jump (znasz nazwę sesji)"
+            print "  s             TV picker po WSZYSTKICH sesjach (nie tylko worktree)"
+            print "  prefix+f → ^w  sesh-picker popup w tmux, tab worktrees"
+        }
+        "rm" => {
+            print "work rm — usuń worktree + branch + sesję (atomowo)"
+            print ""
+            print "  work rm                    TV picker po worktree → usuń"
+            print "  work rm <branch>           usuń po nazwie (Tab autouzupełnia)"
+            print "  work rm <path>             usuń po ścieżce worktree"
+            print "  work rm <b> --force        pomiń dirty-check (uncommitted changes)"
+            print "  work rm <b> --keep-branch  usuń worktree+sesję, ZOSTAW brancha gita"
+            print ""
+            print "CO ROBI"
+            print "  git worktree remove --force → tmux kill-session → git branch -d"
+            print "  Cross-repo: znajdzie worktree w innym repo (np z bazgroly usuń dotfiles)."
+            print "  W bieżącym worktree → auto-switch do parent sesji, potem cleanup."
+        }
+        "prune" => {
+            print "work prune — batch usuń wszystkie merged-into-master worktree"
+            print ""
+            print "  work prune            fzf multi-select (merged+clean) → usuń zaznaczone"
+            print "  work prune --dry-run  wypisz kandydatów bez usuwania"
+            print ""
+            print "Cross-repo: każdy worktree sprawdzany względem default brancha JEGO repo."
+            print "Na listę trafia tylko clean (bez uncommitted) + merged."
+        }
+        "stale-sessions" | "clean-stale-sessions" => {
+            print "work stale-sessions / clean-stale-sessions"
+            print ""
+            print "  work stale-sessions        lista 🌿 sesji tmux bez worktree (data)"
+            print "  work clean-stale-sessions  ubij je wszystkie"
+            print ""
+            print "Powstają gdy worktree usunięty ręcznie (rm -rf) a sesja tmux została."
+        }
+        "model" => {
+            print "🧠 MENTAL MODEL"
+            print "  Worktree = osobny katalog wskazujący na branch."
+            print "  Każdy worktree = własny HEAD → commitujesz niezależnie."
+            print "  Wszystkie dzielą jedno .git/ (objects, refs)."
+            print ""
+            print "💾 COMMIT + PUSH"
+            print "  Commit ZAWSZE leci na branch feature. Parent repo nietknięty."
+            print "  cd <worktree>; git commit; git push -u origin <branch>"
+            print "  (lazygit w oknie git robi to wizualnie)"
+            print ""
+            print "📂 LOKALIZACJA"
+            print "  Worktree:     ~/Code/tree/wt-<repo>/<branch>/"
+            print "  AI artefakty: ~/Code/personal/bazgroly/<repo>/  (wspólne, nie per-branch)"
+        }
+        _ => {
+            print $"Nieznana komenda: ($command)"
+            print "Dostępne: new, ls, switch, rm, prune, stale-sessions, model"
+            print "`work help` — overview + workflow."
+        }
+    }
 }
 
 # Create a new worktree + tmux session + layout.
