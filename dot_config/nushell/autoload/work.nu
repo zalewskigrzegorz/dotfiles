@@ -357,7 +357,7 @@ def "work new" [
         let picked = (
             if (which tv | is-not-empty) {
                 with-env { WORK_REPO: $env_repo } {
-                    ^tv --channel work-branches | str trim
+                    ^tv work-branches | str trim
                 }
             } else {
                 let local_b = (^git -C $info.root for-each-ref --format='%(refname:short)' refs/heads/ | lines)
@@ -389,7 +389,7 @@ def "work new" [
             let picked = (
                 if (which tv | is-not-empty) {
                     with-env { WORK_REPO: $env_repo } {
-                        ^tv --channel work-base-refs | str trim
+                        ^tv work-base-refs | str trim
                     }
                 } else {
                     let candidates = (^git -C $info.root for-each-ref --format='%(refname:short)' refs/remotes/origin/ refs/heads/ | lines)
