@@ -1,14 +1,16 @@
 #!/bin/bash
-# Blocks writes to build artifacts, binary files, and dependency directories.
+# Flags writes to build artifacts, binary files, and dependency directories and
+# asks the user to confirm instead of hard-blocking.
 # PreToolUse hook for Edit|Write operations. Does NOT inspect file size despite
 # the original filename ("warn-large-files.sh") — that name was historical, the
 # script always operated on paths + extensions. Renamed 2026-05-24.
-# Exit 2 = block the action. Exit 0 = allow.
+# Emits an interactive "ask" decision (exit 0). NOTE: JSON permissionDecision is
+# only honored on exit 0; exit 2 hard-blocks and the JSON is ignored.
 
-# Requires jq for JSON parsing. Fail closed if missing
+# Requires jq for JSON parsing. Ask if missing
 if ! command -v jq >/dev/null 2>&1; then
-  echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"jq is required for file protection hooks but is not installed.\"}}"
-  exit 2
+  echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"jq is required for file protection hooks but is not installed. Allow this write anyway?\"}}"
+  exit 0
 fi
 
 INPUT=$(cat)
@@ -35,8 +37,8 @@ case "$FILE_PATH" in
 esac
 
 if [ -n "$REASON" ]; then
-  echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"$REASON\"}}"
-  exit 2
+  echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"$REASON Allow?\"}}"
+  exit 0
 fi
 
 # Block binary and archive file extensions
@@ -53,8 +55,8 @@ case "$BASENAME" in
 esac
 
 if [ -n "$REASON" ]; then
-  echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"$REASON\"}}"
-  exit 2
+  echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"$REASON Allow?\"}}"
+  exit 0
 fi
 
 exit 0
