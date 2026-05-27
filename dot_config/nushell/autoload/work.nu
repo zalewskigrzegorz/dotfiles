@@ -340,9 +340,13 @@ def "work new" [
             if $choice == "a" or ($choice | is-empty) {
                 error make { msg: "Aborted." }
             }
-            let idx = (($choice | into int) - 1)
+            let idx = (
+                try { ($choice | into int) - 1 } catch {
+                    error make { msg: $"Invalid choice: '($choice)' — expected number from menu." }
+                }
+            )
             if $idx < 0 or $idx >= ($allowed_types | length) {
-                error make { msg: $"Invalid choice: ($choice)" }
+                error make { msg: $"Invalid choice: ($choice) — out of range." }
             }
             let chosen_type = ($allowed_types | get $idx)
             $final_name = $"($chosen_type)/($input_name)"
@@ -420,13 +424,21 @@ def "work new" [
         }
     )
 
+    if $result.exit_code == 1 and ($result.stderr | str trim | is-empty) {
+        # flock -n returns 1 with no stderr when lock unavailable
+        error make { msg: $"work new: another `work new` is in progress for ($repo). Try again in a moment." }
+    }
     if $result.exit_code != 0 {
         error make { msg: $"work new failed: ($result.stderr)" }
     }
 
     # Persist metadata
     let session = (work session-name $repo $branch_name)
-    ^git -C $wt_path config --worktree work.base $base_ref
+    if $should_create_branch {
+        ^git -C $wt_path config --worktree work.base $base_ref
+    } else {
+        ^git -C $wt_path config --worktree work.base "(existing branch)"
+    }
     ^git -C $wt_path config --worktree work.session $session
     ^git -C $wt_path config --worktree work.branch $branch_name
 
