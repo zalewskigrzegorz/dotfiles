@@ -255,7 +255,7 @@ def "work new" [
     let parent = $info.root
     let default_branch = $info.default_branch
 
-    # --- Base ref resolution ---
+    # --- Base ref resolution (--from | --pick-from | default origin/<default>) ---
     let base_ref = (
         if $pick_from {
             let env_repo = $info.root
