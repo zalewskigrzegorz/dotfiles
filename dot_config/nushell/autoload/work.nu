@@ -73,15 +73,6 @@ def "work session-name" [repo: string, branch: string]: nothing -> string {
     $"🌿($repo)/($suffix)"
 }
 
-# Truncate session name to max 28 chars + ellipsis (tmux UI breaks ~30).
-def "work truncate-session" [name: string, max: int = 28]: nothing -> string {
-    if ($name | str length) > $max {
-        ($name | str substring 0..($max - 1)) + "…"
-    } else {
-        $name
-    }
-}
-
 # Conventional commit defaults (fallback when `extends config-conventional`).
 const WORK_CONVENTIONAL_DEFAULTS = [
     "build" "chore" "ci" "docs" "feat" "fix"
@@ -458,8 +449,14 @@ def "work new" [
     # Auto-attach if worktree already exists on disk
     if ($wt_path | path exists) {
         let session = (work session-name $repo $branch_name)
-        print $"Worktree exists, connecting to session ($session)"
-        ^sesh connect $session
+        let session_exists = ((do { ^tmux has-session -t $session } | complete).exit_code == 0)
+        if $session_exists {
+            print $"Worktree exists, connecting to session ($session)"
+            ^sesh connect $session
+        } else {
+            print $"Worktree exists (no tmux session), connecting by path ($wt_path)"
+            ^sesh connect $wt_path
+        }
         return
     }
 
@@ -938,7 +935,16 @@ def "work rm" [
         if $yn != "y" { error make { msg: "Aborted." } }
     }
 
-    let session = (work session-name $target_repo_name $target_branch)
+    # Prefer stored session name; fall back to computed name if not recorded.
+    let stored_session_r = (do { ^git -C $wt_path config --worktree work.session } | complete)
+    let stored_session = ($stored_session_r.stdout | str trim)
+    let session = (
+        if ($stored_session | is-not-empty) {
+            $stored_session
+        } else {
+            work session-name $target_repo_name $target_branch
+        }
+    )
 
     # Cleanup ORDER: worktree first, then branch, then cache, then output, FINALLY session-kill.
     # kill-session is last because in self-worktree mode it SIGHUPs the current nu shell,
