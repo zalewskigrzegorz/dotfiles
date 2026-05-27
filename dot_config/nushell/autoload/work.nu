@@ -966,33 +966,61 @@ def "work rm" [
 }
 
 # Batch-remove all worktrees whose branch is merged into the default branch
-# of the parent repo. Interactive multi-select (fzf -m).
+# of their OWN parent repo. Scans ALL pools (cross-repo). Interactive fzf -m.
 def "work prune" [
     --dry-run  # Don't remove, just list candidates
 ]: nothing -> any {
     work deps-preflight
-    let info = (work repo-info)
 
-    # Find merged branches in parent repo
-    let merged_r = (do { ^git -C $info.root branch --merged $info.default_branch } | complete)
-    if $merged_r.exit_code != 0 { error make { msg: $"Failed to get merged branches for ($info.root)" } }
-    let merged_raw = ($merged_r.stdout | lines)
-    let merged = (
-        $merged_raw
-        | each { |l| $l | str trim | str replace "* " "" }
-        | where { |it| $it != $info.default_branch and $it != "" }
-    )
+    let all = (work scan-worktrees)
+    if ($all | is-empty) {
+        print -e "No worktrees."
+        return []
+    }
 
-    # Filter worktrees: branch is in merged + status is clean
+    # For each clean worktree, check if merged into its own parent's default branch.
+    # Returns augmented record with parent_root + is_merged fields; filter to merged ones.
     let candidates = (
-        work scan-worktrees
-        | where repo == $info.name
-        | where { |wt| $wt.branch in $merged }
+        $all
         | where status == "clean"
+        | each { |wt|
+            # Resolve parent repo for this worktree
+            let common_r = (do { ^git -C $wt.path rev-parse --path-format=absolute --git-common-dir } | complete)
+            if $common_r.exit_code != 0 { return null }
+            let cd = ($common_r.stdout | str trim)
+            let root = (
+                if ($cd | str ends-with "/.git") {
+                    $cd | str substring 0..(($cd | str length) - 6)
+                } else {
+                    $cd | path dirname
+                }
+            )
+            # Get default branch for this parent repo
+            let head_ref = (do { ^git -C $root symbolic-ref refs/remotes/origin/HEAD } | complete)
+            let default_branch = (
+                if $head_ref.exit_code == 0 {
+                    $head_ref.stdout | str trim | str replace "refs/remotes/origin/" ""
+                } else {
+                    "master"
+                }
+            )
+            # Check merged
+            let merged_r = (do { ^git -C $root branch --merged $default_branch } | complete)
+            if $merged_r.exit_code != 0 { return null }
+            let merged = (
+                $merged_r.stdout
+                | lines
+                | each { |l| $l | str trim | str replace "* " "" }
+                | where { |it| $it != $default_branch and $it != "" }
+            )
+            if not ($wt.branch in $merged) { return null }
+            $wt | merge { parent_root: $root, default_branch: $default_branch }
+        }
+        | where { |it| $it != null }
     )
 
     if ($candidates | is-empty) {
-        print -e "Nothing to prune (no merged + clean worktrees)."
+        print -e "Nothing to prune (no merged + clean worktrees across all pools)."
         return []
     }
 
@@ -1000,10 +1028,10 @@ def "work prune" [
         return $candidates
     }
 
-    # Multi-select picker (fzf -m)
+    # Multi-select picker (fzf -m) — show repo/branch so user knows which repo
     let picked = (
         $candidates
-        | each { |c| $"($c.branch)\t($c.base)" }
+        | each { |c| $"($c.repo)/($c.branch)\t($c.base)" }
         | str join "\n"
         | ^fzf --multi --prompt "Prune (Tab to select multiple): " --delimiter "\t" --with-nth=1
         | lines
@@ -1011,13 +1039,21 @@ def "work prune" [
 
     if ($picked | is-empty) { return [] }
 
-    let to_remove = ($picked | each { |line| $line | split row "\t" | first })
+    # Extract branch (strip repo/ prefix — everything after first /)
+    let to_remove = (
+        $picked
+        | each { |line|
+            let col = ($line | split row "\t" | first)
+            $col | split row "/" | skip 1 | str join "/"
+        }
+    )
 
     print -e $"Removing ($to_remove | length) worktrees..."
     for branch in $to_remove {
         work rm $branch --force
     }
 
+    work cache-invalidate
     print -e $"✅ Pruned ($to_remove | length) worktrees."
     { pruned: $to_remove }
 }
