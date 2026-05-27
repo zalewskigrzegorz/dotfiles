@@ -455,6 +455,8 @@ def "work new" [
         created: true
     }
 
+    work cache-invalidate
+
     if $json {
         return $result
     }
@@ -564,9 +566,19 @@ def "work scan-worktrees" []: nothing -> list<record> {
 # With --json: structured output (returns list of records).
 # Without flags: interactive picker (tv → fzf fallback) → sesh connect.
 def "work ls" [
-    --json   # Structured output
+    --json       # Structured output
+    --no-cache   # Force re-scan (skip TTL cache)
 ]: nothing -> any {
-    let worktrees = (work scan-worktrees)
+    let cached = (if $no_cache { null } else { work cache-read })
+    let worktrees = (
+        if ($cached | is-empty) {
+            let fresh = (work scan-worktrees)
+            work cache-write $fresh
+            $fresh
+        } else {
+            $cached
+        }
+    )
 
     if $json {
         return $worktrees
@@ -605,4 +617,43 @@ def "work ls" [
     )
 
     ^sesh connect $session_name
+}
+
+const WORK_CACHE_TTL_SEC = 5
+
+def "work cache-path" []: nothing -> path {
+    $env.HOME | path join "Code" "tree" ".work-ls-cache.json"
+}
+
+def "work cache-invalidate" []: nothing -> nothing {
+    let cache = (work cache-path)
+    if ($cache | path exists) { rm $cache }
+}
+
+# Read cache if fresh enough. Returns null if stale or missing.
+def "work cache-read" []: nothing -> any {
+    let cache = (work cache-path)
+    if not ($cache | path exists) { return null }
+
+    let content = (try { open $cache } catch { return null })
+    if ($content | is-empty) { return null }
+
+    let generated = (try { $content.generated_at | into datetime } catch { return null })
+    let age = ((date now) - $generated)
+    let age_sec = ($age | into int) / 1_000_000_000
+
+    if $age_sec > $WORK_CACHE_TTL_SEC {
+        return null
+    }
+    $content.worktrees
+}
+
+def "work cache-write" [worktrees: list]: nothing -> nothing {
+    let cache = (work cache-path)
+    let pool = ($env.HOME | path join "Code" "tree")
+    if not ($pool | path exists) { return }
+    {
+        generated_at: (date now | format date "%+")
+        worktrees: $worktrees
+    } | to json | save -f $cache
 }
