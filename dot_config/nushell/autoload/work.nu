@@ -510,3 +510,99 @@ def work [
 
     ^tmux select-window -t:1
 }
+
+# Helper: gather metadata for all worktrees in the pool.
+# Returns list of records: {repo, branch, path, session, session_active, base, status, head}
+def "work scan-worktrees" []: nothing -> list<record> {
+    let pool = ($env.HOME | path join "Code" "tree")
+    if not ($pool | path exists) { return [] }
+
+    let dirs = (
+        ls -s $pool
+        | where type == dir and ($it.name | str starts-with "wt-")
+        | each { |repo_dir|
+            let repo_name = ($repo_dir.name | str substring 3..)
+            let repo_pool = ($pool | path join $repo_dir.name)
+            ls -s $repo_pool | where type == dir | each { |wt|
+                let wt_path = ($repo_pool | path join $wt.name)
+                {
+                    repo: $repo_name
+                    branch: $wt.name
+                    path: $wt_path
+                }
+            }
+        }
+        | flatten
+    )
+
+    $dirs | par-each { |wt|
+        let status_r = (do { ^git -C $wt.path status --porcelain } | complete)
+        let dirty = ($status_r.stdout | str trim | is-not-empty)
+
+        let base_r = (do { ^git -C $wt.path config --worktree work.base } | complete)
+        let base = ($base_r.stdout | str trim)
+
+        let session_r = (do { ^git -C $wt.path config --worktree work.session } | complete)
+        let session = ($session_r.stdout | str trim)
+
+        let has_sess = ((do { ^tmux has-session -t $session } | complete).exit_code == 0)
+
+        let head_r = (do { ^git -C $wt.path rev-parse HEAD } | complete)
+        let head = ($head_r.stdout | str trim | str substring 0..7)
+
+        $wt | merge {
+            base: (if ($base | is-empty) { "(unknown)" } else { $base })
+            session: $session
+            session_active: $has_sess
+            status: (if $dirty { "dirty" } else { "clean" })
+            head: $head
+        }
+    }
+}
+
+# List all worktrees in the pool.
+# With --json: structured output (returns list of records).
+# Without flags: interactive picker (tv → fzf fallback) → sesh connect.
+def "work ls" [
+    --json   # Structured output
+]: nothing -> any {
+    let worktrees = (work scan-worktrees)
+
+    if $json {
+        return $worktrees
+    }
+
+    if ($worktrees | is-empty) {
+        print "No worktrees in ~/Code/tree/. Use `work new <branch>` to create one."
+        return
+    }
+
+    # Build picker lines: <session>\t<active>\t<status>\tfrom <base>\t<path>
+    let lines = ($worktrees | each { |wt|
+        let active_marker = (if $wt.session_active { "●" } else { "○" })
+        let status_emoji = (if $wt.status == "dirty" { "🔴" } else { "🟢" })
+        $"($wt.session)\t($active_marker)\t($status_emoji) ($wt.status)\tfrom ($wt.base)\t($wt.path)"
+    })
+
+    let picked = (
+        if (which tv | is-not-empty) {
+            ^tv --channel worktrees | str trim
+        } else {
+            $lines | str join "\n" | ^fzf --prompt "Worktree: " | str trim
+        }
+    )
+
+    if ($picked | is-empty) { return }
+
+    # Resolve session name from path (TV returns path, fzf returns full tab line)
+    let by_path = ($worktrees | where path == $picked | get session?)
+    let session_name = (
+        if ($by_path | is-not-empty) {
+            $by_path | first
+        } else {
+            $picked | split row "\t" | first
+        }
+    )
+
+    ^sesh connect $session_name
+}
