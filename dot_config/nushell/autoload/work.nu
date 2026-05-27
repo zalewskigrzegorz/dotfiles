@@ -385,7 +385,8 @@ def "work _help-cmd" [command: string]: nothing -> nothing {
             print "  work pr <numer>    checkout PR #<numer> w worktree (dla gh-dash)"
             print ""
             print "CO ROBI"
-            print "  git worktree add --detach → gh pr checkout <n> (forki + same-repo)"
+            print "  same-repo: fetch + worktree add ON branch (tracking) → branch + push działa"
+            print "  fork: worktree add --detach → gh pr checkout (fork remote) → pin branch"
             print "  → tmux sesja + layout → sesh connect"
             print "  Z gh-dash: klawisz T na PR (open in worktree)."
         }
@@ -665,8 +666,9 @@ def "work new" [
     $result
 }
 
-# Open a GitHub PR in a new worktree (gh pr checkout) + tmux session + layout.
-# Handles same-repo AND fork PRs (gh manages remotes).
+# Open a GitHub PR in a new worktree + tmux session + layout.
+# Same-repo PRs: fetch + worktree add ON the branch with tracking (commit/push works).
+# Fork PRs: detached worktree + gh pr checkout (sets up fork remote), then pin to branch.
 #   work pr            interactive picker over open PRs (gh pr list)
 #   work pr <number>   checkout PR #<number> into a worktree (for gh-dash keybinding)
 def "work pr" [
@@ -694,15 +696,18 @@ def "work pr" [
         }
     )
 
-    # Resolve PR head branch (for predictable worktree path)
-    let head_branch_r = (do { ^gh pr view $pr_num --json headRefName --jq '.headRefName' } | complete)
-    if $head_branch_r.exit_code != 0 {
-        error make { msg: $"Cannot resolve PR #($pr_num): ($head_branch_r.stderr)" }
+    # Resolve PR metadata (head branch, base branch, fork flag) in one call
+    let pr_meta_r = (do { ^gh pr view $pr_num --json headRefName,baseRefName,isCrossRepository } | complete)
+    if $pr_meta_r.exit_code != 0 {
+        error make { msg: $"Cannot resolve PR #($pr_num): ($pr_meta_r.stderr)" }
     }
-    let head_branch = ($head_branch_r.stdout | str trim)
+    let pr_meta = ($pr_meta_r.stdout | from json)
+    let head_branch = $pr_meta.headRefName
     if ($head_branch | is-empty) {
         error make { msg: $"PR #($pr_num) has no head branch." }
     }
+    let is_fork = $pr_meta.isCrossRepository
+    let base = $"origin/($pr_meta.baseRefName)"
 
     let wt_path = (work worktree-path $info.name $head_branch)
 
@@ -722,31 +727,45 @@ def "work pr" [
     # Enable per-worktree config (idempotent)
     ^git -C $info.root config extensions.worktreeConfig true | ignore
 
-    # Create detached worktree, then gh pr checkout inside it (handles forks)
+    # Create pool dir
     let pool_dir = ($env.HOME | path join "Code" "tree" $"wt-($info.name)")
     if not ($pool_dir | path exists) { mkdir $pool_dir }
 
-    let add_r = (do { ^git -C $info.root worktree add --detach $wt_path } | complete)
+    # Branch-aware checkout:
+    # - Same-repo PR: fetch + worktree add ON the branch with upstream tracking (no detach)
+    # - Fork PR: detached worktree + gh pr checkout (sets up fork remote), then pin branch
+    let add_r = (
+        if $is_fork {
+            # Fork: detached worktree + gh pr checkout (sets up fork remote)
+            let a = (do { ^git -C $info.root worktree add --detach $wt_path } | complete)
+            if $a.exit_code != 0 { error make { msg: $"worktree add failed: ($a.stderr)" } }
+            let co = (do { ^bash -c $"cd '($wt_path)' && gh pr checkout ($pr_num)" } | complete)
+            if $co.exit_code != 0 {
+                ^git -C $info.root worktree remove $wt_path --force
+                error make { msg: $"gh pr checkout #($pr_num) failed: ($co.stderr)" }
+            }
+            # Pin to branch if gh left it detached
+            let cur = (do { ^git -C $wt_path branch --show-current } | complete | get stdout | str trim)
+            if ($cur | is-empty) {
+                ^git -C $wt_path checkout -B $head_branch | ignore
+            }
+            $co
+        } else {
+            # Same-repo: fetch branch, then worktree add on the branch (with tracking)
+            do { ^gtimeout 10 git -C $info.root fetch origin $head_branch } | complete | ignore
+            let local_exists = ((do { ^git -C $info.root rev-parse --verify --quiet $"refs/heads/($head_branch)" } | complete).exit_code == 0)
+            if $local_exists {
+                do { ^git -C $info.root worktree add $wt_path $head_branch } | complete
+            } else {
+                do { ^git -C $info.root worktree add --track -b $head_branch $wt_path $"origin/($head_branch)" } | complete
+            }
+        }
+    )
     if $add_r.exit_code != 0 {
-        error make { msg: $"worktree add failed: ($add_r.stderr)" }
+        error make { msg: $"work pr checkout failed: ($add_r.stderr)" }
     }
 
-    # gh pr checkout must run inside the worktree dir.
-    # Use bash -c to ensure cwd is correct for the gh call (nu `cd` in do{} is scoped).
-    let checkout_r = (do { ^bash -c $"cd '($wt_path)' && gh pr checkout ($pr_num)" } | complete)
-    if $checkout_r.exit_code != 0 {
-        # Roll back the detached worktree on failure
-        ^git -C $info.root worktree remove $wt_path --force
-        error make { msg: $"gh pr checkout #($pr_num) failed: ($checkout_r.stderr)" }
-    }
-
-    # Actual branch gh checked out (may differ from headRefName for forks)
-    let actual_branch = (do { ^git -C $wt_path branch --show-current } | complete | get stdout | str trim)
-    let branch = (if ($actual_branch | is-empty) { $head_branch } else { $actual_branch })
-
-    # PR base ref (for metadata)
-    let base_ref_r = (do { ^gh pr view $pr_num --json baseRefName --jq '.baseRefName' } | complete)
-    let base = (if $base_ref_r.exit_code == 0 { $"origin/($base_ref_r.stdout | str trim)" } else { "(pr)" })
+    let branch = $head_branch
 
     let session = (work session-name $info.name $branch)
 
