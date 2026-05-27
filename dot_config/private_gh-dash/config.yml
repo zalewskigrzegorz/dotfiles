@@ -99,7 +99,11 @@ defaults:
 keybindings:
   universal: []
   issues: []
-  prs: []
+  prs:
+    - key: T
+      name: worktree
+      command: >
+        tmux new-window -c "{{.RepoPath}}" -n "pr#{{.PrNumber}}" "nu -c 'source ~/.config/nushell/autoload/work.nu; work pr {{.PrNumber}}'"
   branches: []
 repoPaths:
   "zalewskigrzegorz/dotfiles": "/Users/greg/Code/dotfiles"
