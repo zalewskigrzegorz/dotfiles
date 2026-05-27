@@ -240,8 +240,9 @@ def "work help" []: nothing -> nothing {
 
 # Create a new worktree + tmux session + layout.
 # Phase 4: full collision detection, commitlint enforcement, base-ref picker.
+# name is optional — omit to get an interactive branch picker (TV or fzf fallback).
 def "work new" [
-    name: string  # Branch name (with or without conventional prefix)
+    name: string = ""  # Branch name (empty = interactive picker)
     --from: string = ""  # Custom base ref (default: origin/<default-branch>)
     --type: string = ""  # Conventional commit type prefix (skip picker)
     --pick-from         # Interactive picker for base ref
@@ -254,6 +255,39 @@ def "work new" [
     let repo = $info.name
     let parent = $info.root
     let default_branch = $info.default_branch
+
+    # --- Branch name resolution (picker when name empty) ---
+    mut effective_name = $name
+
+    if ($name | is-empty) {
+        let env_repo = $info.root
+        let picked = (
+            if (which tv | is-not-empty) {
+                with-env { WORK_REPO: $env_repo } {
+                    ^tv --channel work-branches | str trim
+                }
+            } else {
+                let local_b = (^git -C $info.root for-each-ref --format='%(refname:short)' refs/heads/ | lines)
+                let remote_b = (^git -C $info.root for-each-ref --format='%(refname:short)' refs/remotes/origin/ | lines | where { |b| $b != "HEAD" })
+                let cands = ($local_b ++ $remote_b ++ ["+ Create new branch..."])
+                $cands | str join "\n" | ^fzf --prompt "Branch: " | str trim
+            }
+        )
+        if ($picked | is-empty) { error make { msg: "No branch selected." } }
+
+        if $picked == "+ Create new branch..." {
+            let new_name = (input "New branch name: ")
+            if ($new_name | is-empty) { error make { msg: "No name given." } }
+            $effective_name = $new_name
+        } else if ($picked | str starts-with "origin/") {
+            $effective_name = ($picked | str replace "origin/" "")
+        } else {
+            $effective_name = $picked
+        }
+    }
+
+    # Snapshot effective_name as immutable before any closure usage.
+    let input_name = $effective_name
 
     # --- Base ref resolution (--from | --pick-from | default origin/<default>) ---
     let base_ref = (
@@ -281,16 +315,16 @@ def "work new" [
     # --- Commitlint enforcement ---
     let allowed_types = (work load-commitlint-types $info.root)
     let has_enforcement = (not ($allowed_types | is-empty))
-    let has_slash = ($name | str contains "/")
+    let has_slash = ($input_name | str contains "/")
 
-    mut final_name = $name
+    mut final_name = $input_name
 
     if $has_enforcement and not $has_slash and not $no_prefix {
         if not ($type | is-empty) {
             if not ($type in $allowed_types) {
                 error make { msg: $"Type '($type)' not in allowed list: ($allowed_types | str join ', ')" }
             }
-            $final_name = $"($type)/($name)"
+            $final_name = $"($type)/($input_name)"
         } else {
             # Interactive picker
             print $"\n⚠️  Repo '($info.name)' uses commitlint — choose branch type:"
@@ -311,7 +345,7 @@ def "work new" [
                 error make { msg: $"Invalid choice: ($choice)" }
             }
             let chosen_type = ($allowed_types | get $idx)
-            $final_name = $"($chosen_type)/($name)"
+            $final_name = $"($chosen_type)/($input_name)"
             print $"→ branch: ($final_name)"
         }
     }
