@@ -1,0 +1,10 @@
+[metadata]
+name = "work-worktrees"
+description = "Worktree branch names (for work rm Ctrl+T completion)"
+requirements = ["fd", "git"]
+
+[source]
+command = "bash -c 'fd -t d --min-depth 2 --max-depth 3 . \"$HOME/Code/tree\" 2>/dev/null | while read -r p; do top=$(git -C \"$p\" rev-parse --show-toplevel 2>/dev/null); [ \"$top\" = \"${p%/}\" ] && git -C \"$p\" config --worktree work.branch 2>/dev/null; done | grep -v \"^$\" | sort -u'"
+
+[preview]
+command = "bash -c 'p=$(fd -t d --min-depth 2 --max-depth 3 . \"$HOME/Code/tree\" 2>/dev/null | while read -r d; do b=$(git -C \"$d\" config --worktree work.branch 2>/dev/null); [ \"$b\" = \"{}\" ] && echo \"$d\"; done | head -1); git -C \"$p\" log --oneline -10 2>/dev/null; echo; git -C \"$p\" status -sb 2>/dev/null'"
