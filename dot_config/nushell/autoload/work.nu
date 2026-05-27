@@ -92,7 +92,10 @@ const WORK_CONVENTIONAL_DEFAULTS = [
 # Returns empty list if no config found (= no enforcement).
 # Returns conventional defaults if config extends config-conventional without override.
 # Returns explicit type-enum list if found.
-def "work load-commitlint-types" [repo_path: path]: nothing -> list<string> {
+def "work load-commitlint-types" [
+    repo_path?: path  # Default: current working directory
+]: nothing -> list<string> {
+    let repo_path = (if ($repo_path | is-empty) { $env.PWD | path expand } else { $repo_path })
     let candidates = [
         ($repo_path | path join "commitlint.config.js")
         ($repo_path | path join "commitlint.config.cjs")
@@ -233,6 +236,31 @@ def "work deps-preflight" []: nothing -> nothing {
     }
 }
 
+# Find tmux sessions matching 🌿* that don't have a corresponding worktree.
+# Useful for detecting sessions left behind after manual worktree removal.
+def "work stale-sessions" []: nothing -> list<string> {
+    let known = (work scan-worktrees | get session | where { |s| $s != "" })
+    let all_r = (do { ^tmux list-sessions -F "#{session_name}" } | complete)
+    if $all_r.exit_code != 0 { return [] }
+    $all_r.stdout
+    | lines
+    | where { |s| $s | str starts-with "🌿" }
+    | where { |s| not ($s in $known) }
+}
+
+# Kill all stale 🌿* tmux sessions (those without a corresponding worktree).
+def "work clean-stale-sessions" []: nothing -> nothing {
+    let stale = (work stale-sessions)
+    if ($stale | is-empty) {
+        print "No stale 🌿 sessions."
+        return
+    }
+    for s in $stale {
+        print $"Killing stale session: ($s)"
+        ^tmux kill-session -t $s
+    }
+}
+
 # Print cheatsheet for the work command family.
 # In a worktree, also shows base/branch/path of the current worktree.
 def "work help" []: nothing -> nothing {
@@ -247,9 +275,13 @@ def "work help" []: nothing -> nothing {
     print "  work new <name> --pick-from  Picker po base ref, potem worktree"
     print "  work new <name> --from <r> Worktree z custom base ref"
     print "  work new <name> --type <t> Force prefix bez picker (skip commitlint)"
-    print "  work ls                    Picker po wszystkich worktree (tv → fzf)"
+    print "  work ls                    Zwraca listę worktree jako nu records (tabela)"
+    print "  work ls --json             Zwraca JSON string (dla skryptów)"
     print "  work rm [branch]           Usuń worktree + branch + sesję (atomowo)"
     print "  work prune                 Batch: usuń wszystkie merged-into-master"
+    print "  work prune --dry-run       Wypisz kandydatów bez usuwania"
+    print "  work stale-sessions        Lista sesji 🌿* bez worktree"
+    print "  work clean-stale-sessions  Usuń stare sesje 🌿* bez worktree"
     print "  work help                  Ten ekran"
     print ""
     print "Każda query/list komenda dodatkowo: --json (do scriptingu)"
@@ -580,30 +612,61 @@ def work [
 }
 
 # Helper: gather metadata for all worktrees in the pool.
+# Uses `git worktree list --porcelain` from the parent repo as canonical source —
+# avoids naive subdir scan that incorrectly includes nested dirs (Bug 2).
 # Returns list of records: {repo, branch, path, session, session_active, base, status, head}
 def "work scan-worktrees" []: nothing -> list<record> {
     let pool = ($env.HOME | path join "Code" "tree")
     if not ($pool | path exists) { return [] }
 
-    let dirs = (
+    let repo_dirs = (
         ls -s $pool
         | where type == dir and ($it.name | str starts-with "wt-")
-        | each { |repo_dir|
+    )
+
+    let candidates = (
+        $repo_dirs | each { |repo_dir|
             let repo_name = ($repo_dir.name | str substring 3..)
             let repo_pool = ($pool | path join $repo_dir.name)
-            ls -s $repo_pool | where type == dir | each { |wt|
-                let wt_path = ($repo_pool | path join $wt.name)
-                {
-                    repo: $repo_name
-                    branch: $wt.name
-                    path: $wt_path
+            let parent_repo = ($env.HOME | path join "Code" $repo_name)
+
+            # Need parent repo to have .git for porcelain query
+            if not ($parent_repo | path join ".git" | path exists) {
+                return []
+            }
+
+            let porcelain = (do { ^git -C $parent_repo worktree list --porcelain } | complete)
+            if $porcelain.exit_code != 0 { return [] }
+
+            # Parse porcelain into {path, branch} records
+            let entries = (
+                $porcelain.stdout
+                | lines
+                | reduce -f [] { |line, acc|
+                    if ($line | str starts-with "worktree ") {
+                        let wt_path = ($line | str replace "worktree " "")
+                        $acc | append { path: $wt_path, branch: null }
+                    } else if ($line | str starts-with "branch ") {
+                        let branch = ($line | str replace "branch refs/heads/" "")
+                        let last = ($acc | last)
+                        ($acc | drop 1) | append ($last | merge { branch: $branch })
+                    } else {
+                        $acc
+                    }
                 }
+            )
+
+            # Only entries inside the pool dir (excludes main parent repo)
+            $entries
+            | where ($it.path | str starts-with $repo_pool)
+            | each { |e|
+                { repo: $repo_name, branch: ($e.branch | default "(detached)"), path: $e.path }
             }
         }
         | flatten
     )
 
-    $dirs | par-each { |wt|
+    $candidates | par-each { |wt|
         let status_r = (do { ^git -C $wt.path status --porcelain } | complete)
         let dirty = ($status_r.stdout | str trim | is-not-empty)
 
@@ -613,7 +676,14 @@ def "work scan-worktrees" []: nothing -> list<record> {
         let session_r = (do { ^git -C $wt.path config --worktree work.session } | complete)
         let session = ($session_r.stdout | str trim)
 
-        let has_sess = ((do { ^tmux has-session -t $session } | complete).exit_code == 0)
+        # Bug 3: session_active must be false when session string is empty
+        let has_sess = (
+            if ($session | is-empty) {
+                false
+            } else {
+                ((do { ^tmux has-session -t $session } | complete).exit_code == 0)
+            }
+        )
 
         let head_r = (do { ^git -C $wt.path rev-parse HEAD } | complete)
         let head = ($head_r.stdout | str trim | str substring 0..6)
@@ -629,10 +699,12 @@ def "work scan-worktrees" []: nothing -> list<record> {
 }
 
 # List all worktrees in the pool.
-# With --json: structured output (returns list of records).
-# Without flags: interactive picker (tv → fzf fallback) → sesh connect.
+# Default: returns nu records (auto-printed as table).
+# --json: returns JSON string (for scripting).
+# --no-cache: force re-scan.
+# Picker lives in `bin/sesh-picker` bound to ^w — not here.
 def "work ls" [
-    --json       # Structured output
+    --json       # Output as JSON string instead of nu records
     --no-cache   # Force re-scan (skip TTL cache)
 ]: nothing -> any {
     let cached = (if $no_cache { null } else { work cache-read })
@@ -647,42 +719,9 @@ def "work ls" [
     )
 
     if $json {
-        return $worktrees
+        return ($worktrees | to json)
     }
-
-    if ($worktrees | is-empty) {
-        print "No worktrees in ~/Code/tree/. Use `work new <branch>` to create one."
-        return
-    }
-
-    # Build picker lines: <session>\t<active>\t<status>\tfrom <base>\t<path>
-    let lines = ($worktrees | each { |wt|
-        let active_marker = (if $wt.session_active { "●" } else { "○" })
-        let status_emoji = (if $wt.status == "dirty" { "🔴" } else { "🟢" })
-        $"($wt.session)\t($active_marker)\t($status_emoji) ($wt.status)\tfrom ($wt.base)\t($wt.path)"
-    })
-
-    let picked = (
-        if (which tv | is-not-empty) {
-            ^tv --channel worktrees | str trim
-        } else {
-            $lines | str join "\n" | ^fzf --prompt "Worktree: " | str trim
-        }
-    )
-
-    if ($picked | is-empty) { return }
-
-    # Resolve session name from path (TV returns path, fzf returns full tab line)
-    let by_path = ($worktrees | where path == $picked | get session?)
-    let session_name = (
-        if ($by_path | is-not-empty) {
-            $by_path | first
-        } else {
-            $picked | split row "\t" | first
-        }
-    )
-
-    ^sesh connect $session_name
+    $worktrees
 }
 
 const WORK_CACHE_TTL_SEC = 5
@@ -877,13 +916,41 @@ def "work _complete-branches-no-wt" []: nothing -> list<string> {
 
 # Completer: list of branches that DO have a worktree in current repo.
 # For `work rm <branch>` autocompletion.
+# Bug 4 fix: excludes the main repo's branch (e.g. master) so it doesn't appear in rm picker.
 def "work _complete-worktrees" []: nothing -> list<string> {
     let info_r = (do { ^git rev-parse --show-toplevel } | complete)
     if $info_r.exit_code != 0 { return [] }
     let root = ($info_r.stdout | str trim)
 
-    ^git -C $root worktree list --porcelain
+    let common_r = (do { ^git rev-parse --path-format=absolute --git-common-dir } | complete)
+    if $common_r.exit_code != 0 { return [] }
+    let common_dir = ($common_r.stdout | str trim)
+    let main_repo = (
+        if ($common_dir | str ends-with "/.git") {
+            $common_dir | str substring 0..(($common_dir | str length) - 6)
+        } else {
+            $common_dir | path dirname
+        }
+    )
+
+    let porcelain = (do { ^git -C $root worktree list --porcelain } | complete)
+    if $porcelain.exit_code != 0 { return [] }
+
+    $porcelain.stdout
     | lines
-    | where ($it | str starts-with "branch ")
-    | each { |l| $l | str replace "branch refs/heads/" "" }
+    | reduce -f [] { |line, acc|
+        if ($line | str starts-with "worktree ") {
+            let wt_path = ($line | str replace "worktree " "")
+            $acc | append { path: $wt_path, branch: null }
+        } else if ($line | str starts-with "branch ") {
+            let branch = ($line | str replace "branch refs/heads/" "")
+            let last = ($acc | last)
+            ($acc | drop 1) | append ($last | merge { branch: $branch })
+        } else {
+            $acc
+        }
+    }
+    | where ($it.path != $main_repo)
+    | get branch
+    | where { |b| $b != null }
 }
