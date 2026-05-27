@@ -774,9 +774,13 @@ def "work pr" [
 
     work cache-invalidate
 
-    # Tmux session + layout
-    ^tmux new-session -d -s $session -c $wt_path
-    ^tmux send-keys -t $session "work" Enter
+    # Tmux session + layout (skip new-session if a session with this name already
+    # exists — e.g. a stale session from a prior run — and just attach to it).
+    let session_exists = ((do { ^tmux has-session -t $session } | complete).exit_code == 0)
+    if not $session_exists {
+        ^tmux new-session -d -s $session -c $wt_path
+        ^tmux send-keys -t $session "work" Enter
+    }
 
     print -e $"✅ PR #($pr_num) → worktree ($branch)"
     ^sesh connect $session
