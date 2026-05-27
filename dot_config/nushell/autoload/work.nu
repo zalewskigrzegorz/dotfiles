@@ -233,9 +233,69 @@ def "work deps-preflight" []: nothing -> nothing {
     }
 }
 
-# Stub — full cheatsheet implemented in Phase 7.
+# Print cheatsheet for the work command family.
+# In a worktree, also shows base/branch/path of the current worktree.
 def "work help" []: nothing -> nothing {
-    print "work help — full cheatsheet in Phase 7. For now use the plan/spec docs."
+    let in_repo = (try { work repo-info | is-not-empty } catch { false })
+
+    print "📖 Work — worktree workflow"
+    print ""
+    print "KOMENDY"
+    print "  work                       4-window layout (terminal/git/claude/nvim)"
+    print "  work new                   Picker po branchach + Create new..."
+    print "  work new <name>            Nowy worktree z origin/master (collision → prompt)"
+    print "  work new <name> --pick-from  Picker po base ref, potem worktree"
+    print "  work new <name> --from <r> Worktree z custom base ref"
+    print "  work new <name> --type <t> Force prefix bez picker (skip commitlint)"
+    print "  work ls                    Picker po wszystkich worktree (tv → fzf)"
+    print "  work rm [branch]           Usuń worktree + branch + sesję (atomowo)"
+    print "  work prune                 Batch: usuń wszystkie merged-into-master"
+    print "  work help                  Ten ekran"
+    print ""
+    print "Każda query/list komenda dodatkowo: --json (do scriptingu)"
+    print ""
+    print "🆕 NOWY BRANCH ZAWSZE ZE ŚWIEŻEGO ORIGIN/MASTER"
+    print "  work new fix-auth          → git fetch origin master"
+    print "                             → git worktree add -b fix-auth <path> origin/master"
+    print ""
+    print "📍 BASE REF PERSISTENCE"
+    print "  work new zapisuje base/session/branch w git config --worktree."
+    print "  Widzisz w: work ls preview, tmux status-right, work help (w sesji)."
+
+    # If we're inside a worktree, print its context
+    if $in_repo {
+        # Re-resolve via work repo-info to get the record
+        let info = (work repo-info)
+        if $info.is_worktree {
+            let wt_path = $info.worktree_path
+            let base_r = (do { ^git -C $wt_path config --worktree work.base } | complete)
+            let base = ($base_r.stdout | str trim)
+            let branch_r = (do { ^git -C $wt_path config --worktree work.branch } | complete)
+            let branch = ($branch_r.stdout | str trim)
+            print ""
+            print "🌿 JESTEŚ W WORKTREE:"
+            print $"  branch: ($branch)"
+            print $"  base:   ($base)"
+            print $"  path:   ($wt_path)"
+        }
+    }
+
+    print ""
+    print "💾 COMMIT + PUSH W WORKTREE"
+    print "  Commit ZAWSZE leci na branch feature. Parent repo nietknięty."
+    print "  cd <worktree-path>; git commit; git push -u origin <branch>"
+    print "  (lazygit w oknie git robi to samo wizualnie)"
+    print ""
+    print "🔀 EMOJI-PREFIX MAPPING (commitlint integration)"
+    print "  feat/     → ✨   fix/      → 🐛   hotfix/   → 🚑"
+    print "  docs/     → 📝   tests/    → 🧪   chore/    → 🧹"
+    print "  refactor/ → ♻    perf/     → ⚡   build/    → 📦"
+    print "  ci/       → 👷   revert/   → ⏪   style/    → 💄"
+    print ""
+    print "🧠 MENTAL MODEL"
+    print "  Worktree = osobny katalog wskazujący na branch."
+    print "  Każdy worktree = własny HEAD → commitujesz niezależnie."
+    print "  Wszystkie dzielą jedno .git/ (objects, refs)."
 }
 
 # Create a new worktree + tmux session + layout.
