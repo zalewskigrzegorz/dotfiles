@@ -238,6 +238,81 @@ def "work help" []: nothing -> nothing {
     print "work help — full cheatsheet in Phase 7. For now use the plan/spec docs."
 }
 
+# Create a new worktree + tmux session + layout.
+# Phase 4 basic version — collision/commitlint/picker added in subsequent commits.
+def "work new" [
+    name: string  # Branch name (with or without conventional prefix)
+    --from: string = ""  # Custom base ref (default: origin/<default-branch>)
+    --json              # Output JSON result
+]: nothing -> any {
+    work deps-preflight
+
+    let info = (work repo-info)
+    let repo = $info.name
+    let parent = $info.root
+    let default_branch = $info.default_branch
+    let base_ref = (if ($from | is-empty) { $"origin/($default_branch)" } else { $from })
+
+    let wt_path = (work worktree-path $repo $name)
+
+    # Auto-attach if exists
+    if ($wt_path | path exists) {
+        let session = (work session-name $repo $name)
+        print $"Worktree exists, connecting to session ($session)"
+        ^sesh connect $session
+        return
+    }
+
+    # Enable per-worktree config (idempotent)
+    ^git -C $parent config extensions.worktreeConfig true | ignore
+
+    # Fresh fetch (timeout 5s)
+    let fetch_ref = ($base_ref | str replace "origin/" "")
+    let fetch = (do { ^gtimeout 5 git -C $parent fetch origin $fetch_ref } | complete)
+    if $fetch.exit_code != 0 {
+        print $"⚠️  fetch failed/timeout — using local ($base_ref)"
+    }
+
+    # Advisory lock
+    let pool_dir = ($env.HOME | path join "Code" "tree" $"wt-($repo)")
+    if not ($pool_dir | path exists) { mkdir $pool_dir }
+    let lock_file = ($pool_dir | path join ".lock")
+    touch $lock_file  # flock needs file to exist
+
+    let result = (
+        do {
+            ^flock -n $lock_file git -C $parent worktree add -b $name $wt_path $base_ref
+        } | complete
+    )
+
+    if $result.exit_code != 0 {
+        error make { msg: $"work new failed: ($result.stderr)" }
+    }
+
+    # Persist metadata
+    let session = (work session-name $repo $name)
+    ^git -C $wt_path config --worktree work.base $base_ref
+    ^git -C $wt_path config --worktree work.session $session
+    ^git -C $wt_path config --worktree work.branch $name
+
+    # Tmux session + layout
+    ^tmux new-session -d -s $session -c $wt_path
+    ^tmux send-keys -t $session "work" Enter
+
+    ^sesh connect $session
+
+    if $json {
+        return {
+            repo: $repo
+            branch: $name
+            path: $wt_path
+            session: $session
+            base: $base_ref
+            created: true
+        }
+    }
+}
+
 # Set up 4-window layout in current tmux session.
 # Windows: terminal | git (lazygit) | claude | nvim (bazgroly/<repo>/)
 # Idempotent — skips windows that already exist by name.
