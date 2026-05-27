@@ -7,13 +7,29 @@
 # Emits an interactive "ask" decision (exit 0). NOTE: JSON permissionDecision is
 # only honored on exit 0; exit 2 hard-blocks and the JSON is ignored.
 
-# Requires jq for JSON parsing. Ask if missing
-if ! command -v jq >/dev/null 2>&1; then
-  echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"jq is required for file protection hooks but is not installed. Allow this write anyway?\"}}"
+PERMISSION_MODE=""
+
+# emit_guard "<reason>": ask a human in interactive default mode; hard-deny in any
+# autonomous mode where a hook "ask" would be auto-resolved to allow.
+emit_guard() {
+  local reason="${1//\"/\\\"}" decision
+  if [ "$PERMISSION_MODE" = "default" ]; then
+    decision="ask"
+  else
+    decision="deny"
+    reason="$reason [auto-mode: blocked — rerun interactively to confirm]"
+  fi
+  echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"$decision\",\"permissionDecisionReason\":\"$reason\"}}"
   exit 0
+}
+
+# Requires jq for JSON parsing. Fail closed (deny) if missing.
+if ! command -v jq >/dev/null 2>&1; then
+  emit_guard "jq is required for file protection hooks but is not installed."
 fi
 
 INPUT=$(cat)
+PERMISSION_MODE=$(echo "$INPUT" | jq -r '.permission_mode // ""')
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 
 if [ -z "$FILE_PATH" ]; then
@@ -37,8 +53,7 @@ case "$FILE_PATH" in
 esac
 
 if [ -n "$REASON" ]; then
-  echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"$REASON Allow?\"}}"
-  exit 0
+  emit_guard "$REASON"
 fi
 
 # Block binary and archive file extensions
@@ -55,8 +70,7 @@ case "$BASENAME" in
 esac
 
 if [ -n "$REASON" ]; then
-  echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"$REASON Allow?\"}}"
-  exit 0
+  emit_guard "$REASON"
 fi
 
 exit 0

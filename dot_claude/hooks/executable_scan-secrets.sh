@@ -11,6 +11,7 @@ fi
 
 INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
+PERMISSION_MODE=$(echo "$INPUT" | jq -r '.permission_mode // ""')
 
 # Extract the content being written
 if [ "$TOOL_NAME" = "Write" ]; then
@@ -73,10 +74,17 @@ if echo "$CONTENT" | grep -qiE '(password|secret|token|api_key|apikey|api_secret
 fi
 
 if [ -n "$MATCHES" ]; then
-  # Use "ask" not "deny". Warn the user but let them override (could be test fixtures).
-  # Must exit 0 — exit 2 hard-blocks and the JSON "ask" is ignored.
+  # Ask a human in interactive default mode (could be a test fixture); hard-deny in
+  # any autonomous mode where a hook "ask" would be auto-resolved to allow.
+  # Must exit 0 — exit 2 hard-blocks and the JSON decision is ignored.
   REASON="Possible secret detected in content:$MATCHES Review carefully before allowing."
-  echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"$REASON\"}}"
+  if [ "$PERMISSION_MODE" = "default" ]; then
+    DECISION="ask"
+  else
+    DECISION="deny"
+    REASON="$REASON [auto-mode: blocked — rerun interactively to confirm]"
+  fi
+  echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"$DECISION\",\"permissionDecisionReason\":\"$REASON\"}}"
   exit 0
 fi
 
