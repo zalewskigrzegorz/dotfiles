@@ -239,10 +239,13 @@ def "work help" []: nothing -> nothing {
 }
 
 # Create a new worktree + tmux session + layout.
-# Phase 4 basic version — collision/commitlint/picker added in subsequent commits.
+# Phase 4: full collision detection, commitlint enforcement, base-ref picker.
 def "work new" [
     name: string  # Branch name (with or without conventional prefix)
     --from: string = ""  # Custom base ref (default: origin/<default-branch>)
+    --type: string = ""  # Conventional commit type prefix (skip picker)
+    --pick-from         # Interactive picker for base ref
+    --no-prefix         # Skip commitlint enforcement
     --json              # Output JSON result
 ]: nothing -> any {
     work deps-preflight
@@ -251,13 +254,76 @@ def "work new" [
     let repo = $info.name
     let parent = $info.root
     let default_branch = $info.default_branch
-    let base_ref = (if ($from | is-empty) { $"origin/($default_branch)" } else { $from })
 
-    let wt_path = (work worktree-path $repo $name)
+    # --- Base ref resolution ---
+    let base_ref = (
+        if $pick_from {
+            let env_repo = $info.root
+            let picked = (
+                if (which tv | is-not-empty) {
+                    with-env { WORK_REPO: $env_repo } {
+                        ^tv --channel work-base-refs | str trim
+                    }
+                } else {
+                    let candidates = (^git -C $info.root for-each-ref --format='%(refname:short)' refs/remotes/origin/ refs/heads/ | lines)
+                    $candidates | str join "\n" | ^fzf --prompt "Base ref: " | str trim
+                }
+            )
+            if ($picked | is-empty) { error make { msg: "No base ref selected, aborting." } }
+            $picked
+        } else if ($from | is-empty) {
+            $"origin/($default_branch)"
+        } else {
+            $from
+        }
+    )
 
-    # Auto-attach if exists
+    # --- Commitlint enforcement ---
+    let allowed_types = (work load-commitlint-types $info.root)
+    let has_enforcement = (not ($allowed_types | is-empty))
+    let has_slash = ($name | str contains "/")
+
+    mut final_name = $name
+
+    if $has_enforcement and not $has_slash and not $no_prefix {
+        if not ($type | is-empty) {
+            if not ($type in $allowed_types) {
+                error make { msg: $"Type '($type)' not in allowed list: ($allowed_types | str join ', ')" }
+            }
+            $final_name = $"($type)/($name)"
+        } else {
+            # Interactive picker
+            print $"\n⚠️  Repo '($info.name)' uses commitlint — choose branch type:"
+            mut menu_lines = []
+            for row in ($allowed_types | enumerate) {
+                let emoji = ($WORK_PREFIX_EMOJI | get --optional $row.item | default "  ")
+                let desc = ($WORK_PREFIX_DESC | get --optional $row.item | default "")
+                $menu_lines = ($menu_lines | append $"  [($row.index + 1)] ($emoji) ($row.item)      ($desc)")
+            }
+            print ($menu_lines | str join "\n")
+            print "  [a] abort"
+            let choice = (input "Choice: ")
+            if $choice == "a" or ($choice | is-empty) {
+                error make { msg: "Aborted." }
+            }
+            let idx = (($choice | into int) - 1)
+            if $idx < 0 or $idx >= ($allowed_types | length) {
+                error make { msg: $"Invalid choice: ($choice)" }
+            }
+            let chosen_type = ($allowed_types | get $idx)
+            $final_name = $"($chosen_type)/($name)"
+            print $"→ branch: ($final_name)"
+        }
+    }
+
+    # Snapshot final_name as immutable — Nu forbids capturing mut vars in closures.
+    let branch_name = $final_name
+
+    let wt_path = (work worktree-path $repo $branch_name)
+
+    # Auto-attach if worktree already exists on disk
     if ($wt_path | path exists) {
-        let session = (work session-name $repo $name)
+        let session = (work session-name $repo $branch_name)
         print $"Worktree exists, connecting to session ($session)"
         ^sesh connect $session
         return
@@ -273,6 +339,39 @@ def "work new" [
         print $"⚠️  fetch failed/timeout — using local ($base_ref)"
     }
 
+    # --- Collision check ---
+    let branch_exists_local = (
+        (do { ^git -C $parent rev-parse --verify --quiet $"refs/heads/($branch_name)" } | complete | get exit_code) == 0
+    )
+    let branch_exists_remote = (
+        (do { ^git -C $parent rev-parse --verify --quiet $"refs/remotes/origin/($branch_name)" } | complete | get exit_code) == 0
+    )
+    let exists_anywhere = ($branch_exists_local or $branch_exists_remote)
+
+    mut should_create_branch = true
+
+    if $exists_anywhere {
+        print $"\n⚠️  Branch '($branch_name)' already exists:"
+        if $branch_exists_local { print "    local:  exists" }
+        if $branch_exists_remote { print $"    remote: origin/($branch_name)" }
+        print ""
+        print "What do you want to do?"
+        print "  [c] checkout existing branch into worktree (skip fresh start)"
+        print "  [n] new name — enter a different name"
+        print "  [a] abort  (default)"
+        let choice = (input "Choice [c/n/a]: ")
+        match $choice {
+            "c" => { $should_create_branch = false }
+            "n" => {
+                let new_name = (input "New branch name: ")
+                if ($new_name | is-empty) { error make { msg: "Aborted." } }
+                work new $new_name --from $base_ref
+                return
+            }
+            _ => { error make { msg: "Aborted." } }
+        }
+    }
+
     # Advisory lock
     let pool_dir = ($env.HOME | path join "Code" "tree" $"wt-($repo)")
     if not ($pool_dir | path exists) { mkdir $pool_dir }
@@ -280,9 +379,11 @@ def "work new" [
     touch $lock_file  # flock needs file to exist
 
     let result = (
-        do {
-            ^flock -n $lock_file git -C $parent worktree add -b $name $wt_path $base_ref
-        } | complete
+        if $should_create_branch {
+            do { ^flock -n $lock_file git -C $parent worktree add -b $branch_name $wt_path $base_ref } | complete
+        } else {
+            do { ^flock -n $lock_file git -C $parent worktree add $wt_path $branch_name } | complete
+        }
     )
 
     if $result.exit_code != 0 {
@@ -290,10 +391,10 @@ def "work new" [
     }
 
     # Persist metadata
-    let session = (work session-name $repo $name)
+    let session = (work session-name $repo $branch_name)
     ^git -C $wt_path config --worktree work.base $base_ref
     ^git -C $wt_path config --worktree work.session $session
-    ^git -C $wt_path config --worktree work.branch $name
+    ^git -C $wt_path config --worktree work.branch $branch_name
 
     # Tmux session + layout
     ^tmux new-session -d -s $session -c $wt_path
@@ -304,7 +405,7 @@ def "work new" [
     if $json {
         return {
             repo: $repo
-            branch: $name
+            branch: $branch_name
             path: $wt_path
             session: $session
             base: $base_ref
