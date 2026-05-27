@@ -657,3 +657,138 @@ def "work cache-write" [worktrees: list]: nothing -> nothing {
         worktrees: $worktrees
     } | to json | save -f $cache
 }
+
+# Remove worktree + tmux session + (optional) git branch.
+# Atomic: removes worktree, kills session, optionally deletes branch.
+# - work rm <branch>  → cleanup specified branch
+# - work rm           → picker (fzf over current repo's worktrees)
+def "work rm" [
+    branch?: string  # Worktree branch name (e.g. "feat/billing-page")
+    --force          # Skip dirty check
+    --keep-branch    # Don't delete git branch
+    --json
+]: nothing -> any {
+    work deps-preflight
+    let info = (work repo-info)
+
+    let target_branch = (
+        if ($branch | is-empty) {
+            let mine = (work scan-worktrees | where repo == $info.name)
+            if ($mine | is-empty) {
+                error make { msg: "No worktrees in current repo." }
+            }
+            let lines = ($mine | each { |wt| $"($wt.branch)\t($wt.status)\tfrom ($wt.base)" })
+            let picked = (
+                $lines | str join "\n" | ^fzf --prompt "Remove worktree: " --delimiter "\t" --with-nth=1 | str trim
+            )
+            if ($picked | is-empty) { error make { msg: "Nothing picked." } }
+            $picked | split row "\t" | first
+        } else {
+            $branch
+        }
+    )
+
+    let wt_path = (work worktree-path $info.name $target_branch)
+    if not ($wt_path | path exists) {
+        error make { msg: $"Worktree path doesn't exist: ($wt_path)" }
+    }
+
+    # Dirty check
+    let dirty_r = (do { ^git -C $wt_path status --porcelain } | complete)
+    let dirty = ($dirty_r.stdout | str trim | is-not-empty)
+    if $dirty and (not $force) {
+        print $"⚠️  Worktree ($target_branch) has uncommitted changes."
+        let yn = (input "Force remove? [y/N]: ")
+        if $yn != "y" { error make { msg: "Aborted." } }
+    }
+
+    # Refuse to rm current worktree
+    if $info.is_worktree and ($info.worktree_path == $wt_path) {
+        error make { msg: "You're inside this worktree. Switch session first." }
+    }
+
+    let session = (work session-name $info.name $target_branch)
+    do { ^tmux kill-session -t $session } | complete | ignore
+    ^git -C $info.root worktree remove $wt_path --force
+    if not $keep_branch {
+        let r = (do { ^git -C $info.root branch -d $target_branch } | complete)
+        if $r.exit_code != 0 {
+            print $"⚠️  Branch ($target_branch) not fully merged — use 'git branch -D ($target_branch)' to force-delete."
+        }
+    }
+
+    work cache-invalidate
+
+    if $json {
+        return { removed: $target_branch, path: $wt_path, session: $session }
+    } else {
+        print $"✅ Removed: ($target_branch)"
+    }
+}
+
+# Batch-remove all worktrees whose branch is merged into the default branch
+# of the parent repo. Interactive multi-select (fzf -m).
+def "work prune" [
+    --dry-run  # Don't remove, just list candidates
+    --json
+]: nothing -> any {
+    work deps-preflight
+    let info = (work repo-info)
+
+    # Find merged branches in parent repo
+    let merged_raw = (^git -C $info.root branch --merged $info.default_branch | lines)
+    let merged = (
+        $merged_raw
+        | each { |l| $l | str trim | str replace "* " "" }
+        | where { |it| $it != $info.default_branch and $it != "" }
+    )
+
+    # Filter worktrees: branch is in merged + status is clean
+    let candidates = (
+        work scan-worktrees
+        | where repo == $info.name
+        | where { |wt| $wt.branch in $merged }
+        | where status == "clean"
+    )
+
+    if ($candidates | is-empty) {
+        if $json { return [] }
+        print "Nothing to prune (no merged + clean worktrees)."
+        return
+    }
+
+    if $dry_run {
+        if $json { return $candidates }
+        print "Would prune:"
+        for c in $candidates {
+            print $"  ($c.branch)  from ($c.base)"
+        }
+        return
+    }
+
+    # Multi-select picker (fzf -m)
+    let picked = (
+        $candidates
+        | each { |c| $"($c.branch)\t($c.base)" }
+        | str join "\n"
+        | ^fzf --multi --prompt "Prune (Tab to select multiple): " --delimiter "\t" --with-nth=1
+        | lines
+    )
+
+    if ($picked | is-empty) { return }
+
+    let to_remove = ($picked | each { |line| $line | split row "\t" | first })
+
+    print $"Removing ($to_remove | length) worktrees..."
+    for branch in $to_remove {
+        work rm $branch --force
+    }
+
+    work cache-invalidate
+
+    if $json {
+        return { pruned: $to_remove }
+    } else {
+        print $"✅ Pruned ($to_remove | length) worktrees."
+    }
+}
