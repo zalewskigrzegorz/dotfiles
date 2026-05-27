@@ -550,7 +550,7 @@ def "work scan-worktrees" []: nothing -> list<record> {
         let has_sess = ((do { ^tmux has-session -t $session } | complete).exit_code == 0)
 
         let head_r = (do { ^git -C $wt.path rev-parse HEAD } | complete)
-        let head = ($head_r.stdout | str trim | str substring 0..7)
+        let head = ($head_r.stdout | str trim | str substring 0..6)
 
         $wt | merge {
             base: (if ($base | is-empty) { "(unknown)" } else { $base })
