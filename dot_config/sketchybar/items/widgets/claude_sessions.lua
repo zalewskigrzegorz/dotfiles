@@ -40,11 +40,7 @@ local claude_sessions = sbar.add("item", "widgets.claude_sessions", {
   padding_right = settings.group_paddings,
   click_script = [[
     sess=$(/Users/greg/Code/dotfiles/bin/claude-sessions --json 2>/dev/null | /opt/homebrew/bin/jq -r '[.[] | select(.waiting)] | .[0].tmux_session // empty')
-    if [ -n "$sess" ]; then
-      /opt/homebrew/bin/tmux switch-client -t "$sess" 2>/dev/null || /usr/bin/open -a Ghostty
-    else
-      /usr/bin/open -a Ghostty
-    fi
+    /Users/greg/Code/dotfiles/bin/claude-focus-session "$sess"
   ]],
 })
 
@@ -97,13 +93,8 @@ local function refresh()
     background = { border_color = color },
   })
 
-  -- Native macOS notification on 0→N waiting transition
-  local prev = 0
-  local f2 = io.open(state_file, "r")
-  if f2 then prev = tonumber(f2:read("*l")) or 0; f2:close() end
-  if prev == 0 and waiting_count > 0 then
-    os.execute("osascript -e 'display notification \"Claude is waiting\" with title \"\u{F0675} Mocha Neon\" sound name \"Tink\"' 2>/dev/null")
-  end
+  -- Desktop notification is posted by the Claude Notification hook (notify-waiting.sh)
+  -- via alerter; the chip is just the in-bar indicator. Persist waiting_count only.
   local fw = io.open(state_file, "w")
   if fw then fw:write(tostring(waiting_count)); fw:close() end
 end
