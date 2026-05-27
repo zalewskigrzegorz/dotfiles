@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Prints "🌿 from <base>" if current tmux active pane is in a worktree.
+# Empty output if not in a worktree or not in tmux.
+# Used by tmux status-right. Designed to be cheap (~20ms per call).
+set -uo pipefail
+
+# Get current pane path from tmux
+PANE_PATH=$(tmux display-message -p '#{pane_current_path}' 2>/dev/null || echo "")
+[ -z "$PANE_PATH" ] && exit 0
+
+# Quick check: is this a worktree (git-dir != git-common-dir)?
+GIT_DIR=$(git -C "$PANE_PATH" rev-parse --git-dir 2>/dev/null || echo "")
+COMMON=$(git -C "$PANE_PATH" rev-parse --git-common-dir 2>/dev/null || echo "")
+
+if [ -n "$GIT_DIR" ] && [ -n "$COMMON" ] && [ "$GIT_DIR" != "$COMMON" ]; then
+    BASE=$(git -C "$PANE_PATH" config --worktree work.base 2>/dev/null || echo "")
+    if [ -n "$BASE" ]; then
+        echo "#[bg=#1E1E2E,fg=#50FA7B,bold] 🌿 from $BASE #[bg=#1E1E2E]"
+    else
+        echo "#[bg=#1E1E2E,fg=#50FA7B,bold] 🌿 worktree #[bg=#1E1E2E]"
+    fi
+fi
