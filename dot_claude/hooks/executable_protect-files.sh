@@ -8,6 +8,8 @@
 
 set -uo pipefail
 
+PERMISSION_MODE=""
+
 emit() {
   # $1 = decision (ask|deny|allow) ; $2 = reason
   local decision="$1"
@@ -15,12 +17,22 @@ emit() {
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"%s","permissionDecisionReason":"%s"}}\n' "$decision" "$reason"
   exit 0
 }
+emit_guard() {
+  # Interactive ask only when a human is at the keyboard (permission_mode=default);
+  # otherwise hard-deny so autonomous runs / subagents can't silently write here.
+  if [ "$PERMISSION_MODE" = "default" ]; then
+    emit ask "$1"
+  else
+    emit deny "$1 [auto-mode: blocked — rerun interactively (default mode) to confirm]"
+  fi
+}
 
 if ! command -v jq >/dev/null 2>&1; then
-  emit ask "jq is required for file protection hooks but is not installed. Allow this edit anyway?"
+  emit_guard "jq is required for file protection hooks but is not installed."
 fi
 
 INPUT=$(cat)
+PERMISSION_MODE=$(printf '%s' "$INPUT" | jq -r '.permission_mode // ""' 2>/dev/null || echo "")
 FILE_PATH=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null || true)
 [ -z "$FILE_PATH" ] && exit 0
 
@@ -57,7 +69,7 @@ for pattern in "${PROTECTED_PATTERNS[@]}"; do
   # Using bash case with nocasematch for case-insensitive glob match.
   case "$BASENAME_LC" in
     $pattern)
-      emit ask "Protected file: $BASENAME matches pattern '$pattern'. Allow this edit?"
+      emit_guard "Protected file: $BASENAME matches pattern '$pattern'."
       ;;
   esac
 done
@@ -65,15 +77,15 @@ done
 # Sensitive directories (use lower-cased path for case-insensitive on mac/Windows).
 case "$PATH_LC" in
   .git/*|*/.git/*)
-    emit ask "Editing a file inside .git/. Allow?" ;;
+    emit_guard "Editing a file inside .git/." ;;
   secrets/*|*/secrets/*)
-    emit ask "Editing a file inside secrets/. Allow?" ;;
+    emit_guard "Editing a file inside secrets/." ;;
   .env|.env.*|*/.env|*/.env.*)
-    emit ask "Editing a .env file. Allow?" ;;
+    emit_guard "Editing a .env file." ;;
   .claude/hooks/*|*/.claude/hooks/*)
-    emit ask "Editing a hook script (these enforce security boundaries). Allow?" ;;
+    emit_guard "Editing a hook script (these enforce security boundaries)." ;;
   .claude/settings.json|*/.claude/settings.json|.claude/settings.local.json|*/.claude/settings.local.json)
-    emit ask "Editing settings.json. This controls permissions and hooks. Confirm this change." ;;
+    emit_guard "Editing settings.json — this controls permissions and hooks." ;;
 esac
 
 exit 0

@@ -1,43 +1,68 @@
 #!/usr/bin/env bash
-# Flags dangerous shell commands (push to protected branches, force push,
-# destructive operations) and asks the user to confirm instead of hard-blocking.
-# PreToolUse hook for Bash operations.
-# Emits an interactive "ask" decision (exit 0). NOTE: JSON permissionDecision is
-# only honored on exit 0; exit 2 hard-blocks and the JSON is ignored.
+# Guards dangerous shell commands per Greg's permission policy. PreToolUse hook for Bash.
+#
+# Two decision tiers:
+#   emit_deny  → ALWAYS hard-block, in every mode and for subagents (push/commit to
+#                a protected branch, PR merge, publish, sudo, destructive SQL,
+#                curl|sh, raw-device writes, mkfs/dd). "deny" is absolute.
+#   emit_guard → ask a human ONLY in interactive `default` mode; in any autonomous
+#                mode (auto/acceptEdits/plan/dontAsk/bypassPermissions, a subagent,
+#                or headless) it hard-denies — a hook "ask" there has no human to
+#                answer and would be auto-resolved to allow.
+#
+# JSON permissionDecision is honored only on exit 0; exit 2 hard-blocks and the
+# JSON is ignored.
 #
 # Configurable via env:
-#   CLAUDE_PROTECTED_BRANCHES  comma list (default: derived from git + main,master)
+#   CLAUDE_PROTECTED_BRANCHES   comma list (default: main,master + git default)
+#   CLAUDE_PUSH_ALLOWLIST       repos where push to a protected branch is allowed
+#   CLAUDE_COMMIT_ALLOWLIST     repos where commit on a protected branch is allowed
+#   CLAUDE_MANUAL_PUSH_REPOS    repos where push is always blocked (Greg pushes)
 
 set -uo pipefail
 
-emit_ask() {
-  # Emit a JSON "ask" decision (interactive confirm) and exit 0.
-  local reason="${1//\"/\\\"}"
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s"}}\n' "$reason"
+PERMISSION_MODE=""
+
+emit() {
+  local decision="$1" reason="${2//\"/\\\"}"
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"%s","permissionDecisionReason":"%s"}}\n' "$decision" "$reason"
   exit 0
+}
+emit_deny() { emit deny "$1"; }
+emit_guard() {
+  # Interactive ask only when a human is at the keyboard (permission_mode=default);
+  # otherwise hard-deny so autonomous runs / subagents can't silently proceed.
+  if [ "$PERMISSION_MODE" = "default" ]; then
+    emit ask "$1"
+  else
+    emit deny "$1 [auto-mode: blocked — rerun interactively (default mode) to confirm]"
+  fi
 }
 
 if ! command -v jq >/dev/null 2>&1; then
-  emit_ask "jq is required for command protection hooks but is not installed. Allow this command anyway?"
+  emit_deny "jq is required for command protection hooks but is not installed."
 fi
 
 INPUT=$(cat)
+PERMISSION_MODE=$(printf '%s' "$INPUT" | jq -r '.permission_mode // ""' 2>/dev/null || echo "")
 COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null || true)
 [ -z "$COMMAND" ] && exit 0
 
-# ── Protected branch list ────────────────────────────────────────────────
-DEFAULT_BRANCHES="main,master"
-if GIT_DEFAULT=$(git config --get init.defaultBranch 2>/dev/null) && [ -n "$GIT_DEFAULT" ]; then
-  DEFAULT_BRANCHES="$DEFAULT_BRANCHES,$GIT_DEFAULT"
-fi
-PROTECTED_BRANCHES="${CLAUDE_PROTECTED_BRANCHES:-$DEFAULT_BRANCHES}"
-# Build a regex alternation: main|master|develop|...
-BR_REGEX=$(printf '%s' "$PROTECTED_BRANCHES" | tr ',' '\n' | awk 'NF{printf "%s%s",sep,$0; sep="|"}')
+# Normalised command: strip git global options (-C <path>, -c <kv>, --git-dir,
+# --work-tree, --namespace) so `git -C <worktree> push` matches the same triggers
+# as a bare `git push`. Used only for git-subcommand detection.
+GIT_NORM=$(printf '%s' "$COMMAND" | sed -E \
+  -e 's/[[:space:]]-C[[:space:]]+[^[:space:]]+//g' \
+  -e 's/[[:space:]]-c[[:space:]]+[^[:space:]]+//g' \
+  -e 's/--git-dir=[^[:space:]]+//g' \
+  -e 's/--work-tree=[^[:space:]]+//g' \
+  -e 's/--namespace=[^[:space:]]+//g')
 
-contains_cmd() { printf '%s' "$COMMAND" | grep -qE "$1"; }
-contains_icmd() { printf '%s' "$COMMAND" | grep -qiE "$1"; }
+contains_cmd()  { printf '%s' "$COMMAND"  | grep -qE "$1"; }
+contains_icmd() { printf '%s' "$COMMAND"  | grep -qiE "$1"; }
+contains_git()  { printf '%s' "$GIT_NORM" | grep -qE "$1"; }
 
-# ── Repo resolution helpers ─────────────────────────────────────────────
+# ── Repo resolution helpers ──────────────────────────────────────────────
 resolve_target_repo() {
   # Infer the target repo root from a command string (git -C <path>, cd <path>),
   # falling back to the hook's own cwd. Empty if not inside any repo.
@@ -68,147 +93,153 @@ path_in_list() {
   return 1
 }
 
-# ── Repo allowlists ─────────────────────────────────────────────────────
-# Push allowlist: Claude may `git push` to a protected branch from these repos.
-# Default: bazgroly (AI-doc destination, autopushed after every Write/Edit).
-# Override: CLAUDE_PUSH_ALLOWLIST=path1,path2 (absolute paths to repo roots).
+# ── sudo: always blocked ─────────────────────────────────────────────────
+if contains_cmd '(^|[;&|(]|[[:space:]])sudo([[:space:]]|$)'; then
+  emit_deny "sudo (elevated privileges) is blocked. Run it yourself if it is truly required."
+fi
+
+# ── Protected branch list ────────────────────────────────────────────────
+DEFAULT_BRANCHES="main,master"
+if GIT_DEFAULT=$(git config --get init.defaultBranch 2>/dev/null) && [ -n "$GIT_DEFAULT" ]; then
+  DEFAULT_BRANCHES="$DEFAULT_BRANCHES,$GIT_DEFAULT"
+fi
+PROTECTED_BRANCHES="${CLAUDE_PROTECTED_BRANCHES:-$DEFAULT_BRANCHES}"
+BR_REGEX=$(printf '%s' "$PROTECTED_BRANCHES" | tr ',' '\n' | awk 'NF{printf "%s%s",sep,$0; sep="|"}')
+
+# ── Repo allowlists ──────────────────────────────────────────────────────
 PUSH_ALLOWLIST="${CLAUDE_PUSH_ALLOWLIST:-$HOME/Code/personal/bazgroly}"
-
-# Commit allowlist: Claude may `git commit` while HEAD is a protected branch here.
-# Default: bazgroly + dotfiles + home-lab. Personal repos where master is the working branch.
-# Override: CLAUDE_COMMIT_ALLOWLIST=path1,path2.
 COMMIT_ALLOWLIST="${CLAUDE_COMMIT_ALLOWLIST:-$HOME/Code/personal/bazgroly,$HOME/Code/dotfiles,$HOME/Code/home-lab}"
-
-# Manual-push repos: commits OK on master, but push blocked with "Greg pushes manually".
-# Claude can iterate fast (commit), Greg reviews and pushes himself.
-# Override: CLAUDE_MANUAL_PUSH_REPOS=path1,path2.
 MANUAL_PUSH_REPOS="${CLAUDE_MANUAL_PUSH_REPOS:-$HOME/Code/dotfiles,$HOME/Code/home-lab}"
 
-# ── Push classification ─────────────────────────────────────────────────
-PUSH_ALLOWED=0
-PUSH_MANUAL=0
-if contains_cmd 'git[[:space:]]+push'; then
+# ── git push ─────────────────────────────────────────────────────────────
+# Policy: push→protected = DENY; push→feature = ASK; bazgroly = allowed (autopush);
+# manual-push repos (dotfiles, home-lab) = DENY (Greg pushes those himself).
+if contains_git '(^|[;&|()]+[[:space:]]*)git[[:space:]]+push'; then
   PUSH_REPO_ROOT=$(resolve_target_repo "$COMMAND")
-  if [ -n "$PUSH_REPO_ROOT" ]; then
-    if path_in_list "$PUSH_REPO_ROOT" "$PUSH_ALLOWLIST"; then
-      PUSH_ALLOWED=1
-    elif path_in_list "$PUSH_REPO_ROOT" "$MANUAL_PUSH_REPOS"; then
-      PUSH_MANUAL=1
-    fi
-  fi
-fi
-
-# ── Git push protections ────────────────────────────────────────────────
-if [ "$PUSH_ALLOWED" -eq 0 ] && contains_cmd '(^|[;&|()]+[[:space:]]*)git[[:space:]]+push'; then
-  if [ "$PUSH_MANUAL" -eq 1 ]; then
-    DENY_PUSH="Risky — Greg will push this manually after review. Commit only — no push from Claude in this repo."
+  if [ -n "$PUSH_REPO_ROOT" ] && path_in_list "$PUSH_REPO_ROOT" "$PUSH_ALLOWLIST"; then
+    :  # push allowed in this repo — fall through (e.g. bazgroly autopush)
+  elif [ -n "$PUSH_REPO_ROOT" ] && path_in_list "$PUSH_REPO_ROOT" "$MANUAL_PUSH_REPOS"; then
+    emit_deny "Greg pushes this repo manually after review. Commit only — no push from Claude here."
   else
-    DENY_PUSH="Risky — pushing to a protected branch isn't allowed in this repo. Create a feature branch and open a PR."
-  fi
-
-  # Explicit refspec to a protected branch (origin main, :main, HEAD:main, remote branch)
-  if contains_cmd "git[[:space:]]+push[[:space:]]+[^[:space:]]+[[:space:]]+([^[:space:]]*:)?($BR_REGEX)(\$|[[:space:]])"; then
-    emit_ask "$DENY_PUSH"
-  fi
-  if contains_cmd "git[[:space:]]+push.*:($BR_REGEX)(\$|[[:space:]])"; then
-    emit_ask "$DENY_PUSH"
-  fi
-  # Bare `git push` while on protected branch
-  if contains_cmd 'git[[:space:]]+push[[:space:]]*($|[;&|])'; then
-    CURRENT=$(git branch --show-current 2>/dev/null || true)
-    if [ -n "$CURRENT" ] && printf '%s' ",$PROTECTED_BRANCHES," | grep -q ",$CURRENT,"; then
-      emit_ask "$DENY_PUSH"
+    PROT=0
+    contains_git "git[[:space:]]+push[[:space:]]+[^[:space:]]+[[:space:]]+([^[:space:]]*:)?($BR_REGEX)(\$|[[:space:]])" && PROT=1
+    contains_git "git[[:space:]]+push.*:($BR_REGEX)(\$|[[:space:]])" && PROT=1
+    if contains_git 'git[[:space:]]+push[[:space:]]*($|[;&|])'; then
+      CURRENT=$(git -C "${PUSH_REPO_ROOT:-.}" branch --show-current 2>/dev/null || true)
+      { [ -n "$CURRENT" ] && printf '%s' ",$PROTECTED_BRANCHES," | grep -q ",$CURRENT,"; } && PROT=1
+    fi
+    if [ "$PROT" -eq 1 ]; then
+      emit_deny "Pushing to a protected branch isn't allowed. Greg pushes main/master manually; open a PR instead."
+    else
+      emit_guard "Pushing to a remote branch."
     fi
   fi
 fi
 
-# ── Git commit on a protected branch ────────────────────────────────────
-# Block `git commit` (incl. --amend) when HEAD is on a protected branch and the
-# repo isn't in COMMIT_ALLOWLIST. Forces branching in work repos before committing —
-# saves having to repeat "create a branch first" in every conversation.
-if contains_cmd '(^|[;&|()]+[[:space:]]*)git[[:space:]]+commit'; then
+# Force push (any branch, even allowlisted): ask in default, deny in auto.
+if contains_git '(^|[;&|()]+[[:space:]]*)git[[:space:]]+push' \
+   && contains_git 'git[[:space:]]+push([[:space:]]+[^[:space:]]+)*[[:space:]]+(-[a-zA-Z]*f[a-zA-Z]*|--force)([[:space:]=]|$)'; then
+  emit_guard "Force push overwrites remote history."
+fi
+
+# ── git commit on a protected branch ─────────────────────────────────────
+# Policy: commit→protected = DENY, except COMMIT_ALLOWLIST repos (master is the
+# working branch there). commit→feature = allowed (no emit; allowlisted in settings).
+if contains_git '(^|[;&|()]+[[:space:]]*)git[[:space:]]+commit'; then
   COMMIT_REPO_ROOT=$(resolve_target_repo "$COMMAND")
   if [ -n "$COMMIT_REPO_ROOT" ]; then
     COMMIT_BRANCH=$(git -C "$COMMIT_REPO_ROOT" branch --show-current 2>/dev/null || true)
     if [ -n "$COMMIT_BRANCH" ] && printf '%s' ",$PROTECTED_BRANCHES," | grep -q ",$COMMIT_BRANCH,"; then
       if ! path_in_list "$COMMIT_REPO_ROOT" "$COMMIT_ALLOWLIST"; then
-        emit_ask "Risky — committing to protected branch '$COMMIT_BRANCH' isn't allowed in this repo. Create a feature branch first (\`git checkout -b <branch>\`) and commit there."
+        emit_deny "Committing to protected branch '$COMMIT_BRANCH' isn't allowed here. Create a feature branch first (\`git checkout -b <branch>\`)."
       fi
     fi
   fi
 fi
 
-# Force push protection always applies, even in allowlisted repos.
-if contains_cmd '(^|[;&|()]+[[:space:]]*)git[[:space:]]+push' \
-   && contains_cmd 'git[[:space:]]+push([[:space:]]+[^[:space:]]+)*[[:space:]]+(-[a-zA-Z]*f[a-zA-Z]*|--force)([[:space:]=]|$)' \
-   && ! contains_cmd '\-\-force-with-lease'; then
-  emit_ask "Risky — force push is not allowed. Use --force-with-lease if you must overwrite remote."
+# ── GitHub PR ops ────────────────────────────────────────────────────────
+if contains_cmd '(^|[;&|(]|[[:space:]])gh[[:space:]]+pr[[:space:]]+merge'; then
+  emit_deny "Merging PRs is manual — Greg merges."
+fi
+if contains_cmd '(^|[;&|(]|[[:space:]])gh[[:space:]]+pr[[:space:]]+(create|edit|ready|close|reopen)'; then
+  emit_guard "Creating or updating a pull request."
 fi
 
-# ── Destructive filesystem operations ───────────────────────────────────
-# rm -rf targeting root, home, $HOME, $VAR (any unresolved expansion), or parent traversal.
-# We normalise quotes before matching so "my folder", '$HOME/trash', etc. Are all inspected.
+# ── Destructive filesystem operations ────────────────────────────────────
+# Catastrophic rm targets → always deny (never legitimate).
 CMD_NOQUOTE=$(printf '%s' "$COMMAND" | tr -d "'\"")
 if printf '%s' "$CMD_NOQUOTE" | grep -qE 'rm[[:space:]]+(-[a-zA-Z]*[[:space:]]+)*-?[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*[[:space:]]+(/([[:space:]]|\*|$)|~|\$HOME|\$[A-Za-z_][A-Za-z0-9_]*|\.\./\.\.)' ; then
-  emit_ask "Risky — recursive force-delete on /, ~, \$HOME, an unresolved \$VAR, or .../.. Path. Specify a concrete safe target."
+  emit_deny "Recursive force-delete on /, ~, \$HOME, an unresolved \$VAR, or .../.. — never allowed."
 fi
-# rm -rf /usr, /etc, /var, /bin, etc.
 if printf '%s' "$CMD_NOQUOTE" | grep -qE 'rm[[:space:]]+(-[a-zA-Z]+[[:space:]]+)*-?[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*[[:space:]]+/(usr|etc|var|bin|sbin|lib|opt|root|boot)([[:space:]/]|$)'; then
-  emit_ask "Risky — recursive delete targeting a system directory."
+  emit_deny "Recursive delete targeting a system directory — never allowed."
+fi
+# Any other rm → ask in default, deny in auto.
+if contains_cmd '(^|[;&|(]|[[:space:]])rm([[:space:]]|$)'; then
+  emit_guard "Deleting files with rm."
 fi
 
-# ── Dangerous database operations ───────────────────────────────────────
-# DROP TABLE|DATABASE|SCHEMA
+# ── Dangerous database operations → always deny ──────────────────────────
 if contains_icmd 'DROP[[:space:]]+(TABLE|DATABASE|SCHEMA)[[:space:]]+'; then
-  emit_ask "Risky — DROP TABLE/DATABASE/SCHEMA detected. Run manually if intended."
+  emit_deny "DROP TABLE/DATABASE/SCHEMA detected. Run it manually if intended."
 fi
-# DELETE FROM without a WHERE on the SAME statement.
-# Split on ';' so multi-statement inputs are analysed per-statement.
 if printf '%s\n' "$COMMAND" | awk '
   BEGIN { IGNORECASE=1; RS=";" }
   /DELETE[[:space:]]+FROM[[:space:]]+[A-Za-z_][A-Za-z0-9_.]*/ {
     if ($0 !~ /WHERE/) { print "BAD"; exit }
   }
 ' | grep -q BAD; then
-  emit_ask "Risky — DELETE FROM without a WHERE clause. Add a WHERE or run manually."
+  emit_deny "DELETE FROM without a WHERE clause. Add a WHERE or run it manually."
 fi
 if contains_icmd 'TRUNCATE[[:space:]]+TABLE'; then
-  emit_ask "Risky — TRUNCATE TABLE detected. Run manually if intended."
+  emit_deny "TRUNCATE TABLE detected. Run it manually if intended."
 fi
 
-# ── Dangerous system commands ───────────────────────────────────────────
-# chmod: any world-writable/universal mode (0?777 or a+rwx)
+# ── chmod 777 / a+rwx → ask ──────────────────────────────────────────────
 if contains_cmd 'chmod([[:space:]]+-[a-zA-Z]+)*[[:space:]]+0?777([[:space:]]|$)' \
   || contains_cmd 'chmod([[:space:]]+-[a-zA-Z]+)*[[:space:]]+a\+rwx([[:space:]]|$)'; then
-  emit_ask "Risky — chmod 777 / a+rwx grants everyone full access. Use restrictive perms."
+  emit_guard "chmod 777 / a+rwx grants everyone full access."
 fi
 
-# curl/wget piped to a shell
+# ── curl|sh, raw-device writes, mkfs/dd → always deny ────────────────────
 if contains_cmd '(curl|wget)[[:space:]].*\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh|zsh|ksh|fish|dash|csh)([[:space:]]|$)'; then
-  emit_ask "Risky — piping downloaded content directly to a shell is dangerous."
+  emit_deny "Piping downloaded content directly into a shell — classic attack vector."
 fi
-
-# Disk / partition. Note: only REDIRECTIONS to /dev/ are destructive. `2>/dev/null` is not.
-# Pattern matches: `>[ ]*/dev/<something>` but NOT `2>/dev/null` or `&>/dev/null` style for fd-null.
-# Strategy: match `>` optionally with whitespace, followed by /dev/<name>, EXCLUDING /dev/null and /dev/stderr/stdout.
 if printf '%s' "$COMMAND" | grep -qE '(^|[^0-9&])>[[:space:]]*/dev/[a-zA-Z][a-zA-Z0-9]*' \
    && ! printf '%s' "$COMMAND" | grep -qE '>[[:space:]]*/dev/(null|stdout|stderr|tty|zero|random|urandom)([[:space:]]|$)' ; then
-  emit_ask "Risky — redirection into a raw device file can destroy data."
+  emit_deny "Redirection into a raw device file can destroy data."
 fi
 if contains_cmd '(^|[;&|[:space:]])(mkfs|mkfs\.[a-z0-9]+)([[:space:]]|$)' \
   || contains_cmd '(^|[;&|[:space:]])dd[[:space:]]+[^|]*(if|of)=/dev/[a-zA-Z]' ; then
-  emit_ask "Risky — mkfs/dd against a device node. Irreversible data loss."
+  emit_deny "mkfs/dd against a device node — irreversible data loss."
 fi
 
-# ── Destructive git ─────────────────────────────────────────────────────
-if contains_cmd 'git[[:space:]]+reset[[:space:]]+--hard'; then
-  emit_ask "Risky — git reset --hard discards uncommitted changes permanently."
+# ── HTTP write requests → ask ────────────────────────────────────────────
+# curl/wget with an explicit write method or a data/form payload (default GET is allowed).
+if contains_icmd '(curl|wget)([[:space:]]).*(-X[[:space:]]*(POST|PUT|DELETE|PATCH)|--request[[:space:]]*(POST|PUT|DELETE|PATCH)|(^|[[:space:]])(--data|--data-raw|--data-binary|--data-urlencode|--json|--form|-F|-d)([[:space:]=]))'; then
+  emit_guard "HTTP write request (POST/PUT/DELETE/PATCH or data/form payload)."
 fi
-if contains_cmd 'git[[:space:]]+clean[[:space:]]+-[a-zA-Z]*f'; then
-  emit_ask "Risky — git clean -f permanently deletes untracked files."
+# httpie / xh with a positional write method.
+if contains_cmd '(^|[;&|(]|[[:space:]])(http|https|xh|xhs)[[:space:]]+(POST|PUT|DELETE|PATCH)([[:space:]]|$)'; then
+  emit_guard "HTTP write request via httpie/xh."
 fi
 
-# ── Accidental package publishing ───────────────────────────────────────
+# ── Destructive local git → ask ──────────────────────────────────────────
+if contains_git 'git[[:space:]]+reset[[:space:]]+--hard'; then
+  emit_guard "git reset --hard discards uncommitted changes permanently."
+fi
+if contains_git 'git[[:space:]]+clean[[:space:]]+-[a-zA-Z]*f'; then
+  emit_guard "git clean -f permanently deletes untracked files."
+fi
+
+# ── Installing dependencies → ask ────────────────────────────────────────
+if contains_cmd '(^|[;&|(]|[[:space:]])(npm|pnpm|yarn|bun)[[:space:]]+(install|ci|i|add)([[:space:]]|$)' \
+  || contains_cmd '(^|[;&|(]|[[:space:]])pip3?[[:space:]]+install([[:space:]]|$)' \
+  || contains_cmd '(^|[;&|(]|[[:space:]])(brew|cargo|gem|go)[[:space:]]+install([[:space:]]|$)'; then
+  emit_guard "Installing dependencies runs arbitrary install/postinstall scripts."
+fi
+
+# ── Accidental package publishing → always deny ──────────────────────────
 # Allow --dry-run variants (npm publish --dry-run is safe and common in CI).
 publish_patterns=(
   '(npm|yarn|pnpm|bun)[[:space:]]+publish'
@@ -218,7 +249,7 @@ publish_patterns=(
 )
 for pat in "${publish_patterns[@]}"; do
   if contains_cmd "$pat" && ! contains_cmd '(^|[[:space:]])(--dry-run|-n)([[:space:]=]|$)'; then
-    emit_ask "Risky — publishing packages should run in CI or manually, not via Claude."
+    emit_deny "Publishing packages should run in CI or manually, not via Claude."
   fi
 done
 
