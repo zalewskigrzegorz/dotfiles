@@ -8,27 +8,11 @@
 #   4) Optional cross-machine TTS via Tine (opt-in via CLAUDE_TINE_NOTIFY=1)
 set -u
 
-# 1a) macOS-native notification (primary path on Darwin).
-# osascript display notification works reliably for the BODY text (title/body
-# propagate to NotificationCenter sqlite as `req.titl` / `req.body`) but has
-# one known wart: clicking the banner opens Script Editor (notif is "owned" by
-# the AppleScript host). terminal-notifier 2.0 was tried 2026-05-23 but has
-# bugs where `-title` is ignored and stored as literal "Terminal" instead —
-# breaks the sketchybar notif_preview chip. See polish brainstorm for follow-up
-# (alerter, custom UNUserNotification swift binary, etc).
-# Sound is played via afplay separately so we can use a custom cyberpunk mp3
-# (osascript's `sound name "X"` only supports built-in macOS aiff sounds).
-if [ "$(uname -s)" = "Darwin" ]; then
-  osascript -e 'display notification "Claude is waiting" with title "Claude"' >/dev/null 2>&1 || true
-  # Background-play the custom notification sound; never block hook exit.
-  sound_file="$HOME/.claude/hooks/sounds/claude-done.mp3"
-  [ -f "$sound_file" ] && (afplay "$sound_file" >/dev/null 2>&1 &)
-fi
-
-# 1b) OSC 9 — fallback for SSH / Linux terminals (survives ssh tunnels).
-# Silently no-ops in hook-subprocess context (no /dev/tty) but lights up
-# when the script is run interactively from a terminal.
-printf '\033]9;Claude is waiting\007' > /dev/tty 2>/dev/null || true
+# 1) OSC 9 — terminal-native "finished" marker for SSH / Linux terminals.
+# The "Claude is waiting" desktop notification now lives in the Notification
+# hook (notify-waiting.sh → alerter); Stop = turn finished, not "waiting", and
+# the sound moved there too. Silently no-ops in hook-subprocess context (no /dev/tty).
+printf '\033]9;Claude finished\007' > /dev/tty 2>/dev/null || true
 
 # 2) Invalidate claude-sessions cache (fswatch may not catch the .jsonl mtime in time)
 rm -f "/tmp/claude-sessions-${UID:-$(id -u)}.json" 2>/dev/null || true
