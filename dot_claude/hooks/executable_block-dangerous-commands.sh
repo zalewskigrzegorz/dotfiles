@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
-# Blocks dangerous shell commands: push to protected branches, force push,
-# destructive operations. PreToolUse hook for Bash operations.
-# Exit 2 = block. Exit 0 = allow.
+# Flags dangerous shell commands (push to protected branches, force push,
+# destructive operations) and asks the user to confirm instead of hard-blocking.
+# PreToolUse hook for Bash operations.
+# Emits an interactive "ask" decision (exit 0). NOTE: JSON permissionDecision is
+# only honored on exit 0; exit 2 hard-blocks and the JSON is ignored.
 #
 # Configurable via env:
 #   CLAUDE_PROTECTED_BRANCHES  comma list (default: derived from git + main,master)
 
 set -uo pipefail
 
-emit_deny() {
-  # Emit a JSON deny decision and exit 2.
+emit_ask() {
+  # Emit a JSON "ask" decision (interactive confirm) and exit 0.
   local reason="${1//\"/\\\"}"
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' "$reason"
-  exit 2
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s"}}\n' "$reason"
+  exit 0
 }
 
 if ! command -v jq >/dev/null 2>&1; then
-  emit_deny "jq is required for command protection hooks but is not installed."
+  emit_ask "jq is required for command protection hooks but is not installed. Allow this command anyway?"
 fi
 
 INPUT=$(cat)
@@ -99,23 +101,23 @@ fi
 # ── Git push protections ────────────────────────────────────────────────
 if [ "$PUSH_ALLOWED" -eq 0 ] && contains_cmd '(^|[;&|()]+[[:space:]]*)git[[:space:]]+push'; then
   if [ "$PUSH_MANUAL" -eq 1 ]; then
-    DENY_PUSH="Blocked: Greg will push this manually after review. Commit only — no push from Claude in this repo."
+    DENY_PUSH="Risky — Greg will push this manually after review. Commit only — no push from Claude in this repo."
   else
-    DENY_PUSH="Blocked: pushing to a protected branch isn't allowed in this repo. Create a feature branch and open a PR."
+    DENY_PUSH="Risky — pushing to a protected branch isn't allowed in this repo. Create a feature branch and open a PR."
   fi
 
   # Explicit refspec to a protected branch (origin main, :main, HEAD:main, remote branch)
   if contains_cmd "git[[:space:]]+push[[:space:]]+[^[:space:]]+[[:space:]]+([^[:space:]]*:)?($BR_REGEX)(\$|[[:space:]])"; then
-    emit_deny "$DENY_PUSH"
+    emit_ask "$DENY_PUSH"
   fi
   if contains_cmd "git[[:space:]]+push.*:($BR_REGEX)(\$|[[:space:]])"; then
-    emit_deny "$DENY_PUSH"
+    emit_ask "$DENY_PUSH"
   fi
   # Bare `git push` while on protected branch
   if contains_cmd 'git[[:space:]]+push[[:space:]]*($|[;&|])'; then
     CURRENT=$(git branch --show-current 2>/dev/null || true)
     if [ -n "$CURRENT" ] && printf '%s' ",$PROTECTED_BRANCHES," | grep -q ",$CURRENT,"; then
-      emit_deny "$DENY_PUSH"
+      emit_ask "$DENY_PUSH"
     fi
   fi
 fi
@@ -130,7 +132,7 @@ if contains_cmd '(^|[;&|()]+[[:space:]]*)git[[:space:]]+commit'; then
     COMMIT_BRANCH=$(git -C "$COMMIT_REPO_ROOT" branch --show-current 2>/dev/null || true)
     if [ -n "$COMMIT_BRANCH" ] && printf '%s' ",$PROTECTED_BRANCHES," | grep -q ",$COMMIT_BRANCH,"; then
       if ! path_in_list "$COMMIT_REPO_ROOT" "$COMMIT_ALLOWLIST"; then
-        emit_deny "Blocked: committing to protected branch '$COMMIT_BRANCH' isn't allowed in this repo. Create a feature branch first (\`git checkout -b <branch>\`) and commit there."
+        emit_ask "Risky — committing to protected branch '$COMMIT_BRANCH' isn't allowed in this repo. Create a feature branch first (\`git checkout -b <branch>\`) and commit there."
       fi
     fi
   fi
@@ -140,7 +142,7 @@ fi
 if contains_cmd '(^|[;&|()]+[[:space:]]*)git[[:space:]]+push' \
    && contains_cmd 'git[[:space:]]+push([[:space:]]+[^[:space:]]+)*[[:space:]]+(-[a-zA-Z]*f[a-zA-Z]*|--force)([[:space:]=]|$)' \
    && ! contains_cmd '\-\-force-with-lease'; then
-  emit_deny "Blocked: force push is not allowed. Use --force-with-lease if you must overwrite remote."
+  emit_ask "Risky — force push is not allowed. Use --force-with-lease if you must overwrite remote."
 fi
 
 # ── Destructive filesystem operations ───────────────────────────────────
@@ -148,17 +150,17 @@ fi
 # We normalise quotes before matching so "my folder", '$HOME/trash', etc. Are all inspected.
 CMD_NOQUOTE=$(printf '%s' "$COMMAND" | tr -d "'\"")
 if printf '%s' "$CMD_NOQUOTE" | grep -qE 'rm[[:space:]]+(-[a-zA-Z]*[[:space:]]+)*-?[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*[[:space:]]+(/([[:space:]]|\*|$)|~|\$HOME|\$[A-Za-z_][A-Za-z0-9_]*|\.\./\.\.)' ; then
-  emit_deny "Blocked: recursive force-delete on /, ~, \$HOME, an unresolved \$VAR, or .../.. Path. Specify a concrete safe target."
+  emit_ask "Risky — recursive force-delete on /, ~, \$HOME, an unresolved \$VAR, or .../.. Path. Specify a concrete safe target."
 fi
 # rm -rf /usr, /etc, /var, /bin, etc.
 if printf '%s' "$CMD_NOQUOTE" | grep -qE 'rm[[:space:]]+(-[a-zA-Z]+[[:space:]]+)*-?[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*[[:space:]]+/(usr|etc|var|bin|sbin|lib|opt|root|boot)([[:space:]/]|$)'; then
-  emit_deny "Blocked: recursive delete targeting a system directory."
+  emit_ask "Risky — recursive delete targeting a system directory."
 fi
 
 # ── Dangerous database operations ───────────────────────────────────────
 # DROP TABLE|DATABASE|SCHEMA
 if contains_icmd 'DROP[[:space:]]+(TABLE|DATABASE|SCHEMA)[[:space:]]+'; then
-  emit_deny "Blocked: DROP TABLE/DATABASE/SCHEMA detected. Run manually if intended."
+  emit_ask "Risky — DROP TABLE/DATABASE/SCHEMA detected. Run manually if intended."
 fi
 # DELETE FROM without a WHERE on the SAME statement.
 # Split on ';' so multi-statement inputs are analysed per-statement.
@@ -168,22 +170,22 @@ if printf '%s\n' "$COMMAND" | awk '
     if ($0 !~ /WHERE/) { print "BAD"; exit }
   }
 ' | grep -q BAD; then
-  emit_deny "Blocked: DELETE FROM without a WHERE clause. Add a WHERE or run manually."
+  emit_ask "Risky — DELETE FROM without a WHERE clause. Add a WHERE or run manually."
 fi
 if contains_icmd 'TRUNCATE[[:space:]]+TABLE'; then
-  emit_deny "Blocked: TRUNCATE TABLE detected. Run manually if intended."
+  emit_ask "Risky — TRUNCATE TABLE detected. Run manually if intended."
 fi
 
 # ── Dangerous system commands ───────────────────────────────────────────
 # chmod: any world-writable/universal mode (0?777 or a+rwx)
 if contains_cmd 'chmod([[:space:]]+-[a-zA-Z]+)*[[:space:]]+0?777([[:space:]]|$)' \
   || contains_cmd 'chmod([[:space:]]+-[a-zA-Z]+)*[[:space:]]+a\+rwx([[:space:]]|$)'; then
-  emit_deny "Blocked: chmod 777 / a+rwx grants everyone full access. Use restrictive perms."
+  emit_ask "Risky — chmod 777 / a+rwx grants everyone full access. Use restrictive perms."
 fi
 
 # curl/wget piped to a shell
 if contains_cmd '(curl|wget)[[:space:]].*\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh|zsh|ksh|fish|dash|csh)([[:space:]]|$)'; then
-  emit_deny "Blocked: piping downloaded content directly to a shell is dangerous."
+  emit_ask "Risky — piping downloaded content directly to a shell is dangerous."
 fi
 
 # Disk / partition. Note: only REDIRECTIONS to /dev/ are destructive. `2>/dev/null` is not.
@@ -191,19 +193,19 @@ fi
 # Strategy: match `>` optionally with whitespace, followed by /dev/<name>, EXCLUDING /dev/null and /dev/stderr/stdout.
 if printf '%s' "$COMMAND" | grep -qE '(^|[^0-9&])>[[:space:]]*/dev/[a-zA-Z][a-zA-Z0-9]*' \
    && ! printf '%s' "$COMMAND" | grep -qE '>[[:space:]]*/dev/(null|stdout|stderr|tty|zero|random|urandom)([[:space:]]|$)' ; then
-  emit_deny "Blocked: redirection into a raw device file can destroy data."
+  emit_ask "Risky — redirection into a raw device file can destroy data."
 fi
 if contains_cmd '(^|[;&|[:space:]])(mkfs|mkfs\.[a-z0-9]+)([[:space:]]|$)' \
   || contains_cmd '(^|[;&|[:space:]])dd[[:space:]]+[^|]*(if|of)=/dev/[a-zA-Z]' ; then
-  emit_deny "Blocked: mkfs/dd against a device node. Irreversible data loss."
+  emit_ask "Risky — mkfs/dd against a device node. Irreversible data loss."
 fi
 
 # ── Destructive git ─────────────────────────────────────────────────────
 if contains_cmd 'git[[:space:]]+reset[[:space:]]+--hard'; then
-  emit_deny "Blocked: git reset --hard discards uncommitted changes permanently."
+  emit_ask "Risky — git reset --hard discards uncommitted changes permanently."
 fi
 if contains_cmd 'git[[:space:]]+clean[[:space:]]+-[a-zA-Z]*f'; then
-  emit_deny "Blocked: git clean -f permanently deletes untracked files."
+  emit_ask "Risky — git clean -f permanently deletes untracked files."
 fi
 
 # ── Accidental package publishing ───────────────────────────────────────
@@ -216,7 +218,7 @@ publish_patterns=(
 )
 for pat in "${publish_patterns[@]}"; do
   if contains_cmd "$pat" && ! contains_cmd '(^|[[:space:]])(--dry-run|-n)([[:space:]=]|$)'; then
-    emit_deny "Blocked: publishing packages should run in CI or manually, not via Claude."
+    emit_ask "Risky — publishing packages should run in CI or manually, not via Claude."
   fi
 done
 

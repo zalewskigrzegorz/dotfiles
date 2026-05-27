@@ -1,20 +1,23 @@
 #!/usr/bin/env bash
-# Blocks edits to sensitive or generated files.
+# Flags edits to sensitive or generated files and asks the user to confirm.
 # PreToolUse hook for Edit|Write operations.
-# Exit 2 = block. Exit 0 = allow.
+# Emits an interactive "ask" decision (exit 0) instead of a hard block, so the
+# user can approve in the moment when an edit is legitimately needed.
+# NOTE: JSON permissionDecision is only honored on exit 0; exit 2 hard-blocks
+# and the JSON is ignored.
 
 set -uo pipefail
 
 emit() {
-  # $1 = decision (deny|ask) ; $2 = reason
+  # $1 = decision (ask|deny|allow) ; $2 = reason
   local decision="$1"
   local reason="${2//\"/\\\"}"
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"%s","permissionDecisionReason":"%s"}}\n' "$decision" "$reason"
-  exit 2
+  exit 0
 }
 
 if ! command -v jq >/dev/null 2>&1; then
-  emit deny "jq is required for file protection hooks but is not installed."
+  emit ask "jq is required for file protection hooks but is not installed. Allow this edit anyway?"
 fi
 
 INPUT=$(cat)
@@ -54,7 +57,7 @@ for pattern in "${PROTECTED_PATTERNS[@]}"; do
   # Using bash case with nocasematch for case-insensitive glob match.
   case "$BASENAME_LC" in
     $pattern)
-      emit deny "Protected file: $BASENAME matches pattern '$pattern'"
+      emit ask "Protected file: $BASENAME matches pattern '$pattern'. Allow this edit?"
       ;;
   esac
 done
@@ -62,13 +65,13 @@ done
 # Sensitive directories (use lower-cased path for case-insensitive on mac/Windows).
 case "$PATH_LC" in
   .git/*|*/.git/*)
-    emit deny "Cannot edit files inside .git/" ;;
+    emit ask "Editing a file inside .git/. Allow?" ;;
   secrets/*|*/secrets/*)
-    emit deny "Cannot edit files inside secrets/" ;;
+    emit ask "Editing a file inside secrets/. Allow?" ;;
   .env|.env.*|*/.env|*/.env.*)
-    emit deny "Cannot edit .env files" ;;
+    emit ask "Editing a .env file. Allow?" ;;
   .claude/hooks/*|*/.claude/hooks/*)
-    emit deny "Cannot edit hook scripts. These enforce security boundaries." ;;
+    emit ask "Editing a hook script (these enforce security boundaries). Allow?" ;;
   .claude/settings.json|*/.claude/settings.json|.claude/settings.local.json|*/.claude/settings.local.json)
     emit ask "Editing settings.json. This controls permissions and hooks. Confirm this change." ;;
 esac
