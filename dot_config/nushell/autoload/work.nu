@@ -302,7 +302,7 @@ def "work help" []: nothing -> nothing {
 # Phase 4: full collision detection, commitlint enforcement, base-ref picker.
 # name is optional — omit to get an interactive branch picker (TV or fzf fallback).
 def "work new" [
-    name: string = ""  # Branch name (empty = interactive picker)
+    name: string@"work _complete-branches-no-wt" = ""  # Branch name (empty = interactive picker)
     --from: string = ""  # Custom base ref (default: origin/<default-branch>)
     --type: string = ""  # Conventional commit type prefix (skip picker)
     --pick-from         # Interactive picker for base ref
@@ -463,7 +463,13 @@ def "work new" [
             "n" => {
                 let new_name = (input "New branch name: ")
                 if ($new_name | is-empty) { error make { msg: "Aborted." } }
-                work new $new_name --from $base_ref
+                if $no_prefix {
+                    work new $new_name --from $base_ref --no-prefix
+                } else if (not ($type | is-empty)) {
+                    work new $new_name --from $base_ref --type $type
+                } else {
+                    work new $new_name --from $base_ref
+                }
                 return
             }
             _ => { error make { msg: "Aborted." } }
@@ -723,7 +729,7 @@ def "work cache-write" [worktrees: list]: nothing -> nothing {
 # - work rm <branch>  → cleanup specified branch
 # - work rm           → picker (fzf over current repo's worktrees)
 def "work rm" [
-    branch?: string  # Worktree branch name (e.g. "feat/billing-page")
+    branch?: string@"work _complete-worktrees"  # Worktree branch name (e.g. "feat/billing-page")
     --force          # Skip dirty check
     --keep-branch    # Don't delete git branch
     --json
@@ -753,6 +759,11 @@ def "work rm" [
         error make { msg: $"Worktree path doesn't exist: ($wt_path)" }
     }
 
+    # Refuse to rm current worktree (before any prompts)
+    if $info.is_worktree and ($info.worktree_path == $wt_path) {
+        error make { msg: "You're inside this worktree. Switch session first." }
+    }
+
     # Dirty check
     let dirty_r = (do { ^git -C $wt_path status --porcelain } | complete)
     let dirty = ($dirty_r.stdout | str trim | is-not-empty)
@@ -760,11 +771,6 @@ def "work rm" [
         print $"⚠️  Worktree ($target_branch) has uncommitted changes."
         let yn = (input "Force remove? [y/N]: ")
         if $yn != "y" { error make { msg: "Aborted." } }
-    }
-
-    # Refuse to rm current worktree
-    if $info.is_worktree and ($info.worktree_path == $wt_path) {
-        error make { msg: "You're inside this worktree. Switch session first." }
     }
 
     let session = (work session-name $info.name $target_branch)
@@ -844,11 +850,40 @@ def "work prune" [
         work rm $branch --force
     }
 
-    work cache-invalidate
-
     if $json {
         return { pruned: $to_remove }
     } else {
         print $"✅ Pruned ($to_remove | length) worktrees."
     }
+}
+
+# Completer: list of local branches that DON'T have a worktree.
+# For `work new <name>` autocompletion (so we don't suggest names already used).
+def "work _complete-branches-no-wt" []: nothing -> list<string> {
+    let info_r = (do { ^git rev-parse --show-toplevel } | complete)
+    if $info_r.exit_code != 0 { return [] }
+    let root = ($info_r.stdout | str trim)
+
+    let active = (
+        ^git -C $root worktree list --porcelain
+        | lines
+        | where ($it | str starts-with "branch ")
+        | each { |l| $l | str replace "branch refs/heads/" "" }
+    )
+    ^git -C $root for-each-ref --format='%(refname:short)' refs/heads/
+    | lines
+    | where { |b| not ($b in $active) }
+}
+
+# Completer: list of branches that DO have a worktree in current repo.
+# For `work rm <branch>` autocompletion.
+def "work _complete-worktrees" []: nothing -> list<string> {
+    let info_r = (do { ^git rev-parse --show-toplevel } | complete)
+    if $info_r.exit_code != 0 { return [] }
+    let root = ($info_r.stdout | str trim)
+
+    ^git -C $root worktree list --porcelain
+    | lines
+    | where ($it | str starts-with "branch ")
+    | each { |l| $l | str replace "branch refs/heads/" "" }
 }
