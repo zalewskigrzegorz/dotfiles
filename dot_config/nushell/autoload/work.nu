@@ -277,6 +277,7 @@ def "work help" []: nothing -> nothing {
     print "  work new <name> --type <t> Force prefix bez picker (skip commitlint)"
     print "  work ls                    Zwraca listę worktree jako nu records (tabela)"
     print "  work ls --json             Zwraca JSON string (dla skryptów)"
+    print "  work switch (sw)           Picker po worktree → przełącz sesję (sesh)"
     print "  work rm [branch]           Usuń worktree + branch + sesję (atomowo)"
     print "  work prune                 Batch: usuń wszystkie merged-into-master"
     print "  work prune --dry-run       Wypisz kandydatów bez usuwania"
@@ -734,6 +735,55 @@ def "work ls" [
     $worktrees
 }
 
+# Interactive picker over all worktrees → connect to its tmux session (sesh).
+# Worktree-only (unlike `s` which lists all sesh sessions).
+# Usage: work switch   (alias: work sw)
+def "work switch" []: nothing -> nothing {
+    let worktrees = (work scan-worktrees)
+    if ($worktrees | is-empty) {
+        print "No worktrees. Use `work new <branch>` to create one."
+        return
+    }
+
+    # Pick a worktree path (tv worktrees channel → fzf fallback)
+    let picked_raw = (
+        if (which tv | is-not-empty) {
+            ^tv worktrees | str trim
+        } else {
+            $worktrees
+            | each { |w| $w.path }
+            | str join (char newline)
+            | ^fzf --prompt "Switch to worktree: "
+            | str trim
+        }
+    )
+    if ($picked_raw | is-empty) { return }
+
+    # Normalize: tv returns trailing-slash paths; scan-worktrees paths have none.
+    let picked = ($picked_raw | str trim --right --char "/")
+
+    let match = ($worktrees | where path == $picked)
+    if ($match | is-empty) {
+        # Path not in scan (edge case) — connect by path directly, sesh will handle it.
+        ^sesh connect $picked
+        return
+    }
+
+    let wt = ($match | first)
+    if ($wt.session | is-empty) {
+        # Worktree without a recorded session (created manually) — connect by path.
+        print $"No session recorded for ($wt.branch); connecting by path."
+        ^sesh connect $wt.path
+    } else {
+        ^sesh connect $wt.session
+    }
+}
+
+# Short alias for `work switch`.
+def "work sw" []: nothing -> nothing {
+    work switch
+}
+
 const WORK_CACHE_TTL_SEC = 5
 
 def "work cache-path" []: nothing -> path {
@@ -794,16 +844,31 @@ def "work rm" [
 
     let target_branch = (
         if ($branch | is-empty) {
-            let mine = (work scan-worktrees | where repo == $info.name)
-            if ($mine | is-empty) {
-                error make { msg: "No worktrees in current repo." }
+            let all = (work scan-worktrees)
+            if ($all | is-empty) {
+                error make { msg: "No worktrees. Use `work new <branch>` to create one." }
             }
-            let lines = ($mine | each { |wt| $"($wt.branch)\t($wt.status)\tfrom ($wt.base)" })
-            let picked = (
-                $lines | str join "\n" | ^fzf --prompt "Remove worktree: " --delimiter "\t" --with-nth=1 | str trim
+            # TV worktrees channel (preferred) → fzf fallback
+            let picked_raw = (
+                if (which tv | is-not-empty) {
+                    ^tv worktrees | str trim
+                } else {
+                    $all
+                    | each { |wt| $"($wt.branch)\t($wt.status)\tfrom ($wt.base)" }
+                    | str join "\n"
+                    | ^fzf --prompt "Remove worktree: " --delimiter "\t" --with-nth=1
+                    | str trim
+                }
             )
-            if ($picked | is-empty) { error make { msg: "Nothing picked." } }
-            $picked | split row "\t" | first
+            if ($picked_raw | is-empty) { error make { msg: "Nothing picked." } }
+            # TV returns a path → map to branch; fzf returns "branch\t..." → first column
+            let picked = ($picked_raw | str trim --right --char "/")
+            let by_path = ($all | where path == $picked)
+            if ($by_path | is-not-empty) {
+                ($by_path | first | get branch)
+            } else {
+                $picked_raw | split row "\t" | first
+            }
         } else {
             $branch
         }
