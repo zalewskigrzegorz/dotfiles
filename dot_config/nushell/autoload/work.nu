@@ -178,7 +178,9 @@ def "work repo-info" []: nothing -> record {
     )
     let name = ($parent_root | path basename)
 
-    let git_dir = (^git rev-parse --git-dir | str trim)
+    let git_dir_r = (do { ^git rev-parse --git-dir } | complete)
+    if $git_dir_r.exit_code != 0 { error make { msg: "Failed to resolve git-dir" } }
+    let git_dir = ($git_dir_r.stdout | str trim)
     let is_worktree = ($git_dir != ".git" and $git_dir != $common_dir_raw)
 
     let head_ref = (do { ^git symbolic-ref refs/remotes/origin/HEAD } | complete)
@@ -360,8 +362,10 @@ def "work new" [
                     ^tv work-branches | str trim
                 }
             } else {
-                let local_b = (^git -C $info.root for-each-ref --format='%(refname:short)' refs/heads/ | lines)
-                let remote_b = (^git -C $info.root for-each-ref --format='%(refname:short)' refs/remotes/origin/ | lines | where { |b| $b != "HEAD" })
+                let local_r = (do { ^git -C $info.root for-each-ref --format='%(refname:short)' refs/heads/ } | complete)
+                let local_b = (if $local_r.exit_code == 0 { $local_r.stdout | lines } else { [] })
+                let remote_r = (do { ^git -C $info.root for-each-ref --format='%(refname:short)' refs/remotes/origin/ } | complete)
+                let remote_b = (if $remote_r.exit_code == 0 { $remote_r.stdout | lines | where { |b| $b != "HEAD" } } else { [] })
                 let cands = ($local_b ++ $remote_b ++ ["+ Create new branch..."])
                 $cands | str join "\n" | ^fzf --prompt "Branch: " | str trim
             }
@@ -392,7 +396,8 @@ def "work new" [
                         ^tv work-base-refs | str trim
                     }
                 } else {
-                    let candidates = (^git -C $info.root for-each-ref --format='%(refname:short)' refs/remotes/origin/ refs/heads/ | lines)
+                    let cands_r = (do { ^git -C $info.root for-each-ref --format='%(refname:short)' refs/remotes/origin/ refs/heads/ } | complete)
+                    let candidates = (if $cands_r.exit_code == 0 { $cands_r.stdout | lines } else { [] })
                     $candidates | str join "\n" | ^fzf --prompt "Base ref: " | str trim
                 }
             )
@@ -981,7 +986,9 @@ def "work prune" [
     let info = (work repo-info)
 
     # Find merged branches in parent repo
-    let merged_raw = (^git -C $info.root branch --merged $info.default_branch | lines)
+    let merged_r = (do { ^git -C $info.root branch --merged $info.default_branch } | complete)
+    if $merged_r.exit_code != 0 { error make { msg: $"Failed to get merged branches for ($info.root)" } }
+    let merged_raw = ($merged_r.stdout | lines)
     let merged = (
         $merged_raw
         | each { |l| $l | str trim | str replace "* " "" }
@@ -1043,13 +1050,17 @@ def "work _complete-branches-no-wt" []: nothing -> list<string> {
     if $info_r.exit_code != 0 { return [] }
     let root = ($info_r.stdout | str trim)
 
+    let wt_r = (do { ^git -C $root worktree list --porcelain } | complete)
+    if $wt_r.exit_code != 0 { return [] }
     let active = (
-        ^git -C $root worktree list --porcelain
+        $wt_r.stdout
         | lines
         | where ($it | str starts-with "branch ")
         | each { |l| $l | str replace "branch refs/heads/" "" }
     )
-    ^git -C $root for-each-ref --format='%(refname:short)' refs/heads/
+    let refs_r = (do { ^git -C $root for-each-ref --format='%(refname:short)' refs/heads/ } | complete)
+    if $refs_r.exit_code != 0 { return [] }
+    $refs_r.stdout
     | lines
     | where { |b| not ($b in $active) }
 }
