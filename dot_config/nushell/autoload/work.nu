@@ -1058,39 +1058,7 @@ def "work _complete-branches-no-wt" []: nothing -> list<string> {
 # For `work rm <branch>` autocompletion.
 # Bug 4 fix: excludes the main repo's branch (e.g. master) so it doesn't appear in rm picker.
 def "work _complete-worktrees" []: nothing -> list<string> {
-    let info_r = (do { ^git rev-parse --show-toplevel } | complete)
-    if $info_r.exit_code != 0 { return [] }
-    let root = ($info_r.stdout | str trim)
-
-    let common_r = (do { ^git rev-parse --path-format=absolute --git-common-dir } | complete)
-    if $common_r.exit_code != 0 { return [] }
-    let common_dir = ($common_r.stdout | str trim)
-    let main_repo = (
-        if ($common_dir | str ends-with "/.git") {
-            $common_dir | str substring 0..(($common_dir | str length) - 6)
-        } else {
-            $common_dir | path dirname
-        }
-    )
-
-    let porcelain = (do { ^git -C $root worktree list --porcelain } | complete)
-    if $porcelain.exit_code != 0 { return [] }
-
-    $porcelain.stdout
-    | lines
-    | reduce -f [] { |line, acc|
-        if ($line | str starts-with "worktree ") {
-            let wt_path = ($line | str replace "worktree " "")
-            $acc | append { path: $wt_path, branch: null }
-        } else if ($line | str starts-with "branch ") {
-            let branch = ($line | str replace "branch refs/heads/" "")
-            let last = ($acc | last)
-            ($acc | drop 1) | append ($last | merge { branch: $branch })
-        } else {
-            $acc
-        }
-    }
-    | where ($it.path != $main_repo)
-    | get branch
-    | where { |b| $b != null }
+    # Scan ALL pools (not just current repo) — work rm supports cross-repo removal,
+    # and you often run it from a different repo (e.g. bazgroly) than the worktree's.
+    work scan-worktrees | get branch | uniq
 }
