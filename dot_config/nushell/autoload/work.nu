@@ -400,18 +400,18 @@ def "work new" [
     ^tmux new-session -d -s $session -c $wt_path
     ^tmux send-keys -t $session "work" Enter
 
-    ^sesh connect $session
-
     if $json {
-        return {
+        print ({
             repo: $repo
             branch: $branch_name
             path: $wt_path
             session: $session
             base: $base_ref
             created: true
-        }
+        } | to json)
     }
+
+    ^sesh connect $session
 }
 
 # Set up 4-window layout in current tmux session.
