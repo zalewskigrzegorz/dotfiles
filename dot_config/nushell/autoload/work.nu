@@ -845,51 +845,31 @@ def "work scan-worktrees" []: nothing -> list<record> {
     let pool = ($env.HOME | path join "Code" "tree")
     if not ($pool | path exists) { return [] }
 
-    let repo_dirs = (
-        ls -s $pool
-        | where type == dir and ($it.name | str starts-with "wt-")
-    )
-
+    # Discover worktree ROOTS by finding their `.git` marker under the pool.
+    # Repo-location-independent: each worktree's parent repo is derived from its
+    # own git-common-dir, NOT from an assumed ~/Code/<repo> path (e.g. redocly
+    # actually lives at ~/Code/Redocly/redocly, not ~/Code/redocly).
+    let git_markers = (glob $"($pool)/wt-*/**/.git" --depth 6)
     let candidates = (
-        $repo_dirs | each { |repo_dir|
-            let repo_name = ($repo_dir.name | str substring 3..)
-            let repo_pool = ($pool | path join $repo_dir.name)
-            let parent_repo = ($env.HOME | path join "Code" $repo_name)
-
-            # Need parent repo to have .git for porcelain query
-            if not ($parent_repo | path join ".git" | path exists) {
-                return []
-            }
-
-            let porcelain = (do { ^git -C $parent_repo worktree list --porcelain } | complete)
-            if $porcelain.exit_code != 0 { return [] }
-
-            # Parse porcelain into {path, branch} records
-            let entries = (
-                $porcelain.stdout
-                | lines
-                | reduce -f [] { |line, acc|
-                    if ($line | str starts-with "worktree ") {
-                        let wt_path = ($line | str replace "worktree " "")
-                        $acc | append { path: $wt_path, branch: null }
-                    } else if ($line | str starts-with "branch ") {
-                        let branch = ($line | str replace "branch refs/heads/" "")
-                        let last = ($acc | last)
-                        ($acc | drop 1) | append ($last | merge { branch: $branch })
-                    } else {
-                        $acc
-                    }
+        $git_markers | each { |marker|
+            let wt_path = ($marker | path dirname)
+            # Derive parent repo name from this worktree's common git dir.
+            let cd_r = (do { ^git -C $wt_path rev-parse --path-format=absolute --git-common-dir } | complete)
+            if $cd_r.exit_code != 0 { return null }
+            let cd = ($cd_r.stdout | str trim)
+            let parent_root = (
+                if ($cd | str ends-with "/.git") {
+                    $cd | str substring 0..(($cd | str length) - 6)
+                } else {
+                    $cd | path dirname
                 }
             )
-
-            # Only entries inside the pool dir (excludes main parent repo)
-            $entries
-            | where ($it.path | str starts-with $repo_pool)
-            | each { |e|
-                { repo: $repo_name, branch: ($e.branch | default "(detached)"), path: $e.path }
-            }
+            let repo_name = ($parent_root | path basename)
+            let branch_r = (do { ^git -C $wt_path branch --show-current } | complete)
+            let branch = ($branch_r.stdout | str trim)
+            { repo: $repo_name, branch: (if ($branch | is-empty) { "(detached)" } else { $branch }), path: $wt_path }
         }
-        | flatten
+        | where { |it| $it != null }
     )
 
     $candidates | par-each { |wt|
