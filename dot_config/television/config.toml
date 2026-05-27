@@ -256,6 +256,8 @@ fallback_channel = "files"
   "git push",
 ]
 "git-log" = ["git log", "git show"]
+"worktrees" = ["work rm", "work switch", "work sw", "sesh connect"]
+"work-branches" = ["work new"]
 "docker-images" = ["docker run"]
 "git-repos" = ["nvim", "code", "hx", "git clone"]
 "tmux" = ["tmux attach", "ta"]
