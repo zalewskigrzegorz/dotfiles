@@ -8,7 +8,7 @@
 #   work prune           — batch cleanup merged worktrees
 #   work help            — cheatsheet
 #
-# All commands support --json for scripting.
+# Commands return nu data — pipe `| to json` for scripting.
 # Source of truth spec: ~/Code/personal/bazgroly/dotfiles/specs/2026-05-26-work-worktree-design.md
 
 # Emoji-prefix mapping for tmux session names.
@@ -254,11 +254,11 @@ def "work stale-sessions" []: nothing -> list<string> {
 def "work clean-stale-sessions" []: nothing -> nothing {
     let stale = (work stale-sessions)
     if ($stale | is-empty) {
-        print "No stale 🌿 sessions."
+        print -e "No stale 🌿 sessions."
         return
     }
     for s in $stale {
-        print $"Killing stale session: ($s)"
+        print -e $"Killing stale session: ($s)"
         ^tmux kill-session -t $s
     }
 }
@@ -278,7 +278,6 @@ def "work help" []: nothing -> nothing {
     print "  work new <name> --from <r> Worktree z custom base ref"
     print "  work new <name> --type <t> Force prefix bez picker (skip commitlint)"
     print "  work ls                    Zwraca listę worktree jako nu records (tabela)"
-    print "  work ls --json             Zwraca JSON string (dla skryptów)"
     print "  work switch (sw)           Picker po worktree → przełącz sesję (sesh)"
     print "  work rm [branch]           Usuń worktree + branch + sesję (atomowo)"
     print "  work prune                 Batch: usuń wszystkie merged-into-master"
@@ -287,7 +286,7 @@ def "work help" []: nothing -> nothing {
     print "  work clean-stale-sessions  Usuń stare sesje 🌿* bez worktree"
     print "  work help                  Ten ekran"
     print ""
-    print "Każda query/list komenda dodatkowo: --json (do scriptingu)"
+    print "Komendy zwracają nu data — dopisz `| to json` gdy chcesz JSON (np `work ls | to json`)."
     print ""
     print "🆕 NOWY BRANCH ZAWSZE ZE ŚWIEŻEGO ORIGIN/MASTER"
     print "  work new fix-auth          → git fetch origin master"
@@ -342,7 +341,6 @@ def "work new" [
     --type: string = ""  # Conventional commit type prefix (skip picker)
     --pick-from         # Interactive picker for base ref
     --no-prefix         # Skip commitlint enforcement
-    --json              # Output JSON result
 ]: nothing -> any {
     work deps-preflight
 
@@ -561,11 +559,8 @@ def "work new" [
 
     work cache-invalidate
 
-    if $json {
-        return $result
-    }
-
     ^sesh connect $session
+    $result
 }
 
 # Set up 4-window layout in current tmux session.
@@ -705,14 +700,12 @@ def "work scan-worktrees" []: nothing -> list<record> {
 }
 
 # List all worktrees in the pool.
-# Default: returns nu records (auto-printed as table).
-# --json: returns JSON string (for scripting).
+# Returns nu records (auto-printed as table). Pipe to `| to json` for JSON.
 # --no-cache: force re-scan.
 # Picker lives in `bin/sesh-picker` bound to ^w — not here.
 def "work ls" [
-    --json       # Output as JSON string instead of nu records
     --no-cache   # Force re-scan (skip TTL cache)
-]: nothing -> any {
+]: nothing -> list<record> {
     let cached = (if $no_cache { null } else { work cache-read })
     let worktrees = (
         if ($cached | is-empty) {
@@ -724,17 +717,12 @@ def "work ls" [
         }
     )
 
-    if $json {
-        return ($worktrees | to json)
-    }
-
-    # Warn about stale 🌿 sessions that have no corresponding worktree
+    # Warn about stale 🌿 sessions that have no corresponding worktree (to stderr)
     let stale = (work stale-sessions)
     if ($stale | is-not-empty) {
-        print $"⚠️  ($stale | length) stale 🌿 session\(s\) without worktree:"
-        for s in $stale { print $"    ($s)" }
-        print "    Run `work clean-stale-sessions` to kill them."
-        print ""
+        print -e $"⚠️  ($stale | length) stale 🌿 session\(s\) without worktree:"
+        for s in $stale { print -e $"    ($s)" }
+        print -e "    Run `work clean-stale-sessions` to kill them."
     }
 
     $worktrees
@@ -842,8 +830,7 @@ def "work rm" [
     branch?: string@"work _complete-worktrees"  # Worktree branch name (e.g. "feat/billing-page")
     --force          # Skip dirty check
     --keep-branch    # Don't delete git branch
-    --json
-]: nothing -> any {
+]: nothing -> record {
     work deps-preflight
     let info = (work repo-info)
 
@@ -966,21 +953,16 @@ def "work rm" [
 
     work cache-invalidate
 
-    if $json {
-        let result = { removed: $target_branch, path: $wt_path, session: $session }
-        do { ^tmux kill-session -t $session } | complete | ignore
-        return $result
-    }
-
-    print $"✅ Removed: ($target_branch)"
+    let result = { removed: $target_branch, path: $wt_path, session: $session }
+    print -e $"✅ Removed: ($target_branch)"
     do { ^tmux kill-session -t $session } | complete | ignore
+    $result
 }
 
 # Batch-remove all worktrees whose branch is merged into the default branch
 # of the parent repo. Interactive multi-select (fzf -m).
 def "work prune" [
     --dry-run  # Don't remove, just list candidates
-    --json
 ]: nothing -> any {
     work deps-preflight
     let info = (work repo-info)
@@ -1004,18 +986,12 @@ def "work prune" [
     )
 
     if ($candidates | is-empty) {
-        if $json { return [] }
-        print "Nothing to prune (no merged + clean worktrees)."
-        return
+        print -e "Nothing to prune (no merged + clean worktrees)."
+        return []
     }
 
     if $dry_run {
-        if $json { return $candidates }
-        print "Would prune:"
-        for c in $candidates {
-            print $"  ($c.branch)  from ($c.base)"
-        }
-        return
+        return $candidates
     }
 
     # Multi-select picker (fzf -m)
@@ -1027,20 +1003,17 @@ def "work prune" [
         | lines
     )
 
-    if ($picked | is-empty) { return }
+    if ($picked | is-empty) { return [] }
 
     let to_remove = ($picked | each { |line| $line | split row "\t" | first })
 
-    print $"Removing ($to_remove | length) worktrees..."
+    print -e $"Removing ($to_remove | length) worktrees..."
     for branch in $to_remove {
         work rm $branch --force
     }
 
-    if $json {
-        return { pruned: $to_remove }
-    } else {
-        print $"✅ Pruned ($to_remove | length) worktrees."
-    }
+    print -e $"✅ Pruned ($to_remove | length) worktrees."
+    { pruned: $to_remove }
 }
 
 # Completer: list of local branches that DON'T have a worktree.
