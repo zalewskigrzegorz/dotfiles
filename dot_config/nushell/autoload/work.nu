@@ -341,7 +341,7 @@ def "work _help-cmd" [command: string]: nothing -> nothing {
             print "  work ls | where status == \"dirty\""
             print "  work ls | where session_active"
             print ""
-            print "Ostrzega o stale 🌿 sesjach (na stderr, nie psuje JSON)."
+            print "Czyste dane (tylko tabela). Stale sesje: `work stale-sessions`."
         }
         "switch" | "sw" => {
             print "work switch (sw) — picker po worktree → przełącz sesję"
@@ -356,7 +356,7 @@ def "work _help-cmd" [command: string]: nothing -> nothing {
         "rm" => {
             print "work rm — usuń worktree + branch + sesję (atomowo)"
             print ""
-            print "  work rm                    TV picker po worktree → usuń"
+            print "  work rm                    w worktree: usuń bieżący (z potwierdzeniem); poza: picker"
             print "  work rm <branch>           usuń po nazwie (Tab autouzupełnia)"
             print "  work rm <path>             usuń po ścieżce worktree"
             print "  work rm <b> --force        pomiń dirty-check (uncommitted changes)"
@@ -942,14 +942,6 @@ def "work ls" [
         }
     )
 
-    # Warn about stale 🌿 sessions that have no corresponding worktree (to stderr)
-    let stale = (work stale-sessions)
-    if ($stale | is-not-empty) {
-        print -e $"⚠️  ($stale | length) stale 🌿 session\(s\) without worktree:"
-        for s in $stale { print -e $"    ($s)" }
-        print -e "    Run `work clean-stale-sessions` to kill them."
-    }
-
     $worktrees
 }
 
@@ -1074,7 +1066,21 @@ def "work rm" [
         } else {
             # BRANCH MODE: resolve from picker or branch name.
             let target_b = (
-                if ($branch | is-empty) {
+                if ($branch | is-empty) and $info.is_worktree {
+                    # No arg + you're INSIDE a worktree → propose removing THIS one (with confirm).
+                    let cur_cfg = (do { ^git -C $info.worktree_path config --worktree work.branch } | complete | get stdout | str trim)
+                    let cur_branch = (
+                        if ($cur_cfg | is-empty) {
+                            (do { ^git -C $info.worktree_path branch --show-current } | complete | get stdout | str trim)
+                        } else { $cur_cfg }
+                    )
+                    if ($cur_branch | is-empty) {
+                        error make { msg: "Can't resolve current worktree branch. Pass a name: work rm <branch>" }
+                    }
+                    let yn = (input $"Remove current worktree '($cur_branch)'? [y/N]: ")
+                    if $yn != "y" { error make { msg: "Aborted." } }
+                    $cur_branch
+                } else if ($branch | is-empty) {
                     let all = (work scan-worktrees)
                     if ($all | is-empty) {
                         error make { msg: "No worktrees. Use `work new <branch>` to create one." }
