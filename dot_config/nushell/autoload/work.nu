@@ -225,7 +225,7 @@ def "work deps-preflight" []: nothing -> nothing {
 
     let missing_optional = ($optional | where { |c| (which $c | is-empty) })
     if ($missing_optional | is-not-empty) {
-        print $"⚠️  Optional missing: ($missing_optional | str join ', '). Install via: brew install coreutils fzf"
+        print -e $"⚠️  Optional missing: ($missing_optional | str join ', '). Install via: brew install coreutils fzf"
     }
 }
 
@@ -451,13 +451,21 @@ def "work new" [
         let session = (work session-name $repo $branch_name)
         let session_exists = ((do { ^tmux has-session -t $session } | complete).exit_code == 0)
         if $session_exists {
-            print $"Worktree exists, connecting to session ($session)"
+            print -e $"Worktree exists, connecting to session ($session)"
             ^sesh connect $session
         } else {
-            print $"Worktree exists (no tmux session), connecting by path ($wt_path)"
+            print -e $"Worktree exists (no tmux session), connecting by path ($wt_path)"
             ^sesh connect $wt_path
         }
-        return
+        let stored_base = (do { ^git -C $wt_path config --worktree work.base } | complete | get stdout | str trim)
+        return {
+            repo: $repo
+            branch: $branch_name
+            path: $wt_path
+            session: $session
+            base: (if ($stored_base | is-empty) { "(unknown)" } else { $stored_base })
+            created: false
+        }
     }
 
     # Enable per-worktree config (idempotent)
@@ -821,70 +829,96 @@ def "work cache-write" [worktrees: list]: nothing -> nothing {
 
 # Remove worktree + tmux session + (optional) git branch.
 # Atomic: removes worktree, kills session, optionally deletes branch.
-# - work rm <branch>  → cleanup specified branch
-# - work rm           → picker (fzf over current repo's worktrees)
+# - work rm <branch>  → cleanup specified branch (or cross-repo search)
+# - work rm <path>    → cleanup by worktree path (unambiguous, used by prune)
+# - work rm           → picker (fzf over all worktrees)
 def "work rm" [
-    branch?: string@"work _complete-worktrees"  # Worktree branch name (e.g. "feat/billing-page")
+    branch?: string@"work _complete-worktrees"  # Worktree branch name OR path (e.g. "feat/billing-page" or "/path/to/wt")
     --force          # Skip dirty check
     --keep-branch    # Don't delete git branch
 ]: nothing -> record {
     work deps-preflight
     let info = (work repo-info)
 
-    let target_branch = (
-        if ($branch | is-empty) {
-            let all = (work scan-worktrees)
-            if ($all | is-empty) {
-                error make { msg: "No worktrees. Use `work new <branch>` to create one." }
-            }
-            # TV worktrees channel (preferred) → fzf fallback
-            let picked_raw = (
-                if (which tv | is-not-empty) {
-                    ^tv worktrees | str trim
+    # Detect if the arg is an existing directory path (path-mode vs branch-mode).
+    let arg_is_path = (
+        ($branch | is-not-empty)
+        and ($branch | path exists)
+        and (($branch | path type) == "dir")
+    )
+
+    # PATH MODE: arg is a direct worktree path — no branch→path resolution needed.
+    let wt_path = (
+        if $arg_is_path {
+            $branch | path expand
+        } else {
+            # BRANCH MODE: resolve from picker or branch name.
+            let target_b = (
+                if ($branch | is-empty) {
+                    let all = (work scan-worktrees)
+                    if ($all | is-empty) {
+                        error make { msg: "No worktrees. Use `work new <branch>` to create one." }
+                    }
+                    # TV worktrees channel (preferred) → fzf fallback
+                    let picked_raw = (
+                        if (which tv | is-not-empty) {
+                            ^tv worktrees | str trim
+                        } else {
+                            $all
+                            | each { |wt| $"($wt.branch)\t($wt.status)\tfrom ($wt.base)" }
+                            | str join "\n"
+                            | ^fzf --prompt "Remove worktree: " --delimiter "\t" --with-nth=1
+                            | str trim
+                        }
+                    )
+                    if ($picked_raw | is-empty) { error make { msg: "Nothing picked." } }
+                    # TV returns a path → map to branch; fzf returns "branch\t..." → first column
+                    let picked = ($picked_raw | str trim --right --char "/")
+                    let by_path = ($all | where path == $picked)
+                    if ($by_path | is-not-empty) {
+                        ($by_path | first | get branch)
+                    } else {
+                        $picked_raw | split row "\t" | first
+                    }
                 } else {
-                    $all
-                    | each { |wt| $"($wt.branch)\t($wt.status)\tfrom ($wt.base)" }
-                    | str join "\n"
-                    | ^fzf --prompt "Remove worktree: " --delimiter "\t" --with-nth=1
-                    | str trim
+                    $branch
                 }
             )
-            if ($picked_raw | is-empty) { error make { msg: "Nothing picked." } }
-            # TV returns a path → map to branch; fzf returns "branch\t..." → first column
-            let picked = ($picked_raw | str trim --right --char "/")
-            let by_path = ($all | where path == $picked)
-            if ($by_path | is-not-empty) {
-                ($by_path | first | get branch)
+
+            # Resolve path from branch name (local pool first, then cross-repo search).
+            let wt_path_local = (work worktree-path $info.name $target_b)
+            if ($wt_path_local | path exists) {
+                $wt_path_local
             } else {
-                $picked_raw | split row "\t" | first
+                let matches = (
+                    work scan-worktrees
+                    | where branch == $target_b
+                )
+                if ($matches | length) == 0 {
+                    error make { msg: $"No worktree for branch '($target_b)' found in any repo." }
+                } else if ($matches | length) > 1 {
+                    let repos = ($matches | get repo | str join ", ")
+                    error make { msg: $"Ambiguous branch '($target_b)' — exists in: ($repos). Run `cd ~/Code/<repo> && work rm ($target_b)` to disambiguate." }
+                } else {
+                    let m = ($matches | first)
+                    let repo = $m.repo
+                    print -e $"Found ($target_b) in repo ($repo) — switching from ($info.name)."
+                    $m.path
+                }
             }
-        } else {
-            $branch
         }
     )
 
-    let wt_path_local = (work worktree-path $info.name $target_branch)
-    let wt_path = (
-        if ($wt_path_local | path exists) {
-            $wt_path_local
+    # Derive target_branch from path (path-mode: read from git config; branch-mode: already known).
+    let target_branch = (
+        if $arg_is_path {
+            let b = (do { ^git -C $wt_path config --worktree work.branch } | complete | get stdout | str trim)
+            if ($b | is-empty) { ($wt_path | path basename) } else { $b }
         } else {
-            # Search across all pools for branch in any repo
-            let matches = (
-                work scan-worktrees
-                | where branch == $target_branch
-            )
-            if ($matches | length) == 0 {
-                error make { msg: $"No worktree for branch '($target_branch)' found in any repo." }
-            } else if ($matches | length) > 1 {
-                let repos = ($matches | get repo | str join ", ")
-                error make { msg: $"Ambiguous branch '($target_branch)' — exists in: ($repos). Run `cd ~/Code/<repo> && work rm ($target_branch)` to disambiguate." }
-            } else {
-                let m = ($matches | first)
-                let cur = $info.name
-                let repo = $m.repo
-                print $"Found ($target_branch) in repo ($repo) — switching from ($cur)."
-                $m.path
-            }
+            # In branch-mode, re-derive from what was passed (picker or arg).
+            # We need to re-extract target_b here — compute from wt_path basename as fallback.
+            let stored = (do { ^git -C $wt_path config --worktree work.branch } | complete | get stdout | str trim)
+            if ($stored | is-not-empty) { $stored } else { $wt_path | path basename }
         }
     )
 
@@ -918,7 +952,7 @@ def "work rm" [
                 $other_sessions | first
             }
         )
-        print $"🔀 Switching to ($parent_session) before removing ($target_branch)..."
+        print -e $"🔀 Switching to ($parent_session) before removing ($target_branch)..."
         ^tmux switch-client -t $parent_session
         # cd to repo root so nushell's $env.PWD stays valid after worktree dir is removed.
         # Without this, nushell raises "PWD points to a non-existent directory" at every
@@ -930,7 +964,7 @@ def "work rm" [
     let dirty_r = (do { ^git -C $wt_path status --porcelain } | complete)
     let dirty = ($dirty_r.stdout | str trim | is-not-empty)
     if $dirty and (not $force) {
-        print $"⚠️  Worktree ($target_branch) has uncommitted changes."
+        print -e $"⚠️  Worktree ($target_branch) has uncommitted changes."
         let yn = (input "Force remove? [y/N]: ")
         if $yn != "y" { error make { msg: "Aborted." } }
     }
@@ -953,7 +987,7 @@ def "work rm" [
     if not $keep_branch {
         let r = (do { ^git -C $target_repo_root branch -d $target_branch } | complete)
         if $r.exit_code != 0 {
-            print $"⚠️  Branch ($target_branch) not fully merged — use 'git branch -D ($target_branch)' to force-delete."
+            print -e $"⚠️  Branch ($target_branch) not fully merged — use 'git branch -D ($target_branch)' to force-delete."
         }
     }
 
@@ -1028,10 +1062,11 @@ def "work prune" [
         return $candidates
     }
 
-    # Multi-select picker (fzf -m) — show repo/branch so user knows which repo
+    # Multi-select picker (fzf -m) — embed path as hidden second column so prune
+    # can pass unambiguous paths to `work rm` (avoids cross-repo branch ambiguity).
+    let lines = ($candidates | each { |c| $"($c.repo)/($c.branch)\t($c.path)" })
     let picked = (
-        $candidates
-        | each { |c| $"($c.repo)/($c.branch)\t($c.base)" }
+        $lines
         | str join "\n"
         | ^fzf --multi --prompt "Prune (Tab to select multiple): " --delimiter "\t" --with-nth=1
         | lines
@@ -1039,23 +1074,17 @@ def "work prune" [
 
     if ($picked | is-empty) { return [] }
 
-    # Extract branch (strip repo/ prefix — everything after first /)
-    let to_remove = (
-        $picked
-        | each { |line|
-            let col = ($line | split row "\t" | first)
-            $col | split row "/" | skip 1 | str join "/"
-        }
-    )
+    # Extract path (second tab-delimited field) — unambiguous even with duplicate branch names.
+    let paths_to_remove = ($picked | each { |line| $line | split row "\t" | last })
 
-    print -e $"Removing ($to_remove | length) worktrees..."
-    for branch in $to_remove {
-        work rm $branch --force
+    print -e $"Removing ($paths_to_remove | length) worktrees..."
+    for p in $paths_to_remove {
+        work rm $p --force
     }
 
     work cache-invalidate
-    print -e $"✅ Pruned ($to_remove | length) worktrees."
-    { pruned: $to_remove }
+    print -e $"✅ Pruned ($paths_to_remove | length) worktrees."
+    { pruned: $paths_to_remove }
 }
 
 # Completer: list of local branches that DON'T have a worktree.
