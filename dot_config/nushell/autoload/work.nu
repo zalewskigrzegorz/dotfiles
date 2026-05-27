@@ -3,6 +3,7 @@
 # Subcommands (added in later phases):
 #   work                 — 4-window layout in current tmux session
 #   work new <name>      — create worktree + session + layout
+#   work pr [number]     — open GitHub PR in worktree (gh pr checkout)
 #   work ls              — picker over all worktrees
 #   work rm [branch]     — cleanup worktree + branch + session
 #   work prune           — batch cleanup merged worktrees
@@ -276,12 +277,13 @@ def "work help" [
     print "KOMENDY  (szczegóły: `work help <komenda>`)"
     print "  work               4-window layout (terminal/git/claude/nvim)"
     print "  work new           nowy worktree (picker / <name> / --from / --type)"
+    print "  work pr            otwórz PR w worktree (gh pr checkout; picker / <numer>)"
     print "  work ls            lista worktree (nu data; `| to json` dla JSON)"
     print "  work switch (sw)   picker po worktree → przełącz sesję"
     print "  work rm            usuń worktree + branch + sesję (atomowo)"
     print "  work prune         batch cleanup merged-into-master"
     print "  work stale-sessions / clean-stale-sessions   osierocone 🌿 sesje"
-    print "  work help <cmd>    szczegóły komendy (new/ls/switch/rm/prune/model)"
+    print "  work help <cmd>    szczegóły komendy (new/ls/switch/rm/prune/pr/model)"
 
     # Jeśli jesteśmy w worktree — pokaż jego kontekst
     let in_repo = (try { work repo-info | is-not-empty } catch { false })
@@ -376,6 +378,17 @@ def "work _help-cmd" [command: string]: nothing -> nothing {
             print "Cross-repo: każdy worktree sprawdzany względem default brancha JEGO repo."
             print "Na listę trafia tylko clean (bez uncommitted) + merged."
         }
+        "pr" => {
+            print "work pr — otwórz GitHub PR w nowym worktree"
+            print ""
+            print "  work pr            picker po otwartych PR (gh pr list) → checkout"
+            print "  work pr <numer>    checkout PR #<numer> w worktree (dla gh-dash)"
+            print ""
+            print "CO ROBI"
+            print "  git worktree add --detach → gh pr checkout <n> (forki + same-repo)"
+            print "  → tmux sesja + layout → sesh connect"
+            print "  Z gh-dash: klawisz T na PR (open in worktree)."
+        }
         "stale-sessions" | "clean-stale-sessions" => {
             print "work stale-sessions / clean-stale-sessions"
             print ""
@@ -401,7 +414,7 @@ def "work _help-cmd" [command: string]: nothing -> nothing {
         }
         _ => {
             print $"Nieznana komenda: ($command)"
-            print "Dostępne: new, ls, switch, rm, prune, stale-sessions, model"
+            print "Dostępne: new, pr, ls, switch, rm, prune, stale-sessions, model"
             print "`work help` — overview + workflow."
         }
     }
@@ -650,6 +663,108 @@ def "work new" [
 
     ^sesh connect $session
     $result
+}
+
+# Open a GitHub PR in a new worktree (gh pr checkout) + tmux session + layout.
+# Handles same-repo AND fork PRs (gh manages remotes).
+#   work pr            interactive picker over open PRs (gh pr list)
+#   work pr <number>   checkout PR #<number> into a worktree (for gh-dash keybinding)
+def "work pr" [
+    number?: int  # PR number (omit → picker over open PRs)
+]: nothing -> any {
+    work deps-preflight
+    if (which gh | is-empty) {
+        error make { msg: "gh CLI required: brew install gh" }
+    }
+    let info = (work repo-info)
+
+    # Resolve PR number (picker if not given)
+    let pr_num = (
+        if ($number | is-not-empty) {
+            $number
+        } else {
+            # Picker over open PRs. gh pr list → fzf (tab-separated number/title/branch).
+            let rows = (^gh pr list --limit 50 --json number,title,headRefName --jq '.[] | "\(.number)\t\(.title)\t\(.headRefName)"')
+            if ($rows | str trim | is-empty) {
+                error make { msg: "No open PRs (or gh not authenticated)." }
+            }
+            let picked = ($rows | ^fzf --delimiter "\t" --with-nth=1,2,3 --prompt "PR: " | str trim)
+            if ($picked | is-empty) { error make { msg: "No PR selected." } }
+            ($picked | split row "\t" | first | into int)
+        }
+    )
+
+    # Resolve PR head branch (for predictable worktree path)
+    let head_branch_r = (do { ^gh pr view $pr_num --json headRefName --jq '.headRefName' } | complete)
+    if $head_branch_r.exit_code != 0 {
+        error make { msg: $"Cannot resolve PR #($pr_num): ($head_branch_r.stderr)" }
+    }
+    let head_branch = ($head_branch_r.stdout | str trim)
+    if ($head_branch | is-empty) {
+        error make { msg: $"PR #($pr_num) has no head branch." }
+    }
+
+    let wt_path = (work worktree-path $info.name $head_branch)
+
+    # Auto-attach if worktree already exists
+    if ($wt_path | path exists) {
+        let session = (work session-name $info.name $head_branch)
+        print -e $"Worktree for PR #($pr_num) exists, connecting to ($session)"
+        let has_sess = ((do { ^tmux has-session -t $session } | complete).exit_code == 0)
+        if $has_sess {
+            ^sesh connect $session
+        } else {
+            ^sesh connect $wt_path
+        }
+        return { repo: $info.name, pr: $pr_num, branch: $head_branch, path: $wt_path, session: $session, created: false }
+    }
+
+    # Enable per-worktree config (idempotent)
+    ^git -C $info.root config extensions.worktreeConfig true | ignore
+
+    # Create detached worktree, then gh pr checkout inside it (handles forks)
+    let pool_dir = ($env.HOME | path join "Code" "tree" $"wt-($info.name)")
+    if not ($pool_dir | path exists) { mkdir $pool_dir }
+
+    let add_r = (do { ^git -C $info.root worktree add --detach $wt_path } | complete)
+    if $add_r.exit_code != 0 {
+        error make { msg: $"worktree add failed: ($add_r.stderr)" }
+    }
+
+    # gh pr checkout must run inside the worktree dir.
+    # Use bash -c to ensure cwd is correct for the gh call (nu `cd` in do{} is scoped).
+    let checkout_r = (do { ^bash -c $"cd '($wt_path)' && gh pr checkout ($pr_num)" } | complete)
+    if $checkout_r.exit_code != 0 {
+        # Roll back the detached worktree on failure
+        ^git -C $info.root worktree remove $wt_path --force
+        error make { msg: $"gh pr checkout #($pr_num) failed: ($checkout_r.stderr)" }
+    }
+
+    # Actual branch gh checked out (may differ from headRefName for forks)
+    let actual_branch = (do { ^git -C $wt_path branch --show-current } | complete | get stdout | str trim)
+    let branch = (if ($actual_branch | is-empty) { $head_branch } else { $actual_branch })
+
+    # PR base ref (for metadata)
+    let base_ref_r = (do { ^gh pr view $pr_num --json baseRefName --jq '.baseRefName' } | complete)
+    let base = (if $base_ref_r.exit_code == 0 { $"origin/($base_ref_r.stdout | str trim)" } else { "(pr)" })
+
+    let session = (work session-name $info.name $branch)
+
+    # Persist metadata
+    ^git -C $wt_path config --worktree work.base $base
+    ^git -C $wt_path config --worktree work.session $session
+    ^git -C $wt_path config --worktree work.branch $branch
+
+    work cache-invalidate
+
+    # Tmux session + layout
+    ^tmux new-session -d -s $session -c $wt_path
+    ^tmux send-keys -t $session "work" Enter
+
+    print -e $"✅ PR #($pr_num) → worktree ($branch)"
+    ^sesh connect $session
+
+    { repo: $info.name, pr: $pr_num, branch: $branch, path: $wt_path, session: $session, base: $base, created: true }
 }
 
 # Set up 4-window layout in current tmux session.
