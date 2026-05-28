@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Installs npm-global CLI tools that have no homebrew formula or where the brew
+# version lags upstream. Re-runs whenever this script's content changes (so
+# editing the `tools` array below triggers reinstall on next `chezmoi apply`).
+set -euo pipefail
+
+# Pick up brew-installed node on both macOS (/opt/homebrew) and Linux (/home/linuxbrew/.linuxbrew).
+if [[ -x /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo "npm not found; skipping npm-globals install" >&2
+  exit 0
+fi
+
+# Skill-driven tools the agents depend on. See agent-skills/<name>/SKILL.md for
+# why each one is here. Keep this list short — npm globals rot fast.
+tools=(
+  "@wallabyjs/cli"   # Wallaby standalone CLI (agent-skills/wallaby/SKILL.md)
+)
+
+for tool in "${tools[@]}"; do
+  echo "npm install -g $tool"
+  npm install -g --silent "$tool"
+done
