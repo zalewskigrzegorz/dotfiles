@@ -165,14 +165,39 @@ func newestNotification() (*notifPreview, error) {
 }
 
 type notifBlob struct {
-	App  string `plist:"app"`
-	Date float64 `plist:"date"`
+	App  interface{} `plist:"app"`
+	Date float64     `plist:"date"`
 	Req  struct {
-		Titl string `plist:"titl"`
-		Body string `plist:"body"`
-		Subt string `plist:"subt"`
+		Titl interface{} `plist:"titl"`
+		Body interface{} `plist:"body"`
+		Subt interface{} `plist:"subt"`
 	} `plist:"req"`
 	Styl int `plist:"styl"`
+}
+
+// notifFieldToString coerces an arbitrary plist value into a single string.
+// macOS sometimes encodes notification text fields as an array of strings
+// (e.g. multi-line bodies) rather than a single string — the original decoder
+// typed them as `string` and a type-mismatch killed the poller. This helper
+// keeps the decoder resilient across format drifts.
+func notifFieldToString(v interface{}) string {
+	switch x := v.(type) {
+	case nil:
+		return ""
+	case string:
+		return x
+	case []interface{}:
+		parts := make([]string, 0, len(x))
+		for _, e := range x {
+			s := notifFieldToString(e)
+			if s != "" {
+				parts = append(parts, s)
+			}
+		}
+		return strings.Join(parts, " ")
+	default:
+		return fmt.Sprintf("%v", x)
+	}
 }
 
 func parseNotifBlob(b []byte) (title, body string, err error) {
@@ -181,10 +206,10 @@ func parseNotifBlob(b []byte) (title, body string, err error) {
 	if err != nil {
 		return "", "", err
 	}
-	title = strings.TrimSpace(n.Req.Titl)
-	body = strings.TrimSpace(n.Req.Body)
-	if n.Req.Subt != "" {
-		body = strings.TrimSpace(n.Req.Subt) + ": " + body
+	title = strings.TrimSpace(notifFieldToString(n.Req.Titl))
+	body = strings.TrimSpace(notifFieldToString(n.Req.Body))
+	if subt := strings.TrimSpace(notifFieldToString(n.Req.Subt)); subt != "" {
+		body = subt + ": " + body
 	}
 	return
 }
