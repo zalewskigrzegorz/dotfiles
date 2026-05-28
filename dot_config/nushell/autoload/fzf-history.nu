@@ -47,7 +47,6 @@ def fzf_history_pick [query: string] {
             --scheme=history
             --delimiter="\t"
             --with-nth="2.."
-            --nth="2.."
             --query $query
             --bind="ctrl-r:toggle-sort"
             --bind="ctrl-y:execute-silent(printf '%s' {2..} | pbcopy)+abort"
