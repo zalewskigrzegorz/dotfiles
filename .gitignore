@@ -104,3 +104,4 @@ dot_config/zed/embeddings/
 dot_config/zed/prompts/
 .config/zed/.tmp*
 dot_config/zed/.tmp*
+bin/sketchybar-watcher/sketchybar-watcher
