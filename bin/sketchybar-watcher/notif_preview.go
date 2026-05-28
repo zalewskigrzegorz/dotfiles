@@ -312,10 +312,10 @@ func renderPreview(n *notifPreview) {
 	}
 	lines := wrapLines(full, notifPreviewPopupLineChrs, notifPreviewPopupLines)
 	logDebug("notif_preview push: icon=%s short=%s lines=%d", icon, short, len(lines))
-	clickScript := ""
-	if n.bundleID != "" {
-		clickScript = "open -b " + n.bundleID
-	}
+	// Route the click through claude-notif-chip-click. For Claude-waiting
+	// banners (title contains "▸") it switches to the waiting tmux session;
+	// for every other notification it falls back to `open -b <bundle>`.
+	clickScript := "/Users/greg/Code/dotfiles/bin/claude-notif-chip-click " + n.bundleID
 	args := []string{
 		"--set", notifPreviewItem,
 		"icon=" + icon,
