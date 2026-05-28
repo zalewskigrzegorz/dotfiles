@@ -35,7 +35,7 @@ emit_guard() {
   if [ "$PERMISSION_MODE" = "default" ]; then
     emit ask "$1"
   else
-    emit deny "$1 [auto-mode: blocked — rerun interactively (default mode) to confirm]"
+    emit deny "$1 [BLOCKED by auto-mode policy. STOP — do not retry, rephrase, or look for workarounds. Tell Greg to switch to default mode (Shift+Tab) and rerun.]"
   fi
 }
 

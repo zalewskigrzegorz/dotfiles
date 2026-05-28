@@ -82,7 +82,7 @@ if [ -n "$MATCHES" ]; then
     DECISION="ask"
   else
     DECISION="deny"
-    REASON="$REASON [auto-mode: blocked — rerun interactively to confirm]"
+    REASON="$REASON [BLOCKED by auto-mode policy. STOP — do not retry, rephrase, or look for workarounds. Tell Greg to switch to default mode (Shift+Tab) and rerun.]"
   fi
   echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"$DECISION\",\"permissionDecisionReason\":\"$REASON\"}}"
   exit 0
