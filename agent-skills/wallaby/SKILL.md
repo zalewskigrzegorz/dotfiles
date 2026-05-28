@@ -1,13 +1,15 @@
 ---
 name: wallaby
-description: Use when a test is failing, flaky, slow to debug, or when asking "why does this assertion fail / what's the actual value / what does this line return at runtime". Also use before reaching for `npm test` / `jest` / `vitest` / `pytest` to reproduce — Wallaby is already running in the editor and exposes live failing-test details, runtime values, coverage, and snapshot controls via MCP. Applies to JavaScript/TypeScript and Python projects.
+description: Use when a test is failing, flaky, slow to debug, or when asking "why does this assertion fail / what's the actual value / what does this line return at runtime". Also use before reaching for `npm test` / `jest` / `vitest` / `pytest` to reproduce — Wallaby is already running (in VS Code/JetBrains OR in browser-based Standalone mode for Neovim/Zed/Vim/any editor) and exposes live failing-test details, runtime values, coverage, and snapshot controls via MCP. Applies to JavaScript/TypeScript and Python projects.
 ---
 
 # wallaby
 
 ## Core principle
 
-The user has Wallaby.js running in their editor (VS Code/JetBrains) **all the time**. It continuously executes tests as code changes and captures failure details + runtime values. The `mcp__wallaby__*` tools expose that live state. **Hitting the MCP is 10x faster than spawning a Jest/Vitest/Pytest process from the shell**, and it gives you data the shell run does not (runtime values at any file:line, per-test coverage).
+The user has Wallaby.js running **all the time** — either as an editor extension (VS Code/JetBrains/Sublime/VS) or as **Wallaby Standalone** (npm CLI + browser UI, works with Neovim/Zed/Vim/Emacs/any editor). It continuously executes tests as code changes and captures failure details + runtime values. The `mcp__wallaby__*` tools expose that live state regardless of which mode is running. **Hitting the MCP is 10x faster than spawning a Jest/Vitest/Pytest process from the shell**, and it gives you data the shell run does not (runtime values at any file:line, per-test coverage).
+
+Greg uses Neovim a lot — assume **Standalone mode** is a live option, do not write off Wallaby as "VS Code only."
 
 ## Hard rule (this is the rule the skill exists to enforce)
 
@@ -47,11 +49,35 @@ Other situations:
 
 ## When the MCP returns empty
 
-This means Wallaby isn't running this file (not in its automatic config, or extension stopped). Then:
+This means Wallaby isn't running this file (not in its automatic config, or runtime stopped). Then:
 
-1. State plainly in one line: "Wallaby returned no data for this file — extension may not be running or this file isn't in Wallaby's auto config."
-2. Ask the user to start Wallaby (`Cmd+Shift+P → Wallaby.js: Start`) — don't silently fall back to `npm test` without naming it.
-3. If the user prefers the CLI fallback, run the narrowest possible test command (`jest <file>` not the whole suite).
+1. State plainly in one line: "Wallaby returned no data for this file — Wallaby may not be running or this file isn't in Wallaby's auto config."
+2. Ask the user to start Wallaby — flow depends on which mode they use:
+   - **Editor extension (VS Code/JetBrains/Sublime/VS):** `Cmd+Shift+P → Wallaby.js: Start`.
+   - **Standalone (Neovim/Zed/Vim/Emacs/any editor):** install once with `npm install -g @wallabyjs/cli`, then run `wallaby` in the project root — it opens a browser UI. See "Standalone mode" section below.
+3. Don't silently fall back to `npm test` without naming it. If the user prefers the CLI fallback, run the narrowest possible test command (`jest <file>`, not the whole suite).
+
+## Standalone mode (browser UI, any editor)
+
+When the user is **not** in VS Code/JetBrains (typically Neovim or Zed for Greg), Wallaby has a first-party standalone mode that opens a browser UI. The MCP works identically — it doesn't care which mode is running the test loop.
+
+Setup (one-time):
+```bash
+npm install -g @wallabyjs/cli
+```
+
+Run in the project root:
+```bash
+wallaby
+# opens a browser tab with the Wallaby UI
+```
+
+Then `mcp__wallaby__*` queries return data the same way as the editor-extension mode.
+
+Notes:
+- Package name on npm: `@wallabyjs/cli` (the docs page renders it without spacing — don't be fooled into typing `@wallabyjs/cliwallaby`).
+- The user already has a Wallaby license; standalone uses the same license.
+- Do NOT propose "open VS Code in the background just to host Wallaby" as a workaround — standalone is the right answer for non-VS-Code editors.
 
 ## Typical flow (failing-test debug)
 

@@ -1,13 +1,18 @@
 ---
 name: quokka
-description: Use when the user wants to validate a small JS/TS snippet in isolation before integrating it — "will this regex match", "what does Array.from return here", "is this date math right", "how does dayjs handle X" — and explicitly said "don't write a real test yet" or "I just want to check". The user has a Quokka.js Pro license and the VS Code extension; this skill defines the round-trip workflow (no MCP — agent generates the snippet, user runs it in Quokka, user reports values back). Also covers when NOT to use Quokka (real tests → wallaby; live app debugging → console-ninja).
+description: Use when the user wants to validate a small JS/TS snippet in isolation before integrating it — "will this regex match", "what does Array.from return here", "is this date math right", "how does dayjs handle X" — and explicitly said "don't write a real test yet" or "I just want to check". The user has a Quokka.js Pro license + VS Code extension; this skill defines the round-trip workflow (no MCP, no web sandbox — agent generates the snippet, user runs it in VS Code Quokka, user reports values back). Also covers when NOT to use Quokka (real tests → wallaby; live app debugging → console-ninja).
 ---
 
 # quokka
 
 ## Core principle
 
-Quokka.js is a scratchpad that runs JS/TS and prints the value of every top-level expression inline in the editor (or in the Pro Live Sandbox in browser). It's the right tool for "let me confirm this works" before committing to a real test or shipping the code. **It has no MCP and no CLI agent integration** — the agent cannot read Quokka's runtime values directly. The workflow is always a round-trip with the user.
+Quokka.js is an editor-only scratchpad that runs JS/TS and prints the value of every top-level expression inline in the editor. It's the right tool for "let me confirm this works" before committing to a real test or shipping the code.
+
+**Critical constraints:**
+- **No MCP, no CLI for agents** — the agent cannot read Quokka's runtime values directly. The workflow is always a round-trip with the user.
+- **No browser-based standalone / sandbox** — Quokka runs only in VS Code, WebStorm, or Sublime. There is no "Pro Live Sandbox," no public web playground, no hosted URL. The closest web-adjacent thing is [codeclip.io](https://codeclip.io) which **shares already-run output** (Quokka Pro Share feature) — it does NOT execute code. Do not propose codeclip as a runner.
+- **Unlike Wallaby**, Quokka does **not** have a standalone CLI/browser mode. If the user wants no-VS-Code prototyping, the answer is "use TS Playground or `node -e`," not "use Quokka somewhere else."
 
 ## When to reach for Quokka (vs alternatives)
 
@@ -25,30 +30,29 @@ Don't use Quokka when:
 ## Hard rules
 
 1. **Scratch files do NOT go into the working repo.** They go to `~/Code/personal/bazgroly/<repo-basename>/scratch/<YYYY-MM-DD>-<topic>.quokka.ts`. (Greg's AI-artifacts rule. The `bazgroly` autopush hook handles commit/push.) Resolve `<repo-basename>` with `git rev-parse --show-toplevel` (or `basename $PWD` if not in a repo).
-2. **Do NOT invent a sandbox URL.** The Quokka Pro Live Sandbox URL format may change and is not in your training data. If the user prefers the browser sandbox, ask them once for the current URL (or to open it themselves and paste code in), then reuse that for the session. Never `Bash("open 'https://quokkajs.com/sandbox/'")` from guess.
-3. **Be honest about the round-trip.** Tell the user "I'll write the snippet at `<path>`, you run Quokka on it, paste the inline values back." Don't pretend to read Quokka's output.
+2. **Quokka is VS Code-only.** Don't propose "open it in browser at `https://…`," don't suggest a Pro sandbox URL (it doesn't exist), don't reference codeclip as a runner. If the user explicitly refuses to use VS Code, switch tool (see "Web alternative" below) — don't invent a Quokka web mode.
+3. **Be honest about the round-trip.** Tell the user "I'll write the snippet at `<path>`, you run Quokka in VS Code, paste the inline values back." Don't pretend to read Quokka's output.
 4. **Bare expressions on their own line.** Quokka prints inline value for every top-level expression. Structure snippets so the "interesting" values are bare expressions, not `console.log(x)` (which works but pollutes).
 
-## Two delivery modes
+## The workflow — VS Code scratch file
 
-### Mode A — VS Code scratch file (default)
-
-Best when the user is already in VS Code (which on Greg's setup is the default for prototyping). Works offline. Persists for re-runs.
+Greg uses VS Code as a secondary editor specifically for tools like Quokka. This is the only Quokka workflow.
 
 Steps:
 1. `mkdir -p ~/Code/personal/bazgroly/<repo>/scratch/` if needed.
 2. `Write` the snippet to `~/Code/personal/bazgroly/<repo>/scratch/<YYYY-MM-DD>-<topic>.quokka.ts`.
-3. Tell the user (verbatim short form): "Wrote `<path>`. Open it in VS Code → `Cmd+Shift+P` → **Quokka.js: Start on Current File** (or `Cmd+K Q`). Paste back the inline values you see."
-4. Wait for user. Integrate values into the answer.
+3. Tell the user (short form): "Wrote `<path>`. Open it in VS Code → `Cmd+Shift+P` → **Quokka.js: Start on Current File** (or `Cmd+K Q`). Paste back the inline values you see."
+4. Wait. Integrate values into the answer.
 
-### Mode B — Quokka Pro Live Sandbox (browser)
+## Web alternative (when the user refuses VS Code)
 
-Best for fully self-contained snippets where the user doesn't want to open VS Code (e.g. they're on mobile, or they want to share the link). Requires Greg's Pro account.
+If the user explicitly says "I don't want to open VS Code" / "give me a web option," **switch tools** — do not pretend Quokka has a web mode.
 
-Steps:
-1. Ask the user for the current Live Sandbox URL ("paste me the current sandbox URL or open it and paste the code yourself"). **Do not guess the URL.**
-2. Provide the snippet inline in your reply, ready to paste.
-3. User runs it in browser, pastes values back.
+- **Pure TS/JS snippet, no Node-only APIs:** [TypeScript Playground](https://www.typescriptlang.org/play). Paste, hit Run, output in the right panel.
+- **Node-flavored snippet (needs `process`, npm deps, fs, etc.):** [RunKit](https://runkit.com). Notebook-style, each cell prints its value.
+- **One-liner where inline values per line don't matter:** `Bash("node -e '…'")` from the agent side.
+
+State the swap plainly: "Quokka is VS Code-only — for a web run I'll prep this for TS Playground / RunKit instead. Paste the URL once you've opened it, or paste back the output."
 
 ## Snippet style — bare expressions for inline values
 
@@ -80,7 +84,8 @@ result;  // bare → inline value
 | "Quick — let me just `node -e '…'`" | Fine for one-liners; for multi-case checks Quokka's per-line inline values are much faster to read. |
 | "I'll write a Vitest test for this" | The user said "don't write a real test yet." Quokka is the answer. |
 | "Drop the scratch in `src/__scratch__/`" | Violates the AI-artifacts rule. Bazgroly only. |
-| "I'll guess the sandbox URL" | Don't. Ask the user. |
+| "I'll guess the Quokka sandbox URL" | Quokka has no web sandbox. Don't invent one. Switch to TS Playground / RunKit if the user refuses VS Code. |
+| "Codeclip is the web runner" | No — codeclip.io only **shares** already-run output. It does not execute code. |
 | "I'll just describe what the regex does without running it" | If you can derive it statically with high confidence, say so plainly and skip the round-trip. Otherwise route through Quokka — your static reasoning lies sometimes. |
 
 ## Statically obvious cases — skip the round-trip honestly
