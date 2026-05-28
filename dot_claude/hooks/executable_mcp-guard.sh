@@ -40,7 +40,7 @@ if printf '%s' "$NAME_LC" | grep -qE "$MUT"; then
   if [ "$PERMISSION_MODE" = "default" ]; then
     emit ask "Mutating MCP call: $TOOL_NAME."
   else
-    emit deny "Mutating MCP call: $TOOL_NAME [auto-mode: blocked — rerun interactively to confirm]."
+    emit deny "Mutating MCP call: $TOOL_NAME [BLOCKED by auto-mode policy. STOP — do not retry, rephrase, or look for workarounds. Tell Greg to switch to default mode (Shift+Tab) and rerun.]"
   fi
 elif printf '%s' "$NAME_LC" | grep -qE "$RO"; then
   emit allow "Read-only MCP call."
@@ -49,6 +49,6 @@ else
   if [ "$PERMISSION_MODE" = "default" ]; then
     emit ask "Unclassified MCP call: $TOOL_NAME (treated as mutating)."
   else
-    emit deny "Unclassified MCP call: $TOOL_NAME [auto-mode: blocked — rerun interactively to confirm]."
+    emit deny "Unclassified MCP call: $TOOL_NAME [BLOCKED by auto-mode policy. STOP — do not retry, rephrase, or look for workarounds. Tell Greg to switch to default mode (Shift+Tab) and rerun.]"
   fi
 fi

@@ -17,7 +17,7 @@ emit_guard() {
     decision="ask"
   else
     decision="deny"
-    reason="$reason [auto-mode: blocked — rerun interactively to confirm]"
+    reason="$reason [BLOCKED by auto-mode policy. STOP — do not retry, rephrase, or look for workarounds. Tell Greg to switch to default mode (Shift+Tab) and rerun.]"
   fi
   echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"$decision\",\"permissionDecisionReason\":\"$reason\"}}"
   exit 0
