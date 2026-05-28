@@ -38,9 +38,9 @@ grep -q 'alerter ' "$REC" || { echo "FAIL: alerter not called"; cat "$REC"; exit
 grep -q 'myrepo' "$REC" || { echo "FAIL: title missing repo"; cat "$REC"; exit 1; }
 grep -q 'feat/x' "$REC" || { echo "FAIL: title missing branch"; cat "$REC"; exit 1; }
 grep -q 'Allow Bash command execution?' "$REC" || { echo "FAIL: body missing"; exit 1; }
-grep -q -- '-group' "$REC" || { echo "FAIL: no -group"; exit 1; }
-grep -q -- '-execute' "$REC" || { echo "FAIL: no -execute"; exit 1; }
-grep -q 'worksess' "$REC" || { echo "FAIL: session not resolved into execute"; exit 1; }
+grep -q -- '--group' "$REC" || { echo "FAIL: no --group"; exit 1; }
+grep -q -- '--actions Focus' "$REC" || { echo "FAIL: no --actions Focus (alerter v26.5 click handle)"; exit 1; }
+# session is now used by the detached click wrapper (claude-focus-session), not in alerter args; verified via live smoke.
 
 # 2) auth_success → ignored (no alerter).
 run auth_success "Logged in"
