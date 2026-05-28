@@ -49,9 +49,21 @@ fi
 
 grp="claude-wait-${sess:-${worktree:-default}}"
 
-# ── Notify via alerter (background; click switches to the session) ────────
-"$ALERTER" -title "$title" -message "$MSG" -sender com.mitchellh.ghostty \
-  -group "$grp" -timeout 10 -execute "$FOCUS $sess" >/dev/null 2>&1 &
+# ── Notify via alerter (detached; click switches to the session) ─────────
+# alerter v26.5 uses --double-dash flags and dropped --execute/--activate.
+# Click is signalled via stdout (the activation type or clicked action name).
+# We spawn a detached wrapper so the hook returns immediately; the wrapper
+# blocks on alerter until the user clicks or --timeout fires, then on a click
+# (action "Focus" or body contentsClicked) calls claude-focus-session.
+# --sender is intentionally omitted: passing --sender com.mitchellh.ghostty
+# hangs alerter (Ghostty has no impersonation grant); the default sender
+# label is fine — the prominent text is our --title.
+(
+  result=$("$ALERTER" --title "$title" --message "$MSG" --group "$grp" --actions Focus --timeout 30 2>/dev/null)
+  case "$result" in
+    Focus*|contentsClicked*) "$FOCUS" "$sess" ;;
+  esac
+) >/dev/null 2>&1 &
 
 # ── Sound + immediate sketchybar refresh ──────────────────────────────────
 sound="$HOME/.claude/hooks/sounds/claude-done.mp3"
