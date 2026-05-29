@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# @raycast.schemaVersion 1
+# @raycast.title Send to Wife
+# @raycast.mode compact
+
+# @raycast.icon 💌
+# @raycast.packageName Personal
+# @raycast.argument1 { "type": "text", "placeholder": "optional note", "optional": true }
+
+# Documentation:
+# @raycast.description Send clipboard contents (text / URL / image / screenshot) to wife's Discord channel, with an optional note.
+# @raycast.author Grzegorz Zalewski
+# @raycast.authorURL https://raycast.com/zalewskigrzegorz
+
+{{ $vault := "Dotfiles" -}}
+{{- with (index . "onePasswordVault") -}}
+{{- $vault = . -}}
+{{- end }}
+{{ $hasOp := lookPath "op" -}}
+export WIFE_DISCORD_WEBHOOK={{ if $hasOp }}{{ onepasswordRead (printf "op://%s/WIFE_DISCORD_WEBHOOK/password" $vault) | quote }}{{ else }}""{{ end }}
+
+note="${1:-}"
+if [ -n "$note" ]; then
+  exec /opt/homebrew/bin/nu -c "wife-send --note '${note//\'/\'\\\'\'}'"
+else
+  exec /opt/homebrew/bin/nu -c "wife-send"
+fi
