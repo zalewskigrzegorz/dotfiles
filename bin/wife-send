@@ -1,0 +1,66 @@
+#!/usr/bin/env nu
+# wife-send — POST clipboard contents (text / image) to Discord webhook.
+# Reads $env.WIFE_DISCORD_WEBHOOK (baked by chezmoi from 1Password Dotfiles vault).
+
+def main [--note: string = ""] {
+    if (sys host | get name) != "Darwin" {
+        print --stderr "wife-send: macOS only"
+        exit 5
+    }
+
+    let webhook = ($env.WIFE_DISCORD_WEBHOOK? | default "")
+    if ($webhook | is-empty) {
+        print --stderr "WIFE_DISCORD_WEBHOOK not set"
+        exit 2
+    }
+
+    let tmp_img = $"/tmp/wife-send-(random uuid).png"
+    let has_image = (do { ^pngpaste $tmp_img } | complete | get exit_code) == 0
+
+    if $has_image {
+        let size_kb = ((ls $tmp_img | get 0.size | into int) / 1024 | math round)
+        let payload = if ($note | is-empty) { "{}" } else { { content: $note } | to json }
+        let status = (
+            ^curl --silent --output /dev/null --write-out "%{http_code}"
+                -F $"payload_json=($payload)"
+                -F $"file=@($tmp_img)"
+                $webhook
+        )
+        try { rm $tmp_img } catch { null }
+        if not ($status | str starts-with "2") {
+            print --stderr $"Discord error: ($status)"
+            exit 3
+        }
+        print $"Sent ✓ \(image, ($size_kb) KB)"
+        return
+    }
+
+    let clip = (try { ^pbpaste | decode utf-8 } catch { "" } | str trim)
+    let body = if (($clip | is-empty) and ($note | is-empty)) {
+        ""
+    } else if ($note | is-empty) {
+        $clip
+    } else if ($clip | is-empty) {
+        $note
+    } else {
+        $"($note)\n($clip)"
+    }
+
+    if ($body | is-empty) {
+        print --stderr "nothing to send"
+        exit 1
+    }
+
+    let payload = { content: $body } | to json
+    let status = (
+        ^curl --silent --output /dev/null --write-out "%{http_code}"
+            --header "Content-Type: application/json"
+            --data $payload
+            $webhook
+    )
+    if not ($status | str starts-with "2") {
+        print --stderr $"Discord error: ($status)"
+        exit 3
+    }
+    print $"Sent ✓ \(text, ($body | str length) chars)"
+}
