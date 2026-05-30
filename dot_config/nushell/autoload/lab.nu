@@ -30,7 +30,7 @@ def lab-sync [] {
 # (via `ssh lab` + edit), or after pulling new compose/service definitions.
 def lab-update [] {
     print "⬆️   Running homelab update on lab..."
-    ^ssh -t lab 'cd /opt/homelab && ./update.sh'
+    ^ssh -t lab 'cd /opt/homelab && git pull --ff-only && ./update.sh'
     print "✓  homelab update done"
 }
 
@@ -41,6 +41,6 @@ def lab-update [] {
 # state but you don't want to pull new images.
 def lab-reload [] {
     print "🔁  Reloading homelab services on lab..."
-    ^ssh -t lab 'cd /opt/homelab && ./reload.sh'
+    ^ssh -t lab 'cd /opt/homelab && git pull --ff-only && ./reload.sh'
     print "✓  homelab reload done"
 }
