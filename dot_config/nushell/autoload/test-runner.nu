@@ -32,7 +32,7 @@ def pick-test-kind [] {
   ["unit" "e2e" "integ"] | input list "test kind:"
 }
 
-export def test [
+export def --wrapped test [
   kind?: string@"nu-complete-test-kinds" # unit | e2e | integ | help — omit to pick interactively
   ...rest: string                         # forwarded verbatim to the underlying runner
 ] {
