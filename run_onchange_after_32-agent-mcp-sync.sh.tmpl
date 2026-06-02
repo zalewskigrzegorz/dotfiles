@@ -66,7 +66,16 @@ for name, spec in servers.items():
 
     cmd = ["claude", "mcp", "add", "--scope", "user"]
     if "url" in spec:
+        # Pass through HTTP headers (`--header "Header: Value"`) for HTTP/SSE
+        # servers that auth via static tokens (e.g. n8n-mcp Bearer). Without
+        # this, `claude mcp add` registers the URL but drops auth → server
+        # shows "Needs authentication" forever.
+        # Argument order matters: `--transport <t>`, then positional name+url,
+        # THEN `--header` flags (variadic). Headers before positionals make
+        # `claude mcp add` swallow the name as another header value.
         cmd += ["--transport", spec.get("type", "http"), name, spec["url"]]
+        for k, v in (spec.get("headers") or {}).items():
+            cmd += ["--header", f"{k}: {v}"]
     else:
         env_pairs = [f"{k}={v}" for k, v in (spec.get("env") or {}).items()]
         if env_pairs:
