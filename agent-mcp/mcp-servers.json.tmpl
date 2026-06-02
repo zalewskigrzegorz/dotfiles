@@ -104,6 +104,18 @@
         "AWS_PROFILE=redocly-prod",
         "mcp/cloudwatch-mcp-server:latest"
       ]
+    },
+    "n8n": {
+      "command": "npx",
+      "args": ["-y", "n8n-mcp"],
+      "env": {
+        "MCP_MODE": "stdio",
+        "LOG_LEVEL": "error",
+        "DISABLE_CONSOLE_OUTPUT": "true",
+        "N8N_API_URL": "http://n8n.lab",
+        "WEBHOOK_SECURITY_MODE": "moderate",
+        "N8N_API_KEY": {{ if lookPath "op" }}{{ onepasswordRead (printf "op://%s/N8N_API_KEY/password" (index . "onePasswordVault" | default "Dotfiles")) | quote }}{{ else }}""{{ end }}
+      }
     }
   }
 }
