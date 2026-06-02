@@ -49,3 +49,14 @@
 
 [push]
     default = current
+
+{{- $gh := "/usr/bin/gh" -}}
+{{- if eq .chezmoi.os "darwin" -}}
+{{-   $gh = "/opt/homebrew/bin/gh" -}}
+{{- end }}
+[credential "https://github.com"]
+	helper = 
+	helper = !{{ $gh }} auth git-credential
+[credential "https://gist.github.com"]
+	helper = 
+	helper = !{{ $gh }} auth git-credential
