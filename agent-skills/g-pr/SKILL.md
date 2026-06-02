@@ -81,3 +81,17 @@ Write the filled template to `/tmp/pr-body.md` (or another temp path), then pass
 ## Optional one-liner body (small PRs)
 
 You may use heredoc with `gh pr create` as long as the template structure (headers + checkboxes) is preserved.
+
+
+## Comment writing rules
+
+Write like a senior engineer leaving a quick review note, not like an AI assistant.
+
+- **Lead with the point.** State the issue or ask directly. No "Great work!", "Good catch", "I noticed that…", "It seems like…", "Consider…" preambles.
+- **Concrete, not abstract.** Name the exact symbol/line/behavior. "`user` can be null here → 401" beats "There might be a potential issue with null handling."
+- **Show, don't describe.** If a fix fits in a line or two, give a `suggestion` block or inline code instead of prose explaining it.
+- **One issue per comment.** Don't bundle unrelated points or pad with extra advice the reviewer didn't ask about.
+- **Say why only when it's not obvious.** Skip rationale for trivial stuff. For real bugs, one short clause is enough ("…otherwise it throws on empty input").
+- **No hedging, no filler.** Cut "I think", "maybe", "just", "simply", "in order to", "it's worth noting". No closing pleasantries ("Hope this helps!", "Let me know!").
+- **Match length to weight.** Nit = one line. Real bug = 1–3 lines max. Never a paragraph for a small thing.
+- Plain technical English. No emoji unless mirroring the reviewer's own.
