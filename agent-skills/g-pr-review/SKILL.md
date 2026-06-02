@@ -65,10 +65,10 @@ Recommend **Request changes** if any Critical finding was selected; otherwise **
 
 Map the verdict → event: Approve→`APPROVE`, Request changes→`REQUEST_CHANGES`, Comment only→`COMMENT`, Don't submit→abort (report that nothing was posted).
 
-Build the payload and submit one review:
+Build the payload and submit one review in a **single `Bash` call**, piping JSON to `gh api` via stdin heredoc. Do NOT write the payload to a file first — a fixed path like `/tmp/g-pr-review.json` collides with stale files from earlier runs, and the `Write` tool then refuses to overwrite ("must read first"). Stdin avoids the temp file entirely:
 
 ```bash
-cat > /tmp/g-pr-review.json <<'JSON'
+gh api --method POST "repos/<OWNER>/<REPO>/pulls/<NUMBER>/reviews" --input - <<'JSON'
 {
   "commit_id": "<SHA>",
   "event": "<EVENT>",
@@ -78,8 +78,9 @@ cat > /tmp/g-pr-review.json <<'JSON'
   ]
 }
 JSON
-gh api --method POST "repos/<OWNER>/<REPO>/pulls/<NUMBER>/reviews" --input /tmp/g-pr-review.json
 ```
+
+If you genuinely need a file (e.g., the payload is huge or you want to inspect it), use `mktemp` so the path is unique per invocation: `PAYLOAD=$(mktemp -t g-pr-review.XXXXXX.json)` — never a fixed `/tmp/g-pr-review.json`.
 
 - Multi-line anchors: add `"start_line": <n>` alongside `"line"`.
 - Empty `comments` is fine (clean approve / verdict-only).

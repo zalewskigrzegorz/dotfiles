@@ -645,9 +645,10 @@ def "work new" [
     ^git -C $wt_path config --worktree work.session $session
     ^git -C $wt_path config --worktree work.branch $branch_name
 
-    # Tmux session + layout
+    # Tmux session + layout (build directly via tmux — no send-keys race).
     ^tmux new-session -d -s $session -c $wt_path
-    ^tmux send-keys -t $session "work" Enter
+    let bazgroly = ($env.HOME | path join "Code" "personal" "bazgroly" $repo)
+    work _build-layout $session $wt_path $bazgroly
 
     let result = {
         repo: $repo
@@ -779,13 +780,54 @@ def "work pr" [
     let session_exists = ((do { ^tmux has-session -t $session } | complete).exit_code == 0)
     if not $session_exists {
         ^tmux new-session -d -s $session -c $wt_path
-        ^tmux send-keys -t $session "work" Enter
+        let bazgroly = ($env.HOME | path join "Code" "personal" "bazgroly" $info.name)
+        work _build-layout $session $wt_path $bazgroly
     }
 
     print -e $"✅ PR #($pr_num) → worktree ($branch)"
     ^sesh connect $session
 
     { repo: $info.name, pr: $pr_num, branch: $branch, path: $wt_path, session: $session, base: $base, created: true }
+}
+
+# Internal: build the 4-window layout targeting an explicit tmux session.
+# Used by `work` (current session), `work new`, `work pr`.
+# Does NOT depend on $env.TMUX — works from any context, including detached
+# session creation in `work new`/`work pr` (avoids the send-keys race that
+# previously left freshly-created sessions without any windows).
+def "work _build-layout" [
+    session: string  # Target tmux session
+    cwd: path        # Working dir for terminal/git/claude windows
+    bazgroly: path   # Working dir for nvim window
+]: nothing -> nothing {
+    let term = $"\u{f120}  terminal"
+    let git  = $"\u{e725}  git"
+    let cc   = $"\u{f06a9}  claude"
+    let edit = $"\u{e62b}  nvim"
+
+    if not ($bazgroly | path exists) {
+        mkdir $bazgroly
+    }
+
+    # Window 1: rename first window of $session to terminal, lock auto-rename off.
+    ^tmux set-window-option -t $"($session):1" automatic-rename off
+    ^tmux rename-window -t $"($session):1" $term
+
+    let existing = (^tmux list-windows -t $session -F "#{window_name}" | lines)
+
+    for spec in [
+        { name: $git,  cwd: $cwd,      cmd: ["lazygit"] }
+        { name: $cc,   cwd: $cwd,      cmd: ["claude"] }
+        { name: $edit, cwd: $bazgroly, cmd: ["nvim" $bazgroly] }
+    ] {
+        if not ($spec.name in $existing) {
+            let wid = (^tmux new-window -d -t $session -P -F "#{window_id}" -n $spec.name -c $spec.cwd ...$spec.cmd | str trim)
+            ^tmux set-window-option -t $wid automatic-rename off
+            ^tmux rename-window -t $wid $spec.name
+        }
+    }
+
+    ^tmux select-window -t $"($session):1"
 }
 
 # Set up 4-window layout in current tmux session.
@@ -805,36 +847,10 @@ def work [
         return
     }
 
-    let term = $"\u{f120}  terminal"
-    let git  = $"\u{e725}  git"
-    let cc   = $"\u{f06a9}  claude"
-    let edit = $"\u{e62b}  nvim"
-
+    let session = (^tmux display-message -p '#{session_name}' | str trim)
     # BUG FIX from audit: use parent repo name even when in worktree.
     let bazgroly = (work bazgroly-path)
-    if not ($bazgroly | path exists) {
-        mkdir $bazgroly
-    }
-
-    # Window 1: rename caller window to terminal, lock auto-rename off.
-    ^tmux set-window-option automatic-rename off
-    ^tmux rename-window $term
-
-    let existing = (^tmux list-windows -F "#{window_name}" | lines)
-
-    for spec in [
-        { name: $git,  cwd: $env.PWD, cmd: ["lazygit"] }
-        { name: $cc,   cwd: $env.PWD, cmd: ["claude"] }
-        { name: $edit, cwd: $bazgroly, cmd: ["nvim" $bazgroly] }
-    ] {
-        if not ($spec.name in $existing) {
-            let wid = (^tmux new-window -d -P -F "#{window_id}" -n $spec.name -c $spec.cwd ...$spec.cmd | str trim)
-            ^tmux set-window-option -t $wid automatic-rename off
-            ^tmux rename-window -t $wid $spec.name
-        }
-    }
-
-    ^tmux select-window -t:1
+    work _build-layout $session $env.PWD $bazgroly
 }
 
 # Helper: gather metadata for all worktrees in the pool.
