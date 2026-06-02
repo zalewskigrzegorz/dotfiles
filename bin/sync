@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# sync — chezmoi apply/update wrapper that loads the 1Password service-account
+# token *only* for the duration of this invocation.
+#
+# Why: interactive Mac shells no longer eager-export OP_SERVICE_ACCOUNT_TOKEN
+# (it would hijack every `op` call away from the user's personal/Touch ID
+# session). chezmoi still needs the token to render `onepasswordRead` templates
+# (mcp-servers.json.tmpl etc.). This wrapper bridges the two — loads the token
+# from ~/.config/op/sa-token, exec's chezmoi, env var dies with the subprocess.
+#
+# Usage:
+#   sync                  → chezmoi apply
+#   sync update           → chezmoi update (git pull + apply, used on lab)
+#   sync <other> [args]   → chezmoi <other> [args]   (passthrough)
+#
+# Source of truth: ~/Code/dotfiles/bin/sync (chezmoi-managed).
+# Replaces the older standalone ~/bin/sync — delete that file once this lives
+# on PATH (the dotfiles bin/ dir is prepended earlier than ~/bin per env.nu).
+
+set -euo pipefail
+
+# Load service-account token if available and not already in env.
+sa_token="${HOME}/.config/op/sa-token"
+if [[ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" && -r "$sa_token" ]]; then
+  OP_SERVICE_ACCOUNT_TOKEN=$(tr -d '[:space:]' < "$sa_token")
+  export OP_SERVICE_ACCOUNT_TOKEN
+fi
+
+# Make sure brew bins are reachable — chezmoi needs `op`, `gh`, etc. on PATH,
+# and this script may be invoked from a stripped env (cron, ssh, Raycast).
+for d in \
+  /opt/homebrew/bin \
+  /home/linuxbrew/.linuxbrew/bin \
+  "${HOME}/.linuxbrew/bin" \
+  /usr/local/bin \
+  "${HOME}/.local/bin"
+do
+  [[ -d "$d" ]] && PATH="$d:$PATH"
+done
+export PATH
+
+if ! command -v chezmoi >/dev/null 2>&1; then
+  echo "chezmoi not found on PATH" >&2
+  exit 127
+fi
+
+# Dispatch
+case "${1:-apply}" in
+  update)
+    shift
+    exec chezmoi update "$@"
+    ;;
+  apply)
+    shift 2>/dev/null || true
+    exec chezmoi apply "$@"
+    ;;
+  *)
+    exec chezmoi "$@"
+    ;;
+esac
