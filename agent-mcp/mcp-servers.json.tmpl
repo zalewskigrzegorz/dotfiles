@@ -111,6 +111,10 @@
       "headers": {
         "Authorization": {{ if lookPath "op" }}{{ printf "Bearer %s" (onepasswordRead (printf "op://%s/N8N_API_KEY/password" (index . "onePasswordVault" | default "Dotfiles"))) | quote }}{{ else }}"Bearer "{{ end }}
       }
+    },
+    "hindsight": {
+      "type": "http",
+      "url": "http://192.168.50.10:8888/mcp/greg/"
     }
   }
 }
