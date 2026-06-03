@@ -24,6 +24,14 @@ import (
 	"time"
 )
 
+// lastNotifWsFile holds the workspace name of the most recently pulsed
+// notification. `bin/aerospace-jump-to-notif` reads + deletes it on the
+// ctrl-n aerospace keybinding to jump to that workspace. Populated by
+// `refresh()` from the Dock-badge diff (notif_preview.go used to write
+// this; that path was ripped out after the macOS-update regression cycle
+// — Dock badges are schema-stable, sqlite blob plists are not).
+const lastNotifWsFile = "/tmp/sketchybar-watcher-last-notif-ws"
+
 // Injected at build time via -ldflags '-X main.version=... -X main.buildTime=...'
 var (
 	version   = "dev"
@@ -510,6 +518,9 @@ func refresh(st *state) {
 	// sketchybar's `--animate sin` to ease background + border to cyan,
 	// then a follow-up animate back to normal. Visible app-icon "attention".
 	if len(pulsed) > 0 {
+		// First pulsed workspace wins — aerospace-jump-to-notif (ctrl-n)
+		// consumes this file to jump to the most recently notified workspace.
+		_ = os.WriteFile(lastNotifWsFile, []byte(pulsed[0]), 0644)
 		animatePulse(pulsed, st)
 	}
 }
@@ -593,9 +604,10 @@ func handleEvent(st *state, event string, env map[string]string) {
 		// A5: trust FOCUSED_WORKSPACE from event payload; never fall back to subprocess.
 		if ws := env["FOCUSED_WORKSPACE"]; ws != "" {
 			st.setFocused(ws)
-			// Clear notif preview if user just entered the workspace that
-			// triggered the latest notification — they've seen it.
-			clearNotifPreviewForWorkspace(ws)
+			// User entered the notified workspace — drop the jump-to file so
+			// a subsequent ctrl-n doesn't redirect them somewhere they've
+			// already seen.
+			_ = os.Remove(lastNotifWsFile)
 		}
 		if d := env["FOCUSED_DISPLAY"]; d != "" {
 			if n, err := strconv.Atoi(d); err == nil {
@@ -615,7 +627,6 @@ func handleEvent(st *state, event string, env map[string]string) {
 		// Reset retry counter so failures during pre-ready window don't
 		// carry over and immediately trip the give-up cap after reload.
 		st.retryAttempt = 0
-		rehydrateNotifPreview()
 		// Re-push workspace items (item.1..10) and apple icon, which
 		// sketchybar wipes on every reload. Without this, widgets go
 		// blank until the next aerospace focus/window event.
@@ -773,7 +784,6 @@ func main() {
 		}
 		st.setVimMode(readKindavimMode())
 		refresh(st)
-		startNotifPreview(st) // E5: kicks off sqlite poller goroutine
 	}()
 	go kindavimPoller(st)
 

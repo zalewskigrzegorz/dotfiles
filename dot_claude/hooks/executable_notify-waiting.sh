@@ -39,9 +39,37 @@ if command -v git >/dev/null 2>&1 && git -C "$CWD" rev-parse --is-inside-work-tr
   fi
 fi
 
-# ── Resolve tmux session for this cwd ─────────────────────────────────────
-sess=$("$TMUX_BIN" list-panes -a -F '#{session_name}	#{pane_current_path}' 2>/dev/null \
-  | awk -F'	' -v c="$CWD" '$2==c {print $1; exit}')
+# ── Resolve tmux session that owns this Claude process ──────────────────
+# Primary: walk the hook's parent chain (hook → claude → shell → tmux pane).
+# The shell that the tmux pane spawned is *the* pane's pid — a unique mapping,
+# unlike pane_current_path which can match multiple panes after a `cd`, sending
+# tmux switch-client to the wrong session (e.g. main repo notification opens
+# the worktree session because both panes are cd'd to the same path).
+sess=""
+panes=$("$TMUX_BIN" list-panes -a -F '#{pane_pid} #{session_name}' 2>/dev/null || true)
+if [ -n "$panes" ]; then
+  pid=$$
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    parent=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+    [ -z "$parent" ] && break
+    [ "$parent" = "0" ] && break
+    [ "$parent" = "1" ] && break
+    match=$(printf '%s\n' "$panes" | awk -v p="$parent" '$1==p {print $2; exit}')
+    if [ -n "$match" ]; then
+      sess="$match"
+      break
+    fi
+    pid="$parent"
+  done
+fi
+# Fallback A: exact pane_current_path == CWD (multiple matches → first wins,
+# but at this point we've already failed the precise PID lookup so any path
+# match is better than nothing).
+if [ -z "$sess" ]; then
+  sess=$("$TMUX_BIN" list-panes -a -F '#{session_name}	#{pane_current_path}' 2>/dev/null \
+    | awk -F'	' -v c="$CWD" '$2==c {print $1; exit}')
+fi
+# Fallback B: pane_current_path is an ancestor of CWD.
 if [ -z "$sess" ]; then
   sess=$("$TMUX_BIN" list-panes -a -F '#{session_name}	#{pane_current_path}' 2>/dev/null \
     | awk -F'	' -v c="$CWD/" 'index(c, $2"/")==1 {print $1; exit}')
@@ -65,9 +93,8 @@ grp="claude-wait-${sess:-${worktree:-default}}"
   esac
 ) >/dev/null 2>&1 &
 
-# ── Sound + immediate sketchybar refresh ──────────────────────────────────
+# ── Sound ─────────────────────────────────────────────────────────────────
 sound="$HOME/.claude/hooks/sounds/claude-done.mp3"
 [ -f "$sound" ] && (afplay "$sound" >/dev/null 2>&1 &)
-command -v sketchybar >/dev/null 2>&1 && sketchybar --trigger claude_sessions_changed 2>/dev/null || true
 
 exit 0
