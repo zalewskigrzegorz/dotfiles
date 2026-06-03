@@ -97,11 +97,19 @@ Inspected source: `excalidraw-smart-presentation.github.io/excalidraw-app/presen
 
 Symptom: an element with `customData.name` matched across two consecutive frames is visible during the 300ms transition but invisible once the slide settles.
 
-Suspected causes (not yet conclusively root-caused, 2026-06-03):
-- Arrows with `width: 0` or `height: 0` may not render at progress=1 because `numericalProgress` interpolates width to exactly 0. Give arrows a small positive `width` and `height` (≥4 each) plus diagonal `points` so they're never degenerate.
-- `updateScene` may filter elements whose `frameId` points to a frame that's not in the scene (frames are excluded from `intermediateElements` in the animation loop).
+Suspected cause: arrows with `width: 0` (e.g., points `[[0,0],[0,H]]`) get interpolated to width=0 at progress=1, and the renderer treats zero-bbox arrows as non-drawable. Workaround: always give arrows a positive `width` (≥4) plus slightly-diagonal `points`, e.g. `width: 20, height: 260, points: [[0,0],[20,260]]`.
 
-Workaround until root-caused: prefer **same-name elements with non-degenerate geometry** AND **strictly different positions/sizes** between frames so interpolation never collapses to a zero-area state. If an element MUST stay visible statically, give it a unique `customData.name` (no animation match) — Greg's deck has used this trick.
+For purely-static elements that you don't want to animate, give them unique `customData.name` (defaults to element id when MCP-created, so this is the implicit default).
+
+### 9. Excalidraw file requirements that bite when generating .excalidraw JSON
+
+If you're tempted to generate an `.excalidraw` file for the user to import manually (not recommended — direct API POST is the working path; see workflow step 5), the import validator is strict:
+
+- Every element MUST have a `customData` field (use `{}` or `{"name": "<id>"}` — not missing).
+- Every element's `index` (fractional indexing string for z-order) MUST be unique. A loop bug that gives every element the same `index: "a000"` will make Excalidraw hang on "Wczytywanie sceny..." / "Loading scene...".
+- Top-level must include `{type: "excalidraw", version: 2, source: "...", elements: [...], appState: {...}, files: {}}`.
+
+Even with all that, the user's `Import URL` action in some Excalidraw forks returns "Error: invalid file" for reasons we couldn't conclusively diagnose. **Skip file import entirely — use the direct API POST workflow instead.**
 
 ## Standard slide template (16:9, 1920×1080)
 
@@ -131,16 +139,21 @@ Slide content lives inside the 1920×1080 rectangle that the user will later wra
 
 **Roughness**: `roughness: 0` (clean rectangle) for slide backgrounds and frames. `roughness: 1` (hand-drawn) for callout cards inside the slide — it adds visual hierarchy.
 
-## Workflow (step-by-step)
+## Workflow (step-by-step) — CONFIRMED WORKING 2026-06-03
 
-1. **Read diagram guide** — `mcp__draw__read_diagram_guide` once per session. Internalize the color palette.
-2. **Inspect canvas** — `mcp__draw__describe_scene` to find existing content and pick an empty y-range. Tell the user where you'll place slides.
-3. **Pick a vertical layout** — decide `y0` (start) and `yN = y0 + N*1280` for slide N (0-indexed). Stick to it.
-4. **Batch-create slide content** — `mcp__draw__batch_create_elements` per slide, or all slides in one call if you have them all designed. Use stable, descriptive `id`s like `s1-bg`, `s1-title`, `s1-card1`, `s1-card1-body` — makes later edits easier.
-5. **Snapshot** — `mcp__draw__snapshot_scene` after each major batch so you can `restore_snapshot` if something goes sideways. The snapshot includes the whole scene, including unrelated user content, so it's a safe rollback point.
-6. **Verify visually** — `mcp__draw__set_viewport` (scrollToElementId, zoom 0.2–0.3) then `mcp__draw__get_canvas_screenshot` to see what the user will see. Iterate until layout looks right.
-7. **Hand off to user for Frame wrapping** — explicitly: "Now in the UI: select all content of slide 1, press `Ctrl+Shift+F` to wrap in a Frame, repeat for each slide. Then click Present (bottom-right) and verify navigation."
-8. **Iterate based on what they see in Present mode** — the canvas zoom is different from present mode; sometimes fonts look fine on canvas but tiny in present, or vice versa.
+1. **Read diagram guide** — `mcp__draw__read_diagram_guide` once per session for color palette.
+2. **Inspect canvas** — `mcp__draw__describe_scene` to find existing content and pick an empty y-range.
+3. **Pick a vertical layout** — `y0 = 2000`, `yN = y0 + N*(H+GAP)` where H=1080, GAP=200. **Always vertical**, smart-presentation orders by y.
+4. **Batch-create content via MCP** — `mcp__draw__batch_create_elements` with stable ids (`s1-bg`, `s1-title`, etc). For a full 8-slide deck, two batches of ~40-60 elements each is fine. Use width > 0 on arrows (avoid disappearing-at-progress=1 bug).
+5. **Wrap into native frames via direct API POST** — MCP can't create frame elements; the canvas HTTP API can. Run a Python script that:
+   - GETs `http://draw-ai.lab/api/elements`
+   - For each element whose origin falls inside a slide's bbox, sets `frameId` to that slide's frame id
+   - Appends 1 `type: "frame"` element per slide (with full Excalidraw frame schema — id, x, y, width, height, name, plus all required defaults — see `/tmp/wrap-8frames.py` from the 2026-06-03 LDE2 session for a reference implementation)
+   - POSTs the whole element list back to `/api/elements/sync`
+6. **Greg's transfer step (private)** — Greg runs his local script to propagate `draw-ai.lab` → `draw-present.lab`. You don't trigger it; just tell him "frames are in, run your transfer".
+7. **User presents** — opens `draw-present.lab` → Present button bottom-right (or arrow keys). Done.
+
+**For animation** (optional): after step 5, also set `customData.name` on matching elements across consecutive frames in the same POST. Smart-presentation interpolates same-name elements between adjacent frames (300ms linear).
 
 ## Animation patterns
 
