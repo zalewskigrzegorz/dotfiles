@@ -130,6 +130,12 @@ export default function BrowseCommand() {
                 shortcut={{ modifiers: ["cmd"], key: "2" }}
                 onAction={() => runOpen(c, "ai")}
               />
+              <Action
+                title="Open as Presentation"
+                icon={Icon.Play}
+                shortcut={{ modifiers: ["cmd"], key: "3" }}
+                onAction={() => runOpen(c, "present")}
+              />
               <Action.CopyToClipboard
                 title="Copy Canvas Id"
                 content={c.id}
