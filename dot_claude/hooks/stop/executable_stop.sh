@@ -12,7 +12,11 @@ set -u
 # the sound moved there too. Silently no-ops in hook-subprocess context (no /dev/tty).
 printf '\033]9;Claude finished\007' > /dev/tty 2>/dev/null || true
 
-# 2) Optional Tine TTS push (opt-in via env)
+# 2) Finished sound — Cyberpunk pulse #1 (after swap). Backgrounded, never blocks.
+sound="$HOME/.claude/hooks/sounds/claude-finished.mp3"
+[ -f "$sound" ] && (afplay "$sound" >/dev/null 2>&1 &)
+
+# 3) Optional Tine TTS push (opt-in via env)
 if [ "${CLAUDE_TINE_NOTIFY:-0}" = "1" ]; then
   if command -v curl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
     endpoint="${TINE_ENDPOINT:-http://lab:8080/say}"

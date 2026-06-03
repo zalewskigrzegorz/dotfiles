@@ -1,19 +1,29 @@
 #!/usr/bin/env bash
-# Notification hook — fires when Claude Code is waiting on the user (permission
-# prompt, idle, or MCP elicitation). Posts a native macOS notification owned by
-# Ghostty (via alerter): title = "repo ▸ worktree ▸ branch", body = what's asked,
-# click = switch to the originating tmux session. macOS-only; never blocks.
+# Notification hook — fires whenever Claude Code emits a Notification (permission
+# prompt, idle prompt, elicitation dialog, ...). Posts a native macOS notification
+# owned by Ghostty (via alerter): title = "repo ▸ worktree ▸ branch", body = what
+# Claude said, click = switch to the originating tmux session. Plays
+# claude-waiting.mp3. macOS-only; never blocks. Logs raw payload to
+# ~/.claude/notify-waiting.log for diagnosing future schema changes.
 set -u
 
 command -v jq >/dev/null 2>&1 || exit 0
 [ "$(uname -s)" = "Darwin" ] || exit 0
 
 INPUT=$(cat)
-NTYPE=$(printf '%s' "$INPUT" | jq -r '.notification_type // ""' 2>/dev/null || echo "")
-case "$NTYPE" in
-  permission_prompt|idle_prompt|elicitation_dialog) ;;
-  *) exit 0 ;;
-esac
+
+# Debug log — Claude Code's Notification payload is undocumented; keep a tail
+# to inspect what actually arrives. Truncate to avoid runaway growth.
+LOG="$HOME/.claude/notify-waiting.log"
+{
+  echo "---"
+  echo "[$(date -Iseconds)] notification hook fired"
+  printf '%s\n' "$INPUT"
+} >>"$LOG" 2>&1 || true
+# Keep last 500 lines only (cheap, ignore errors)
+if [ -f "$LOG" ] && command -v tail >/dev/null 2>&1; then
+  tail -n 500 "$LOG" >"$LOG.tmp" 2>/dev/null && mv "$LOG.tmp" "$LOG" 2>/dev/null || true
+fi
 
 CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // ""' 2>/dev/null || echo "")
 MSG=$(printf '%s' "$INPUT" | jq -r '.message // "Claude is waiting"' 2>/dev/null || echo "Claude is waiting")
@@ -94,7 +104,7 @@ grp="claude-wait-${sess:-${worktree:-default}}"
 ) >/dev/null 2>&1 &
 
 # ── Sound ─────────────────────────────────────────────────────────────────
-sound="$HOME/.claude/hooks/sounds/claude-done.mp3"
+sound="$HOME/.claude/hooks/sounds/claude-waiting.mp3"
 [ -f "$sound" ] && (afplay "$sound" >/dev/null 2>&1 &)
 
 exit 0
