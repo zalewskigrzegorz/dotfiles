@@ -50,7 +50,7 @@ Always:
 
 `<repo-basename>` = the basename of the repo root the user is currently working in (e.g. `dotfiles`, `redocly-cms`, `reunite`, `realm`). If the user is not inside a git repo, use `scratch/` or another descriptive folder. Create the directory if missing — never refuse, just relocate.
 
-`bazgroly` lives at `github.com/zalewskigrzegorz/bazgroly` (private). Working tree: `~/Code/personal/bazgroly/`. The `PostToolUse` hook `~/.claude/hooks/bazgroly-autopush.sh` auto-commits + pushes to `origin/master` after every Write/Edit under that path — you do not need to commit by hand.
+`bazgroly` lives at `github.com/zalewskigrzegorz/bazgroly` (private). Working tree: `~/Code/personal/bazgroly/`. The `~/.claude/hooks/bazgroly.sh` hook auto-stages on `PostToolUse` (Edit|Write) and squash-commits + pushes on `Stop` to `origin/master` — you do not need to commit by hand.
 
 ## Detection rules
 

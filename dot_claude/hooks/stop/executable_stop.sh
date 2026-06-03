@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ~/.claude/hooks/stop.sh
+# ~/.claude/hooks/stop/stop.sh
 # Claude Code Stop hook — fired when assistant turn ends.
 # Cheap, non-blocking. Two layers:
 #   1) OSC 9 terminal notification (works through SSH on Ghostty/iTerm)

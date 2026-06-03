@@ -17,7 +17,7 @@ After editing the tmpl you MUST run `chezmoi apply ~/.claude/settings.json` so t
 
 ## Safety net
 
-`~/.claude/hooks/block-dangerous-commands.sh` (PreToolUse) unconditionally denies:
+`~/.claude/hooks/pre-tool-use/block-dangerous-commands.sh` (PreToolUse) unconditionally denies:
 - `sudo`, `gh pr merge`, push to protected branches, package publish
 - `DROP TABLE/DATABASE/SCHEMA`, `DELETE FROM` without WHERE, `TRUNCATE`
 - `rm -rf /`, `rm -rf ~`, `rm -rf $HOME`, `rm -rf <system-dir>`
