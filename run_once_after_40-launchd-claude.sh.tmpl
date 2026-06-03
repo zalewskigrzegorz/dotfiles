@@ -1,22 +1,28 @@
 #!/usr/bin/env bash
 {{- if eq .chezmoi.os "darwin" }}
 # Idempotent install + load of LaunchAgents:
-#   - com.greg.claude-watcher     (sketchybar claude_sessions widget feed)
-#   - com.greg.claude-idle-timer  (idle threshold ticker)
 #   - com.greg.aerospace-watchdog (restarts AeroSpace.app if it dies — chicken
 #                                  and egg fix for `Leader+X` rebind)
+# Legacy labels (claude-watcher / claude-idle-timer) are explicitly torn down
+# below — they fed the now-removed sketchybar claude_sessions widget.
 # `run_once_*` per chezmoi semantics — re-runs only when this script's content
 # changes. To force a re-bootstrap (e.g. after editing the plists), bump the
 # version stamp in the comment below.
 #
-# Version: 2026-05-25.1
+# Version: 2026-06-03.1
 set -eu
 
 SRC_DIR="${HOME}/.config/launchd"
 DST_DIR="${HOME}/Library/LaunchAgents"
 mkdir -p "$DST_DIR"
 
-for label in com.greg.claude-watcher com.greg.claude-idle-timer com.greg.aerospace-watchdog; do
+# Tear down legacy claude-* agents if they were installed on this machine.
+for legacy in com.greg.claude-watcher com.greg.claude-idle-timer; do
+  launchctl bootout "gui/$(id -u)/${legacy}" 2>/dev/null || true
+  rm -f "${DST_DIR}/${legacy}.plist"
+done
+
+for label in com.greg.aerospace-watchdog; do
   src="${SRC_DIR}/${label}.plist"
   dst="${DST_DIR}/${label}.plist"
   if [[ ! -f "$src" ]]; then

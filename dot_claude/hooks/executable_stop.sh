@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 # ~/.claude/hooks/stop.sh
 # Claude Code Stop hook — fired when assistant turn ends.
-# Cheap, non-blocking. Four layers:
+# Cheap, non-blocking. Two layers:
 #   1) OSC 9 terminal notification (works through SSH on Ghostty/iTerm)
-#   2) Invalidate claude-sessions cache so next read is fresh
-#   3) macOS only: trigger sketchybar widget for instant refresh
-#   4) Optional cross-machine TTS via Tine (opt-in via CLAUDE_TINE_NOTIFY=1)
+#   2) Optional cross-machine TTS via Tine (opt-in via CLAUDE_TINE_NOTIFY=1)
 set -u
 
 # 1) OSC 9 — terminal-native "finished" marker for SSH / Linux terminals.
@@ -14,15 +12,7 @@ set -u
 # the sound moved there too. Silently no-ops in hook-subprocess context (no /dev/tty).
 printf '\033]9;Claude finished\007' > /dev/tty 2>/dev/null || true
 
-# 2) Invalidate claude-sessions cache (fswatch may not catch the .jsonl mtime in time)
-rm -f "/tmp/claude-sessions-${UID:-$(id -u)}.json" 2>/dev/null || true
-
-# 3) macOS sketchybar trigger (skipped on lab/Linux)
-if [ "$(uname -s)" = "Darwin" ] && command -v sketchybar >/dev/null 2>&1; then
-  sketchybar --trigger claude_sessions_changed 2>/dev/null || true
-fi
-
-# 4) Optional Tine TTS push (opt-in via env)
+# 2) Optional Tine TTS push (opt-in via env)
 if [ "${CLAUDE_TINE_NOTIFY:-0}" = "1" ]; then
   if command -v curl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
     endpoint="${TINE_ENDPOINT:-http://lab:8080/say}"

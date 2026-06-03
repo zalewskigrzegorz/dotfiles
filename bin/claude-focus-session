@@ -16,8 +16,6 @@ if [ -n "$sess" ]; then
   if "$TMUX_BIN" switch-client -t "$sess" >/dev/null 2>&1; then
     switched=1
   fi
-  # Dismiss the waiting notification — user has now seen the session.
-  /Users/greg/Code/dotfiles/bin/claude-notif-dismiss "$sess" >/dev/null 2>&1 || true
 fi
 
 if [ "$switched" -eq 0 ]; then
