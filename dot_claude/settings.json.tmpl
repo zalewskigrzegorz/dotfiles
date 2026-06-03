@@ -249,17 +249,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/protect-files.sh",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/pre-tool-use/protect-files.sh",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/block-build-artifacts.sh",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/pre-tool-use/block-build-artifacts.sh",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/scan-secrets.sh",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/pre-tool-use/scan-secrets.sh",
             "timeout": 5000
           }
         ]
@@ -269,7 +269,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/block-dangerous-commands.sh",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/pre-tool-use/block-dangerous-commands.sh",
             "timeout": 5000
           }
         ]
@@ -279,7 +279,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/mcp-guard.sh",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/pre-tool-use/mcp-guard.sh",
             "timeout": 5000
           }
         ]
@@ -291,7 +291,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/bazgroly-autostage.sh",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/bazgroly.sh autostage",
             "timeout": 30000
           }
         ]
@@ -310,7 +310,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/bazgroly-autopush-on-start.sh",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/bazgroly.sh push-on-start",
             "timeout": 30000
           }
         ]
@@ -321,7 +321,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/notify-waiting.sh",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/notification/notify-waiting.sh",
             "timeout": 5000
           }
         ]
@@ -340,7 +340,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/stop.sh",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/stop/stop.sh",
             "timeout": 5000
           }
         ]
@@ -349,7 +349,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/bazgroly-autopush-on-stop.sh",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/bazgroly.sh push-on-stop",
             "timeout": 30000
           }
         ]
