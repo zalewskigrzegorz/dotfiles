@@ -23,8 +23,12 @@ export type Canvas = {
   updatedAt?: string;
 };
 
-export type OpenTarget = "draw" | "ai";
-export type SaveSource = "ai";
+export type OpenTarget = "draw" | "ai" | "present";
+export type SaveSource = "ai" | "draw" | "present";
+
+export function presentUrl(): string {
+  return "http://draw-present.lab";
+}
 
 type BridgeError = { error: string };
 
@@ -78,12 +82,15 @@ export async function openCanvas(
 
 export async function saveCanvas(args: {
   name: string;
+  source: SaveSource;
+  sourceId?: string;
+  presentToken?: string;
   mode?: "new" | "update";
   targetId?: string;
 }): Promise<{ id: string; url: string }> {
-  return bridgeJson<{ id: string; url: string }>(`/canvases/import-from-ai`, {
+  return bridgeJson<{ id: string; url: string }>(`/canvases`, {
     method: "POST",
-    body: JSON.stringify({ source: "ai", ...args }),
+    body: JSON.stringify(args),
   });
 }
 

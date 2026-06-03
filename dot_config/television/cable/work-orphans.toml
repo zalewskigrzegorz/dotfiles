@@ -1,0 +1,10 @@
+[metadata]
+name = "work-orphans"
+description = "Orphan worktrees in ~/Code/tree/ (missing work.* config)"
+requirements = ["fd", "git"]
+
+[source]
+command = "bash -c 'fd -t d --min-depth 2 --max-depth 3 . \"$HOME/Code/tree\" 2>/dev/null | while read -r p; do top=$(git -C \"$p\" rev-parse --show-toplevel 2>/dev/null); [ \"$top\" = \"${p%/}\" ] || continue; b=$(git -C \"$p\" config --worktree work.branch 2>/dev/null); [ -z \"$b\" ] && echo \"$p\"; done; true'"
+
+[preview]
+command = "bash -c 'cur=$(git -C {} branch --show-current 2>/dev/null || echo detached); cd=$(git -C {} rev-parse --path-format=absolute --git-common-dir 2>/dev/null); repo=$(basename \"${cd%/.git}\"); echo \"🪦 ORPHAN — no work.* config\"; echo \"repo:   $repo\"; echo \"branch: $cur\"; echo \"path:   {}\"; echo; git -C {} log --oneline -10 2>/dev/null; echo; git -C {} status -sb 2>/dev/null'"

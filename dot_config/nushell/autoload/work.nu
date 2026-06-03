@@ -276,6 +276,7 @@ def "work help" [
     print "  work               4-window layout (terminal/git/claude/nvim)"
     print "  work new           nowy worktree (picker / <name> / --from / --type)"
     print "  work pr            otwórz PR w worktree (gh pr checkout; picker / <numer>)"
+    print "  work adopt         wciągnij osierocony worktree (TV picker / . / <path|branch>)"
     print "  work ls            lista worktree (nu data; `| to json` dla JSON)"
     print "  work switch (sw)   picker po worktree → przełącz sesję"
     print "  work rm            usuń worktree + branch + sesję (atomowo)"
@@ -388,6 +389,29 @@ def "work _help-cmd" [command: string]: nothing -> nothing {
             print "  → tmux sesja + layout → sesh connect"
             print "  Z gh-dash: klawisz T na PR (open in worktree)."
         }
+        "adopt" => {
+            print "work adopt — wciągnij osierocony worktree do `work`"
+            print ""
+            print "UŻYCIE"
+            print "  work adopt                     TV picker po osieroconych worktree"
+            print "  work adopt .                   adoptuj bieżący katalog (musi być worktree)"
+            print "  work adopt <path>              adoptuj worktree pod ścieżką"
+            print "  work adopt <branch>            adoptuj po nazwie brancha (cross-repo)"
+            print "  work adopt --base <ref>        wymuś base (domyślnie origin/<default-branch>)"
+            print "  work adopt --no-tmux           tylko config, bez tmux"
+            print "  work adopt --force             re-adoptuj nawet jeśli work.* już ustawione"
+            print ""
+            print "CO ROBI"
+            print "  1. git config --worktree work.branch / work.base / work.session"
+            print "  2. tmux: jeśli istnieje sesja wskazująca na ten worktree → rename do kanonicznej"
+            print "          (windows zachowane); w przeciwnym razie → utwórz z 4-window layoutem"
+            print "  3. cache invalidate → work ls/switch/rm od razu widzą worktree"
+            print ""
+            print "KIEDY UŻYĆ"
+            print "  - worktree stworzony ręcznie (`git worktree add ...`)"
+            print "  - worktree z EnterWorktree / Plan Mode subagenta"
+            print "  - po migracji worktree z innej ścieżki"
+        }
         "stale-sessions" | "clean-stale-sessions" => {
             print "work stale-sessions / clean-stale-sessions"
             print ""
@@ -413,7 +437,7 @@ def "work _help-cmd" [command: string]: nothing -> nothing {
         }
         _ => {
             print $"Nieznana komenda: ($command)"
-            print "Dostępne: new, pr, ls, switch, rm, prune, stale-sessions, model"
+            print "Dostępne: new, pr, adopt, ls, switch, rm, prune, stale-sessions, model"
             print "`work help` — overview + workflow."
         }
     }
@@ -788,6 +812,167 @@ def "work pr" [
     ^sesh connect $session
 
     { repo: $info.name, pr: $pr_num, branch: $branch, path: $wt_path, session: $session, base: $base, created: true }
+}
+
+# Internal: TV picker over orphan worktrees (no `work.*` config).
+# Returns the picked worktree path. Errors if nothing picked or no orphans.
+def "work _pick-orphan" []: nothing -> path {
+    let picked_raw = (
+        if (which tv | is-not-empty) {
+            ^tv work-orphans | str trim
+        } else {
+            let pool = ($env.HOME | path join "Code" "tree")
+            if not ($pool | path exists) {
+                error make { msg: "No worktree pool at ~/Code/tree." }
+            }
+            let orphans = (
+                glob $"($pool)/wt-*/**/.git" --depth 6
+                | each { |m|
+                    let wp = ($m | path dirname)
+                    let b = (do { ^git -C $wp config --worktree work.branch } | complete | get stdout | str trim)
+                    if ($b | is-empty) { $wp } else { null }
+                }
+                | where { |it| $it != null }
+            )
+            if ($orphans | is-empty) {
+                error make { msg: "No orphan worktrees found." }
+            }
+            $orphans | str join "\n" | ^fzf --prompt "Adopt orphan: " | str trim
+        }
+    )
+    if ($picked_raw | is-empty) { error make { msg: "Nothing picked." } }
+    $picked_raw | str trim --right --char "/"
+}
+
+# Adopt an orphan worktree into the `work` system.
+# For worktrees created manually or by EnterWorktree (no work.* git config).
+# Idempotent — running on an already-adopted worktree is a noop unless --force.
+#
+# Usage:
+#   work adopt              TV picker over all orphans → adopt picked
+#   work adopt .            adopt current directory (must be a worktree)
+#   work adopt <path>       adopt worktree at <path>
+#   work adopt <branch>     adopt by branch name (cross-repo search)
+#   work adopt --base <r>   override base ref (default: origin/<default-branch>)
+#   work adopt --no-tmux    skip tmux session create/rename
+#   work adopt --force      re-adopt even if work.* config already set
+def "work adopt" [
+    target?: string  # path / branch / "." (omit → TV picker)
+    --base: string = ""
+    --no-tmux
+    --force
+]: nothing -> record {
+    work deps-preflight
+
+    # --- Resolve target worktree path ---
+    let wt_path = (
+        if ($target | is-empty) {
+            work _pick-orphan
+        } else if $target == "." {
+            $env.PWD | path expand
+        } else if (($target | path exists) and (($target | path type) == "dir")) {
+            $target | path expand
+        } else {
+            let matches = (work scan-worktrees | where branch == $target)
+            if ($matches | is-empty) {
+                error make { msg: $"No worktree found for '($target)'." }
+            } else if ($matches | length) > 1 {
+                let repos = ($matches | get repo | str join ", ")
+                error make { msg: $"Ambiguous '($target)' — exists in: ($repos). Pass full path instead." }
+            } else {
+                ($matches | first | get path)
+            }
+        }
+    )
+
+    # --- Resolve parent repo from worktree's common dir ---
+    let common_r = (do { ^git -C $wt_path rev-parse --path-format=absolute --git-common-dir } | complete)
+    if $common_r.exit_code != 0 {
+        error make { msg: $"Not a git worktree: ($wt_path)" }
+    }
+    let cd = ($common_r.stdout | str trim)
+    let parent_root = (
+        if ($cd | str ends-with "/.git") {
+            $cd | str substring 0..(($cd | str length) - 6)
+        } else {
+            $cd | path dirname
+        }
+    )
+    let repo = ($parent_root | path basename)
+
+    # --- Resolve branch (detached = refuse) ---
+    let branch = (do { ^git -C $wt_path branch --show-current } | complete | get stdout | str trim)
+    if ($branch | is-empty) {
+        error make { msg: $"Worktree ($wt_path) is detached — cannot adopt without a branch." }
+    }
+
+    # --- Idempotency guard ---
+    let existing_branch = (do { ^git -C $wt_path config --worktree work.branch } | complete | get stdout | str trim)
+    if (not ($existing_branch | is-empty)) and (not $force) {
+        let existing_session = (do { ^git -C $wt_path config --worktree work.session } | complete | get stdout | str trim)
+        print -e $"Already adopted — branch=($existing_branch), session=($existing_session). Use --force to re-adopt."
+        return { adopted: false, path: $wt_path, branch: $existing_branch, session: $existing_session }
+    }
+
+    # --- Resolve default branch for base ref ---
+    let head_ref = (do { ^git -C $parent_root symbolic-ref refs/remotes/origin/HEAD } | complete)
+    let default_branch = (
+        if $head_ref.exit_code == 0 {
+            $head_ref.stdout | str trim | str replace "refs/remotes/origin/" ""
+        } else {
+            "master"
+        }
+    )
+    let resolved_base = (if ($base | is-empty) { $"origin/($default_branch)" } else { $base })
+    let session = (work session-name $repo $branch)
+
+    # --- 1. Enable per-worktree config (idempotent) ---
+    ^git -C $parent_root config extensions.worktreeConfig true | ignore
+
+    # --- 2. Inject metadata ---
+    ^git -C $wt_path config --worktree work.branch $branch
+    ^git -C $wt_path config --worktree work.base $resolved_base
+    ^git -C $wt_path config --worktree work.session $session
+
+    print -e $"✅ Adopted: ($wt_path)"
+    print -e $"   repo:    ($repo)"
+    print -e $"   branch:  ($branch)"
+    print -e $"   base:    ($resolved_base)"
+    print -e $"   session: ($session)"
+
+    # --- 3. Tmux integration — rename stray session OR create canonical one ---
+    if not $no_tmux {
+        let sessions_r = (do { ^tmux list-sessions -F "#{session_name}|#{session_path}" } | complete)
+        let sessions = (
+            if $sessions_r.exit_code == 0 {
+                $sessions_r.stdout
+                | lines
+                | each { |l|
+                    let parts = ($l | split row --number 2 "|")
+                    { name: $parts.0, path: ($parts.1 | path expand) }
+                }
+            } else { [] }
+        )
+        let wt_expanded = ($wt_path | path expand)
+        let stray = ($sessions | where { |s| $s.path == $wt_expanded and $s.name != $session })
+        let canonical_exists = ($sessions | any { |s| $s.name == $session })
+
+        if ($stray | is-not-empty) and (not $canonical_exists) {
+            let old = ($stray | first | get name)
+            ^tmux rename-session -t $old $session
+            print -e $"   tmux:    renamed ($old) → ($session) (windows preserved)"
+        } else if (not $canonical_exists) {
+            ^tmux new-session -d -s $session -c $wt_path
+            let bazgroly = ($env.HOME | path join "Code" "personal" "bazgroly" $repo)
+            work _build-layout $session $wt_path $bazgroly
+            print -e $"   tmux:    created ($session) with 4-window layout"
+        } else {
+            print -e $"   tmux:    canonical session ($session) already exists"
+        }
+    }
+
+    work cache-invalidate
+    { adopted: true, repo: $repo, branch: $branch, path: $wt_path, base: $resolved_base, session: $session }
 }
 
 # Internal: build the 4-window layout targeting an explicit tmux session.
