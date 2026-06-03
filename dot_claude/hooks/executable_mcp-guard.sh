@@ -24,6 +24,15 @@ case "$TOOL_NAME" in
   *) exit 0 ;;
 esac
 
+# Trusted MCP servers — fully local, side-effect-bounded to their own canvas/state.
+# Skip verb classification entirely and let settings.allow decide. Without this
+# early-exit the MUT regex matches verbs like `create_element` / `update_element`
+# / `set_*` / `batch_create_*` and forces `ask` even though `mcp__draw__*` is
+# in permissions.allow (hook ASK overrides settings allow).
+case "$TOOL_NAME" in
+  mcp__draw__*) exit 0 ;;
+esac
+
 emit() {
   local decision="$1" reason="${2//\"/\\\"}"
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"%s","permissionDecisionReason":"%s"}}\n' "$decision" "$reason"
