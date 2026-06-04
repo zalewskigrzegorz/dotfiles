@@ -86,22 +86,52 @@ that skill's flow rather than improvising.
 Single bank `greg` — shared across Claude Code (Mac+lab), n8n, Raycast,
 Python agents.
 
-## Migration / legacy
+## Coexistence z MemPalace
 
-- `~/.claude/projects/-Users-greg-Code-home-lab/memory.legacy-2026-06-03/` —
-  archived old auto-memory, read-only, do not modify or read for ongoing work
-- `~/.mempalace/` — legacy MemPalace store, being migrated to Hindsight; MP
-  MCP will be unhooked after migration completes
-- `mcp__mempalace__*` tools: deprecated, do not call them for new memories.
-  Use `mcp__hindsight__retain` instead.
+MemPalace **zostaje running** jako passive session log archive. Session hook
+auto-checkpointuje sesje do MP — bez ingerencji Claude/user. NIE jest to
+"deprecated" — to po prostu inny use case niż Hindsight.
+
+| System | Tryb | Co tam siedzi |
+|---|---|---|
+| Hindsight | Active (`retain` przez ciebie/user) | Curated atomic facts, queryable, KG-aware |
+| MemPalace | Passive (auto session hook) | Raw session log chunks, audit trail, rzadko odpytywane |
+
+**Dla NEW atomic facts:** preferuj `mcp__hindsight__retain`. MP nie potrzebuje
+twoich manualnych write'ów — auto-archive załatwia sprawę.
+
+**Dla query existing knowledge:** Hindsight jako primary (`recall`/`reflect`).
+MP jako fallback gdy szukasz raw session fragment ("co dokładnie napisałem 3
+tygodnie temu o X").
+
+`~/.claude/projects/-Users-greg-Code-home-lab/memory.legacy-2026-06-03/` —
+archived old auto-memory (z czasu przed Hindsightem). Read-only audit trail,
+nie pisać tam, nie czytać dla ongoing work.
 
 ## Never
 
 - Never write a new file under `~/.claude/projects/.../memory/` — the
   directory is deprecated even if it appears in your system prompt.
-- Never call `mcp__mempalace__mempalace_add_drawer` or other MP write tools
-  for new content — route to Hindsight.
-- Never split a single fact across multiple retain calls — one call per claim;
-  Hindsight breaks it into atomic memories itself.
+- Never split a single fact across multiple `retain` calls — one call per
+  claim; Hindsight breaks it into atomic memories itself.
 - Never include `metadata.project` manually unless you have a specific reason
   to override the hook — the hook is the source of truth.
+- Never explicitly call `mcp__mempalace__mempalace_add_drawer` or write tools
+  for *new* memory content — that's what `retain` jest dla. MP write tools są
+  zarezerwowane dla session-hook auto-archive, nie dla user-driven memory.
+
+## Exception: `/save` slash command
+
+The `/save` slash command (`~/.claude/commands/save.md`) is the **one
+sanctioned manual MP write** user-facing. It runs `mempalace mine
+"<TRANSCRIPT_PATH>" --mode convos --wing claude_imports` to ingest the full
+session transcript as raw chunks. This is intentional and matches MP's role
+as session log archive — *not* curated atomic facts.
+
+If the user invokes `/save`, follow that command's flow. Do NOT route the
+transcript to Hindsight `retain` — raw transcript chunks would pollute
+Hindsight's curated atomic-fact memory the same way the (rejected) bulk
+MP → Hindsight migration would have.
+
+Curated facts that came up during the session still go to Hindsight via
+`retain` — `/save` complements rather than replaces that.
