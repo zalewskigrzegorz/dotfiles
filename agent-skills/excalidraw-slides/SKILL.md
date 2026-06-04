@@ -103,13 +103,37 @@ For purely-static elements that you don't want to animate, give them unique `cus
 
 ### 9. Excalidraw file requirements that bite when generating .excalidraw JSON
 
-If you're tempted to generate an `.excalidraw` file for the user to import manually (not recommended — direct API POST is the working path; see workflow step 5), the import validator is strict:
+The import validator (`loadFromBlob` in `packages/excalidraw/data/blob.ts`) is strict and silent — most failures surface as a generic `"Error: invalid file"` modal with no console hint about which element broke things.
 
+**Required structure:**
+
+- Top-level: `{type: "excalidraw", version: 2, source: "...", elements: [...], appState: {...}, files: {}}`.
 - Every element MUST have a `customData` field (use `{}` or `{"name": "<id>"}` — not missing).
 - Every element's `index` (fractional indexing string for z-order) MUST be unique. A loop bug that gives every element the same `index: "a000"` will make Excalidraw hang on "Wczytywanie sceny..." / "Loading scene...".
-- Top-level must include `{type: "excalidraw", version: 2, source: "...", elements: [...], appState: {...}, files: {}}`.
 
-Even with all that, the user's `Import URL` action in some Excalidraw forks returns "Error: invalid file" for reasons we couldn't conclusively diagnose. **Skip file import entirely — use the direct API POST workflow instead.**
+**Critical arrow invariant (discovered 2026-06-03 LDE2 session via bisection):**
+
+For `type: "arrow"`, the element's `width` and `height` MUST equal the actual extent of its `points` array, computed as:
+
+```python
+xs = [p[0] for p in points]
+ys = [p[1] for p in points]
+width  = max(abs(min(xs)), abs(max(xs)))
+height = max(abs(min(ys)), abs(max(ys)))
+```
+
+If `width`/`height` disagree with the `points` extent — typically because a helper applies `max(width, 4)` padding to avoid zero-sized bounding boxes — Excalidraw's restore path throws inside the validation chain and the whole file fails to import with "Error: invalid file". **Do not floor width/height to a minimum — let zero be zero**; Excalidraw renders the arrow fine when points carry the actual geometry.
+
+Same likely applies to `line` elements but Greg's working exports never contained any, so the constraint wasn't independently verified. To be safe, apply the same `width = extent(points.x)` rule to lines.
+
+**Bisection workflow when "Error: invalid file" surfaces:**
+
+1. Start from a known-working `.excalidraw` export (e.g., the user's own previous export, opened and re-saved).
+2. Replace its `elements: [...]` array with progressively larger subsets of your generated elements: first 5 rectangles, then all rectangles, then add text, then arrows, then frames, then lines.
+3. Whichever step first triggers the error is the type that's malformed. Inspect that type's fields against a known-good element of the same type.
+4. Look for type mismatches (`int` vs `float` is fine), value invariants (width must match points extent), and required-field omissions.
+
+Even with everything correct, the user's `Import URL` flow may still fail for unrelated reasons — but `File → Open` or drag-drop of a properly-shaped `.excalidraw` file always works once the per-element invariants are satisfied.
 
 ## Standard slide template (16:9, 1920×1080)
 
