@@ -231,7 +231,9 @@
       "mcp__jetbrains__*",
       "mcp__draw__*",
       "mcp__claude_ai_Slack__slack_read_*",
-      "mcp__claude_ai_Slack__slack_search_*"
+      "mcp__claude_ai_Slack__slack_search_*",
+      "mcp__hindsight__*",
+      "mcp__mempalace__*"
     ],
     "deny": [
       "Read(**/.env)",
@@ -280,6 +282,16 @@
           {
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/pre-tool-use/mcp-guard.sh",
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__hindsight__retain|mcp__hindsight__sync_retain",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/hindsight-tag.sh",
             "timeout": 5000
           }
         ]
