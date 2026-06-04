@@ -1,16 +1,37 @@
 ---
-name: hindsight
-description: Use Hindsight shared memory layer on Greg's home-lab to retain (save), recall (search), and reflect on facts across all agents/machines. Single bank `greg` shared between Claude Code (Mac+lab), n8n workflows, custom Python agents, and Raycast. Trigger when user asks to "zapisz to do pamięci", "save this", "remember", "recall", "what do I know about X", "co wiem o X", "sprawdź pamięć", "co Hindsight wie", or any phrase about persistent cross-machine memory. Also covers manual HTTP/curl operations, troubleshooting Hindsight container, and the model-slot collision with announce-agent.
+name: memory
+description: Shared cross-machine memory layer for retaining and recalling atomic facts about Greg, his projects, preferences, and decisions. Backed by Hindsight on home-lab, single bank `greg`, shared between Claude Code (Mac+lab), n8n workflows, custom Python agents, and Raycast. Trigger on memory phrases — "remember", "recall", "save this", "zapisz to do pamięci", "co wiem o X", "co pamiętasz o X", "sprawdź pamięć", "what do I know about", "do you remember", "save to memory", or any phrase about persistent cross-session knowledge. Also covers manual HTTP/curl operations, troubleshooting the Hindsight container backend, and the model-slot collision with announce-agent.
 ---
 
-# Hindsight — Shared Memory Layer
+# Memory — Shared Cross-Machine Memory Layer
 
-Greg's centralized agent memory żyje na home-lab (`minis`, Debian, 192.168.50.10).
-Single container, embedded Postgres+pgvector+KG+reranker. Zero auth (LAN to "hasło").
-Wszystkie agenty (Claude Code Mac + Claude Code lab + n8n + Raycast + Python) gadają
-do tego samego "brain" — namespace **bank_id=`greg`**.
+Greg's centralized agent memory. **Engine:** Hindsight on home-lab (`minis`,
+Debian, `192.168.50.10`). Single container z embedded Postgres+pgvector+KG+
+reranker. Zero auth (LAN to "hasło"). Wszystkie agenty (Claude Code Mac+lab,
+n8n, Raycast, Python) gadają do tego samego "brain" — namespace
+**bank_id=`greg`**.
 
 **Engine:** [vectorize-io/hindsight](https://github.com/vectorize-io/hindsight) (MIT, SOTA na LongMemEval).
+
+## Memory model (read first)
+
+This is the **fact layer**. Long-form work products (plans, specs,
+brainstorms, analyses) go to **bazgroly**, not here. See
+`agent-rules/superpowers-artifact-location.md` for the bazgroly routing.
+
+| Goes here (Hindsight) | Goes to bazgroly |
+|---|---|
+| Atomic facts (single claim, 1-2 sentences) | Long-form docs (>500 chars, headers, multi-paragraph) |
+| User preferences, decisions, current state | Past-tense work products (specs, audits, plans) |
+| Cross-session knowledge | Per-project markdown |
+| Semantic + KG queryable | File-system browsable, git-versioned |
+
+If unsure: would this be a sentence or a document? Sentence → here. Document
+→ bazgroly file.
+
+The PreToolUse hook `~/.claude/hooks/hindsight-tag.sh` auto-injects
+`metadata.project` based on git repo root / PWD basename — you don't need to
+set it explicitly.
 
 ## When to use this skill
 
@@ -22,15 +43,16 @@ do tego samego "brain" — namespace **bank_id=`greg`**.
 - Debug Hindsighta jeśli nie działa
 
 **Nie używaj** dla:
-- Krótkoterminowych session notes (te lecą do MEMORY.md auto-memory Claude Code)
-- Markdown long-form notes (te idą do bazgroly via standardowy git workflow)
+- Krótkoterminowych session notes (TodoWrite lub task plan)
+- Markdown long-form notes / plans / specs (te idą do bazgroly — patrz `superpowers-artifact-location` rule)
+- Stary local auto-memory `~/.claude/projects/.../memory/` (deprecated, archived do `.legacy-*`)
 
 ## Connection details
 
 | Use case | URL |
 |---|---|
-| MCP from Claude Code (Mac, lab) — HTTP | `http://192.168.50.10:8888/mcp/greg/` |
-| MCP from Raycast (wymaga HTTPS) | `https://mem.lab/mcp/greg/` *(po deployment Traefik route)* |
+| MCP from Claude Code (Mac, lab) — auto-wired w dotfiles | `http://192.168.50.10:8888/mcp/greg/` |
+| MCP from Raycast (wymaga HTTPS) | `https://mcp.lab/hindsight/mcp/greg/` |
 | REST API base | `http://192.168.50.10:8888` |
 | Web UI | `http://192.168.50.10:9999/` |
 | OpenAPI Swagger | `http://192.168.50.10:8888/docs` |
@@ -38,9 +60,56 @@ do tego samego "brain" — namespace **bank_id=`greg`**.
 
 **Brak auth.** Network boundary = WiFi/cable. Jeśli kiedyś trzeba — Traefik basic-auth middleware (~5 min setup).
 
-## Core operations
+## Core operations — MCP tools (preferowane)
 
-Hindsight ma 3 endpointy + helpers. Wszystkie przez REST lub MCP tools.
+Wewnątrz Claude Code masz natywne MCP tools — używaj ich zamiast curl'a.
+`metadata.project` auto-injectuje hook `hindsight-tag.sh`, nie musisz podawać.
+
+### Retain — save a fact
+
+```
+mcp__hindsight__retain(
+  content="Greg pivoted memory layer from mem0 to Hindsight on 2026-06-03 because mem0 had no public docker image",
+  context="hindsight-rollout-decision"
+)
+```
+
+Response: `{"status":"accepted","operation_id":"<uuid>"}`. Async — Hindsight
+ekstraktuje atomic facts + entities w tle (~10-20s on Bielik CPU). 1 retain
+często staje się 2-5 world-facts.
+
+### Recall — semantic search
+
+```
+mcp__hindsight__recall(query="memory layer pivot history")
+```
+
+Response: `{results: [{id, text, fact_type, entities, context, mentioned_at, ...}]}`.
+
+Recall robi 4 strategies w parallel: semantic vectors (BAAI/bge-small-en-v1.5),
+keyword BM25, graph traversal (entity links), temporal filtering. Plus
+cross-encoder reranker na top.
+
+### Reflect — narrative answer
+
+```
+mcp__hindsight__reflect(query="what do I know about Greg's deploy flow")
+```
+
+Zwraca narracyjną odpowiedź zamiast surowych rekordów — używaj kiedy chcesz
+"opowiedz mi" zamiast "daj raw".
+
+### List / get / delete
+
+```
+mcp__hindsight__list_memories(bank_id="greg")
+mcp__hindsight__get_memory(bank_id="greg", memory_id="<uuid>")
+mcp__hindsight__delete_document(...)
+```
+
+## Raw HTTP (fallback / debug)
+
+Jeśli MCP nie działa, możesz uderzyć REST bezpośrednio:
 
 ### Retain — save fact(s)
 
