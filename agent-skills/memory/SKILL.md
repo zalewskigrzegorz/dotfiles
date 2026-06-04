@@ -192,11 +192,11 @@ curl http://192.168.50.10:8888/v1/default/banks/greg/memories/<uuid>/history
 ## From Claude Code (MCP)
 
 Jeśli skill jest aktywny i MCP wpięty (przez `agent-mcp/mcp-servers.json.tmpl` w
-dotfiles z entry `hindsight`) — Claude Code dostaje natywne tools `hindsight_*`.
+dotfiles z entry `hindsight`) — Claude Code dostaje natywne tools `mcp__hindsight__*`.
 
 **Typowy flow:**
 1. User pyta "co wiesz o X"
-2. Claude woła `hindsight_recall` z query
+2. Claude woła `mcp__hindsight__recall` z query
 3. Wyniki wracają jako structured JSON
 4. Claude formatuje dla usera
 
@@ -249,11 +249,15 @@ Albo dla recall: ten sam pattern, URL `.../memories/recall`, body `{"query":"$js
 
 ## From Raycast (HTTPS wymagane)
 
-Pre-req: Traefik route `mem.lab` + cert install (per `mcp.lab` flow w home-lab README).
+Pre-req: Traefik route na `mcp.lab` gateway + cert install (per `mcp.lab`
+flow w home-lab README). **Nie używamy** `mem.lab` jako osobnego hostu —
+cert `*.lab` nie matchuje single-label wildcard (RFC 6125), więc wpinamy
+się pod istniejący gateway `mcp.lab/hindsight/...` razem z Homey/Excalidraw.
 
 Raycast Settings → MCP Servers → Add:
-- URL: `https://mem.lab/mcp/greg/`
+- URL: `https://mcp.lab/hindsight/mcp/greg/`
 - Type: HTTP/SSE
+- Auth: None
 
 Raycast cert install: Safari → `https://mcp.lab/cert/cert.pem` → import do Keychain System → "Always Trust" → restart Raycast.
 
@@ -361,7 +365,7 @@ ssh lab "docker compose -f /opt/homelab/services/hindsight/compose.yaml stop hin
  ├─ Claude Code MCP   ─┐                  hindsight (8888 + 9999)
  ├─ n8n               ─┼─→ http://192.168.50.10:8888 (LAN)
  ├─ Python            ─┘                        │
- ├─ Raycast           ───→ https://mem.lab/mcp/greg/  (Traefik)
+ ├─ Raycast           ───→ https://mcp.lab/hindsight/mcp/greg/  (Traefik gateway)
                                                 │
                                           ollama:11434/v1  (bielik-7b)
                                                 │
