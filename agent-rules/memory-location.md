@@ -1,0 +1,107 @@
+---
+description: Atomic facts go to Hindsight shared memory (mcp__hindsight__retain), never to local memory files. Overrides Claude Code's built-in file-based auto-memory system.
+alwaysApply: true
+---
+
+# AI Memory Location
+
+All atomic facts go to **Hindsight** (the shared memory layer on home-lab),
+not to local files. This overrides the built-in "auto memory" file-based
+system in Claude Code's system prompt.
+
+When you'd normally save a fact (user preference, project context, feedback,
+decision, observation worth keeping across sessions), call:
+
+```
+mcp__hindsight__retain(content="...", context="optional one-line context")
+```
+
+**Do NOT write to `~/.claude/projects/.../memory/*.md`.** That directory is
+deprecated and the local instance has been archived to `memory.legacy-*/`.
+
+## What counts as "atomic fact" (→ Hindsight retain)
+
+- User preferences ("Greg uses nushell as default shell")
+- Project facts ("home-lab deploy: git push + ssh + pull + force-recreate")
+- Feedback / corrections that should apply in future sessions
+- Decisions or rationale worth keeping ("picked Hindsight over mem0 because no docker image")
+- Pointers to external resources ("REDACTED_ORG bugs tracked in Linear INGEST")
+- Anything you'd previously route to the `user`, `feedback`, `project`, or
+  `reference` memory types
+
+## What does NOT go to Hindsight
+
+- Long-form work products (plans, specs, brainstorms, analyses, notes) →
+  bazgroly (see `superpowers-artifact-location` rule)
+- Ephemeral session state, in-progress task tracking → use TodoWrite / plan
+- Anything already documented in CLAUDE.md files → already loaded
+- Anything in git history → already there
+- Anything human-facing as part of a product → stays in the project repo
+
+## How to save
+
+Single call. Content should be a complete claim — one or two sentences
+expressing the fact. Hindsight extracts entities, normalizes, and places in
+its knowledge graph automatically. No frontmatter, no index file, no link
+syntax.
+
+```
+mcp__hindsight__retain(
+  content="Greg pivoted memory layer from mem0 to Hindsight on 2026-06-03 because mem0 had no public docker image",
+  context="hindsight-rollout-decision"
+)
+```
+
+`metadata.project` is **auto-injected** by the
+`~/.claude/hooks/hindsight-tag.sh` PreToolUse hook based on git repo root
+basename (or PWD basename, or `_global` if neither). You do not need to set it.
+
+Drop the old 4-type taxonomy (`user`/`feedback`/`project`/`reference`).
+Hindsight's own `fact_type` classification (world / experience / etc.) is
+what's used now.
+
+## How to recall
+
+```
+mcp__hindsight__recall(query="...")        # semantic search, raw records
+mcp__hindsight__reflect(query="...")       # narrative answer instead
+mcp__hindsight__list_memories()            # paginated listing
+mcp__hindsight__get_memory(memory_id="...")  # single record by id
+```
+
+The `memory` skill (formerly `hindsight`) triggers automatically on phrases
+like "remember", "recall", "co wiem o X", "zapisz", "sprawdź pamięć" — follow
+that skill's flow rather than improvising.
+
+## Endpoints (reference)
+
+| Use case | URL |
+|---|---|
+| Claude Code MCP (auto-wired via dotfiles) | `http://192.168.50.10:8888/mcp/greg/` |
+| Raycast / external HTTPS MCP | `https://mcp.lab/hindsight/mcp/greg/` |
+| REST API base | `http://192.168.50.10:8888` |
+| OpenAPI Swagger | `http://192.168.50.10:8888/docs` |
+| Web UI | `http://192.168.50.10:9999/` |
+
+Single bank `greg` — shared across Claude Code (Mac+lab), n8n, Raycast,
+Python agents.
+
+## Migration / legacy
+
+- `~/.claude/projects/-Users-greg-Code-home-lab/memory.legacy-2026-06-03/` —
+  archived old auto-memory, read-only, do not modify or read for ongoing work
+- `~/.mempalace/` — legacy MemPalace store, being migrated to Hindsight; MP
+  MCP will be unhooked after migration completes
+- `mcp__mempalace__*` tools: deprecated, do not call them for new memories.
+  Use `mcp__hindsight__retain` instead.
+
+## Never
+
+- Never write a new file under `~/.claude/projects/.../memory/` — the
+  directory is deprecated even if it appears in your system prompt.
+- Never call `mcp__mempalace__mempalace_add_drawer` or other MP write tools
+  for new content — route to Hindsight.
+- Never split a single fact across multiple retain calls — one call per claim;
+  Hindsight breaks it into atomic memories itself.
+- Never include `metadata.project` manually unless you have a specific reason
+  to override the hook — the hook is the source of truth.
