@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Enable Claude in Chrome by default for new Claude Code sessions.
+# Equivalent of running `/chrome` → "Enable by default" inside a session.
+# Persists `claudeInChromeDefaultEnabled: true` in ~/.claude.json (state file,
+# not chezmoi-managed — that's why we patch it idempotently here).
+set -euo pipefail
+
+CLAUDE_CONFIG="${HOME}/.claude.json"
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo "claude-chrome-default: jq not on PATH, skipping (Brewfile should install it)."
+  exit 0
+fi
+
+if [[ ! -f "${CLAUDE_CONFIG}" ]]; then
+  echo "claude-chrome-default: ${CLAUDE_CONFIG} not found — run \`claude\` once first."
+  exit 0
+fi
+
+if jq -e '.claudeInChromeDefaultEnabled == true' "${CLAUDE_CONFIG}" >/dev/null 2>&1; then
+  echo "claude-chrome-default: already enabled, skipping."
+  exit 0
+fi
+
+TMP="$(mktemp)"
+jq '.claudeInChromeDefaultEnabled = true' "${CLAUDE_CONFIG}" > "${TMP}"
+mv "${TMP}" "${CLAUDE_CONFIG}"
+echo "claude-chrome-default: enabled."
