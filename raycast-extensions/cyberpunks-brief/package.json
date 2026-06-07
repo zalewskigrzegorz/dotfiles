@@ -1,0 +1,85 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "cyberpunks-brief",
+  "title": "Cyberpunks Brief",
+  "description": "JARVIS-style audio briefing before Team Cyberpunks sync — pulls GitHub PRs + Slack + Hindsight, summarises in Polish, optional ElevenLabs TTS through Joniu voice.",
+  "icon": "icon.png",
+  "author": "zalewskigrzegorz",
+  "license": "MIT",
+  "categories": ["Productivity", "Developer Tools"],
+  "commands": [
+    {
+      "name": "brief",
+      "title": "Cyberpunks Sync Brief",
+      "subtitle": "Cyberpunks",
+      "description": "Generate a JARVIS-style Polish briefing before the next team sync.",
+      "icon": "brief.png",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "claudeBin",
+      "title": "Claude Code binary",
+      "description": "Path to the `claude` CLI used to run the briefing prompt in headless mode.",
+      "type": "textfield",
+      "required": false,
+      "default": "/opt/homebrew/bin/claude",
+      "placeholder": "/opt/homebrew/bin/claude"
+    },
+    {
+      "name": "claudeModel",
+      "title": "Claude model",
+      "description": "Model id passed to `claude -p --model`. Sonnet 4.6 is the sweet spot for summarisation.",
+      "type": "textfield",
+      "required": false,
+      "default": "claude-sonnet-4-6",
+      "placeholder": "claude-sonnet-4-6"
+    },
+    {
+      "name": "elevenlabsApiKey",
+      "title": "ElevenLabs API key",
+      "description": "Used by the TTS action (currently disabled). Stored locally in Raycast preferences.",
+      "type": "password",
+      "required": false,
+      "default": "",
+      "placeholder": "xi-api-key value"
+    },
+    {
+      "name": "voiceId",
+      "title": "ElevenLabs voice id",
+      "description": "Voice used for TTS (currently disabled). Default = Joniu (Polish radio host).",
+      "type": "textfield",
+      "required": false,
+      "default": "QgQMRjD48AWrvWghFC3J",
+      "placeholder": "QgQMRjD48AWrvWghFC3J"
+    },
+    {
+      "name": "voiceModel",
+      "title": "ElevenLabs model id",
+      "description": "Model used for TTS (currently disabled). `eleven_v3` supports inline audio tags like [thoughtful].",
+      "type": "textfield",
+      "required": false,
+      "default": "eleven_v3",
+      "placeholder": "eleven_v3"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.84.0",
+    "@raycast/utils": "^1.18.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^1.0.11",
+    "@types/node": "^22.7.0",
+    "@types/react": "^19.0.10",
+    "eslint": "^8.57.1",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.2"
+  },
+  "scripts": {
+    "build": "ray build -e dist",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint"
+  }
+}
