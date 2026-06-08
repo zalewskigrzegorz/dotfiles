@@ -1,6 +1,6 @@
 ---
 name: daily-brief
-description: Multi-source personal briefing for Greg (Staff Engineer at REDACTED_ORG, Team REDACTED_TEAM). Pulls his own GitHub PRs bucketed by state (broken / merge-ready / response-waiting), PRs awaiting his review, in-progress issues, Spark email + calendar + meeting transcripts, Slack DMs + mentions to him, and Hindsight leftovers — over the last 5 days. On Monday and Wednesday additionally layers a REDACTED_TEAM pre-sync rundown (team PRs + scope-filtered Slack from #REDACTED_CHANNEL, #REDACTED_CHANNEL, #dev, #general, #cursor-ai, #REDACTED_CHANNEL, #emergency, #REDACTED_CLIENT, #support, #releases) before the standup at 12:00. Outputs a 3-5 minute spoken Polish briefing in a Rick-Sanchez-LITE tone (sharp, sarcastic, cutting, actionable — no chaos, no swearing, no Morty-treatment) with ElevenLabs v3 audio tags ready for TTS. Use whenever Greg says "brief", "daily brief", "morning brief", "co dziś", "co na dziś", "dzień dobry", "co przed standupem", "co przed syncem", invokes `/daily-brief`, or otherwise asks for an audio rundown of his day.
+description: Multi-source personal briefing for Greg (Staff Engineer at REDACTED_ORG, Team REDACTED_TEAM). Pulls his own GitHub PRs bucketed by state, PRs awaiting his review, in-progress issues, Spark mail action items extracted from Inbox+Archive bodies (last 7d) + Spark task flags (starred/pinned/Later/has:reminder), Drafts.app brain dumps from the last 7d, calendar + meeting transcripts, Slack DMs + mentions, Hindsight memory recall (incl. time-filtered "shipped" and "decision" queries), recent git activity across ~/Code/**, weather (anomaly-only) + USD + AQI band from wttr.in/NBP/Open-Meteo, home signals from Homey (pet trackers, waste schedule, pollen alarm via get_home_alarms on Pylenie device), a walk-window recommendation for the dogs scored at 17:00 preferred with workday/evening/morning fallbacks and a 26°C hard cap, and a Tina (announce-agent) recap from the last 24h filtered to chores/calendar/anomalies via http://lab:3001/api/events. On Monday and Wednesday additionally layers a REDACTED_TEAM pre-sync rundown before the standup at 12:00. Outputs a 3-5 minute spoken Polish briefing in Rick-Sanchez-LITE tone with ElevenLabs v3 audio tags ready for TTS. Use whenever Greg says "brief", "daily brief", "morning brief", "co dziś", "co na dziś", "dzień dobry", "co przed standupem", "co przed syncem", invokes `/daily-brief`, or otherwise asks for an audio rundown of his day.
 ---
 
 # daily-brief
@@ -75,8 +75,8 @@ Not on the team — ignore: Radek (REDACTED_NAME) left, Yevhen is a different te
 
 Run `date +%u` (1 = Mon, …, 7 = Sun) to detect today.
 
-- **1 (Monday) or 3 (Wednesday)** → **Mon/Wed mode**: include section 7 (REDACTED_TEAM pre-sync rundown) before the closing. Sync is at 12:00 — if the brief runs after 12:00 it's still helpful (post-sync recap framing fine).
-- **Any other day** → **personal mode**: skip section 7 entirely. Sections 1-6 + closing.
+- **1 (Monday) or 3 (Wednesday)** → **Mon/Wed mode**: include section 8 (REDACTED_TEAM pre-sync rundown) before the closing. Sync is at 12:00 — if the brief runs after 12:00 it's still helpful (post-sync recap framing fine).
+- **Any other day** → **personal mode**: skip section 8 entirely. Sections 1-7 + closing.
 
 ## Data sources
 
@@ -139,13 +139,30 @@ Max 2 items here. Used as **focus context** ("co teraz robisz"), not as a separa
 Run in parallel:
 
 ```bash
+# Calendar
 spark events                                                # today's remaining events
 spark events --tomorrow                                     # heads-up for tomorrow if today is short
-spark emails Inbox --filter "category:priority is:unread" --page-size 10
-spark emails Inbox --filter "category:personal is:unread" --page-size 10
+
+# Spark task flags (cheap insurance; most empty today)
+spark emails Inbox  --filter "is:starred newer_than:30d"   --page-size 10
+spark emails Inbox  --filter "is:pinned"                    --page-size 10
+spark emails Inbox  --filter "is:unreplied newer_than:14d" --page-size 10
+spark emails Inbox  --filter "has:reminder"                 --page-size 10
+spark emails Inbox  --filter "assigned_to:me"               --page-size 10
+spark emails Later  --filter "newer_than:30d"               --page-size 10
+
+# Recent mail body — action item extraction
+spark emails Inbox   --filter "newer_than:7d"               --page-size 25
+spark emails Archive --filter "newer_than:7d"               --page-size 25
+
+# Calendar invitations with life events
 spark emails Inbox --filter "category:invitation newer_than:7d" --page-size 5
-spark meetings --filter "newer_than:2d"                     # transcripts from today / yesterday
+
+# Meetings (transcripts last 2d)
+spark meetings --filter "newer_than:2d"
 ```
+
+**Drafts mail folder is NOT queried** — Greg's drafts are garbage, explicitly excluded.
 
 For each `spark events` entry, if it has attendees from the REDACTED_TEAM roster, mention it; if it has an external attendee (non-REDACTED_ORG.com domain), mention the meeting + the attendee's company.
 
@@ -179,7 +196,11 @@ mcp__hindsight__recall  query="tomorrow"               # things Greg asked to re
 mcp__hindsight__recall  query="REDACTED_TEAM"             # team context
 mcp__hindsight__recall  query="sync-prep"              # explicit sync-prep notes
 mcp__hindsight__recall  query="ongoing concerns"       # generic safety net
+mcp__hindsight__recall  query="shipped this week"      # v2: recent work
+mcp__hindsight__recall  query="decision OR pivot OR learned"  # v2: recent decisions
 ```
+
+For the last two queries, **filter results to `created_at >= now - 5d`** — they're meant to surface recent context, not old memories.
 
 Use the most recent 1-3 hits as ambient context — particularly for the "Focus na dziś" section. **Sticky callbacks** like *"wczoraj nie odznaczyłeś cw-to-coralogix, dalej leży"* or *"Roman ma Thursday demo, wczoraj zapisałem żeby ci o tym przypomnieć"* are exactly the use case.
 
@@ -189,6 +210,97 @@ Never say "Hindsight shows" or "according to memory" — weave it into the prose
 
 **Retain (at end, AFTER TTS — see "Retain leftovers" section below).**
 
+### Weather + USD + AQI (HTTP, no API keys, fire in parallel)
+
+```bash
+# Hourly weather Tarnowskie Góry (full day JSON: hourly[] every 3h + astronomy + tomorrow)
+curl -s "wttr.in/Tarnowskie+Gory?format=j1" | jq '{
+  today_hourly: .weather[0].hourly,
+  astronomy:    .weather[0].astronomy[0],
+  tomorrow_desc: (.weather[1].hourly | map(.weatherDesc[0].value) | unique),
+  tomorrow_min: .weather[1].mintempC,
+  tomorrow_max: .weather[1].maxtempC
+}'
+
+# USD/PLN current mid rate
+curl -s "https://api.nbp.pl/api/exchangerates/rates/a/usd/?format=json" | jq -r '.rates[0].mid'
+
+# Air quality EAQI Tarnowskie Góry (lat 50.4196, lon 18.8628) — current + hourly for walk-window
+curl -s "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=50.4196&longitude=18.8628&current=european_aqi,pm2_5,pm10&hourly=european_aqi,pm2_5&timezone=Europe%2FWarsaw"
+```
+
+**Cache wttr.in** at `/tmp/wttr-cache-$(date +%Y%m%d-%H).json` with 1-hour TTL — reuse if exists. Open-Meteo and NBP have no rate-limit concern at this volume.
+
+### Home (Homey MCP)
+
+Fire in parallel:
+
+```
+mcp__Homey__get_home_alarms                   # aggregates ALL active alarms — pollen (Pylenie/plesnie), low battery, contact, connectivity, waste-soon, litter-full
+mcp__Homey__get_waste_collection_schedule     # next_collection_date + days_until + types
+mcp__Homey__list_pet_trackers                 # per pet: in_geofence (bool), in_geofence.lastUpdated (ms epoch), battery_state, tracker_state — LLM derives walk history
+mcp__Homey__list_litter_boxes                 # litter-full level if Greg has pet litter boxes
+```
+
+**Pollen** is surfaced via `get_home_alarms` alarm with `capabilityId = "alarm_generic.plesnie"` on the "Pylenie" device — boolean: alarm active = take antihistamine. No species-level granularity in v2 (Greg's Pylenie device exposes per-species text levels too — `measure_generic.alternaria` / `cladosporium` etc. — but they're not on a dedicated MCP tool yet; the alarm boolean is enough for the tablet decision).
+
+**Pet walk derivation rule** (LLM-side from `list_pet_trackers`):
+
+- `in_geofence == false` now → on walk now ("Buffy od <relative-time> poza ogrodzeniem")
+- `in_geofence == true` AND `lastUpdated` within last 24h → walk happened + returned
+- `in_geofence == true` AND `lastUpdated` > 24h ago → **no walk in 24h** — flag
+- battery `low` / `critical` → mention with name; otherwise skip
+
+Convert `lastUpdated` (ms epoch) to Polish relative time ("dziś rano", "wczoraj o 18:20") before speaking.
+
+### Tina (announce-agent — last 24h events)
+
+```bash
+curl -s --max-time 5 "http://lab:3001/api/events?from=$(date -u -v-24H +%Y-%m-%dT%H:%M:%SZ)&limit=30"
+# Alternative reverse proxy: http://announce.lab/api/events?from=...&limit=30
+```
+
+Response shape: `{rows: [{event_id, ts, trigger_name, kind, target, dry_run, llm_trimmed, audio_url, ...}]}`. `llm_trimmed` is the text Tina actually spoke.
+
+**Filter — only 3 event categories qualify, everything else SKIP:**
+
+1. **Domestic chores** — keywords: `kuwet`, `pranie`, `pralka`, `zmywarka`, `karm`, `karmić`, `kolacj`, `podlej`, `kwiat`, `śmieci`, `odkurz`, `posprz`, `kupić`, `chleb`, `mleko`, `apteka`, plus 2nd-person imperatives (`zrób`, `wyjmij`, `weź`, `wystaw`). Trigger names often `meal`, `chore_reminder`.
+2. **Calendar / appointment reminders** — keywords: `spotkani`, `wizyta`, `umówion`, `dentyst`, `lekarz`, `szkoł`, `przedszkol`, `paczk`, `odbier`, `wyślij`, plus explicit time markers (`o 15:00`, `przed 17`).
+3. **Anomalies / alerts** — keywords: `alarm`, `niska bateria`, `low battery`, `offline`, `niedostępn`, `błąd`, `awari`, `error`, `czujnik`.
+
+Drop: `dry_run == true`, duplicates by `kind+trigger_name+llm_trimmed`, `weather_outgoing` trigger (weather is already in opening — duplicate).
+
+If endpoint times out or returns non-200 → **silently skip Tina recap** (section 6d). Brief works fine without Tina.
+
+Reference: Glance lab dashboard already consumes this endpoint successfully.
+
+### Git activity (local, last 5 days)
+
+```bash
+find ~/Code -maxdepth 3 -name .git -type d 2>/dev/null | while read d; do
+  repo="$(dirname "$d")"
+  cnt=$(git -C "$repo" log --author='Grzegorz\|zalewski\|maksim009' --since=5.days --oneline --no-merges 2>/dev/null | wc -l | tr -d ' ')
+  [ "$cnt" -gt 0 ] || continue
+  echo "REPO $repo $cnt"
+  git -C "$repo" log --author='Grzegorz\|zalewski\|maksim009' --since=5.days --pretty=format:'  %cI %s' --no-merges 2>/dev/null
+  echo
+done
+```
+
+Top 2-3 most-active repos feed section 6a. Distill into descriptive labels (NOT verbatim commit subjects).
+
+### Drafts app (MCP — `mcp__drafts__*`, Mac-only)
+
+```
+mcp__drafts__list_drafts(date_from="<7 days ago>", folder="inbox", limit=10)
+```
+
+For each: if title is meaningful, use as-is. Otherwise `mcp__drafts__get_draft(id)` + first sentence.
+
+Skip drafts tagged `done`, `archived`, `processed`. Skip trashed.
+
+**If `mcp__drafts__*` is unreachable** (Drafts.app not running, non-Mac host, or MCP not installed yet) → **silently skip section 5b**. Brief degrades gracefully.
+
 ### Out-of-office detection
 
 From `spark events --week`, scan calendar entries titled `Out of office` or `OOO` or with all-day events from REDACTED_TEAM roster members. If a roster member is OOO **today**, mention it in section 4.
@@ -197,15 +309,60 @@ From `spark events --week`, scan calendar entries titled `Out of office` or `OOO
 
 Each section is 1 paragraph (sometimes 2 if dense), separated from the next by a single blank line. Each paragraph leads with an audio tag where it makes sense.
 
-### 1. Opening
+### 1. Opening (Rick-LITE opener + context line)
 
-One sentence. Rick-LITE style. Examples:
+One paragraph. Order: Rick-LITE opener → (pollen alarm if active) → (weather anomaly only) → USD → (AQI band if EAQI > 40) → segue. **Default: skip pogody, skip AQI.** Mention only when they'd change decisions.
 
-- `[burp] Greg, lista rzeczy do których muszę cię prowadzić dzisiaj.`
+**Opener (one sentence, Rick-LITE):**
+
+- `[burp] Greg, <data po polsku>, <dzień tygodnia>. Lista rzeczy do których muszę cię prowadzić dzisiaj.`
 - `Dobra Greg, lecimy z briefingiem — siadaj.`
 - `[scoffs] Niech zgadnę, znowu nie wiesz co robić — spoko, mam dla ciebie.`
 
 **Open with `[burp]` ≤ 1× per brief total.** If you use it in section 1, do not use it again.
+
+**Pollen lead (from `get_home_alarms` looking for `capabilityId == "alarm_generic.plesnie"` on device `Pylenie`):**
+
+- Alarm value `true` → next sentence MUST lead with `[serious]` + tablet directive in Polish:
+  - *"Pleśnie dziś alarm, Alternaria i Cladosporium — weź antyhistaminę zanim wstaniesz na dobre."*
+  - *"Alarm pleśni włączony, bez tabletki dziś nie wychodź."*
+- Alarm `false` → no pollen mention in opening.
+
+**Weather (from wttr `j1` `today_hourly[]`) — anomaly-only:**
+
+Default: skip.
+
+Mention if at least one trigger:
+
+- Temperature range across day > 7°C OR cloudy AM → sunny PM: *"rano chłodno koło dwunastu, popołudniu rozgrzeje do dwudziestu czterech"*.
+- `chanceofrain > 50` in any hour: *"deszcz po piętnastej"*, *"burza spodziewana po szesnastej"*.
+- Condition deterioration: *"przed południem słońce, popołudniu burza"*.
+- Extreme (`tempC > 28`, `< 0`, snow, hail, storm warning): lead with `[serious]` or `[sighs]`.
+
+Tomorrow only if substantially different (*"jutro dużo chłodniej, dwanaście stopni i deszcz"*).
+
+**USD line (from NBP):** always say. Round to 2 decimals, Polish-style: *"dolar po trzy złote sześćdziesiąt dziewięć"*.
+
+**AQI line (from Open-Meteo `current.european_aqi`):**
+
+- 0-40 → no mention.
+- 40-60 średnie → 1 clause + hedge: *"AQI 47, jeśli wychodzisz to do południa lepiej"*.
+- 60-80 złe → `[serious]` + indoor: *"powietrze złe, EAQI sześćdziesiąt trzy — jak masz wybór, zostań w środku"*.
+- 80+ → `[serious]` + strong indoor.
+
+**Composite examples:**
+
+Unremarkable day:
+
+```
+[burp] Greg, dziewiątego czerwca, wtorek. [matter-of-factly] Dolar po trzy złote sześćdziesiąt dziewięć. [thoughtful] Lista rzeczy do których muszę cię prowadzić dzisiaj.
+```
+
+Pollen alarm + afternoon storm:
+
+```
+[burp] Greg, dziewiątego czerwca, wtorek. [serious] Pleśnie dziś alarm, Alternaria i Cladosporium — weź antyhistaminę zanim wstaniesz na dobre. [matter-of-factly] Pogoda przed południem dwadzieścia dwa, po piętnastej burza. Dolar po trzy sześćdziesiąt dziewięć. [thoughtful] Lecimy.
+```
 
 ### 2. Your PRs — three buckets in order: broken / merge-ready / response-waiting
 
@@ -233,21 +390,187 @@ Tag suggestions: `[thoughtful]`, `[matter-of-factly]`. If Greg has back-to-back 
 
 ### 5. Inbox + Slack catchup
 
-- Spark: priority + people unread (sender names, gist if known). Invitations with personal flavour.
-- Slack: DMs unread + recent @-mentions (who, what topic, since when).
+Three sub-streams, in this order: (a) action items extracted from recent mail body, (b) Spark task-flag results, (c) Slack.
 
-If both inbox and Slack are silent: short Rick line ("Inbox pusty, na Slacku grobowy spokój — albo nikt cię nie kocha, albo wszyscy są zbyt zajęci").
+**5a — Action items from incoming mail (Inbox + Archive ≤ 7d):**
 
-Tag suggestions: `[bored]` if dry, `[matter-of-factly]` if listing, `[scoffs]` if absurd content.
+For each mail returned by `spark emails Inbox --filter "newer_than:7d"` and `spark emails Archive --filter "newer_than:7d"`, check whether body implies an action on Greg. Heuristics in order:
+
+1. **Drop noise:** marketing newsletters, LinkedIn weekly summaries, generic order-confirms with no action.
+2. **Imperative/request in body or subject** addressed to Greg: `please`, `proszę`, `could you`, `mógłbyś`, `napisz`, `wyślij`, `zrób`, `prepare`, `review`, `prześlij`. Promising → fetch body via `spark email <id>` and distill.
+3. **Deadline anchors:** explicit date, `dziś`, `jutro`, `do końca`, `before`, `until`, `najpóźniej`.
+4. **Parcel / shipping mail (DPD, HUEL, InPost, DHL):** even when archived, may imply a reciprocal action (e.g. "send back the swap half"). Mention if Greg has unfinished business with same sender within 14d.
+5. **Regulator / institution mail (skarbówka, ZUS, US, bank):** ALWAYS escalate. `[serious]` tag warranted.
+
+Limit **5 actions max** by name. >5 → 3 newest + count rest. Frame each: sender + inferred action — *"od HUEL paczka wysłana, miałeś dziś zwrotnie wysłać WC — sprawdź czy ogarnąłeś etykietę"*.
+
+**Anti-hallucination:** if no concrete action is inferable, drop the mail. Don't pad with "od X, prawdopodobnie wymaga uwagi".
+
+**5b — Spark task flags (1-clause each if non-empty):**
+
+- `is:starred newer_than:30d` → 1 clause ("zapięte trzy maile, najnowszy od X o Y").
+- `is:pinned` / `has:reminder` / `Later` folder / `is:unreplied newer_than:14d` → same form.
+- All empty → skip silently (no "Spark flagi puste" filler).
+
+**5c — Slack:**
+
+Same as v1 — DMs + @-mentions last 5d, filter to unread/unanswered. Roster-first if many.
+
+**Silent-day rule:** if all three sub-streams produce nothing, one Rick line: *"Inbox czysty, na Slacku grobowy spokój — albo nikt cię nie kocha, albo wszyscy są zbyt zajęci"*.
+
+Tag suggestions: `[matter-of-factly]` for listing, `[bored]` if quiet, `[scoffs]` if absurd, `[serious]` for regulator mail only.
+
+**Drafts mail folder is NOT queried — explicitly excluded as noise.**
+
+### 5d. Coś ci wpadło do głowy (Drafts app — Mac/iOS notes)
+
+Greg jots ideas into Drafts.app on walks / in transit. Recap unfiled notes from last 7d that Greg hasn't yet processed.
+
+Data: `mcp__drafts__list_drafts(date_from="<7 days ago>", folder="inbox", limit=10)`.
+
+Rules:
+- Skip drafts tagged `done`, `archived`, `processed`. Skip trashed.
+- Cap 5 mentions. >5 → 3 newest + count rest.
+- Title meaningful → use as-is. Otherwise `mcp__drafts__get_draft(id)` + first sentence.
+
+Length: 1 paragraph, 40-80 words, 1 audio tag.
+
+Tone — Rick acknowledging brain-dumps matter, cutting if vague:
+
+- *"Plus z weekendu masz dwa zapiski w drafty — coś o reorganizacji Hindsight tagów, i 'kupić śrubki M4'. [thoughtful] Jedno wymaga decyzji, drugie sklepu."*
+- *"W drafty od piątku masz cztery notki, z czego trzy to fragmenty bez kontekstu. [dry] Albo idź to dokończ, albo skasuj."*
+
+**Skip section 5d entirely if empty.** Do not emit a "drafty puste" placeholder. **Skip if `mcp__drafts__*` is unreachable** (Drafts.app off, non-Mac host, MCP not installed).
 
 ### 6. Focus na dziś
 
-- 1-2 in-progress issues assigned to Greg (context, not action items).
-- 1-2 ambient Hindsight leftovers if relevant.
+Four sub-sections in this order: 6a git activity → 6c in-progress issues → 6b time-filtered Hindsight → 6d Tina recap.
 
-Tag suggestions: `[thoughtful]`.
+**6a — Git activity (last 5d) from the `find ~/Code … git log` block:**
 
-### 7. REDACTED_TEAM pre-sync — ONLY on Mon/Wed
+Top 2-3 most-active repos. ONE sentence with distilled labels per repo (NOT verbatim commit subjects):
+
+*"Przez ostatnie pięć dni siedziałeś głównie w dotfiles — daily-brief v2 i Drafts MCP, w realm — PR cw-to-coralogix i gateway RBAC fix, i w home-lab przy nowym pylenie sensor."*
+
+If only 1 repo had activity → 1 clause. If 0 repos → skip 6a.
+
+**6c — In-progress issues** (same as v1 — max 2 items from `gh search issues --assignee @me`, framed as focus context not action items).
+
+**6b — Time-filtered Hindsight recall:**
+
+From the two added queries (`shipped this week`, `decision OR pivot OR learned`), filter to memories with `created_at >= now - 5d`. Use 1-2 hits as "co ostatnio postanowiłeś / czego się nauczyłeś" callback.
+
+*"We wtorek zdecydowałeś że Drafts integration leci przez MCP a nie przez folder Action — i wczoraj zaraportowałeś że to działa."*
+
+Skip if no fresh memories.
+
+**6d — Tina recap (from `curl lab:3001/api/events`):**
+
+Apply 3-category filter (chores / calendar / anomalies) per the data-sources block. Drop everything else.
+
+**Dedupe vs rest of brief — critical:** for each surviving event, check if its topic overlaps another section the brief already plans to emit:
+
+- "śmiec"/"wywoz"/"odpad" → matches Section 7 trash → fold there
+- "psy"/"spacer"/"buffy"/"daisy" → matches Section 7 pets/walk → fold there
+- "pogod"/"deszcz"/"burz" → matches Section 1 weather → fold there
+- "pyl"/"alergi"/"Cladosporium"/"Alternaria"/"pleśn" → matches Section 1/7 pollen → fold there
+- PR/repo/commit → matches Section 2/3/6a → fold there
+
+Fold = add clause to existing section: *"Tina ci o tym wczoraj wieczorem mówiła, ale przypominam"*.
+
+If no overlap → render in 6d: *"Tina ci wczoraj o dziewiętnastej trzydzieści przypominała o wyjęciu prania — sprawdź czy nie zostało w pralce"*.
+
+Max 3 bullets in 6d. Length ≤ 60 words. Tina offline → silently skip.
+
+Tag suggestions: `[matter-of-factly]`, `[dry]` for chore reminders.
+
+### 7. Dom (psy + śmieci + pollen + walk-window)
+
+**Skip entirely** if ALL of these are true (no actionable signal):
+- No pet flag (no one currently out, no one without a walk in 24h, no low battery)
+- `days_until > 3` for trash
+- No active alarm on the Pylenie device (`alarm_generic.plesnie == false`)
+- Opening already covered AQI OR `current.european_aqi <= 40`
+
+No "z domu spokój" filler.
+
+Otherwise: 1-2 paragraphs, 60-180 words, 1-2 audio tags. Order: pets → trash → pollen action → walk-window.
+
+**Pets (derived from `list_pet_trackers`):**
+
+- Any pet `state.in_geofence.value == false` → *"Buffy teraz poza ogrodzeniem, wyszła <relative-time>"*.
+- A pet `in_geofence == true` AND `state.in_geofence.lastUpdated` > 24h ago → flag: *"psy dziś jeszcze nigdzie nie wychodziły, ostatnia zmiana ogrodzenia była przedwczoraj"*.
+- Battery `low` / `critical` → mention with name.
+- Otherwise → no explicit walk mention here (let walk-window section handle).
+
+**Trash (from `get_waste_collection_schedule`):**
+
+- `days_until > 3` → skip silently.
+- `0` → *"śmieci dziś — `<types>`, wystaw rano"*.
+- `1` → *"śmieci jutro — `<types>`"*.
+- `2-3` → *"śmieci za <N> dni — `<types>`"*.
+
+**Pollen action (if `alarm_generic.plesnie == true` per `get_home_alarms`):**
+
+Opening already led with the alarm — don't repeat the alarm itself. Add concrete action: *"przed spacerem zażyj antyhistaminę, koło siedemnastej będzie maksimum"*.
+
+If alarm is false → skip pollen here too.
+
+**AQI duplicate-suppress:**
+
+If opening mentioned AQI band > 40 → don't mention here. If opening was silent on AQI but `current.european_aqi > 50` → 1 clause here.
+
+**Walk-window recommendation:**
+
+Compute per the algorithm below. 1-3 sentences at end of section 7.
+
+#### Walk-window algorithm
+
+Inputs (already fetched in data-sources block):
+- Hourly weather: `weather[0].hourly[]` from wttr `j1` (8 slots: 00/03/06/09/12/15/18/21).
+- Hourly AQI: `hourly.european_aqi[]` from Open-Meteo.
+- Sunrise/sunset: `weather[0].astronomy[0]`.
+- Today's calendar: `spark events`.
+- Pet walks today: derived from `list_pet_trackers` (in_geofence transitions in last 24h).
+- Pollen alarm: `get_home_alarms` → `alarm_generic.plesnie`.
+
+Steps:
+
+1. Build per-hour grid sunrise → sunset.
+2. Mark `busy` if hour overlaps a `spark events` entry (busy slots are walkable only if a gap ≥ 60 min exists).
+3. Mark `bad-weather` if `chanceofrain > 50` OR `tempC > 26` OR `tempC < 0` OR `weatherDesc` contains `thunder`/`storm`/`heavy snow`.
+4. Mark `bad-air` if `european_aqi >= 60`.
+5. Apply pollen as **day-level context** (not hourly): if `plesnie` alarm `true`, recommendation MUST end with "weź antyhistaminę".
+6. Find candidate windows of ≥ 60 contiguous minutes that are `free && !bad-weather && !bad-air`.
+7. **Score** each candidate:
+   - Fully inside **17:00-19:00** → 100 (Greg's preferred)
+   - Fully inside **12:00-14:00** → 70 (lunch break)
+   - Fully inside **19:00-21:00** → 60 (evening cooldown)
+   - Fully inside **6:00-8:00** → 40 (świt fallback)
+   - Straddles bands → average of touched bands
+   - Outside all bands → 10
+   - **Urgency boost (+30)** to every candidate if no pet has walked in last 18h (any tracker `in_geofence.lastUpdated > 18h ago` with `in_geofence == true`).
+   - **Already-walked discount (-10)** if any pet had a clear in-geofence transition `false → true` within last 6h.
+8. Pick highest-scoring. Tie → later wins (cooler).
+
+Render scenarios:
+
+- **Preferred 17:00-19:00 worked:**
+  *"Spacer dziś koło siedemnastej — masz luz w kalendarzu, dwadzieścia trzy stopnie, AQI niski."*
+- **Lunch slot fallback:**
+  *"Siedemnasta odpada — burza zapowiedziana. Wyjdź lepiej w lunch między dwunastą a drugą — masz wolne i jeszcze nie spali."*
+- **Evening cooldown:**
+  *"Siedemnasta za gorąco, dwadzieścia siedem stopni. Poczekaj do dziewiętnastej, ochłodzi się do dwudziestu trzech."*
+- **Świt fallback:**
+  *"Po pracy każda godzina ma problem — pyły i kalendarz pełny. Jak chcesz spokój, wyjdź skoro świt o siódmej, ale wiem że dla ciebie to brzmi jak tortura."*
+- **No good slot:**
+  *"Dziś każda godzina coś psuje — alarm pleśni, kalendarz pełen, popołudniu burza. Albo krótkie wyjście na własną odpowiedzialność z tabletką, albo dziś psy w domu."*
+
+If pollen alarm is on AND a slot was found → ALWAYS append: *"weź antyhistaminę przed wyjściem"*.
+
+Tag suggestions: `[matter-of-factly]` for facts, `[thoughtful]` for walk recommendation.
+
+### 8. REDACTED_TEAM pre-sync — ONLY on Mon/Wed
 
 Apply the existing REDACTED_TEAM ownership filter (sections "Scope" + "Data sources / Slack" from the legacy `REDACTED_TEAM-brief` skill — that logic lives inline here). Cover:
 
@@ -257,7 +580,7 @@ Apply the existing REDACTED_TEAM ownership filter (sections "Scope" + "Data sour
 
 If today is **not** Mon/Wed, skip this section entirely.
 
-### Per-channel Slack filter (used in section 7)
+### Per-channel Slack filter (used in section 8)
 
 | Channel ID   | Channel           | What to extract                                                                 |
 |--------------|-------------------|---------------------------------------------------------------------------------|
@@ -274,7 +597,7 @@ If today is **not** Mon/Wed, skip this section entirely.
 
 Do not read: `#REDACTED_CHANNEL-alerts` (spam), `#REDACTED_CHANNEL` (bot dumps).
 
-### 8. Closing
+### 9. Closing
 
 Pick one organic Rick-LITE closer. Examples:
 
@@ -352,6 +675,16 @@ If a fact cannot be confirmed from data, **drop it**. Better to say less than to
 - Over 650 words? Cut the lowest-priority items.
 - More than 10 audio tags? Cut to 6-8.
 - Two same tags back-to-back? Diversify.
+- **v2 gates:**
+  - Mail action items list 5+ from same sender with same gist? Collapse into one line.
+  - Section 5d (Drafts app) just listing titles with no shape? Fold into section 5.
+  - Opening context line balloons past 2 sentences? Cut to: opener → (pollen lead if alarm) → (weather if anomaly) → USD → (AQI if band > 40) → segue.
+  - Section 7 (Dom) only default noise (no pet flag, trash > 3d, no pollen alarm, AQI ≤ 40)? Skip entirely.
+  - Section 7 duplicates AQI from opening? Cut duplicate.
+  - Pollen alarm fired but opening didn't lead with it? **Bug** — pollen alarm MUST be in opening with `[serious]` tag.
+  - Walk-window picked a slot the calendar shows as busy? **Bug** — re-derive.
+  - Tina event mentioned in 6d AND also reflected elsewhere (duplicate)? Apply dedupe rule, fold into the other section.
+  - Weather mention in opening that's not anomaly-tier ("słońce 23 stopnie cały dzień")? **Bug** — anomaly-only rule violated, cut.
 - Genuinely-quiet day (no PRs, no calendar, no mail, no Slack, no incidents)? Emit:
 
 ```
