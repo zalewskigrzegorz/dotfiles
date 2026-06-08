@@ -164,7 +164,18 @@ spark meetings --filter "newer_than:2d"
 
 **Drafts mail folder is NOT queried** — Greg's drafts are garbage, explicitly excluded.
 
-For each `spark events` entry, if it has attendees from the REDACTED_TEAM roster, mention it; if it has an external attendee (non-REDACTED_ORG.com domain), mention the meeting + the attendee's company.
+**Calendar filter — exclude family/shared calendars (Greg's wife shares some):**
+
+For each `spark events` entry, check the `Calendar:` line. **Drop** the event silently if `Calendar:` matches ANY of:
+
+- `Familijne` (Gmail family calendar — wife's nail appointments, kids' stuff, etc.)
+- `Home` (iCloud shared home calendar)
+- `Team: Dom` (iCloud shared "Dom" team)
+- Any `Holidays`/`Holiday`/`Święta` calendar — public holidays already known, low signal.
+
+**Exception — keep the event** even from those calendars if Greg is in the `Attendees:` list AND it's not a public holiday (he was explicitly invited to a shared-calendar event = it concerns him). Greg's email anchors: `grzegorz.zalewski@REDACTED_ORG.com`, `maksim009@gmail.com`, `zalewski.grzegorz@icloud.com`.
+
+For surviving entries: if attendees include REDACTED_TEAM roster, mention it; if external attendee (non-REDACTED_ORG.com domain), mention the meeting + the attendee's company.
 
 For meeting transcripts from today, optionally call `spark meeting --transcript <id>` to pull the full transcript if you need to summarise what happened — useful for the briefing right after a meeting Greg may have half-listened to.
 
@@ -685,6 +696,7 @@ If a fact cannot be confirmed from data, **drop it**. Better to say less than to
   - Walk-window picked a slot the calendar shows as busy? **Bug** — re-derive.
   - Tina event mentioned in 6d AND also reflected elsewhere (duplicate)? Apply dedupe rule, fold into the other section.
   - Weather mention in opening that's not anomaly-tier ("słońce 23 stopnie cały dzień")? **Bug** — anomaly-only rule violated, cut.
+  - Calendar event mentioned that's actually Greg's wife's / family event (Calendar = `Familijne` / `Home` / `Team: Dom` AND Greg not in attendees)? **Bug** — calendar filter violated, cut.
 - Genuinely-quiet day (no PRs, no calendar, no mail, no Slack, no incidents)? Emit:
 
 ```
