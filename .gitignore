@@ -78,6 +78,9 @@ cache/
 *.swo
 *~
 
+# Node modules (raycast extensions etc.)
+node_modules/
+
 # Application plugins (managed separately)
 .config/tmux/plugins/
 dot_config/tmux/plugins/

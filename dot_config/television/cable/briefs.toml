@@ -1,0 +1,20 @@
+[metadata]
+name = "briefs"
+description = "Daily-brief audio archive — preview shows the saved transcript, Enter prints the mp3 path so the `brief ls` wrapper can afplay it"
+requirements = ["bash"]
+
+# Television runs source/preview commands through the user's default shell. On
+# this machine the login shell is nushell, which doesn't understand `ls -t --`
+# or `||`, so we wrap both commands in `bash -c '...'` to use proven POSIX
+# semantics. Newest-first, full paths so preview can find the .txt sibling.
+[source]
+command = "bash -c 'ls -t -- $HOME/Documents/briefings/*.mp3 2>/dev/null'"
+
+# Swap .mp3 → .txt and cat. Falls back to a placeholder for older mp3s saved
+# before the skill started writing transcripts alongside.
+#
+# `bash -c 'CMD' ARG0` makes the selected entry available as `$0` inside CMD,
+# which lets us use bash parameter expansion `${0%.mp3}.txt`. The literal `{}`
+# is Television's substitution placeholder.
+[preview]
+command = "bash -c '{ cat \"${0%.mp3}.txt\" 2>/dev/null || echo \"(no transcript saved alongside this mp3)\"; } | fold -s -w 100' {}"
