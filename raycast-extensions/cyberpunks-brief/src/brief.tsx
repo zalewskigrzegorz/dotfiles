@@ -26,19 +26,30 @@ type State =
 
 // Runs `claude -p --model <model>` headlessly, piping the prompt via stdin.
 // Captures stdout (the briefing) and stderr (any tool/permission noise).
+//
+// We launch through a login shell (`/bin/zsh -lc`) so the subprocess inherits
+// the user's full PATH, HOME, USER, and shell-rc side effects — including
+// whatever lets `claude` reach the macOS keychain to read its OAuth session.
+// Spawning `claude` directly from the Raycast Node host loses the keychain
+// access scope and the binary reports "Not logged in · Please run /login".
+function shellQuote(s: string): string {
+  return `'${s.replace(/'/g, "'\\''")}'`;
+}
+
 async function runClaude(
   bin: string,
   model: string,
   prompt: string,
 ): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const args = ["-p"];
-    if (model) {
-      args.push("--model", model);
-    }
-    const proc = spawn(bin, args, {
+    const modelFlag = model ? ` --model ${shellQuote(model)}` : "";
+    const cmd = `${shellQuote(bin)} -p${modelFlag}`;
+    const proc = spawn("/bin/zsh", ["-lc", cmd], {
       stdio: ["pipe", "pipe", "pipe"],
-      env: process.env,
+      env: {
+        ...process.env,
+        HOME: process.env.HOME || `/Users/${process.env.USER || "greg"}`,
+      },
     });
 
     let stdout = "";
