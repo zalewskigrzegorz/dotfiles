@@ -71,6 +71,8 @@ Anything in PRs / Slack / tickets touching: `login`, `auth`, `SSO`, `RBAC`, `IdP
 
 Not on the team — ignore: Radek (Głuchowski) left, Yevhen is a different team.
 
+**Greg's household (the family the brief talks to):** Greg + wife + three pets — **Lucy** (cat), **Daisy** and **Buffy** (dogs). No human kids; the pets ARE the family. When the walk-window or pet sections speak about them, lean warm — these aren't "the animals", they're family members. Never refer to Familijne / Home calendar as "kids' stuff".
+
 ## Day-of-week mode detection
 
 Run `date +%u` (1 = Mon, …, 7 = Sun) to detect today.
@@ -168,7 +170,7 @@ spark meetings --filter "newer_than:2d"
 
 For each `spark events` entry, check the `Calendar:` line. **Drop** the event silently if `Calendar:` matches ANY of:
 
-- `Familijne` (Gmail family calendar — wife's nail appointments, kids' stuff, etc.)
+- `Familijne` (Gmail family calendar — wife's appointments, family logistics, vet visits for the pets, etc.)
 - `Home` (iCloud shared home calendar)
 - `Team: Dom` (iCloud shared "Dom" team)
 - Any `Holidays`/`Holiday`/`Święta` calendar — public holidays already known, low signal.
