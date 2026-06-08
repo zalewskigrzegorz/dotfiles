@@ -32,6 +32,8 @@ esac
 case "$TOOL_NAME" in
   mcp__draw__*) exit 0 ;;
   mcp__claude-in-chrome__*) exit 0 ;;
+  # Homey get_*/list_* — read-only; MUT regex false-positives on "schedule" noun.
+  mcp__Homey__get_*|mcp__Homey__list_*) exit 0 ;;
 esac
 
 emit() {
