@@ -837,6 +837,66 @@ afplay "$OUT"
 
 5. If TTS was skipped (no API key / explicit "bez audio") — the text alone is the deliverable, but still save a `.txt` to `~/Documents/briefings/` so `db ls` can find it.
 
+## 1:1 agenda → Obsidian (AFTER TTS — auto)
+
+Greg keeps rolling 1:1 notes in Obsidian using PARA method:
+
+```
+~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Knowlage/10 - Projects/1:1/<FirstName>/11 <FirstName>.md
+```
+
+Existing notes seen: `<name>`, `<name>`, `<name>`, `<name>`. New people get a new folder + file.
+
+**Detection — which calendar events trigger this:**
+
+A `spark events` entry is a 1:1 when ANY of:
+
+- Title contains `1:1`, `1on1`, `one-on-one`, `one on one`.
+- Title is `<PersonA>:<PersonB>` or `<PersonA> / <PersonB>` with exactly 2 names.
+- Title contains `Catch up with`, `Sync with`, `Spotkanie z`.
+- `Attendees:` field has exactly 2 people, one of whom is Greg.
+
+Extract the **other person's first name** (<name>, <name>, <name>, etc.). Match the canonical first name from the roster (or a previously-existing 1:1 folder under `10 - Projects/1:1/`). If the name doesn't match an existing folder → create one: `mkdir -p "10 - Projects/1:1/<NewName>"` and seed the file with a single H1 heading.
+
+**Append rule (idempotent per day):**
+
+For each 1:1 today, append a fresh agenda block to `11 <Name>.md`:
+
+```bash
+VAULT="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/Knowlage"
+PERSON="<name>"  # extracted from event
+FILE="$VAULT/10 - Projects/1:1/$PERSON/11 $PERSON.md"
+TODAY="$(date +%Y-%m-%d)"
+
+# Idempotency — skip if today's heading already exists in the file
+if ! grep -qF "## $TODAY — Agenda (daily-brief)" "$FILE" 2>/dev/null; then
+  mkdir -p "$(dirname "$FILE")"
+  cat >> "$FILE" <<EOF
+
+## $TODAY — Agenda (daily-brief)
+
+<bullet list of agenda items distilled from today's brief context — see rules below>
+
+EOF
+fi
+```
+
+**What goes into the agenda bullets** (distill from the brief's own context, NOT raw dumps):
+
+- PRs where that person is requested reviewer or last commenter on Greg's PR.
+- Support / Slack threads where that person pinged Greg or where Greg owes a reply (`REDACTED_CHANNEL`, support tickets, DMs).
+- Outstanding action items mutually owed (from Hindsight `wip-context` / `tomorrow` tags matched to that person).
+- Recent REDACTED_TEAM-scope incidents touching the person's area (for <name>: SSO/RBAC; for <name>: API gateway / Reunite; etc.).
+- If the brief has nothing thematic → single bullet: `- Brak konkretnych tematów, spytaj o blokery i co potrzebuje`.
+
+Format each bullet as ONE actionable line, Polish, max 12 words. No paragraphs. No notes section — that's Greg's job after the meeting.
+
+**Brief mentions the agenda export** in section 4 (Kalendarz) — ONE clause: *"Agendę 1:1 z Adamem dorzuciłem do teczki w Obsidianie — RBAC remote content od Bookingu, SCIM Azure AD, twoje slug-support follow-up"*.
+
+If multiple 1:1s today → mention each agenda separately (<name> + <name> = two clauses).
+
+**Skip rule:** if `Write` to vault fails (iCloud sync issue, vault offline, non-Mac host) → silently skip. Don't error the brief.
+
 ## Action items → Apple Reminders (AFTER TTS — auto)
 
 Greg's chosen task tracker: **Apple Reminders**, list name **"Daily Brief"**. Syncs to iPhone + Watch + Siri + Raycast. He ticks them off in any of those.
