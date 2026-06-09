@@ -833,13 +833,20 @@ Greg's chosen task tracker: **Apple Reminders**, list name **"Daily Brief"**. Sy
 
 **What to export — ONLY concrete, persistent, actionable items:**
 
-Export → Reminders:
-- Mail action items from section 5a (incoming mail body extractions) — those are real TODOs.
-- Tina events surfaced in section 6d that survived the chore/calendar/anomaly filter.
-- Lucy litter box full, Buffy/Daisy tracker low battery, virus alarm, leak alarm (section 7 home-alarms items).
-- Trash collection if `days_until <= 3` (the brief mentions it; the Reminder turns it into a tick-off task).
-- Regulator/institution mail action items (skarbówka, ZUS, US, bank — `[serious]` items).
-- Greg's own PRs in `Broken` bucket older than 14 days (one Reminder per stale PR, NOT for fresh ones).
+Export → Reminders (every actionable item gets its own reminder with a concrete Polish task name):
+
+- **Mail action items** from section 5a (incoming mail body extractions) — those are real TODOs.
+- **Tina events** surfaced in section 6d that survived the chore/calendar/anomaly filter.
+- **Home alarms from `get_home_alarms`** — every actionable alarm becomes a task. Use Polish, imperative, concrete:
+  - `waste_bin_full` / `litter_box_full` for any pet (Lucy, future pets) → `Opróżnić kuwetę <pet name>` (e.g. `Opróżnić kuwetę Lucy`).
+  - `low_battery` on a tracker / sensor → `Podładować <device name>` (e.g. `Podładować Buffy Tracker`).
+  - `alarm_virus` (Airq) → `Przewietrzyć biuro (Airq virus alarm)`.
+  - `alarm_water` / leak → `Sprawdzić wyciek wody — <zone>` (`[serious]`).
+  - `alarm_smoke` / `alarm_fire` → `Sprawdzić alarm dymu — <zone>` (`[serious]`).
+  - `alarm_contact` on outdoor opening (Garden/Balkon/Window) WHEN rain incoming → `Zamknąć <device name>` (Garden Door → `Zamknąć Garden Door — zapowiada się deszcz`).
+- **Trash collection** if `days_until <= 3` → `Wystawić śmieci — <typy odpadów>` (e.g. `Wystawić śmieci — segregowane`).
+- **Regulator/institution mail action items** (skarbówka, ZUS, US, bank — `[serious]` items).
+- **Greg's own PRs** in `Broken` bucket older than 14 days (one Reminder per stale PR, NOT for fresh ones).
 
 DO NOT export → Reminders (these stay only in spoken brief):
 - PR review requests (status that changes daily — Reminders would be noise).
