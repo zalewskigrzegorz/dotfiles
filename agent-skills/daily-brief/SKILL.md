@@ -84,6 +84,88 @@ Run `date +%u` (1 = Mon, …, 7 = Sun) to detect today.
   - If the brief runs **after 12:00** → **post-sync recap framing**: *"sync był dziś o dwunastej, oto co przegapiłeś / co wyszło"*. **Never** say *"sync masz jutro"* on a Mon/Wed afternoon — sync was today.
 - **Any other day** → **personal mode**: skip section 8 entirely. Sections 1-7 + closing.
 
+## Checkpoint cache — restart-safe data fetching
+
+The brief calls 10+ external sources (gh, spark, slack, homey, wttr, NBP, Open-Meteo, lab Tina, hindsight, git find). If anything later in the pipeline crashes — ElevenLabs API down, network blip, MCP guard timeout, TTS save fail — re-running shouldn't refetch everything. Cache each source to disk on first fetch; reuse on retry within TTL.
+
+**Cache root:** `/tmp/daily-brief-cache/` — flat, one file per source.
+
+**Per-source TTL (max age before refetch):**
+
+| Source | TTL | File |
+|---|---|---|
+| wttr.in hourly | 1h | `wttr.json` |
+| NBP USD 7-day | 4h (rates update once/day) | `nbp.json` |
+| Open-Meteo AQI | 1h | `aqi.json` |
+| Tina events | 10 min | `tina.json` |
+| Spark events / mail queries | 10 min | one file per query, e.g. `spark-events.txt`, `spark-inbox-7d.txt` |
+| Slack search results | 10 min | `slack-mentions.json`, `slack-dms.json` |
+| GH PR/issue queries | 10 min | `gh-own-prs.json`, `gh-reviews.json`, `gh-issues.json` |
+| Homey MCP calls | 5 min | `homey-alarms.json`, `homey-waste.json`, `homey-pets.json` |
+| Hindsight recall | 5 min | one file per query, e.g. `hindsight-wip.json` |
+| Git activity scan | 10 min | `git-activity.txt` |
+| Drafts MCP | 10 min | `drafts.json` |
+| Apple Reminders read | 1 min (changes often) | `reminders.txt` |
+| Final brief text | written AFTER generation | `final-YYYYMMDD-HHMMSS.txt` |
+
+**Helper wrapper (use inline in fetch commands):**
+
+```bash
+CACHE=/tmp/daily-brief-cache
+mkdir -p "$CACHE"
+
+# Usage: cached <name> <ttl_seconds> <command...>
+# Returns cached content if fresh, else runs cmd and tees output to cache.
+cached() {
+  local name="$1" ttl="$2"; shift 2
+  local file="$CACHE/$name"
+  local now age
+  now=$(date +%s)
+  if [ -f "$file" ]; then
+    age=$(( now - $(stat -f %m "$file" 2>/dev/null || echo 0) ))
+    if [ "$age" -lt "$ttl" ]; then
+      cat "$file"
+      return
+    fi
+  fi
+  "$@" | tee "$file"
+}
+```
+
+Wrap every external call with `cached`. Example:
+
+```bash
+cached wttr.json     3600  curl -s "wttr.in/Tarnowskie+Gory?format=j1"
+cached nbp.json      14400 curl -s "https://api.nbp.pl/api/exchangerates/rates/a/usd/last/7/?format=json"
+cached aqi.json      3600  curl -s "https://air-quality-api.open-meteo.com/v1/air-quality?..."
+cached tina.json      600  curl -s --max-time 5 "http://lab:3001/api/events?..."
+```
+
+**MCP tool caching** — wrap the JSON-stringified result. Skill prompt uses pseudo-code:
+
+```
+homey_alarms = read("homey-alarms.json", ttl=300) or mcp__Homey__get_home_alarms() & write("homey-alarms.json")
+```
+
+**Restart-safe final step:**
+
+After generating the brief text, **before TTS** save it:
+
+```bash
+TS=$(date +%Y%m%d-%H%M%S)
+printf '%s\n' "$BRIEFING_TEXT" > "$CACHE/final-$TS.txt"
+```
+
+If a subsequent retry within 30 minutes finds a `final-*.txt` newer than 30 min → load + replay (TTS + Reminders write + Hindsight retain + transcript save) without regenerating text. Match by reading the newest `final-*.txt`.
+
+**Stale cleanup:** at the very start of a brief run, prune cache files older than 24h:
+
+```bash
+find /tmp/daily-brief-cache -type f -mtime +1 -delete 2>/dev/null
+```
+
+**Disable cache** — Greg can pass `--fresh` in the invocation (`/daily-brief --fresh`) to force ignore cache and refetch everything. Brief detects the flag in the prompt and skips the `cached` wrapper on that run.
+
 ## Data sources
 
 Look at **the last 5 days** by default.
