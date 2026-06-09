@@ -597,7 +597,7 @@ Beyond the pollen alarm (already handled in opening), the brief MUST surface the
 
 **Drop silently (Greg sees these on his phone, no audio repeat needed):**
 - `alarm_connectivity` / `alarm_online.*` (offline devices like Esti Night Light)
-- `alarm_contact` (garden door open — Greg knows when he opens it for the dogs)
+- `alarm_contact` (garden door / window open) — UNLESS rain / snow / hail is in the current `weatherDesc` from wttr OR `chanceofrain > 30` in the current hour. Then **escalate to `[serious]` lead in section 7**: *"Garden Door otwarte i zapowiada się deszcz — zamknij zanim ci się leje na podłogę"*. Same rule for any other `alarm_contact` device whose name implies an outdoor opening (`Garden`, `Balkon`, `Taras`, `Window`).
 
 **Trash (from `get_waste_collection_schedule`):**
 
