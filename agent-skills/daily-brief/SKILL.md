@@ -235,8 +235,9 @@ curl -s "wttr.in/Tarnowskie+Gory?format=j1" | jq '{
   tomorrow_max: .weather[1].maxtempC
 }'
 
-# USD/PLN current mid rate
-curl -s "https://api.nbp.pl/api/exchangerates/rates/a/usd/?format=json" | jq -r '.rates[0].mid'
+# USD/PLN current mid rate + 7-day trend (Greg holds USD and times exchanges)
+curl -s "https://api.nbp.pl/api/exchangerates/rates/a/usd/last/7/?format=json" | jq '{rates: [.rates[] | {date: .effectiveDate, mid: .mid}]}'
+# Brief takes .rates[-1].mid as today, compares to .rates[-2].mid (yesterday) and .rates[0].mid (7 days ago).
 
 # Air quality EAQI Tarnowskie Góry (lat 50.4196, lon 18.8628) — current + hourly for walk-window
 curl -s "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=50.4196&longitude=18.8628&current=european_aqi,pm2_5,pm10&hourly=european_aqi,pm2_5&timezone=Europe%2FWarsaw"
@@ -395,7 +396,26 @@ Mention if at least one trigger:
 
 Tomorrow only if substantially different (*"jutro dużo chłodniej, dwanaście stopni i deszcz"*).
 
-**USD line (from NBP):** always say. Round to 2 decimals, Polish-style: *"dolar po trzy złote sześćdziesiąt dziewięć"*.
+**USD line (from NBP `/last/7`):** **always say** — this is critical to Greg, who holds USD on account and times exchanges. State the rate Polish-style + the trend.
+
+Compute trend from the 7-day series:
+- `today_mid` = `.rates[-1].mid`
+- `delta_day` = `today_mid - .rates[-2].mid` (change vs yesterday)
+- `delta_week` = `today_mid - .rates[0].mid` (change vs 7 days ago)
+
+Phrasing rules (pick the strongest signal):
+
+- `delta_day` ≥ +0.02 PLN (rising fast day-over-day) → *"dolar dziś po trzy złote sześćdziesiąt dziewięć, w górę o dwa grosze od wczoraj — moment dobry żeby zerknąć na konto USD"*. `[matter-of-factly]` or `[thoughtful]`.
+- `delta_day` ≤ -0.02 PLN (falling fast) → *"dolar spadł do trzy sześćdziesiąt cztery, dwa grosze w dół od wczoraj — nie najlepszy dzień na wymianę"*. `[matter-of-factly]` or `[dry]`.
+- `|delta_day|` < 0.02 BUT `|delta_week|` ≥ 0.05 (slow trend across the week) → *"dolar po trzy sześćdziesiąt dziewięć, od poniedziałku w górę o pięć groszy — trend ostatnio rosnący"*.
+- Flat (both deltas small) → *"dolar po trzy sześćdziesiąt dziewięć, w tym tygodniu stabilnie"*.
+- Local high (`today_mid >= max(rates[].mid) - 0.01`) → ADD *"to tygodniowe maksimum — jak masz dolary na koncie i chciałeś wymienić, dziś jest okazja"*. Use `[thoughtful]` tag.
+- Local low → ADD *"to tygodniowe minimum, gorszy dzień na sprzedaż"*.
+
+Examples:
+- *"Dolar dziś po trzy złote sześćdziesiąt dziewięć, w górę o dwa grosze od wczoraj — moment dobry żeby zerknąć na konto USD."*
+- *"Dolar po trzy złote sześćdziesiąt dziewięć, w tym tygodniu stabilnie — nic do roboty."*
+- *"Dolar po trzy siedemdziesiąt jeden, [thoughtful] to tygodniowe maksimum — masz dolary na koncie, to dziś okazja na wymianę."*
 
 **AQI line (from Open-Meteo `current.european_aqi`):**
 
