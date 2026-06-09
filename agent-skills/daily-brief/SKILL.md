@@ -757,6 +757,59 @@ afplay "$OUT"
 
 5. If TTS was skipped (no API key / explicit "bez audio") — the text alone is the deliverable, but still save a `.txt` to `~/Documents/briefings/` so `db ls` can find it.
 
+## Action items → Apple Reminders (AFTER TTS — auto)
+
+Greg's chosen task tracker: **Apple Reminders**, list name **"Daily Brief"**. Syncs to iPhone + Watch + Siri + Raycast. He ticks them off in any of those.
+
+**What to export — ONLY concrete, persistent, actionable items:**
+
+Export → Reminders:
+- Mail action items from section 5a (incoming mail body extractions) — those are real TODOs.
+- Tina events surfaced in section 6d that survived the chore/calendar/anomaly filter.
+- Lucy litter box full, Buffy/Daisy tracker low battery, virus alarm, leak alarm (section 7 home-alarms items).
+- Trash collection if `days_until <= 3` (the brief mentions it; the Reminder turns it into a tick-off task).
+- Regulator/institution mail action items (skarbówka, ZUS, US, bank — `[serious]` items).
+- Greg's own PRs in `Broken` bucket older than 14 days (one Reminder per stale PR, NOT for fresh ones).
+
+DO NOT export → Reminders (these stay only in spoken brief):
+- PR review requests (status that changes daily — Reminders would be noise).
+- Slack mentions / DMs (those evolve in Slack itself).
+- Calendar events (Reminders is for tasks, not events).
+- Walk-window recommendation (changes daily based on weather).
+- Pollen alarm / weather / USD / AQI (status, not action).
+- Anything already covered by another tracker (work issues in Linear, etc.).
+
+**Idempotency rule (critical):** before adding a reminder, check if one with the same name already exists in the "Daily Brief" list. If yes → skip (don't duplicate; the existing reminder is still pending). If no → add with body containing `from daily-brief YYYY-MM-DD` so Greg sees the source.
+
+**Implementation — single AppleScript invocation per task:**
+
+```bash
+osascript <<'APPLESCRIPT'
+on add_brief_task(taskName, taskBody)
+  tell application "Reminders"
+    if not (exists list "Daily Brief") then
+      make new list with properties {name:"Daily Brief"}
+    end if
+    tell list "Daily Brief"
+      if not (exists (reminders whose name is taskName)) then
+        make new reminder with properties {name:taskName, body:taskBody}
+      end if
+    end tell
+  end tell
+end add_brief_task
+
+add_brief_task("Wyślij WC paczkę przez DPD (HUEL swap)", "from daily-brief 2026-06-10")
+APPLESCRIPT
+```
+
+Repeat the `add_brief_task` invocation per task to export (max 8 per brief — keep the list lean). Greg ticks them off in Reminders.app / iOS / Watch / Raycast. The brief NEVER removes or completes reminders — Greg owns ticking. If Greg leaves a reminder open for 7+ days, mention it in next brief's "stale reminders" callback (future v3 enhancement, skip for v2).
+
+**Skip the whole Reminders export if:**
+- `osascript` is unavailable (non-macOS host like the lab Debian).
+- The task count is 0 (nothing actionable extracted).
+
+Tag suggestions when speaking the brief about exports: `[matter-of-factly] Dorzuciłem cztery rzeczy do listy 'Daily Brief' w Reminders, odznaczaj jak ogarniesz.` ONE sentence at the end of section 5 or 7 (whichever holds the tasks), NOT a separate paragraph.
+
 ## Retain leftovers (AFTER TTS — auto)
 
 After the brief is delivered (text + TTS), **auto-retain** the leftover items into Hindsight so the next day's brief can pick them up.
