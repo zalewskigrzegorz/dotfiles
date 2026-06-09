@@ -302,6 +302,47 @@ done
 
 Top 2-3 most-active repos feed section 6a. Distill into descriptive labels (NOT verbatim commit subjects).
 
+### Apple Reminders (osascript, Mac-only) — Greg's universal task store
+
+Read **all open reminders across all lists** (`Daily Brief`, `Reminders`, `DeskMinder`, `To do`, future lists like shopping). Greg may add tasks ad-hoc via Raycast, Siri, iPhone, Watch, or AppleScript — the brief should always pick them up.
+
+```bash
+osascript <<'APPLESCRIPT'
+tell application "Reminders"
+  set output to ""
+  repeat with L in lists
+    set lname to name of L
+    repeat with R in (reminders of L whose completed is false)
+      set rname to name of R
+      try
+        set rdue to (due date of R) as string
+      on error
+        set rdue to ""
+      end try
+      try
+        set rcreated to (creation date of R) as string
+      on error
+        set rcreated to ""
+      end try
+      set output to output & "[" & lname & "] " & rname & " | due=" & rdue & " | created=" & rcreated & linefeed
+    end repeat
+  end repeat
+  return output
+end tell
+APPLESCRIPT
+```
+
+Output format per line: `[list_name] reminder_name | due=<date or empty> | created=<date>`.
+
+**How the brief uses this read:**
+
+- **Today/overdue:** reminders with `due` on today or earlier → surface in section 5 (alongside mail action items) as *"masz w Reminders trzy rzeczy na dziś — kupić chleb, wysłać WC, odebrać paczkę"*.
+- **Stale** (`created` more than 30 days ago AND still open) → 1 acknowledging clause in section 5 or 7: *"plus dwa stare w Reminders od września, 'Connect to device to network' i 'X' — albo je zrób albo skasuj"*.
+- **List context:** shopping-list reminders (any list named like "Zakupy", "Shopping") → group in 1 clause for section 7 (Dom): *"lista zakupów ma osiem rzeczy, najstarsza z poniedziałku"*. Don't enumerate items individually.
+- **Daily Brief list specifically:** these are reminders the brief itself added on previous runs. Open ones older than 1 day = Greg hasn't ticked them off yet → 1 clause as gentle reminder: *"z poprzednich brief'ów wciąż masz cztery niezaznaczone, najstarszy z piątku"*.
+
+Skip the Reminders read silently if `osascript` is unavailable (lab Debian).
+
 ### Drafts app (MCP — `mcp__drafts__*`, Mac-only)
 
 ```
@@ -348,7 +389,7 @@ Default: skip.
 Mention if at least one trigger:
 
 - Temperature range across day > 7°C OR cloudy AM → sunny PM: *"rano chłodno koło dwunastu, popołudniu rozgrzeje do dwudziestu czterech"*.
-- `chanceofrain > 50` in any hour OR `weatherDesc` of any hour contains `rain`/`shower`/`drizzle`/`patchy rain` (Polish: opady) — call out the window: *"po piętnastej zacznie kropić, weź coś z kapturem na spacer"*, *"po południu przelotny deszcz, planuj spacer wcześniej"*.
+- `chanceofrain > 50` in any hour OR `weatherDesc` of any hour contains `rain`/`shower`/`drizzle`/`patchy rain`/`snow`/`hail`/`sleet`/`fog`/`mist` (opady, śnieg, mgła) — call out the window: *"po piętnastej zacznie kropić, weź coś z kapturem na spacer"*, *"po południu przelotny deszcz, planuj spacer wcześniej"*, *"od wieczora śnieg, do dwudziestej najlepiej skończ spacer"*, *"rano gęsta mgła, widoczność słaba — z psami zaczekaj do dziesiątej"*.
 - Condition deterioration: *"przed południem słońce, popołudniu burza"*.
 - Extreme (`tempC > 28`, `< 0`, snow, hail, storm warning): lead with `[serious]` or `[sighs]`.
 
@@ -565,7 +606,7 @@ Steps:
 
 1. Build per-hour grid sunrise → sunset.
 2. Mark `busy` if hour overlaps a `spark events` entry (busy slots are walkable only if a gap ≥ 60 min exists).
-3. Mark `bad-weather` if `chanceofrain > 50` OR `tempC > 26` OR `tempC < 0` OR `weatherDesc` contains `rain`/`shower`/`drizzle`/`patchy rain`/`thunder`/`storm`/`heavy snow` (anything implying water from the sky).
+3. Mark `bad-weather` if `chanceofrain > 50` OR `tempC > 26` OR `tempC < 0` OR `weatherDesc` contains any of: `rain`/`shower`/`drizzle`/`patchy rain`/`thunder`/`storm`/`snow`/`heavy snow`/`hail`/`sleet`/`fog`/`mist`/`mgła`/`freezing` (anything that makes walking with two dogs unpleasant — wet, frozen, low visibility).
 4. Mark `bad-air` if `european_aqi >= 60`.
 5. Apply pollen as **day-level context** (not hourly): if `plesnie` alarm `true`, recommendation MUST end with "weź antyhistaminę".
 6. Find candidate windows of ≥ 60 contiguous minutes that are `free && !bad-weather && !bad-air`.
@@ -779,7 +820,9 @@ DO NOT export → Reminders (these stay only in spoken brief):
 - Pollen alarm / weather / USD / AQI (status, not action).
 - Anything already covered by another tracker (work issues in Linear, etc.).
 
-**Idempotency rule (critical):** before adding a reminder, check if one with the same name already exists in the "Daily Brief" list. If yes → skip (don't duplicate; the existing reminder is still pending). If no → add with body containing `from daily-brief YYYY-MM-DD` so Greg sees the source.
+**Idempotency rule (critical):** before adding a reminder, check whether a reminder with the same (or near-same) name already exists in **ANY open list** (`Daily Brief`, `Reminders`, `DeskMinder`, `To do`, shopping list, etc.) — not just the `Daily Brief` list. Greg might have added the same TODO via Raycast or Siri already. If a similar open reminder exists anywhere → skip. If no → add to the `Daily Brief` list with body containing `from daily-brief YYYY-MM-DD` so Greg sees the source.
+
+The full open-reminders read from the data-sources block is already loaded — use it for the duplicate check rather than running a second AppleScript pass.
 
 **Implementation — single AppleScript invocation per task:**
 
