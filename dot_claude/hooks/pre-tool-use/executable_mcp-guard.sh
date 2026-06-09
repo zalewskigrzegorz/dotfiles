@@ -34,6 +34,9 @@ case "$TOOL_NAME" in
   mcp__claude-in-chrome__*) exit 0 ;;
   # Homey get_*/list_* — read-only; MUT regex false-positives on "schedule" noun.
   mcp__Homey__get_*|mcp__Homey__list_*) exit 0 ;;
+  # Hindsight retain/sync_retain — intended use (memory layer write), not destructive.
+  # daily-brief skill MUST be able to retain leftover items at end of run in auto mode.
+  mcp__hindsight__retain|mcp__hindsight__sync_retain) exit 0 ;;
 esac
 
 emit() {
