@@ -4,32 +4,50 @@
 
 | Domain | Font | Role |
 |---|---|---|
-| **All code / monospace** (terminal, editors, sketchybar, tmux, code blocks) | `JetBrainsMono Nerd Font` | locked 2026-05-23 |
-| **Browser body / prose / headings** | `OpenDyslexicM Nerd Font Propo` | locked |
-| **Browser serif** (sites forcing `font-family: serif`) | `OpenDyslexicAlt Nerd Font Propo` | locked |
-| **Browser sans-serif** (most sites) | `OpenDyslexicM Nerd Font Propo` | locked |
-| **Browser mathematical** | `OpenDyslexicM Nerd Font Propo` | locked |
+| **All code / monospace** (terminal, editors, sketchybar, tmux, code blocks) | `JetBrainsMono Nerd Font` | locked 2026-05-23, re-confirmed 2026-06-10 |
+| **Browser body / prose / headings** | `Atkinson Hyperlegible Next` | locked 2026-06-10 |
+| **Browser serif** (sites forcing `font-family: serif`) | `Verdana` | evidence-backed, visually distinct from Atkinson |
+| **Browser sans-serif** (most sites) | `Atkinson Hyperlegible Next` | locked |
+| **Slack** | `/slackfont Atkinson Hyperlegible Next` | reverts on session expiry — re-run when it resets |
+| **Spacing (the real lever)** | `letter-spacing 0.12em` + `word-spacing 0.16em` + `line-height 1.5` | tier-A evidence, applied in userstyles |
 
-## Browser fonts — canonical a11y setup
+## History / rationale
 
-**Greg's accessibility-locked font setup for every Chromium / Firefox / Safari
-install.** Tested under ADHD + dyslexia. Do not change without explicit override.
+**2026-06-10 research run replaced OpenDyslexic with Atkinson Hyperlegible Next**
+for all body text. Full research (7 items, evidence tiers, per-field JSON):
+`~/Code/personal/bazgroly/dotfiles/research/fonts-adhd-dyslexia/report.md`.
 
-OpenDyslexic was hand-picked after testing. **JetBrains Mono** is the locked
-code font everywhere (terminal, editors, sketchybar, code blocks in browser) —
-2026-05-23 research run reversed the earlier Iosevka pick. **Do not propose
-alternative fonts** (Atkinson, Lexend, Verdana, Iosevka, Fantasque, etc.)
-without being asked — these picks already won the bake-off.
+Key findings:
+
+- OpenDyslexic's only independent RCT (Wery & Diliberto 2017) is **negative** —
+  no speed/accuracy benefit. Tier C/D otherwise. It also has no variable
+  weight axis, so it can't do the dark-mode ~350 weight trick.
+- The only tier-A intervention is **spacing**, not letterforms (Zorzi 2012,
+  PNAS: ~50% fewer errors in dyslexic readers; codified in WCAG 1.4.12).
+- Atkinson Hyperlegible Next has no RCTs (too new, Feb 2025) but the best
+  letterform-distinction mechanics (I/l/1, O/0, b/d/p/q), large x-height and
+  a variable wght axis 200–800.
+- Evidence-backed fallback if Atkinson subjectively doesn't click after a
+  week: **SF Pro / Verdana** (Rello & Baeza-Yates 2013; Readability Group
+  survey ~2500 participants) — zero-install on macOS.
+- **JetBrains Mono stays** for code: ligatures are a hard requirement
+  (eliminates Atkinson Hyperlegible Mono — intentionally ligature-free);
+  Monaspace's texture healing has no empirical validation and weak
+  variable-font support in editors.
+
+**Do not propose alternative fonts** (Lexend, Iosevka, Fantasque, Monaspace,
+Dyslexie, Comic Neue, etc.) without being asked — these picks won the
+2026-06-10 evidence-tier bake-off.
 
 ## Settings → Appearance → Fonts (apply identically in every browser)
 
 | Slot | Font | Rationale |
 |---|---|---|
-| **Standard font** | `OpenDyslexic Nerd Font Propo` | proportional, body text |
-| **Serif font** | `OpenDyslexicAlt Nerd Font Propo` | Alt variant — slightly different letter shapes, used by sites forcing `font-family: serif` |
-| **Sans-serif font** | `OpenDyslexicM Nerd Font Propo` | M variant for sans-serif sites |
-| **Fixed-width font** | `JetBrainsMono Nerd Font` | post-Iosevka research pick — won the latest dyslexia bake-off |
-| **Mathematical font** | `OpenDyslexicM Nerd Font Propo` | keep family consistent |
+| **Standard font** | `Atkinson Hyperlegible Next` | proportional, body text |
+| **Serif font** | `Verdana` | sites forcing serif get the evidence-backed sans instead; visually distinct from Atkinson so sites stay distinguishable |
+| **Sans-serif font** | `Atkinson Hyperlegible Next` | main body font |
+| **Fixed-width font** | `JetBrainsMono Nerd Font` | locked code font |
+| **Mathematical font** | `Atkinson Hyperlegible Next` | keep family consistent |
 | **Minimum font size** | bump 1 notch from `Tiny` | ADHD eye-strain reduction |
 
 ## Per-browser entry points
@@ -42,20 +60,31 @@ without being asked — these picks already won the bake-off.
 | Firefox / Firefox Dev | Preferences → General → Language and Appearance → Fonts → Advanced |
 | Safari | Preferences → Advanced → Accessibility → "Never use font sizes smaller than" + per-site override via Reader |
 
+## Slack
+
+```
+/slackfont Atkinson Hyperlegible Next
+```
+
+Caveats: desktop-only, Latin chat text only (code blocks keep Slack's mono),
+**reverts on session expiry** — just re-run the command. Bare `/slackfont`
+resets to default.
+
 ## Font availability
 
-All four OpenDyslexic Nerd Font variants + Iosevka Nerd Font are installed under
-`~/Library/Fonts/`. On a fresh machine they come from the homebrew cask
-`font-open-dyslexic-nerd-font` + `font-iosevka-nerd-font` (already in
-`dot_Brewfile.tmpl`).
+- `Atkinson Hyperlegible Next` — homebrew cask `font-atkinson-hyperlegible-next`
+  (in `dot_Brewfile.tmpl`). No Nerd Font patch needed (body text only).
+- `JetBrainsMono Nerd Font` — cask `font-jetbrains-mono-nerd-font`.
+- `Verdana` / `SF Pro` — ship with macOS, zero install.
+- OpenDyslexic Nerd Font variants remain installed (cask
+  `font-opendyslexic-nerd-font`) as legacy fallback; safe to drop later.
 
-## Why three different OpenDyslexic variants?
+## Dark mode (Mocha Neon) tuning
 
-Sites use CSS `font-family: <serif|sans-serif>` to pick a generic family. By
-mapping each generic to a *slightly different* OpenDyslexic variant (Propo /
-AltPropo / MPropo), text on different sites stays visually distinguishable
-without losing OpenDyslexic's dyslexia-friendly letter shapes. If you ever feel
-"every site looks identical", that's the variant differentiation working.
+Light text on `#1E1E2E` optically bolds itself (irradiation). Atkinson Next is
+a variable font — drop prose to **wght ~350** in dark mode where possible
+(done in the GitHub userstyle for `.markdown-body p/li`). Never force weight
+with `!important` or `<strong>`/headings lose their emphasis.
 
 ## When NOT to override
 
@@ -65,19 +94,19 @@ without losing OpenDyslexic's dyslexia-friendly letter shapes. If you ever feel
 
 ## When you CAN override
 
-- Explicit user request ("daj tu Atkinson zamiast OpenDyslexic" → fine).
+- Explicit user request.
 - A single site via Stylus extension userstyle, if a particular site renders
-  OpenDyslexic unreadable.
+  the font stack unreadable.
 
 ## Per-site userstyle overrides (Stylus)
 
-For daily-driver sites where you want OpenDyslexic + neon palette but the
-site's own font stack blocks generic-family fallback (Apple system / Mona Sans
-/ Inter loaded by site), use a Stylus userstyle to force it.
-
 | Site | Userstyle file | What it forces |
 |---|---|---|
-| github.com | `dot_config/stylus/github-mocha-neon-override.user.css` | Mocha Neon palette override + body=OpenDyslexicM, code=JetBrainsMono |
+| github.com | `dot_config/stylus/github-mocha-neon-override.user.css` | Mocha Neon palette + body=Atkinson Hyperlegible Next (0.12em/0.16em/1.5 spacing, wght 350 prose), code=JetBrainsMono |
+
+After editing the source file, re-import / update the style inside the Stylus
+extension — chezmoi only syncs the repo copy to `~/.config/stylus/`, the
+browser extension does not read that path by itself.
 
 ## Code font preference
 
