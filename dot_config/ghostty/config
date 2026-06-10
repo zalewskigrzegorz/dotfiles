@@ -61,18 +61,29 @@ window-position-y = 0
 font-size = 17
 
 # monospace
+# ── EXPERIMENT (start 2026-06-11, ocena ~2026-06-18): Atkinson Hyperlegible Mono
+#    jako font główny (czytelność prozy > ligatury), JBMono NF jako fallback na
+#    nerd-glyphy. Revert: przywróć blok "old" poniżej.
 font-feature = "liga"
 font-feature = "calt"
+font-family = "Atkinson Hyperlegible Mono"
 font-family = "JetBrainsMono Nerd Font"
 font-variation = wght=400
-font-variation = wdth=100
 
 # italics
-
-font-family-italic = "JetBrainsMono Nerd Font"
+font-family-italic = "Atkinson Hyperlegible Mono"
 font-variation-italic = wght=400
-font-family-bold-italic = "JetBrainsMono Nerd Font"
+font-family-bold-italic = "Atkinson Hyperlegible Mono"
 font-variation-bold-italic = wght=700
+
+# old (JBMono primary):
+# font-family = "JetBrainsMono Nerd Font"
+# font-variation = wght=400
+# font-variation = wdth=100
+# font-family-italic = "JetBrainsMono Nerd Font"
+# font-variation-italic = wght=400
+# font-family-bold-italic = "JetBrainsMono Nerd Font"
+# font-variation-bold-italic = wght=700
 
 window-title-font-family = "JetBrainsMono Nerd Font, monospace"
 macos-titlebar-style = native
