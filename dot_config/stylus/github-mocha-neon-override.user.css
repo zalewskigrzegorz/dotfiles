@@ -1,8 +1,8 @@
 /* ==UserStyle==
 @name           GitHub — Mocha Neon override
 @namespace      github.com/zalewskigrzegorz
-@version        1.3.0
-@description    Bumps Catppuccin Mocha (catppuccin/github userstyle) accents to Mocha Neon hex on github.com. Source of truth for hex: docs/mocha-neon-palette.md.
+@version        1.4.0
+@description    Bumps Catppuccin Mocha (catppuccin/github userstyle) accents to Mocha Neon hex on github.com + a11y fonts (Atkinson Hyperlegible Next body, JetBrainsMono code, tier-A spacing). Source of truth: docs/mocha-neon-palette.md + docs/browser-fonts.md.
 @author         Grzegorz Zalewski
 @updateURL      https://raw.githubusercontent.com/zalewskigrzegorz/dotfiles/master/dot_config/stylus/github-mocha-neon-override.user.css
 ==/UserStyle== */
@@ -96,7 +96,10 @@
     background-color: #B347FF !important;
   }
 
-  /* ─── Fonts: OpenDyslexic (Mono variant) for body, JetBrainsMono for code ─── */
+  /* ─── Fonts: Atkinson Hyperlegible Next for body, JetBrainsMono for code ───
+     Spacing per tier-A evidence (Zorzi 2012 / WCAG 1.4.12): letter 0.12em,
+     word 0.16em, line-height 1.5. Switched from OpenDyslexic 2026-06-10 —
+     research: bazgroly/dotfiles/research/fonts-adhd-dyslexia/report.md */
   body,
   .markdown-body,
   .Header,
@@ -106,11 +109,19 @@
   .btn, .Button,
   input, textarea, select,
   .CodeMirror-line span:not(.cm-pre) {
-    font-family: "OpenDyslexicM Nerd Font Mono", -apple-system, BlinkMacSystemFont, sans-serif !important;
-    font-size: 13px !important;
-    letter-spacing: -0.07em !important;
-    word-spacing: -0.1em !important;
-    line-height: 1.35 !important;
+    font-family: "Atkinson Hyperlegible Next", -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-size: 14px !important;
+    letter-spacing: 0.12em !important;
+    word-spacing: 0.16em !important;
+    line-height: 1.5 !important;
+  }
+
+  /* Dark-bg optical bolding compensation: variable wght ~350 for prose only
+     (no !important so <strong>/<b>/headings keep their weight) */
+  .markdown-body p,
+  .markdown-body li,
+  .comment-body p {
+    font-weight: 350;
   }
 
   code, pre, tt, kbd, samp,
