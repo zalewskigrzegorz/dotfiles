@@ -70,15 +70,15 @@ preset = 'qwerty'
 # Patterns are tried in order; first substring match against list-monitors wins.
 # Run: aerospace list-monitors  — add another string here if you get a new display name.
 # Keys 1–5 → Dell first; 6–9 → ultrawide first. Second pattern = fallback when only one external.
-chat = ['DELL U3225QE', 'C34H89x']
-term = ['DELL U3225QE', 'C34H89x']
-code = ['DELL U3225QE', 'C34H89x']
-misc = ['DELL U3225QE', 'C34H89x']
-notes = ['DELL U3225QE', 'C34H89x']
-web = ['C34H89x', 'DELL U3225QE']
-media = ['C34H89x', 'DELL U3225QE']
-test = ['C34H89x', 'DELL U3225QE']
-mail = ['C34H89x', 'DELL U3225QE']
+chat = ['C34H89x', 'DELL U3225QE']
+term = ['C34H89x', 'DELL U3225QE']
+code = ['C34H89x', 'DELL U3225QE']
+misc = ['C34H89x', 'DELL U3225QE']
+notes = ['C34H89x', 'DELL U3225QE']
+web = ['DELL U3225QE', 'C34H89x']
+media = ['DELL U3225QE', 'C34H89x']
+test = ['DELL U3225QE', 'C34H89x']
+mail = ['DELL U3225QE', 'C34H89x']
 mac = 'Built-in'
 
 # Gaps between windows (inner-*) and between monitor edges (outer-*).

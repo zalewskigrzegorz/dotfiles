@@ -6,7 +6,6 @@
 {{- with (index . "setapp") -}}
 {{- $setapp = . -}}
 {{- end -}}
-tap "hashicorp/tap"
 tap "oven-sh/bun"
 tap "timescam/tap"
 
@@ -37,9 +36,9 @@ brew "git-delta"
 brew "gitleaks"
 brew "gnupg"
 brew "go"
-brew "hashicorp/tap/nomad"
-brew "hashicorp/tap/terraform"
-brew "hashicorp/tap/vault"
+# nomad/terraform/vault: dropped from global brew 2026-06-10 — used only in
+# ~/Code/REDACTED_ORG/REDACTED_ORG via mise (mise.toml pins exact versions). Re-add here
+# if you ever need them outside REDACTED_ORG repos.
 brew "hyperfine"
 brew "jq"
 brew "just"
@@ -114,7 +113,8 @@ cask "aerospace"
 cask "alt-tab"
 cask "bitwarden"
 cask "chipmunk"
-cask "claude-code"
+# claude-code: installed via native installer (`claude install latest`) — auto-updates,
+# brew cask lags 2+ weeks behind. See run_once_after_25-install-claude.sh.tmpl.
 cask "clop"
 cask "comet"
 cask "datagrip"
