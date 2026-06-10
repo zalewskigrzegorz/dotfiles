@@ -46,6 +46,7 @@ agent-mcp/**
 .config/cursor/**
 .config/flipperdevices.com/**
 .config/ghostty/**
+.config/launchd/com.greg.temp-watch.plist
 .config/sketchybar/**
 .config/spotify-player/**
 .config/svim/**
@@ -55,4 +56,5 @@ nushell-mcp.json
 bin/aerospace-flip-window/**
 bin/sketchybar-watcher/**
 bin/sketchybar-watcher-bin
+bin/temp-watch
 {{ end -}}

@@ -3,13 +3,16 @@
 # Idempotent install + load of LaunchAgents:
 #   - com.greg.aerospace-watchdog (restarts AeroSpace.app if it dies — chicken
 #                                  and egg fix for `Leader+X` rebind)
+#   - com.greg.temp-watch (polls smctemp every 20s, alerter notifications when
+#                          CPU crosses 85°C threshold and again when it cools
+#                          back below 75°C — "odpal podstawkę" reminder)
 # Legacy labels (claude-watcher / claude-idle-timer) are explicitly torn down
 # below — they fed the now-removed sketchybar claude_sessions widget.
 # `run_once_*` per chezmoi semantics — re-runs only when this script's content
 # changes. To force a re-bootstrap (e.g. after editing the plists), bump the
 # version stamp in the comment below.
 #
-# Version: 2026-06-03.1
+# Version: 2026-06-10.1
 set -eu
 
 SRC_DIR="${HOME}/.config/launchd"
@@ -22,7 +25,7 @@ for legacy in com.greg.claude-watcher com.greg.claude-idle-timer; do
   rm -f "${DST_DIR}/${legacy}.plist"
 done
 
-for label in com.greg.aerospace-watchdog; do
+for label in com.greg.aerospace-watchdog com.greg.temp-watch; do
   src="${SRC_DIR}/${label}.plist"
   dst="${DST_DIR}/${label}.plist"
   if [[ ! -f "$src" ]]; then
