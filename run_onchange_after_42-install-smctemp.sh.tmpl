@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Idempotent build + install of `smctemp` (narugit/smctemp) to ~/.local/bin/.
+# Apple Silicon needs this for CPU/GPU temp reads via SMC keys — osx-cpu-temp
+# returns 0°C on AS and there's no brew formula. Used by `bin/temp-watch`.
+#
+# Version: 2026-06-10.1
+set -euo pipefail
+
+{{ if eq .chezmoi.os "darwin" -}}
+DEST="${HOME}/.local/bin/smctemp"
+REPO="https://github.com/narugit/smctemp.git"
+TMPDIR_BUILD="$(mktemp -d -t smctemp.XXXXXX)"
+trap 'rm -rf "$TMPDIR_BUILD"' EXIT
+
+if [[ -x "$DEST" ]] && "$DEST" -c >/dev/null 2>&1; then
+  echo "[skip] smctemp already installed at $DEST"
+  exit 0
+fi
+
+mkdir -p "${HOME}/.local/bin"
+
+echo "[build] cloning + compiling smctemp"
+git clone --depth 1 "$REPO" "$TMPDIR_BUILD/smctemp" >/dev/null 2>&1
+make -C "$TMPDIR_BUILD/smctemp" >/dev/null 2>&1
+install -m 0755 "$TMPDIR_BUILD/smctemp/smctemp" "$DEST"
+
+echo "[ok] smctemp installed → $DEST ($("$DEST" -c)°C)"
+{{- end }}

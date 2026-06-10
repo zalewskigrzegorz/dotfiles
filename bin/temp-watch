@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# temp-watch — polls Apple Silicon CPU temp via smctemp, fires alerter notification
+# when CPU exceeds WARN_C for the rebake of "odpal podstawkę". State file prevents
+# spam; alert re-arms only after temp drops below RESET_C.
+
+set -euo pipefail
+
+SMCTEMP="${SMCTEMP:-$HOME/.local/bin/smctemp}"
+ALERTER="${ALERTER:-/opt/homebrew/bin/alerter}"
+STATE_FILE="${TEMP_WATCH_STATE:-/tmp/temp-watch.state}"
+
+WARN_C="${TEMP_WATCH_WARN:-85}"
+RESET_C="${TEMP_WATCH_RESET:-75}"
+COOLDOWN_S="${TEMP_WATCH_COOLDOWN:-600}"   # min seconds between repeat alerts
+
+[[ -x "$SMCTEMP" ]] || { echo "smctemp missing: $SMCTEMP" >&2; exit 1; }
+[[ -x "$ALERTER" ]] || { echo "alerter missing: $ALERTER" >&2; exit 1; }
+
+temp_raw="$("$SMCTEMP" -c 2>/dev/null || echo 0)"
+temp_int="${temp_raw%.*}"
+[[ -z "$temp_int" || "$temp_int" == "0" ]] && exit 0
+
+warned=0
+last_alert=0
+if [[ -f "$STATE_FILE" ]]; then
+  # shellcheck disable=SC1090
+  source "$STATE_FILE" 2>/dev/null || true
+fi
+
+now="$(date +%s)"
+
+if (( temp_int >= WARN_C )); then
+  if (( warned == 0 )) || (( now - last_alert >= COOLDOWN_S )); then
+    "$ALERTER" \
+      --title "🔥 Mac się piecze (${temp_int}°C)" \
+      --message "Stary, odpal podstawkę na maxa" \
+      --sender com.apple.Terminal \
+      --timeout 10 \
+      >/dev/null 2>&1 &
+    warned=1
+    last_alert="$now"
+  fi
+elif (( temp_int <= RESET_C )); then
+  if (( warned == 1 )); then
+    "$ALERTER" \
+      --title "❄️ Już chłodno (${temp_int}°C)" \
+      --message "OK, możesz przykręcić podstawkę" \
+      --sender com.apple.Terminal \
+      --timeout 10 \
+      >/dev/null 2>&1 &
+  fi
+  warned=0
+fi
+
+cat >"$STATE_FILE" <<EOF
+warned=$warned
+last_alert=$last_alert
+last_temp=$temp_int
+EOF

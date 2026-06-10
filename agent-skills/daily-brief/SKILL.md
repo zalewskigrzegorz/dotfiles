@@ -885,15 +885,18 @@ If a fact cannot be confirmed from data, **drop it**. Better to say less than to
 
 **Auto-fire TTS through Rick immediately after producing the brief.** No confirmation prompt — Greg explicitly wants the skill to run end-to-end in the background while he's busy doing other things.
 
-**Skip TTS only if** Greg explicitly says "bez audio", "no TTS", "tylko tekst", "skip audio" in the invocation, or if API key resolution fails (then say one line: "TTS skipped — brak ELEVENLABS_API_KEY w op lub env" and stop). Otherwise auto-play.
+**Skip TTS only if** Greg explicitly says "bez audio", "no TTS", "tylko tekst", "skip audio" in the invocation, or if API key resolution fails (then say one line: "TTS skipped — brak ELEVENLABS_API_KEY w env" and stop). Otherwise auto-play.
+
+**Never call `op read` at runtime** — it triggers a Touch ID prompt mid-brief, which kills the fire-and-forget flow. The secret is baked into `$env.ELEVENLABS_API_KEY` by `chezmoi apply` (one Touch ID at apply time, never again). If the env var is empty, fail fast — do not fall back to `op`.
 
 Steps:
 
-1. Resolve API key: `op read "op://Dotfiles/ELEVENLABS_API_KEY/password"` (fallback to `$ELEVENLABS_API_KEY`). If neither — say one line "TTS skipped — brak ELEVENLABS_API_KEY" and stop.
+1. Resolve API key from `$ELEVENLABS_API_KEY` (env only — no `op read`). If empty — say one line "TTS skipped — brak ELEVENLABS_API_KEY w env (dodaj do privateEnvVars w ~/.config/chezmoi/chezmoi.toml i odpal chezmoi apply)" and stop.
 2. POST to ElevenLabs v3:
 
 ```bash
-KEY=$(op read "op://Dotfiles/ELEVENLABS_API_KEY/password" 2>/dev/null || echo "$ELEVENLABS_API_KEY")
+KEY="$ELEVENLABS_API_KEY"
+[ -z "$KEY" ] && { echo "TTS skipped — brak ELEVENLABS_API_KEY w env"; exit 0; }
 VOICE="wHaDY0iHb8cFQwoJek6Q"   # Rick (Greg's Voice Design custom)
 MODEL="eleven_v3"
 mkdir -p ~/Documents/briefings
@@ -910,14 +913,14 @@ afplay "$OUT"
 
 3. Save the mp3 in `~/Documents/briefings/` with an ISO timestamp so Greg can re-listen later.
 
-4. **Save the transcript next to the mp3** — same basename, `.txt` extension — so `db ls` (Television picker) can show it as preview:
+4. **Save the transcript next to the mp3** — same basename, `.txt` extension:
 
    ```bash
    TXT="${OUT%.mp3}.txt"
    printf '%s\n' "$BRIEFING_TEXT" > "$TXT"
    ```
 
-5. If TTS was skipped (no API key / explicit "bez audio") — the text alone is the deliverable, but still save a `.txt` to `~/Documents/briefings/` so `db ls` can find it.
+5. If TTS was skipped (no API key / explicit "bez audio") — the text alone is the deliverable, but still save a `.txt` to `~/Documents/briefings/`.
 
 ## 1:1 agenda → Obsidian (AFTER TTS — auto)
 
