@@ -1,6 +1,9 @@
-import subprocess, json, pathlib
+import os, subprocess, json, pathlib, sys
 
-key = subprocess.check_output(["op","read","op://Dotfiles/ELEVENLABS_API_KEY/password"]).decode().strip()
+key = os.environ.get("ELEVENLABS_API_KEY", "").strip()
+if not key:
+    print("TTS skipped — brak ELEVENLABS_API_KEY w env (dodaj do privateEnvVars w ~/.config/chezmoi/chezmoi.toml i odpal chezmoi apply)")
+    sys.exit(0)
 voice = "wHaDY0iHb8cFQwoJek6Q"
 model = "eleven_v3"
 home = pathlib.Path.home()
