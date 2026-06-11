@@ -348,6 +348,16 @@
             "timeout": 30000
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.local/bin/claude update >/dev/null 2>&1 || true",
+            "async": true,
+            "timeout": 300
+          }
+        ]
       }
     ],
     "Notification": [
@@ -428,5 +438,6 @@
   "includeCoAuthoredBy": false,
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
-  "autoUpdatesChannel": "latest"
+  "autoUpdatesChannel": "latest",
+  "model": "claude-fable-5[1m]"
 }
