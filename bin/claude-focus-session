@@ -1,24 +1,36 @@
 #!/usr/bin/env bash
-# Focus a Claude session: switch tmux to <session> (if given) and raise
-# Ghostty's EXISTING window only when needed. Shared by the Notification hook
-# and the sketchybar chip click. The key trick: `open -a Ghostty` ALWAYS opens
-# a fresh window when the app is already running — wrong here. So we use
-# osascript `tell application "Ghostty" to activate`, which raises the
-# existing window without spawning a new one. And we only fall back to
-# activating Ghostty when tmux switch wasn't possible (no attached client).
+# Focus a Claude session: switch tmux to <session> (if given) and surface
+# Ghostty. Shared by the Notification hook and the sketchybar chip click.
+#
+# Surfacing Ghostty is two problems:
+#   1. AeroSpace (tiling WM) parks inactive workspaces off-screen, so a tmux
+#      switch alone leaves Ghostty's window invisible on another workspace.
+#      `aerospace focus --window-id <id>` pulls that workspace to the front
+#      AND focuses the window — idempotent if we're already there.
+#   2. macOS app activation: `open -a Ghostty` ALWAYS spawns a fresh window
+#      when the app is already running — wrong here. The osascript `activate`
+#      raises the existing window instead. Used only as the fallback when
+#      AeroSpace is unavailable or has no Ghostty window.
 set -u
 sess="${1:-}"
 TMUX_BIN="${TMUX_BIN:-/opt/homebrew/bin/tmux}"
 OSASCRIPT="${OSASCRIPT:-/usr/bin/osascript}"
+AEROSPACE="${AEROSPACE:-/opt/homebrew/bin/aerospace}"
 
-switched=0
 if [ -n "$sess" ]; then
-  if "$TMUX_BIN" switch-client -t "$sess" >/dev/null 2>&1; then
-    switched=1
-  fi
+  "$TMUX_BIN" switch-client -t "$sess" >/dev/null 2>&1 || true
 fi
 
-if [ "$switched" -eq 0 ]; then
-  "$OSASCRIPT" -e 'tell application "Ghostty" to activate' >/dev/null 2>&1 || true
-fi
+# Pull Ghostty's AeroSpace workspace to the front. Returns non-zero if
+# aerospace is missing or no Ghostty window exists → osascript fallback.
+focus_aerospace() {
+  [ -x "$AEROSPACE" ] || return 1
+  local wid
+  wid=$("$AEROSPACE" list-windows --all --format '%{window-id}|%{app-name}' 2>/dev/null \
+    | awk -F'|' 'tolower($2) ~ /ghostty/ { gsub(/^[ \t]+|[ \t]+$/, "", $1); print $1; exit }')
+  [ -n "$wid" ] || return 1
+  "$AEROSPACE" focus --window-id "$wid" >/dev/null 2>&1
+}
+
+focus_aerospace || "$OSASCRIPT" -e 'tell application "Ghostty" to activate' >/dev/null 2>&1 || true
 exit 0
