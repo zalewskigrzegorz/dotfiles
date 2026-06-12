@@ -99,6 +99,35 @@ export def __pr_inline [] {
     }
 }
 
+# auto-suggest: after a failed command, print pay-respects' guess before the next
+# prompt. Print-only — never runs the fix itself. Wired into pre_prompt in
+# export-env below. Fully defensive: a failure here must never break the prompt.
+export def --env __pr_suggest [] {
+    try {
+        if (($env.LAST_EXIT_CODE? | default 0) == 0) { return }
+
+        let command = (__pr_last_command "")
+        if ($command | str trim | is-empty) { return }
+
+        # only suggest once per failed command
+        if (($env.__PR_LAST_SUGGESTED? | default "") == $command) { return }
+        $env.__PR_LAST_SUGGESTED = $command
+
+        let output = (__pr_base noconfirm $command)
+        if ($output | str trim | is-empty) { return }
+
+        let wrapped = ('[' + ($output | str replace -r '}\s*{' '},{') + ']')
+        let data = (try { $wrapped | from json } catch { null })
+        if ($data == null) { return }
+
+        for d in $data {
+            if (($d.command? | default "") != "") {
+                print $"(ansi yellow_bold)🦄 może chodziło ci o:(ansi reset) ($d.command) (ansi dark_gray)— Ctrl+X poprawia(ansi reset)"
+            }
+        }
+    }
+}
+
 export-env {
     let __pr_pid = ($nu.pid | into string)
     if (($env.PAY_RESPECTS_NU_PID? | default "") != $__pr_pid) {
@@ -117,5 +146,10 @@ export-env {
                 }
             }]
         )
+
+        # auto-suggest on error — append (don't clobber starship/mise pre_prompt hooks)
+        $env.config = ($env.config | upsert hooks.pre_prompt (
+            ($env.config.hooks?.pre_prompt? | default []) | append {|| __pr_suggest }
+        ))
     }
 }
