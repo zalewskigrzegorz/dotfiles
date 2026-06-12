@@ -1,0 +1,34 @@
+{{ if eq .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+# Install keith/reminders-cli as a prebuilt binary into ~/.local/bin.
+#
+# Why not Homebrew: the formula builds from source under Homebrew's sandbox,
+# which (Homebrew 6.x) crashes on any home path containing "(" — Greg has a
+# Google Drive CloudStorage mount and Setapp log dirs with parens that cannot
+# be renamed. The official release ships a universal Mach-O binary, so we just
+# drop that in. macOS-only: reminders-cli needs EventKit.
+set -euo pipefail
+
+VERSION="2.5.1"
+DEST="${HOME}/.local/bin"
+BIN="${DEST}/reminders"
+
+if [[ -x "$BIN" ]]; then
+  echo "reminders-cli: already present at $BIN — skipping."
+  exit 0
+fi
+
+mkdir -p "$DEST"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+url="https://github.com/keith/reminders-cli/releases/download/${VERSION}/reminders.tar.gz"
+echo "reminders-cli: downloading ${VERSION}…"
+curl -fsSL "$url" -o "$tmp/reminders.tar.gz"
+tar -xzf "$tmp/reminders.tar.gz" -C "$tmp"
+
+bin="$(find "$tmp" -type f -name reminders | head -1)"
+[[ -n "$bin" ]] || { echo "reminders-cli: binary not found in archive" >&2; exit 1; }
+install -m 0755 "$bin" "$BIN"
+echo "reminders-cli: installed → $BIN"
+{{ end -}}
