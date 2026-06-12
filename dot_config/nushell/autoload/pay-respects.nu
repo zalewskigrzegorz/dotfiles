@@ -125,7 +125,7 @@ export def --env __pr_suggest [] {
 
         for d in $data {
             if (($d.command? | default "") != "") {
-                print $"(ansi yellow_bold)🦄 może chodziło ci o:(ansi reset) ($d.command) (ansi dark_gray)— Ctrl+X poprawia(ansi reset)"
+                print $"(ansi yellow_bold)🦄 did you mean:(ansi reset) ($d.command) (ansi dark_gray)— Ctrl+x to fix(ansi reset)"
             }
         }
     }
