@@ -109,9 +109,12 @@ export def --env __pr_suggest [] {
         let command = (__pr_last_command "")
         if ($command | str trim | is-empty) { return }
 
-        # only suggest once per failed command
-        if (($env.__PR_LAST_SUGGESTED? | default "") == $command) { return }
-        $env.__PR_LAST_SUGGESTED = $command
+        # suggest once per command execution, not per command string — re-running
+        # the same failing command should suggest again, but empty Enters (which
+        # don't add to history) must not re-spam.
+        let hist_count = (history | length)
+        if (($env.__PR_LAST_HIST? | default (-1)) == $hist_count) { return }
+        $env.__PR_LAST_HIST = $hist_count
 
         let output = (__pr_base noconfirm $command)
         if ($output | str trim | is-empty) { return }
