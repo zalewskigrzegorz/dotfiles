@@ -29,3 +29,20 @@ def --wrapped chezmoi [...rest] {
         exit $r.exit_code
     }
 }
+
+# nvim-sync — re-capture LazyVim extras + plugin lockfile into the chezmoi
+# source after a :Lazy update / :LazyExtras on this machine, then commit so the
+# change reaches other machines (lab) on the next `chezmoi update`.
+# Both files are chezmoi-managed (dropped the create_ prefix 2026-06-13), so the
+# live files LazyVim writes are invisible to chezmoi until re-added by hand.
+def nvim-sync [] {
+    chezmoi re-add ~/.config/nvim/lazyvim.json ~/.config/nvim/lazy-lock.json
+    git -C ~/Code/dotfiles add dot_config/nvim/lazyvim.json dot_config/nvim/lazy-lock.json
+    let staged = (git -C ~/Code/dotfiles diff --cached --name-only | lines | length)
+    if $staged == 0 {
+        print "nvim state already in sync — nothing to commit."
+        return
+    }
+    git -C ~/Code/dotfiles commit -m "chore(nvim): sync lazyvim extras + lock 🔄"
+    print "✅ nvim re-added + committed. Run `git -C ~/Code/dotfiles push` when ready, then `chezmoi update` on the lab."
+}
