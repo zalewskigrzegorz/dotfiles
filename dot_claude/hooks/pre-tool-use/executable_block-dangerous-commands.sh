@@ -48,10 +48,15 @@ PERMISSION_MODE=$(printf '%s' "$INPUT" | jq -r '.permission_mode // ""' 2>/dev/n
 COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null || true)
 [ -z "$COMMAND" ] && exit 0
 
-# Normalised command: strip git global options (-C <path>, -c <kv>, --git-dir,
-# --work-tree, --namespace) so `git -C <worktree> push` matches the same triggers
-# as a bare `git push`. Used only for git-subcommand detection.
+# Normalised command for git-subcommand detection only. First blank out quoted
+# substrings ('...' and "...") so a "git push" / "git commit" mentioned INSIDE a
+# string argument (e.g. `grep 'git push' file`, `git commit -m "git push later"`)
+# does NOT trigger the push/commit guards — only real, unquoted git invocations
+# do. Then strip git global options (-C <path>, -c <kv>, --git-dir, --work-tree,
+# --namespace) so `git -C <worktree> push` matches the same triggers as `git push`.
 GIT_NORM=$(printf '%s' "$COMMAND" | sed -E \
+  -e "s/'[^']*'//g" \
+  -e 's/"[^"]*"//g' \
   -e 's/[[:space:]]-C[[:space:]]+[^[:space:]]+//g' \
   -e 's/[[:space:]]-c[[:space:]]+[^[:space:]]+//g' \
   -e 's/--git-dir=[^[:space:]]+//g' \
