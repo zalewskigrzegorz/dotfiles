@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# aerospace-picker — fuzzy window switcher across ALL AeroSpace workspaces.
+#
+# Native floating GUI via choose-gui (instant, no terminal window, no tiling) —
+# replaces the slow Raycast window switcher. Lists every window on every
+# workspace as `app  ·  title`, focuses the chosen one via its window-id.
+# Bound to ctrl-alt-space (main + terminal modes) in aerospace.toml.
+set -euo pipefail
+export PATH="/opt/homebrew/bin:$PATH"   # exec-and-forget gives a minimal PATH
+
+list=$(aerospace list-windows --all \
+         --format '%{window-id}%{tab}%{app-name}%{tab}%{window-title}')
+[ -n "$list" ] || exit 0
+
+# choose -i returns the 0-based index of the picked row (-1 / non-numeric on
+# cancel). Map it back to the window-id from the same ordered list.
+idx=$(printf '%s\n' "$list" | cut -f2- | sed 's/\t/  ·  /' \
+        | choose -i -z -a -n 12 -w 72 -p window -c B347FF -b 313244) || exit 0
+case "$idx" in ''|*[!0-9]*) exit 0 ;; esac
+
+id=$(printf '%s\n' "$list" | sed -n "$((idx + 1))p" | cut -f1)
+[ -n "$id" ] && aerospace focus --window-id "$id"

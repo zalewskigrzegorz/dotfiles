@@ -170,6 +170,7 @@ ctrl-shift-9 = 'move-node-to-workspace mail'
 ctrl-shift-0 = 'move-node-to-workspace mac'
 
 ctrl-alt-b = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-flip-window/aerospace-flip-window'
+ctrl-alt-space = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-picker'
 
 # Jump to workspace of the most recent notification (written by sketchybar-watcher).
 ctrl-n = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-jump-to-notif'
@@ -233,6 +234,7 @@ ctrl-shift-9 = 'move-node-to-workspace mail'
 ctrl-shift-0 = 'move-node-to-workspace mac'
 
 ctrl-alt-b = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-flip-window/aerospace-flip-window'
+ctrl-alt-space = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-picker'
 
 # Jump to workspace of the most recent notification (written by sketchybar-watcher).
 ctrl-n = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-jump-to-notif'
