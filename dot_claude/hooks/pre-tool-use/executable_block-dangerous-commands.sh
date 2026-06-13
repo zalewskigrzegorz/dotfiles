@@ -131,7 +131,10 @@ if contains_git '(^|[;&|()]+[[:space:]]*)git[[:space:]]+push'; then
     if [ "$PROT" -eq 1 ]; then
       emit_deny "Pushing to a protected branch isn't allowed. Greg pushes main/master manually; open a PR instead."
     else
-      emit_guard "Pushing to a remote branch."
+      # Feature-branch push allowed silently in all modes (Greg, 2026-06-13).
+      # Protected-branch push (above), manual-push repos (above), and force
+      # push (below) are still blocked.
+      :
     fi
   fi
 fi
@@ -174,10 +177,8 @@ fi
 if printf '%s' "$CMD_NOQUOTE" | grep -qE 'rm[[:space:]]+(-[a-zA-Z]+[[:space:]]+)*-?[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*[[:space:]]+/(usr|etc|var|bin|sbin|lib|opt|root|boot)([[:space:]/]|$)'; then
   emit_deny "Recursive delete targeting a system directory — never allowed."
 fi
-# Any other rm → ask in default, deny in auto.
-if contains_cmd '(^|[;&|(]|[[:space:]])rm([[:space:]]|$)'; then
-  emit_guard "Deleting files with rm."
-fi
+# Plain rm allowed silently in all modes (Greg, 2026-06-13). The catastrophic
+# rm -rf targets above (/, ~, $HOME, unresolved $VAR, system dirs) stay denied.
 
 # ── Dangerous database operations → always deny ──────────────────────────
 if contains_icmd 'DROP[[:space:]]+(TABLE|DATABASE|SCHEMA)[[:space:]]+'; then
@@ -232,12 +233,9 @@ if contains_git 'git[[:space:]]+clean[[:space:]]+-[a-zA-Z]*f'; then
   emit_guard "git clean -f permanently deletes untracked files."
 fi
 
-# ── Installing dependencies → ask ────────────────────────────────────────
-if contains_cmd '(^|[;&|(]|[[:space:]])(npm|pnpm|yarn|bun)[[:space:]]+(install|ci|i|add)([[:space:]]|$)' \
-  || contains_cmd '(^|[;&|(]|[[:space:]])pip3?[[:space:]]+install([[:space:]]|$)' \
-  || contains_cmd '(^|[;&|(]|[[:space:]])(brew|cargo|gem|go)[[:space:]]+install([[:space:]]|$)'; then
-  emit_guard "Installing dependencies runs arbitrary install/postinstall scripts."
-fi
+# ── Installing dependencies ──────────────────────────────────────────────
+# Allowed silently in all modes (Greg, 2026-06-13): npm/pnpm/yarn/bun install,
+# pip install, brew/cargo/gem/go install. Package PUBLISH stays hard-denied below.
 
 # ── Accidental package publishing → always deny ──────────────────────────
 # Allow --dry-run variants (npm publish --dry-run is safe and common in CI).
