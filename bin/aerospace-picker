@@ -15,7 +15,7 @@ list=$(aerospace list-windows --all \
 # choose -i returns the 0-based index of the picked row (-1 / non-numeric on
 # cancel). Map it back to the window-id from the same ordered list.
 idx=$(printf '%s\n' "$list" | cut -f2- | sed 's/\t/  ·  /' \
-        | choose -i -z -a -n 12 -w 72 -p window -c B347FF -b 313244) || exit 0
+        | choose -i -z -a -n 12 -w 72 -p window -f 'JetBrainsMono Nerd Font Mono' -s 32 -c 8BE9FD -b B347FF) || exit 0
 case "$idx" in ''|*[!0-9]*) exit 0 ;; esac
 
 id=$(printf '%s\n' "$list" | sed -n "$((idx + 1))p" | cut -f1)

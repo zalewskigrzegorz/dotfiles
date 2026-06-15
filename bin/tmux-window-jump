@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# tmux-window-jump — native floating picker for EVERY tmux window across all
+# sessions. Pick one → switch the live client to that session+window →
+# surface Ghostty via AeroSpace. No terminal window. Bound to cmd-ctrl-w in
+# aerospace.toml — the native replacement for the Raycast tmux switcher.
+set -euo pipefail
+export PATH="/opt/homebrew/bin:$PATH"   # exec-and-forget gives a minimal PATH
+
+# Each row: <target>\t<label>. The label is what choose shows; choose -i
+# returns the 0-based index, which we map back to the session:window target.
+list=$(tmux list-windows -a \
+         -F '#{session_name}:#{window_index}	#{session_name}  ·  #{window_index} #{window_name}#{?window_active, ●,}' \
+       2>/dev/null) || exit 0
+[ -n "$list" ] || exit 0
+
+idx=$(printf '%s\n' "$list" | cut -f2- \
+        | choose -i -z -a -n 14 -w 80 -p tmux -f 'JetBrainsMono Nerd Font Mono' -s 32 -c 8BE9FD -b B347FF) || exit 0
+case "$idx" in ''|*[!0-9]*) exit 0 ;; esac
+
+target=$(printf '%s\n' "$list" | sed -n "$((idx + 1))p" | cut -f1)
+[ -n "$target" ] || exit 0
+
+tmux switch-client -t "${target%%:*}" 2>/dev/null || true
+tmux select-window -t "$target" 2>/dev/null || true
+exec "$HOME/Code/dotfiles/bin/claude-focus-session"

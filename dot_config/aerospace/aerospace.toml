@@ -70,15 +70,15 @@ preset = 'qwerty'
 # Patterns are tried in order; first substring match against list-monitors wins.
 # Run: aerospace list-monitors  — add another string here if you get a new display name.
 # Keys 1–5 → Dell first; 6–9 → ultrawide first. Second pattern = fallback when only one external.
-chat = ['C34H89x', 'DELL U3225QE']
-term = ['C34H89x', 'DELL U3225QE']
-code = ['C34H89x', 'DELL U3225QE']
-misc = ['C34H89x', 'DELL U3225QE']
-notes = ['C34H89x', 'DELL U3225QE']
-web = ['DELL U3225QE', 'C34H89x']
-media = ['DELL U3225QE', 'C34H89x']
-test = ['DELL U3225QE', 'C34H89x']
-mail = ['DELL U3225QE', 'C34H89x']
+chat = ['DELL U3225QE', 'C34H89x']
+term = ['DELL U3225QE', 'C34H89x']
+code = ['DELL U3225QE', 'C34H89x']
+misc = ['DELL U3225QE', 'C34H89x']
+notes = ['DELL U3225QE', 'C34H89x']
+web = ['C34H89x', 'DELL U3225QE']
+media = ['C34H89x', 'DELL U3225QE']
+test = ['C34H89x', 'DELL U3225QE']
+mail = ['C34H89x', 'DELL U3225QE']
 mac = 'Built-in'
 
 # Gaps between windows (inner-*) and between monitor edges (outer-*).
@@ -171,6 +171,11 @@ ctrl-shift-0 = 'move-node-to-workspace mac'
 
 ctrl-alt-b = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-flip-window/aerospace-flip-window'
 ctrl-alt-space = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-picker'
+# Native floating pickers (choose-gui, Mocha Neon). Dygma "Windows" superkey
+# taps cmd-ctrl-l. cmd-ctrl-s/w mirror the old Raycast sesh/tmux switchers.
+cmd-ctrl-l = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-picker'
+cmd-ctrl-s = 'exec-and-forget $HOME/Code/dotfiles/bin/sesh-jump'
+cmd-ctrl-w = 'exec-and-forget $HOME/Code/dotfiles/bin/tmux-window-jump'
 
 # Jump to workspace of the most recent notification (written by sketchybar-watcher).
 ctrl-n = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-jump-to-notif'
@@ -235,6 +240,11 @@ ctrl-shift-0 = 'move-node-to-workspace mac'
 
 ctrl-alt-b = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-flip-window/aerospace-flip-window'
 ctrl-alt-space = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-picker'
+# Native floating pickers (choose-gui, Mocha Neon). Dygma "Windows" superkey
+# taps cmd-ctrl-l. cmd-ctrl-s/w mirror the old Raycast sesh/tmux switchers.
+cmd-ctrl-l = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-picker'
+cmd-ctrl-s = 'exec-and-forget $HOME/Code/dotfiles/bin/sesh-jump'
+cmd-ctrl-w = 'exec-and-forget $HOME/Code/dotfiles/bin/tmux-window-jump'
 
 # Jump to workspace of the most recent notification (written by sketchybar-watcher).
 ctrl-n = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-jump-to-notif'
