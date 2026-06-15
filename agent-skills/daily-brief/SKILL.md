@@ -1,6 +1,6 @@
 ---
 name: daily-brief
-description: Multi-source personal briefing for Greg (Staff Engineer at REDACTED_ORG, Team REDACTED_TEAM). Pulls his own GitHub PRs bucketed by state, PRs awaiting his review, in-progress issues, Spark mail action items extracted from Inbox+Archive bodies (last 7d) + Spark task flags (starred/pinned/Later/has:reminder), Drafts.app brain dumps from the last 7d, calendar + meeting transcripts, Slack DMs + mentions, Hindsight memory recall (incl. time-filtered "shipped" and "decision" queries), recent git activity across ~/Code/**, weather (anomaly-only) + USD + AQI band from wttr.in/NBP/Open-Meteo, home signals from Homey (pet trackers, waste schedule, pollen alarm via get_home_alarms on Pylenie device), a walk-window recommendation for the dogs scored at 17:00 preferred with workday/evening/morning fallbacks and a 26°C hard cap, and a Tina (announce-agent) recap from the last 24h filtered to chores/calendar/anomalies via http://lab:3001/api/events. On Monday and Wednesday additionally layers a REDACTED_TEAM pre-sync rundown before the standup at 12:00. Outputs a 3-5 minute spoken Polish briefing in Rick-Sanchez-LITE tone with ElevenLabs v3 audio tags ready for TTS. Use whenever Greg says "brief", "daily brief", "morning brief", "co dziś", "co na dziś", "dzień dobry", "co przed standupem", "co przed syncem", invokes `/daily-brief`, or otherwise asks for an audio rundown of his day.
+description: Multi-source personal briefing for Greg (Staff Engineer at REDACTED_ORG, Team REDACTED_TEAM). Pulls his own GitHub PRs bucketed by state, PRs awaiting his review, in-progress issues, Spark mail action items extracted from Inbox+Archive bodies (last 7d) + Spark task flags (starred/pinned/Later/has:reminder), Drafts.app brain dumps from the last 7d, calendar + meeting transcripts, Slack DMs + mentions, Hindsight memory recall (incl. time-filtered "shipped" and "decision" queries), recent git activity across ~/Code/**, weather (anomaly-only) + USD + AQI band from wttr.in/NBP/Open-Meteo, home signals from Homey (pet trackers, waste schedule, pollen alarm via get_home_alarms on Pylenie device), a walk-window recommendation for the dogs scored at 17:00 preferred with workday/evening/morning fallbacks and a 26°C hard cap, and a Tina (announce-agent) recap from the last 24h filtered to chores/calendar/anomalies via http://lab:3001/api/events. On Monday and Wednesday additionally layers a REDACTED_TEAM pre-sync rundown before the standup at 12:00. Outputs a 3-5 minute spoken Polish briefing in Rick-Sanchez-LITE tone as plain prose (NO audio tags) ready for ElevenLabs v2 TTS. Use whenever Greg says "brief", "daily brief", "morning brief", "co dziś", "co na dziś", "dzień dobry", "co przed standupem", "co przed syncem", invokes `/daily-brief`, or otherwise asks for an audio rundown of his day.
 ---
 
 # daily-brief
@@ -11,9 +11,9 @@ The user asks for a morning / midday rundown of his day. Triggers include "brief
 
 ## Output contract
 
-The output is **multi-paragraph spoken Polish, 3-5 minutes when read aloud (≈400-650 words), with 6-10 inline ElevenLabs v3 audio tags, and nothing else** — no preamble ("Summary of findings"), no markdown headings, no bullet lists, no postscript ("Let me know if..."). The first character is the opening line. The last character is the closing line.
+The output is **multi-paragraph spoken Polish, 3-5 minutes when read aloud (≈400-650 words), plain prose with NO audio tags and nothing else** — no preamble ("Summary of findings"), no markdown headings, no bullet lists, no postscript ("Let me know if..."), and crucially **no bracket markup like `[burp]` / `[dry]` / `[serious]`** (the v2 model reads them as literal garbage). The first character is the opening line. The last character is the closing line.
 
-Paragraph breaks (single blank line between paragraphs) ARE allowed — they help TTS pacing across a 5-minute brief. Audio tags lead the paragraph that needs the tone shift.
+Paragraph breaks (single blank line between paragraphs) ARE allowed — they help TTS pacing across a 5-minute brief.
 
 ## Persona — Rick-Sanchez-LITE in Polish
 
@@ -450,7 +450,7 @@ From `spark events --week`, scan calendar entries titled `Out of office` or `OOO
 
 ## Section structure (in this order)
 
-Each section is 1 paragraph (sometimes 2 if dense), separated from the next by a single blank line. Each paragraph leads with an audio tag where it makes sense.
+Each section is 1 paragraph (sometimes 2 if dense), separated from the next by a single blank line.
 
 ### 1. Opening (Rick-LITE opener + context line)
 
@@ -458,15 +458,13 @@ One paragraph. Order: Rick-LITE opener → (pollen alarm if active) → (weather
 
 **Opener (one sentence, Rick-LITE):**
 
-- `[burp] Greg, <data po polsku>, <dzień tygodnia>. Lista rzeczy do których muszę cię prowadzić dzisiaj.`
+- `Greg, <data po polsku>, <dzień tygodnia>. Lista rzeczy do których muszę cię prowadzić dzisiaj.`
 - `Dobra Greg, lecimy z briefingiem — siadaj.`
-- `[scoffs] Niech zgadnę, znowu nie wiesz co robić — spoko, mam dla ciebie.`
-
-**Open with `[burp]` ≤ 1× per brief total.** If you use it in section 1, do not use it again.
+- `Niech zgadnę, znowu nie wiesz co robić — spoko, mam dla ciebie.`
 
 **Pollen lead (from `get_home_alarms` looking for `capabilityId == "alarm_generic.plesnie"` on device `Pylenie`):**
 
-- Alarm value `true` → next sentence MUST lead with `[serious]` + tablet directive in Polish:
+- Alarm value `true` → next sentence MUST lead with grave wording + tablet directive in Polish:
   - *"Pleśnie dziś alarm, Alternaria i Cladosporium — weź antyhistaminę zanim wstaniesz na dobre."*
   - *"Alarm pleśni włączony, bez tabletki dziś nie wychodź."*
 - Alarm `false` → no pollen mention in opening.
@@ -480,7 +478,7 @@ Mention if at least one trigger:
 - Temperature range across day > 7°C OR cloudy AM → sunny PM: *"rano chłodno koło dwunastu, popołudniu rozgrzeje do dwudziestu czterech"*.
 - `chanceofrain > 50` in any hour OR `weatherDesc` of any hour contains `rain`/`shower`/`drizzle`/`patchy rain`/`snow`/`hail`/`sleet`/`fog`/`mist` (opady, śnieg, mgła) — call out the window: *"po piętnastej zacznie kropić, weź coś z kapturem na spacer"*, *"po południu przelotny deszcz, planuj spacer wcześniej"*, *"od wieczora śnieg, do dwudziestej najlepiej skończ spacer"*, *"rano gęsta mgła, widoczność słaba — z psami zaczekaj do dziesiątej"*.
 - Condition deterioration: *"przed południem słońce, popołudniu burza"*.
-- Extreme (`tempC > 28`, `< 0`, snow, hail, storm warning): lead with `[serious]` or `[sighs]`.
+- Extreme (`tempC > 28`, `< 0`, snow, hail, storm warning): lead with grave wording.
 
 Tomorrow only if substantially different (*"jutro dużo chłodniej, dwanaście stopni i deszcz"*).
 
@@ -493,52 +491,52 @@ Compute trend from the 7-day series:
 
 Phrasing rules (pick the strongest signal):
 
-- `delta_day` ≥ +0.02 PLN (rising fast day-over-day) → *"dolar dziś po trzy złote sześćdziesiąt dziewięć, w górę o dwa grosze od wczoraj — moment dobry żeby zerknąć na konto USD"*. `[matter-of-factly]` or `[thoughtful]`.
-- `delta_day` ≤ -0.02 PLN (falling fast) → *"dolar spadł do trzy sześćdziesiąt cztery, dwa grosze w dół od wczoraj — nie najlepszy dzień na wymianę"*. `[matter-of-factly]` or `[dry]`.
+- `delta_day` ≥ +0.02 PLN (rising fast day-over-day) → *"dolar dziś po trzy złote sześćdziesiąt dziewięć, w górę o dwa grosze od wczoraj — moment dobry żeby zerknąć na konto USD"*.
+- `delta_day` ≤ -0.02 PLN (falling fast) → *"dolar spadł do trzy sześćdziesiąt cztery, dwa grosze w dół od wczoraj — nie najlepszy dzień na wymianę"*.
 - `|delta_day|` < 0.02 BUT `|delta_week|` ≥ 0.05 (slow trend across the week) → *"dolar po trzy sześćdziesiąt dziewięć, od poniedziałku w górę o pięć groszy — trend ostatnio rosnący"*.
 - Flat (both deltas small) → Rick-LITE smaczek, pick something cutting per run (no `stabilnie` template):
-  - *"Dolar po trzy sześćdziesiąt dziewięć, [bored] przez tydzień ledwo drgnął — wykres jak EKG trupa."*
-  - *"Dolar po trzy sześćdziesiąt dziewięć, [dry] ten sam co w poniedziałek, ten sam co będzie jutro — rynki cię ignorują."*
-  - *"Dolar po trzy sześćdziesiąt dziewięć, [matter-of-factly] stoi w miejscu jak słupek do parkowania."*
-  - *"Dolar po trzy sześćdziesiąt dziewięć, [scoffs] nic ciekawego — Fed śpi, NBP też, twoje USD na koncie też."*
-  - *"Dolar po trzy sześćdziesiąt dziewięć, [bored] ledwo się ruszył — nawet jakbyś wymienił, nikt by nie zauważył."*
+  - *"Dolar po trzy sześćdziesiąt dziewięć, przez tydzień ledwo drgnął — wykres jak EKG trupa."*
+  - *"Dolar po trzy sześćdziesiąt dziewięć, ten sam co w poniedziałek, ten sam co będzie jutro — rynki cię ignorują."*
+  - *"Dolar po trzy sześćdziesiąt dziewięć, stoi w miejscu jak słupek do parkowania."*
+  - *"Dolar po trzy sześćdziesiąt dziewięć, nic ciekawego — Fed śpi, NBP też, twoje USD na koncie też."*
+  - *"Dolar po trzy sześćdziesiąt dziewięć, ledwo się ruszył — nawet jakbyś wymienił, nikt by nie zauważył."*
   - **Banned phrasing:** `stabilnie`, `bez zmian`, `nic do roboty`, `flat` — corporate filler, never use. Rick-LITE woli żart niż neutralność.
-- Local high (`today_mid >= max(rates[].mid) - 0.01`) → ADD *"to tygodniowe maksimum — jak masz dolary na koncie i chciałeś wymienić, dziś jest okazja"*. Use `[thoughtful]` tag.
+- Local high (`today_mid >= max(rates[].mid) - 0.01`) → ADD *"to tygodniowe maksimum — jak masz dolary na koncie i chciałeś wymienić, dziś jest okazja"*.
 - Local low → ADD *"to tygodniowe minimum, gorszy dzień na sprzedaż"*.
 
 Examples:
 - *"Dolar dziś po trzy złote sześćdziesiąt dziewięć, w górę o dwa grosze od wczoraj — moment dobry żeby zerknąć na konto USD."*
 - *"Dolar po trzy złote sześćdziesiąt dziewięć, w tym tygodniu stabilnie — nic do roboty."*
-- *"Dolar po trzy siedemdziesiąt jeden, [thoughtful] to tygodniowe maksimum — masz dolary na koncie, to dziś okazja na wymianę."*
+- *"Dolar po trzy siedemdziesiąt jeden, to tygodniowe maksimum — masz dolary na koncie, to dziś okazja na wymianę."*
 
 **AQI line (from Open-Meteo `current.european_aqi`):**
 
 - 0-40 → no mention.
 - 40-60 średnie → 1 clause + hedge: *"AQI 47, jeśli wychodzisz to do południa lepiej"*.
-- 60-80 złe → `[serious]` + indoor: *"powietrze złe, EAQI sześćdziesiąt trzy — jak masz wybór, zostań w środku"*.
-- 80+ → `[serious]` + strong indoor.
+- 60-80 złe → grave wording + indoor: *"powietrze złe, EAQI sześćdziesiąt trzy — jak masz wybór, zostań w środku"*.
+- 80+ → grave wording + strong indoor.
 
 **Composite examples:**
 
 Unremarkable day:
 
 ```
-[burp] Greg, dziewiątego czerwca, wtorek. [matter-of-factly] Dolar po trzy złote sześćdziesiąt dziewięć. [thoughtful] Lista rzeczy do których muszę cię prowadzić dzisiaj.
+Greg, dziewiątego czerwca, wtorek. Dolar po trzy złote sześćdziesiąt dziewięć. Lista rzeczy do których muszę cię prowadzić dzisiaj.
 ```
 
 Pollen alarm + afternoon storm:
 
 ```
-[burp] Greg, dziewiątego czerwca, wtorek. [serious] Pleśnie dziś alarm, Alternaria i Cladosporium — weź antyhistaminę zanim wstaniesz na dobre. [matter-of-factly] Pogoda przed południem dwadzieścia dwa, po piętnastej burza. Dolar po trzy sześćdziesiąt dziewięć. [thoughtful] Lecimy.
+Greg, dziewiątego czerwca, wtorek. Pleśnie dziś alarm, Alternaria i Cladosporium — weź antyhistaminę zanim wstaniesz na dobre. Pogoda przed południem dwadzieścia dwa, po piętnastej burza. Dolar po trzy sześćdziesiąt dziewięć. Lecimy.
 ```
 
 ### 2. Your PRs — three buckets in order: broken / merge-ready / response-waiting
 
 For each non-empty bucket, one sub-paragraph or one rolling sentence:
 
-- **Broken** — name them with descriptive titles, one cause each ("rebase czeka cię na X", "checks padły na Y"). Tone: mild exasperation. Tag suggestions: `[sighs]`, `[exasperated]`, `[groans]`.
-- **Merge-ready** — for each PR, name it + the easy-win frame. Tone: incredulous that this hasn't shipped yet. Tag suggestions: `[scoffs]`, `[dry]`, `[matter-of-factly]`.
-- **Response-waiting** — name them, name who is waiting ("ostatni comment od Adama z piątku, czeka na twoją odpowiedź"). Tone: cutting reminder. Tag suggestions: `[dry]`, `[deadpan]`.
+- **Broken** — name them with descriptive titles, one cause each ("rebase czeka cię na X", "checks padły na Y"). Tone: mild exasperation.
+- **Merge-ready** — for each PR, name it + the easy-win frame. Tone: incredulous that this hasn't shipped yet.
+- **Response-waiting** — name them, name who is waiting ("ostatni comment od Adama z piątku, czeka na twoją odpowiedź"). Tone: cutting reminder.
 
 If all three buckets are empty, one short sentence: "Twoje pull requesty są w porządku, nic nie wisi."
 
@@ -546,15 +544,11 @@ If all three buckets are empty, one short sentence: "Twoje pull requesty są w p
 
 If **>5** human PRs: count + REDACTED_TEAM-team-first listing ("z teamu masz Adamowy SSO refactor i Bartka invitation flow, plus dwanaście innych głównie z Lightsaberów i Hot Dogs"). If **≤5**: one short clause each. Always skip dependabot from the count, separately surface any security PR on REDACTED_TEAM packages.
 
-Tag suggestions: `[matter-of-factly]`, `[thoughtful]`.
-
 ### 4. Kalendarz + transkrypcje + OOO
 
 - Today's remaining meetings (time + name + Meet/Zoom link signal if external).
 - Yesterday's / today's meeting transcripts (1-line takeaway each if useful).
 - OOO from REDACTED_TEAM roster, only today.
-
-Tag suggestions: `[thoughtful]`, `[matter-of-factly]`. If Greg has back-to-back meetings, drop a `[sighs]` or `[exhausted]`.
 
 ### 5. Inbox + Slack catchup
 
@@ -568,7 +562,7 @@ For each mail returned by `spark emails Inbox --filter "newer_than:7d"` and `spa
 2. **Imperative/request in body or subject** addressed to Greg: `please`, `proszę`, `could you`, `mógłbyś`, `napisz`, `wyślij`, `zrób`, `prepare`, `review`, `prześlij`. Promising → fetch body via `spark email <id>` and distill.
 3. **Deadline anchors:** explicit date, `dziś`, `jutro`, `do końca`, `before`, `until`, `najpóźniej`.
 4. **Parcel / shipping mail (DPD, HUEL, InPost, DHL):** even when archived, may imply a reciprocal action (e.g. "send back the swap half"). Mention if Greg has unfinished business with same sender within 14d.
-5. **Regulator / institution mail (skarbówka, ZUS, US, bank):** ALWAYS escalate. `[serious]` tag warranted.
+5. **Regulator / institution mail (skarbówka, ZUS, US, bank):** ALWAYS escalate with grave wording.
 
 Limit **5 actions max** by name. >5 → 3 newest + count rest. Frame each: sender + inferred action — *"od HUEL paczka wysłana, miałeś dziś zwrotnie wysłać WC — sprawdź czy ogarnąłeś etykietę"*.
 
@@ -586,8 +580,6 @@ Same as v1 — DMs + @-mentions last 5d, filter to unread/unanswered. Roster-fir
 
 **Silent-day rule:** if all three sub-streams produce nothing, one Rick line: *"Inbox czysty, na Slacku grobowy spokój — albo nikt cię nie kocha, albo wszyscy są zbyt zajęci"*.
 
-Tag suggestions: `[matter-of-factly]` for listing, `[bored]` if quiet, `[scoffs]` if absurd, `[serious]` for regulator mail only.
-
 **Drafts mail folder is NOT queried — explicitly excluded as noise.**
 
 ### 5d. Coś ci wpadło do głowy (Drafts app — Mac/iOS notes)
@@ -601,12 +593,12 @@ Rules:
 - Cap 5 mentions. >5 → 3 newest + count rest.
 - Title meaningful → use as-is. Otherwise `mcp__drafts__get_draft(id)` + first sentence.
 
-Length: 1 paragraph, 40-80 words, 1 audio tag.
+Length: 1 paragraph, 40-80 words.
 
 Tone — Rick acknowledging brain-dumps matter, cutting if vague:
 
-- *"Plus z weekendu masz dwa zapiski w drafty — coś o reorganizacji Hindsight tagów, i 'kupić śrubki M4'. [thoughtful] Jedno wymaga decyzji, drugie sklepu."*
-- *"W drafty od piątku masz cztery notki, z czego trzy to fragmenty bez kontekstu. [dry] Albo idź to dokończ, albo skasuj."*
+- *"Plus z weekendu masz dwa zapiski w drafty — coś o reorganizacji Hindsight tagów, i 'kupić śrubki M4'. Jedno wymaga decyzji, drugie sklepu."*
+- *"W drafty od piątku masz cztery notki, z czego trzy to fragmenty bez kontekstu. Albo idź to dokończ, albo skasuj."*
 
 **Skip section 5d entirely if empty.** Do not emit a "drafty puste" placeholder. **Skip if `mcp__drafts__*` is unreachable** (Drafts.app off, non-Mac host, MCP not installed).
 
@@ -650,8 +642,6 @@ If no overlap → render in 6d: *"Tina ci wczoraj o dziewiętnastej trzydzieści
 
 Max 3 bullets in 6d. Length ≤ 60 words. Tina offline → silently skip.
 
-Tag suggestions: `[matter-of-factly]`, `[dry]` for chore reminders.
-
 ### 7. Dom (psy + śmieci + pollen + walk-window)
 
 **Section 7 MUST be its own paragraph after section 6, in this order:** pets → trash → pollen action → home alarms → walk-window. **Do NOT fold section 7 content into section 6** (Focus na dziś). If `get_home_alarms` returns ANY actionable item (waste_bin_full, alarm_contact, alarm_battery, alarm_virus, alarm_water, alarm_smoke), section 7 is mandatory and MUST close with a concrete walk-window recommendation per the algorithm below.
@@ -665,7 +655,7 @@ Tag suggestions: `[matter-of-factly]`, `[dry]` for chore reminders.
 
 No "z domu spokój" filler.
 
-Otherwise: 1-2 paragraphs, 60-180 words, 1-2 audio tags. Order: pets → trash → pollen action → walk-window.
+Otherwise: 1-2 paragraphs, 60-180 words. Order: pets → trash → pollen action → walk-window.
 
 **Pets (derived from `list_pet_trackers`):**
 
@@ -680,12 +670,12 @@ Beyond the pollen alarm (already handled in opening), the brief MUST surface the
 
 - `alarm_generic.waste_bin_full` / `litter_box_full` → *"Lucy ma pełną kuwetę, opróżnij zanim wrócisz wieczorem do domu"*. Lucy's litter box is in `Lucy Room`. **Always mention** — it directly affects Lucy.
 - `alarm_battery` / `low battery` on any active device → *"Buffy tracker ma niską baterię, podładuj"*. Mention with device name.
-- `alarm_virus` (Airq sensor) → *"Airq w biurze sygnalizuje virus alarm — przewietrz biuro"*. `[serious]` if value is true.
-- `alarm_smoke` / `alarm_fire` / `alarm_water` (leak) → `[serious]` lead, repeat in opening if appropriate.
+- `alarm_virus` (Airq sensor) → *"Airq w biurze sygnalizuje virus alarm — przewietrz biuro"*. Escalate the wording if value is true.
+- `alarm_smoke` / `alarm_fire` / `alarm_water` (leak) → grave wording lead, repeat in opening if appropriate.
 
 **Drop silently (Greg sees these on his phone, no audio repeat needed):**
 - `alarm_connectivity` / `alarm_online.*` (offline devices like Esti Night Light)
-- `alarm_contact` (garden door / window open) — UNLESS rain / snow / hail is in the current `weatherDesc` from wttr OR `chanceofrain > 30` in the current hour. Then **escalate to `[serious]` lead in section 7**: *"Garden Door otwarte i zapowiada się deszcz — zamknij zanim ci się leje na podłogę"*. Same rule for any other `alarm_contact` device whose name implies an outdoor opening (`Garden`, `Balkon`, `Taras`, `Window`).
+- `alarm_contact` (garden door / window open) — UNLESS rain / snow / hail is in the current `weatherDesc` from wttr OR `chanceofrain > 30` in the current hour. Then **escalate to a grave-wording lead in section 7**: *"Garden Door otwarte i zapowiada się deszcz — zamknij zanim ci się leje na podłogę"*. Same rule for any other `alarm_contact` device whose name implies an outdoor opening (`Garden`, `Balkon`, `Taras`, `Window`).
 
 **Trash (from `get_waste_collection_schedule`):**
 
@@ -752,8 +742,6 @@ Render scenarios:
 
 If pollen alarm is on AND a slot was found → ALWAYS append: *"weź antyhistaminę przed wyjściem"*.
 
-Tag suggestions: `[matter-of-factly]` for facts, `[thoughtful]` for walk recommendation.
-
 ### 8. REDACTED_TEAM pre-sync — ONLY on Mon/Wed
 
 Apply the existing REDACTED_TEAM ownership filter (sections "Scope" + "Data sources / Slack" from the legacy `REDACTED_TEAM-brief` skill — that logic lives inline here). Cover:
@@ -786,56 +774,19 @@ Do not read: `#REDACTED_CHANNEL-alerts` (spam), `#REDACTED_CHANNEL` (bot dumps).
 Pick one organic Rick-LITE closer. Examples:
 
 - `Tyle z mojej strony. Idź ogarnij te trzy rzeczy i będzie z głowy.`
-- `[bored] Reszta to noise. Wracaj do roboty.`
-- `[matter-of-factly] To by było na tyle. Powodzenia.`
-- `Resztę problemów jak zwykle ogarniesz sam, [dry] albo i nie ogarniesz, ale ostrzegałem.`
+- `Reszta to noise. Wracaj do roboty.`
+- `To by było na tyle. Powodzenia.`
+- `Resztę problemów jak zwykle ogarniesz sam, albo i nie ogarniesz, ale ostrzegałem.`
 
-If something is genuinely urgent (security CVE shipped, active incident, customer-blocking issue), prepend the closing with `[serious] Jedna rzecz pilna — ...` sentence.
+If something is genuinely urgent (security CVE shipped, active incident, customer-blocking issue), prepend the closing with a `Jedna rzecz pilna — ...` sentence (plain text, no tag — carry the gravity in the wording).
 
-## ElevenLabs v3 audio tags — Rick palette
+## NO audio tags — the voice carries the persona
 
-Use 6-10 tags total across the whole brief. **No two same tags back-to-back** in the same paragraph. **Max 1 `[burp]`** per brief (in opening or as a punctuation between sections).
+**Do NOT emit any bracket markup** — no `[burp]`, `[dry]`, `[scoffs]`, `[serious]`, `[pause]`, none of it. The brief runs on **ElevenLabs `eleven_multilingual_v2`**, which does **not** support audio tags: any `[...]` left in the text gets read aloud as literal garbage ("burp", bracket noise) and wrecks the playback.
 
-**Sound effects (non-verbal):**
+The crazy-doctor / Rick-Sanchez character comes **entirely from (a) the custom voice** (`wHaDY0iHb8cFQwoJek6Q` — "Daily briefing, crazy doctor") **and (b) word choice** — cutting comments, analogies, deadpan asides written into the prose. That is where ALL the personality lives now.
 
-- `[burp]` — Rick signature (1× max; v3 support varies — if it doesn't render, the brief still works without it)
-- `[scoffs]` — disdainful exhale for "really, this is still open?" moments
-- `[sighs]` — for stale/leftover items
-- `[chuckles]` — dry laugh at absurdity
-- `[snorts]` — dismissive
-- `[groans]` — for "again?" situations
-- `[snickers]` — short snide laugh
-- `[clears throat]` — character beat (Rick fallback if `[burp]` doesn't work)
-- `[gasps]` — only for genuinely surprising things (rare)
-
-**Tone modifiers:**
-
-- `[dry]` — cutting deadpan observations
-- `[deadpan]` — flat irony
-- `[sarcastically]` — explicit sarcasm (use sparingly, tone usually carries it)
-- `[mockingly]` — for genuinely silly things ("a draft PR z lutego, [mockingly] jak rocznica")
-- `[matter-of-factly]` — for blunt list-style facts
-- `[cynical]` — for "as always" moments
-- `[bored]` — for dry-content sections (silent inbox, no Slack)
-
-**Emotional context:**
-
-- `[thoughtful]` — genuine reflection / opening
-- `[serious]` — for genuine urgency only (security, incident)
-- `[exhausted]` — for "again?" moments
-- `[exasperated]` — frustration with leftover work
-
-**Pace:**
-
-- `[pause]` — brief controlled silence (sparingly)
-- `[hesitates]` — for "I'm not sure but..." moments
-
-**Banned (do NOT use):**
-
-- `[calm]` — too JARVIS-vanilla for Rick
-- `[lightly]` — same, except acceptable as final-closing tone if nothing urgent
-- `[happy]`, `[excited]`, `[whispering]`, `[shouting]`, `[laughs]` (full belly laugh), `[crying]`, `[sad]` — wrong register for a workplace brief
-- Any tag outside this palette
+> History: the brief used to ship v3 with a `[tag]` palette. v3 was dropped 2026-06-15 because it drifted the voice identity between generations (a "completely different voice" on retries). v2 holds the voice stable but is tagless — hence persona-via-words only. Do NOT reintroduce tags or v3.
 
 ## Anti-hallucination
 
@@ -857,15 +808,14 @@ If a fact cannot be confirmed from data, **drop it**. Better to say less than to
 - A GitHub login in the text? **Replace with first name.**
 - A PR number ("twenty-three thousand…")? **Replace with descriptive phrase.**
 - Over 650 words? Cut the lowest-priority items.
-- More than 10 audio tags? Cut to 6-8.
-- Two same tags back-to-back? Diversify.
+- Any `[bracket]` markup anywhere in the output (`[burp]`, `[dry]`, `[serious]`, etc.)? **Delete it** — v2 reads brackets as literal garbage. Persona lives in the words, not tags.
 - **v2 gates:**
   - Mail action items list 5+ from same sender with same gist? Collapse into one line.
   - Section 5d (Drafts app) just listing titles with no shape? Fold into section 5.
   - Opening context line balloons past 2 sentences? Cut to: opener → (pollen lead if alarm) → (weather if anomaly) → USD → (AQI if band > 40) → segue.
   - Section 7 (Dom) only default noise (no pet flag, trash > 3d, no pollen alarm, AQI ≤ 40)? Skip entirely.
   - Section 7 duplicates AQI from opening? Cut duplicate.
-  - Pollen alarm fired but opening didn't lead with it? **Bug** — pollen alarm MUST be in opening with `[serious]` tag.
+  - Pollen alarm fired but opening didn't lead with it? **Bug** — pollen alarm MUST open the brief (plain wording, grave tone — no tag).
   - Walk-window picked a slot the calendar shows as busy? **Bug** — re-derive.
   - Tina event mentioned in 6d AND also reflected elsewhere (duplicate)? Apply dedupe rule, fold into the other section.
   - Weather mention in opening that's not anomaly-tier ("słońce 23 stopnie cały dzień")? **Bug** — anomaly-only rule violated, cut.
@@ -878,7 +828,7 @@ If a fact cannot be confirmed from data, **drop it**. Better to say less than to
 - Genuinely-quiet day (no PRs, no calendar, no mail, no Slack, no incidents)? Emit:
 
 ```
-[burp] Greg, dziś masz wolne. Żadnych pull requestów do ogarnięcia, kalendarz pusty, Slack martwy, inbox czysty. [dry] Albo wszyscy zniknęli, albo to ty zniknąłeś z radaru. Albo jedno i drugie. Tak czy siak — idź zrób coś dla siebie.
+Greg, dziś masz wolne. Żadnych pull requestów do ogarnięcia, kalendarz pusty, Slack martwy, inbox czysty. Albo wszyscy zniknęli, albo to ty zniknąłeś z radaru. Albo jedno i drugie. Tak czy siak — idź zrób coś dla siebie.
 ```
 
 ## TTS playback (AUTOMATIC — fire-and-forget)
@@ -897,15 +847,15 @@ Steps:
 ```bash
 KEY="$ELEVENLABS_API_KEY"
 [ -z "$KEY" ] && { echo "TTS skipped — brak ELEVENLABS_API_KEY w env"; exit 0; }
-VOICE="wHaDY0iHb8cFQwoJek6Q"   # Rick (Greg's Voice Design custom)
-MODEL="eleven_v3"
+VOICE="wHaDY0iHb8cFQwoJek6Q"   # "Daily briefing, crazy doctor" (Greg's Voice Design custom)
+MODEL="eleven_multilingual_v2" # v2, NOT v3. v3 DRIFTS the voice identity between generations — Greg heard a "completely different voice" on every retry (2026-06-15). v2 holds the crazy-doctor voice stable take-to-take. The persona comes from the VOICE + word choice, NOT from audio tags. Do NOT reintroduce v3.
 mkdir -p ~/Documents/briefings
 OUT=~/Documents/briefings/$(date +%Y-%m-%d-%H%M%S)-daily-brief.mp3
 
 curl -sS -X POST "https://api.elevenlabs.io/v1/text-to-speech/$VOICE" \
   -H "xi-api-key: $KEY" \
   -H "Content-Type: application/json" \
-  -d "$(jq -n --arg t "<BRIEFING_TEXT>" --arg m "$MODEL" '{text:$t, model_id:$m}')" \
+  -d "$(jq -n --arg t "<BRIEFING_TEXT>" --arg m "$MODEL" '{text:$t, model_id:$m, voice_settings:{stability:0.7, similarity_boost:0.8, style:0, use_speaker_boost:true}}')" \
   --output "$OUT"
 
 afplay "$OUT"
@@ -996,11 +946,11 @@ Export → Reminders (every actionable item gets its own reminder with a concret
   - `waste_bin_full` / `litter_box_full` for any pet (Lucy, future pets) → `Opróżnić kuwetę <pet name>` (e.g. `Opróżnić kuwetę Lucy`).
   - `low_battery` on a tracker / sensor → `Podładować <device name>` (e.g. `Podładować Buffy Tracker`).
   - `alarm_virus` (Airq) → `Przewietrzyć biuro (Airq virus alarm)`.
-  - `alarm_water` / leak → `Sprawdzić wyciek wody — <zone>` (`[serious]`).
-  - `alarm_smoke` / `alarm_fire` → `Sprawdzić alarm dymu — <zone>` (`[serious]`).
+  - `alarm_water` / leak → `Sprawdzić wyciek wody — <zone>`.
+  - `alarm_smoke` / `alarm_fire` → `Sprawdzić alarm dymu — <zone>`.
   - `alarm_contact` on outdoor opening (Garden/Balkon/Window) WHEN rain incoming → `Zamknąć <device name>` (Garden Door → `Zamknąć Garden Door — zapowiada się deszcz`).
 - **Trash collection** if `days_until <= 3` → `Wystawić śmieci — <typy odpadów>` (e.g. `Wystawić śmieci — segregowane`).
-- **Regulator/institution mail action items** (skarbówka, ZUS, US, bank — `[serious]` items).
+- **Regulator/institution mail action items** (skarbówka, ZUS, US, bank — high-priority items).
 - **Greg's own PRs** in `Broken` bucket older than 14 days (one Reminder per stale PR, NOT for fresh ones).
 
 DO NOT export → Reminders (these stay only in spoken brief):
@@ -1042,7 +992,7 @@ Repeat the `add_brief_task` invocation per task to export (max 8 per brief — k
 - `osascript` is unavailable (non-macOS host like the lab Debian).
 - The task count is 0 (nothing actionable extracted).
 
-Tag suggestions when speaking the brief about exports: `[matter-of-factly] Dorzuciłem cztery rzeczy do listy 'Daily Brief' w Reminders, odznaczaj jak ogarniesz.` ONE sentence at the end of section 5 or 7 (whichever holds the tasks), NOT a separate paragraph.
+When speaking the brief about exports: *"Dorzuciłem cztery rzeczy do listy 'Daily Brief' w Reminders, odznaczaj jak ogarniesz."* ONE sentence at the end of section 5 or 7 (whichever holds the tasks), NOT a separate paragraph.
 
 ## Retain leftovers (AFTER TTS — auto)
 
@@ -1093,8 +1043,12 @@ Use `context` to attach **tags** (space-separated) drawn from this whitelist:
 To swap voice or model without touching the rest of the skill, edit these two lines in the TTS section above:
 
 ```
-VOICE="wHaDY0iHb8cFQwoJek6Q"   # default: Rick (Voice Design custom)
-MODEL="eleven_v3"
+VOICE="wHaDY0iHb8cFQwoJek6Q"   # default: "Daily briefing, crazy doctor" (Voice Design custom)
+MODEL="eleven_multilingual_v2"
 ```
 
+`voice_settings` (in the curl above): `stability:0.7, similarity_boost:0.8, style:0, use_speaker_boost:true` — matched to Greg's tuned slider values in the ElevenLabs UI (2026-06-15).
+
 If Greg generates a new voice variant, paste its voice id over the `wHaDY0iHb8cFQwoJek6Q` value here.
+
+**Do NOT switch `MODEL` to `eleven_v3`.** v3 drifts the voice identity between generations — Greg heard a "completely different voice" on nearly every retry (2026-06-15, extensive A/B). `eleven_multilingual_v2` holds the crazy-doctor voice stable take-to-take, which matters more than v3's expressiveness. The brief is written tagless precisely because v2 doesn't support audio tags — see "NO audio tags" section above. The persona rides on the voice + word choice.
