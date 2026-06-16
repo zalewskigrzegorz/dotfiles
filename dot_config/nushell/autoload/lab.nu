@@ -12,12 +12,16 @@
 
 # `lab-sync` — pull latest dotfiles + apply on the lab.
 #
-# Runs `~/.local/bin/chezmoi update` on lab, which does `git pull` inside
-# `~/.local/share/chezmoi` and then `chezmoi apply`. Uses the absolute path
+# Runs `~/.local/bin/chezmoi update --force` on lab, which does `git pull` inside
+# `~/.local/share/chezmoi` and then `chezmoi apply --force`. Uses the absolute path
 # because lab's login shell is bash and `chezmoi` is not on the default PATH.
+# --force: the sync is non-interactive (no TTY), and files the lab rewrites locally
+# (e.g. nvim `lazy-lock.json`, which lazy.nvim updates on every run) would otherwise
+# make `apply` prompt and crash with "could not open a new TTY". Repo is the SOT for
+# the lab, so force-overwriting local managed files is correct here.
 def lab-sync [] {
     print "🔄  Syncing dotfiles on lab..."
-    ^ssh lab '~/.local/bin/chezmoi update'
+    ^ssh lab '~/.local/bin/chezmoi update --force'
     print "✓  lab dotfiles synced"
 }
 
