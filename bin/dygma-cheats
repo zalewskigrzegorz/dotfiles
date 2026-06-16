@@ -288,7 +288,24 @@ def build_entries():
             label = app if app else pretty
             entries.append((label, pretty.replace("+", " "), where))
 
-    # superkeys
+    # superkeys — human descriptions (from Greg's 2026-06 audit) so the
+    # cheat-sheet says what each action DOES, not just the raw combo.
+    SK_DESC = {
+        ("AI", "tap"): "Raycast", ("AI", "hold"): "AI improve-write (Slack bullets)",
+        ("AI", "2×tap"): "AI grammar/spelling fix",
+        ("Paste", "tap"): "paste", ("Paste", "hold"): "Raycast clipboard history",
+        ("Paste", "2×tap"): "1Password search",
+        ("Revert", "tap"): "undo", ("Revert", "hold"): "select all",
+        ("Revert", "2×tap"): "redo",
+        ("Copy", "tap"): "copy", ("Copy", "hold"): "AI translate selection",
+        ("vs autocomplete", "tap"): "autocomplete",
+        ("vs autocomplete", "2×tap"): "read selection aloud (TTS ⌥Esc)",
+        ("Read reset talk", "tap"): "reset layers → base",
+        ("Read reset talk", "2×tap"): "Slack channel/contact search (Raycast)",
+        ("Windows", "tap"): "aerospace picker", ("Windows", "hold"): "sesh (session switch)",
+        ("Windows", "2×tap"): "tmux window switch",
+        ("leaders", "tap"): "tmux leader", ("leaders", "hold"): "aerospace leader",
+    }
     slot = ["tap", "hold", "tap&hold", "2×tap", "2×hold"]
     for sk in n.get("superkeys", []):
         for i, a in enumerate(sk["actions"]):
@@ -296,9 +313,9 @@ def build_entries():
             if not dec:
                 continue
             canon, pretty = dec
-            app = apps.get(canon)
+            desc = SK_DESC.get((sk["name"], slot[i])) or apps.get(canon)
             base_label = "SK %s · %s" % (sk["name"], slot[i])
-            label = "%s  →  %s" % (base_label, app) if app else base_label
+            label = "%s  →  %s" % (base_label, desc) if desc else base_label
             entries.append((label, pretty.replace("+", " "), "Superkey"))
 
     # de-dup, keep first occurrence
