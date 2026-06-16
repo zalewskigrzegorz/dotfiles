@@ -9,7 +9,7 @@ Generated from the live export — edit via `/dygma`. Cheat-sheet at runtime:
 
 ### Layer 1 — Main
 
-![](screenshots/layer-main.png)
+![](screenshots/layer-main.jpeg)
 
 ```
    ESC      1      2      3      4      5      -      ∅      ∅      =      6      7      8      9      0   ⌥INS
@@ -21,7 +21,7 @@ SK:Windows      A      S      D      F      G SK:Read reset talk      ∅      �
 
 ### Layer 2 — Arrows + numpad
 
-![](screenshots/layer-arrows.png)
+![](screenshots/layer-arrows.jpeg)
 
 ```
    ESC    C⇧C    ⇧⌘2    ⇧⌘3    ⇧⌘4    ⇧⌘5 #54109      ∅      ∅      ∅  NumLk      ∅   Num/   Num*      =      ∅
@@ -33,7 +33,7 @@ SK:Windows      A      S      D      F      G SK:Read reset talk      ∅      �
 
 ### Layer 3 — Media + fn
 
-![](screenshots/layer-media.png)
+![](screenshots/layer-media.jpeg)
 
 ```
      `     F1     F2     F3     F4     F5     F6      ∅      ∅     F7     F8     F9    F10    F11    F12      ∅
@@ -45,7 +45,7 @@ SK:Windows      A      S      D      F      G SK:Read reset talk      ∅      �
 
 ### Layer 4 — Mouse + win
 
-![](screenshots/layer-mouse.png)
+![](screenshots/layer-mouse.jpeg)
 
 ```
    ESC      ∅      ∅      ∅      ∅      ∅      ∅      ▽      ▽      ∅      ∅      ∅      ∅      ∅      ∅  ⇧⌘INS
