@@ -171,6 +171,8 @@ ctrl-shift-0 = 'move-node-to-workspace mac'
 
 ctrl-alt-b = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-flip-window/aerospace-flip-window'
 ctrl-alt-space = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-picker'
+# Dygma layout cheat-sheet (choose-gui picker). Bind a Dygma key to ctrl-alt-/.
+ctrl-alt-slash = 'exec-and-forget $HOME/Code/dotfiles/bin/dygma-cheats --choose'
 # Native floating pickers (choose-gui, Mocha Neon). Dygma "Windows" superkey
 # taps cmd-ctrl-l. cmd-ctrl-s/w mirror the old Raycast sesh/tmux switchers.
 cmd-ctrl-l = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-picker'
@@ -240,6 +242,8 @@ ctrl-shift-0 = 'move-node-to-workspace mac'
 
 ctrl-alt-b = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-flip-window/aerospace-flip-window'
 ctrl-alt-space = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-picker'
+# Dygma layout cheat-sheet (choose-gui picker). Bind a Dygma key to ctrl-alt-/.
+ctrl-alt-slash = 'exec-and-forget $HOME/Code/dotfiles/bin/dygma-cheats --choose'
 # Native floating pickers (choose-gui, Mocha Neon). Dygma "Windows" superkey
 # taps cmd-ctrl-l. cmd-ctrl-s/w mirror the old Raycast sesh/tmux switchers.
 cmd-ctrl-l = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-picker'
