@@ -1,0 +1,342 @@
+#!/usr/bin/env python3
+"""dygma-cheats — searchable cheat-sheet of the live Dygma Defy layout.
+
+Parses the newest Bazecor export (~/Raise/Backups/Defy/<id>/*.json) — the single
+source of truth for firmware shortcuts — decodes every layer + superkey + macro,
+and cross-references the global hotkeys of CleanShot / Wooshy / kindaVim so you
+can answer "what's CleanShot under, and WHERE on the keyboard" even with the
+keyboard unplugged.
+
+  dygma-cheats          # fuzzy picker via choose-gui; pick → shortcut to clipboard
+  dygma-cheats --list   # plain stdout (audit / piping)
+
+Layout truth lives in the export, so the list never drifts from what's flashed.
+"""
+import glob
+import json
+import os
+import plistlib
+import subprocess
+import sys
+
+HOME = os.path.expanduser("~")
+# launchers (aerospace exec-and-forget, Raycast) give a minimal PATH — ensure
+# choose / pbcopy / defaults are reachable.
+os.environ["PATH"] = "/opt/homebrew/bin:/usr/bin:/bin:" + os.environ.get("PATH", "")
+
+# ─── HID keycode → label (Dygma / Kaleidoscope base codes) ────────────────────
+_HID = {
+    0: "∅", 1: "▽", 40: "Enter", 41: "Esc", 42: "Bksp", 43: "Tab", 44: "Space",
+    73: "Ins", 76: "Del", 74: "Home", 77: "End", 75: "PgUp", 78: "PgDn",
+    79: "→", 80: "←", 81: "↓", 82: "↑", 83: "NumLk", 70: "PrtScr", 57: "Caps",
+    224: "LCtrl", 225: "LShift", 226: "LAlt", 227: "LGui", 230: "RAlt", 231: "RGui",
+}
+_SYM = {45: "-", 46: "=", 47: "[", 48: "]", 49: "\\", 51: ";", 52: "'",
+        53: "`", 54: ",", 55: ".", 56: "/"}
+
+
+def hid_base(b):
+    if b in _HID:
+        return _HID[b]
+    if 4 <= b <= 29:
+        return "abcdefghijklmnopqrstuvwxyz"[b - 4].upper()
+    if 30 <= b <= 38:
+        return str(b - 29)
+    if b == 39:
+        return "0"
+    if b in _SYM:
+        return _SYM[b]
+    if 58 <= b <= 69:
+        return "F%d" % (b - 57)
+    if 84 <= b <= 99:
+        return "Num"
+    return "#%d" % b
+
+
+# Kaleidoscope modifier flags packed in the high byte.
+_KFLAGS = [(1, "Ctrl"), (2, "Opt"), (4, "Opt"), (8, "Shift"), (16, "Cmd")]
+_ORDER = {"Ctrl": 0, "Opt": 1, "Shift": 2, "Cmd": 3}
+
+
+def norm(mods, base):
+    """Canonical shortcut string, e.g. 'Ctrl+Shift+Cmd+1' — stable for matching."""
+    uniq = sorted(set(mods), key=lambda m: _ORDER.get(m, 9))
+    return "+".join(uniq + [base])
+
+
+def decode_key(k):
+    """A keymap.custom integer → (canonical, pretty) or None for plain/empty keys."""
+    if k in (0, 1, 65535) or k < 256:
+        return None  # empty / transparent / a plain unmodified key — not a "shortcut"
+    if k >= 8192:
+        return None  # layer/mouse/superkey codes handled elsewhere
+    flag = k >> 8
+    mods = [name for bit, name in _KFLAGS if flag & bit]
+    if not mods:
+        return None
+    base = hid_base(k & 0xFF)
+    return norm(mods, base), "+".join(
+        sorted(set(mods), key=lambda m: _ORDER.get(m, 9))) + "+" + base
+
+
+# ─── Carbon virtual keycode → char (for reading app plists) ───────────────────
+_VK = {0: "A", 11: "B", 8: "C", 2: "D", 14: "E", 3: "F", 5: "G", 4: "H", 34: "I",
+       38: "J", 40: "K", 37: "L", 46: "M", 45: "N", 31: "O", 35: "P", 12: "Q",
+       15: "R", 1: "S", 17: "T", 32: "U", 9: "V", 13: "W", 7: "X", 16: "Y", 6: "Z",
+       18: "1", 19: "2", 20: "3", 21: "4", 23: "5", 22: "6", 26: "7", 28: "8",
+       25: "9", 29: "0", 49: "Space", 36: "Enter", 48: "Tab", 53: "Esc",
+       44: "/", 47: ".", 43: ",", 27: "-", 24: "=", 33: "[", 30: "]", 50: "`",
+       122: "F1", 120: "F2", 99: "F3", 118: "F4", 96: "F5", 97: "F6", 98: "F7",
+       100: "F8", 101: "F9", 109: "F10", 103: "F11", 111: "F12"}
+
+
+def carbon(blob):
+    """plist hotkey value (bytes / JSON-string / dict) → (canonical, pretty) or None.
+
+    The KeyboardShortcuts library stores its value as a JSON *string*; CleanShot
+    stores bytes. Handle both.
+    """
+    try:
+        j = json.loads(blob) if isinstance(blob, (bytes, str)) else blob
+    except Exception:
+        return None
+    if not isinstance(j, dict):
+        return None
+    ck = j.get("carbonKeyCode", j.get("carbonKey"))
+    cm = j.get("carbonModifiers", 0)
+    if ck is None:
+        return None
+    mods = [n for bit, n in [(4096, "Ctrl"), (2048, "Opt"), (512, "Shift"), (256, "Cmd")]
+            if cm & bit]
+    base = _VK.get(ck, "#%s" % ck)
+    return norm(mods, base), "+".join(
+        sorted(set(mods), key=lambda m: _ORDER.get(m, 9))) + "+" + base
+
+
+def read_plist(domain):
+    try:
+        out = subprocess.run(["defaults", "export", domain, "-"],
+                             capture_output=True).stdout
+        return plistlib.loads(out) if out else {}
+    except Exception:
+        return {}
+
+
+# Friendly names for domains that store hotkeys (fallback: cleaned domain).
+_APPNAME = {
+    "com.getcleanshot.app-setapp": "CleanShot", "mo.com.sleeplessmind.Wooshy": "Wooshy",
+    "mo.com.sleeplessmind.kindaVim": "kindaVim", "co.boomvision.boom-setapp": "Boom",
+    "com.sids.DisplayBuddy-setapp": "DisplayBuddy", "com.superduper.superwhisper": "Superwhisper",
+    "com.aptonic.Dropzone-setapp": "Dropzone", "ChatGPTHelper": "ChatGPT",
+    "net.coldx.App-for-WhatsApp-setapp": "WhatsApp", "com.raycast.macos": "Raycast",
+}
+
+
+def _appname(domain):
+    if domain in _APPNAME:
+        return _APPNAME[domain]
+    base = domain.rsplit(".", 1)[-1].replace("-setapp", "")
+    return base[:1].upper() + base[1:]
+
+
+def _camel(s):
+    out = []
+    for i, c in enumerate(s):
+        if c.isupper() and i and not s[i - 1].isupper():
+            out.append(" ")
+        out.append(c)
+    return "".join(out).strip()
+
+
+def app_hotkeys():
+    """Scan every preference domain for global hotkeys.
+
+    Returns (canon_map, globals): canon_map = {canonical: 'App · action'} for
+    cross-referencing Dygma keys; globals = list of (label, shortcut, where) so
+    apps fire even when their combo isn't on the keyboard. Generic — any app
+    using the `KeyboardShortcuts` library is auto-discovered; CleanShot's bespoke
+    `LAVAtake*` keys are special-cased.
+    """
+    # Scanning every defaults domain is slow (~seconds). Cache the result;
+    # refresh only on --refresh or when older than 7 days.
+    import time
+    cache = os.path.join(HOME, ".cache", "dygma-cheats-apps.json")
+    if "--refresh" not in sys.argv and os.path.exists(cache) and \
+            time.time() - os.path.getmtime(cache) < 7 * 86400:
+        try:
+            j = json.load(open(cache))
+            return j["canon"], [tuple(e) for e in j["globals"]]
+        except Exception:
+            pass
+    canon, globals_ = {}, []
+    try:
+        domains = subprocess.run(["defaults", "domains"], capture_output=True,
+                                 text=True).stdout.replace(" ", "").split(",")
+    except Exception:
+        domains = []
+    for dom in domains:
+        pl = read_plist(dom)
+        if not pl:
+            continue
+        app = _appname(dom)
+        for k, v in pl.items():
+            if "KeyboardShortcuts_" not in k:
+                continue
+            r = carbon(v)
+            if not r:
+                continue
+            action = _camel(k.split("KeyboardShortcuts_")[-1])
+            label = "%s · %s" % (app, action)
+            canon[r[0]] = label
+            globals_.append((label, r[1].replace("+", " "), "globalny hotkey (system)"))
+    # CleanShot uses its own keys
+    cs = read_plist("com.getcleanshot.app-setapp")
+    cs_labels = {"LAVAtakeArea": "Area", "LAVAtakeWindow": "Window",
+                 "LAVAtakeFullscreen": "Fullscreen", "LAVAtakeOCR": "OCR",
+                 "LAVAtakeAllInOne": "All-In-One", "LAVAtakeAreaAndRaycast": "Area→Raycast"}
+    for k, lbl in cs_labels.items():
+        r = carbon(cs.get(k))
+        if r:
+            label = "CleanShot · %s" % lbl
+            canon[r[0]] = label
+            globals_.append((label, r[1].replace("+", " "), "globalny hotkey (system)"))
+    try:
+        os.makedirs(os.path.dirname(cache), exist_ok=True)
+        json.dump({"canon": canon, "globals": globals_}, open(cache, "w"))
+    except Exception:
+        pass
+    return canon, globals_
+
+
+def aerospace_hotkeys():
+    """aerospace.toml bindings → (canon_map, entries). Window-manager shortcuts."""
+    path = os.path.join(HOME, ".config/aerospace/aerospace.toml")
+    canon, entries = {}, []
+    if not os.path.exists(path):
+        return canon, entries
+    modmap = {"ctrl": "Ctrl", "cmd": "Cmd", "alt": "Opt", "shift": "Shift"}
+    keymap = {"slash": "/", "comma": ",", "period": ".", "minus": "-", "equal": "=",
+              "space": "Space", "enter": "Enter", "tab": "Tab", "esc": "Esc",
+              "leftSquareBracket": "[", "rightSquareBracket": "]", "backtick": "`"}
+    import re
+    in_mode = False
+    for line in open(path):
+        s = line.strip()
+        if s.startswith("[mode.") or s.startswith("[") and "binding" in s:
+            in_mode = True
+        elif s.startswith("[") and "binding" not in s:
+            in_mode = False
+        m = re.match(r"^([a-z0-9\-]+)\s*=\s*'(.+)'\s*$", s)
+        if not (in_mode and m):
+            continue
+        combo, action = m.group(1), m.group(2)
+        parts = combo.split("-")
+        mods = [modmap[p] for p in parts[:-1] if p in modmap]
+        base = parts[-1]
+        base = keymap.get(base, base.upper() if len(base) == 1 else base)
+        if not mods:
+            continue
+        c = norm(mods, base)
+        pretty = "+".join(sorted(set(mods), key=lambda m: _ORDER.get(m, 9))) + "+" + base
+        canon.setdefault(c, "aerospace · %s" % action)
+        entries.append(("aerospace · %s" % action, pretty.replace("+", " "),
+                        "aerospace (window mgmt)"))
+    return canon, entries
+
+
+# ─── load newest Dygma export ─────────────────────────────────────────────────
+def newest_export():
+    pats = [HOME + "/Raise/Backups/Untitled.json",
+            HOME + "/Raise/Backups/Defy/*/*.json", HOME + "/Downloads/Untitled.json"]
+    files = []
+    for p in pats:
+        files += glob.glob(p)
+    if not files:
+        sys.exit("dygma-cheats: no Dygma export found in ~/Raise/Backups/Defy or ~/Downloads")
+    return max(files, key=os.path.getmtime)
+
+
+def build_entries():
+    d = json.load(open(newest_export()))
+    n = d["neuron"]
+    raw = {c["command"]: c["data"] for c in d["backup"]}
+    km = [int(x) for x in raw["keymap.custom"].split()]
+    lnames = {l["id"]: l["name"] for l in n["layers"]}
+    apps, app_globals = app_hotkeys()
+    aero, aero_entries = aerospace_hotkeys()
+    apps = {**aero, **apps}  # app hotkeys win label collisions over aerospace
+    base = km[:80]  # Main layer — used to label physical positions
+
+    entries = []  # (search_label, shortcut, where)
+    entries += app_globals          # global hotkeys (fire even off-keyboard)
+    if "--no-aero" not in sys.argv:
+        entries += aero_entries     # aerospace window-manager bindings
+
+    # every modified key across layers
+    for li in range(len(km) // 80):
+        for idx, k in enumerate(km[li * 80:(li + 1) * 80]):
+            dec = decode_key(k)
+            if not dec:
+                continue
+            canon, pretty = dec
+            app = apps.get(canon)
+            if li == 0:
+                where = "Main · %s" % hid_base(base[idx] & 0xFF) if base[idx] >= 256 else "Main"
+            else:
+                bk = hid_base(base[idx] & 0xFF)
+                where = "%s · @Main:%s" % (lnames.get(li, "L%d" % li), bk)
+            label = app if app else pretty
+            entries.append((label, pretty.replace("+", " "), where))
+
+    # superkeys
+    slot = ["tap", "hold", "tap&hold", "2×tap", "2×hold"]
+    for sk in n.get("superkeys", []):
+        for i, a in enumerate(sk["actions"]):
+            dec = decode_key(a)
+            if not dec:
+                continue
+            canon, pretty = dec
+            app = apps.get(canon)
+            base_label = "SK %s · %s" % (sk["name"], slot[i])
+            label = "%s  →  %s" % (base_label, app) if app else base_label
+            entries.append((label, pretty.replace("+", " "), "Superkey"))
+
+    # de-dup, keep first occurrence
+    out, dedup = [], set()
+    for e in entries:
+        key = (e[0], e[1])
+        if key not in dedup:
+            dedup.add(key)
+            out.append(e)
+    return sorted(out, key=lambda e: e[0].lower())
+
+
+def main():
+    entries = build_entries()
+    width = max(len(e[0]) for e in entries)
+    swidth = max(len(e[1]) for e in entries)
+    lines = ["%-*s   %-*s   %s" % (width, lbl, swidth, sc, where)
+             for lbl, sc, where in entries]
+    blob = "\n".join(lines)
+
+    if "--list" in sys.argv or not sys.stdout.isatty() and "--choose" not in sys.argv:
+        print(blob)
+        return
+
+    try:
+        idx = subprocess.run(
+            ["choose", "-i", "-z", "-a", "-n", "16", "-w", "92",
+             "-p", "dygma", "-f", "JetBrainsMono Nerd Font Mono", "-s", "28",
+             "-c", "8BE9FD", "-b", "B347FF"],
+            input=blob, capture_output=True, text=True).stdout.strip()
+    except FileNotFoundError:
+        print(blob)
+        return
+    if not idx.isdigit():
+        return
+    picked = entries[int(idx)]
+    subprocess.run(["pbcopy"], input=picked[1], text=True)
+
+
+if __name__ == "__main__":
+    main()
