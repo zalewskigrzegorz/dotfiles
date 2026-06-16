@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""read-claude — speak Claude Code's last response (FOCUSED session) aloud via
+ElevenLabs (Flash v2.5 = cheapest + low latency, multilingual incl. Polish).
+Toggle: run again while playing to STOP.
+
+  read-claude          # speak (or stop if playing)
+  read-claude --dry    # print the text that would be spoken
+
+Voice/model overridable: DYGMA_TTS_VOICE (ElevenLabs voice id), DYGMA_TTS_MODEL.
+API key: $ELEVENLABS_API_KEY, else parsed from ~/.config/nushell/autoload/private.nu.
+"""
+import glob
+import json
+import os
+import re
+import subprocess
+import sys
+
+os.environ["PATH"] = "/opt/homebrew/bin:/usr/bin:/bin:" + os.environ.get("PATH", "")
+DRY = "--dry" in sys.argv
+
+# toggle: stop if already playing
+if not DRY and subprocess.run(["pgrep", "-x", "afplay"], capture_output=True).returncode == 0:
+    subprocess.run(["killall", "afplay"])
+    sys.exit(0)
+
+
+def claude_last():
+    """Last assistant text from the FOCUSED tmux pane's project session."""
+    files = []
+    cwd = subprocess.run(["tmux", "display-message", "-p", "#{pane_current_path}"],
+                         capture_output=True, text=True).stdout.strip()
+    if cwd:
+        files = glob.glob(os.path.expanduser("~/.claude/projects/" + cwd.replace("/", "-") + "/*.jsonl"))
+    if not files:
+        files = glob.glob(os.path.expanduser("~/.claude/projects/*/*.jsonl"))
+    if not files:
+        return None
+    last = None
+    for line in open(max(files, key=os.path.getmtime)):
+        try:
+            o = json.loads(line)
+        except Exception:
+            continue
+        if o.get("type") == "assistant":
+            txt = "".join(b.get("text", "") for b in o.get("message", {}).get("content", [])
+                          if isinstance(b, dict) and b.get("type") == "text")
+            if txt.strip():
+                last = txt
+    return last
+
+
+def api_key():
+    k = os.environ.get("ELEVENLABS_API_KEY")
+    if k:
+        return k
+    priv = os.path.expanduser("~/.config/nushell/autoload/private.nu")
+    if os.path.exists(priv):
+        m = re.search(r'ELEVENLABS_API_KEY"?\s*[:=]\s*"([^"]+)"', open(priv).read())
+        if m:
+            return m.group(1)
+    return None
+
+
+# text source:
+#   --clip   → the clipboard (copy a selection with ⌘C first, then read it)
+#   stdin    → piped text (a macOS Shortcut can feed the selection)
+#   else     → Claude Code's last response in the focused session
+if "--clip" in sys.argv:
+    text = subprocess.run(["pbpaste"], capture_output=True, text=True).stdout
+else:
+    piped = "" if sys.stdin.isatty() else sys.stdin.read()
+    text = piped if piped.strip() else claude_last()
+if not text:
+    sys.exit(0)
+
+t = text
+t = re.sub(r"```.*?```", " . code block . ", t, flags=re.S)
+t = re.sub(r"`([^`]+)`", r"\1", t)
+t = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", t)
+t = re.sub(r"^\s*\|.*$", "", t, flags=re.M)
+t = re.sub(r"\n{2,}", ". ", t)
+t = re.sub(r"[^\w\s.,!?;:()'\"\-/]", " ", t)
+t = re.sub(r"\s{2,}", " ", t).strip()
+# Chunk long text. You pay ElevenLabs per input char, so instead of generating a
+# whole wall, split it and read ONE chunk per press — next press = next chunk.
+# You only pay for chunks you actually request.
+import hashlib
+CHUNK = int(os.environ.get("DYGMA_TTS_CHUNK", "1500"))
+
+
+def split(text, n):
+    out = []
+    while text:
+        if len(text) <= n:
+            out.append(text)
+            break
+        cut = text.rfind(". ", 0, n)
+        if cut < n * 0.5:
+            cut = text.rfind(" ", 0, n)
+        if cut <= 0:
+            cut = n
+        out.append(text[:cut + 1].strip())
+        text = text[cut + 1:].strip()
+    return out
+
+
+chunks = split(t, CHUNK)
+h = hashlib.md5(t.encode()).hexdigest()[:8]
+state_f = "/tmp/read-claude-state.json"
+st = {}
+try:
+    st = json.load(open(state_f))
+except Exception:
+    pass
+idx = (st.get("idx", -1) + 1) if st.get("hash") == h else 0
+if idx >= len(chunks):
+    idx = 0
+chunk = chunks[idx]
+if len(chunks) > 1:
+    chunk += " . część %d z %d ." % (idx + 1, len(chunks))
+try:
+    json.dump({"hash": h, "idx": idx}, open(state_f, "w"))
+except Exception:
+    pass
+t = chunk
+
+if DRY:
+    print("[chunk %d/%d] %s" % (idx + 1, len(chunks), t[:1000]))
+    sys.exit(0)
+
+key = api_key()
+if not key:
+    subprocess.run(["say", "-v", "Zosia (Enhanced)", "brak klucza eleven labs"])
+    sys.exit(1)
+
+# Monika (PL+EN). Swap via DYGMA_TTS_VOICE. speed 0.7-1.2 via DYGMA_TTS_SPEED.
+voice = os.environ.get("DYGMA_TTS_VOICE", "2zRM7PkgwBPiau2jvVXc")
+model = os.environ.get("DYGMA_TTS_MODEL", "eleven_flash_v2_5")
+speed = float(os.environ.get("DYGMA_TTS_SPEED", "1.12"))
+out = "/tmp/read-claude.mp3"
+payload = json.dumps({"text": t, "model_id": model,
+                      "voice_settings": {"stability": 0.5, "similarity_boost": 0.8,
+                                         "style": 0, "use_speaker_boost": True,
+                                         "speed": speed}})
+r = subprocess.run(["curl", "-sS", "-X", "POST",
+                    "https://api.elevenlabs.io/v1/text-to-speech/" + voice,
+                    "-H", "xi-api-key: " + key, "-H", "Content-Type: application/json",
+                    "-d", payload, "--output", out], capture_output=True)
+if os.path.exists(out) and os.path.getsize(out) > 1000:
+    subprocess.Popen(["afplay", out])
+else:
+    subprocess.run(["say", "-v", "Zosia (Enhanced)", "blad eleven labs"])

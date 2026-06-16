@@ -252,6 +252,8 @@ spark meetings --filter "newer_than:2d"
 
 **Drafts mail folder is NOT queried** — Greg's drafts are garbage, explicitly excluded.
 
+**NEVER truncate the `spark events` output** (no `head`, no `| head -N`). The list interleaves many shared calendars sorted by time, so a real Greg meeting (e.g. a Rebilly sync at 15:30) can sit far down the list after a pile of other people's all-day/standup entries. Read the FULL output and scan every entry's `Calendar:`/`Attendees:` line before deciding what to surface. Missing a real meeting because it was below a truncation cutoff is a bug.
+
 **Calendar filter — exclude family/shared calendars (Greg's wife shares some):**
 
 For each `spark events` entry, check the `Calendar:` line. **Drop** the event silently if `Calendar:` matches ANY of:
@@ -676,6 +678,7 @@ Beyond the pollen alarm (already handled in opening), the brief MUST surface the
 **Drop silently (Greg sees these on his phone, no audio repeat needed):**
 - `alarm_connectivity` / `alarm_online.*` (offline devices like Esti Night Light)
 - `alarm_contact` (garden door / window open) — UNLESS rain / snow / hail is in the current `weatherDesc` from wttr OR `chanceofrain > 30` in the current hour. Then **escalate to a grave-wording lead in section 7**: *"Garden Door otwarte i zapowiada się deszcz — zamknij zanim ci się leje na podłogę"*. Same rule for any other `alarm_contact` device whose name implies an outdoor opening (`Garden`, `Balkon`, `Taras`, `Window`).
+  - **Garden Door specifically is open every morning ON PURPOSE** — Greg leaves it open so the dogs (Buffy, Daisy) can go out to the garden themselves. It is a known false positive. NEVER surface it as an alarm, a lingering/stale item, or anything else unless active rain/snow/hail is incoming per the rule above. Do NOT fold it into a "still open from yesterday" callback. It needlessly repeats and annoys him.
 
 **Trash (from `get_waste_collection_schedule`):**
 
@@ -948,7 +951,7 @@ Export → Reminders (every actionable item gets its own reminder with a concret
   - `alarm_virus` (Airq) → `Przewietrzyć biuro (Airq virus alarm)`.
   - `alarm_water` / leak → `Sprawdzić wyciek wody — <zone>`.
   - `alarm_smoke` / `alarm_fire` → `Sprawdzić alarm dymu — <zone>`.
-  - `alarm_contact` on outdoor opening (Garden/Balkon/Window) WHEN rain incoming → `Zamknąć <device name>` (Garden Door → `Zamknąć Garden Door — zapowiada się deszcz`).
+  - `alarm_contact` on outdoor opening (Garden/Balkon/Window) WHEN rain incoming → `Zamknąć <device name>` (Garden Door → `Zamknąć Garden Door — zapowiada się deszcz`). **NEVER export Garden Door otherwise** — it is intentionally open every morning for the dogs (known false positive).
 - **Trash collection** if `days_until <= 3` → `Wystawić śmieci — <typy odpadów>` (e.g. `Wystawić śmieci — segregowane`).
 - **Regulator/institution mail action items** (skarbówka, ZUS, US, bank — high-priority items).
 - **Greg's own PRs** in `Broken` bucket older than 14 days (one Reminder per stale PR, NOT for fresh ones).
