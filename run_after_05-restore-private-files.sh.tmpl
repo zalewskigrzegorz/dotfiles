@@ -161,6 +161,14 @@ restore_password_field() {
 restore_document "WEEKLY_PROJECT_UPDATE_SCRIPT" "$secret_dir/weekly-slack-board-update.nu"
 restore_password_field "GITLEAKS_PRIVATE_CONFIG" "$secret_dir/gitleaks-private.toml"
 
+# Stream Deck Office page → Homey Athom cloud API (https://<HOMEY_ID>.connect.athom.com).
+# bin/homey-cap reads the PAT from ~/.config/streamdeck/homey-token (0600) and the
+# Homey ID (connect subdomain) from ~/.config/streamdeck/homey-id. Both live in
+# 1Password items HOMEY_TOKEN / HOMEY_ID (password field), never in the repo.
+mkdir -p "$HOME/.config/streamdeck"
+restore_password_field "HOMEY_TOKEN" "$HOME/.config/streamdeck/homey-token"
+restore_password_field "HOMEY_ID" "$HOME/.config/streamdeck/homey-id"
+
 # tmux-weather home location: two custom fields (lat, lon) on a 1P item.
 # Rendered as a sourceable env file consumed by bin/tmux-weather.
 restore_env_pair() {
