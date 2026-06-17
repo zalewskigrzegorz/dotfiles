@@ -256,6 +256,22 @@ def newest_export():
     return max(files, key=os.path.getmtime)
 
 
+# Wooshy in-picker actions: applied to the selected element AFTER typing in The
+# Input™. Not stored in defaults (they're app-internal, not global hotkeys), so
+# the defaults scan can't discover them — hardcoded from docs.wooshy.app/usage.
+# Activation toggle itself comes from the auto-scanned KeyboardShortcuts domain.
+WOOSHY_ACTIONS = [
+    ("Wooshy · lewy klik", "Return", "Wooshy picker (po wpisaniu)"),
+    ("Wooshy · prawy klik", "Ctrl Return", "Wooshy picker (po wpisaniu)"),
+    ("Wooshy · podwójny klik", "fn Return", "Wooshy picker (po wpisaniu)"),
+    ("Wooshy · option-click", "Opt Return", "Wooshy picker (po wpisaniu)"),
+    ("Wooshy · shift-click", "Shift Return", "Wooshy picker (po wpisaniu)"),
+    ("Wooshy · command-click", "Cmd Return", "Wooshy picker (po wpisaniu)"),
+    ("Wooshy · przesuń mysz (hover)", "Shift Cmd Return", "Wooshy picker (po wpisaniu)"),
+    ("Wooshy · kopiuj tekst elementu", "Cmd C", "Wooshy picker (po wpisaniu)"),
+]
+
+
 def build_entries():
     d = json.load(open(newest_export()))
     n = d["neuron"]
@@ -269,6 +285,7 @@ def build_entries():
 
     entries = []  # (search_label, shortcut, where)
     entries += app_globals          # global hotkeys (fire even off-keyboard)
+    entries += WOOSHY_ACTIONS       # Wooshy in-picker actions (not in defaults)
     if "--no-aero" not in sys.argv:
         entries += aero_entries     # aerospace window-manager bindings
 
