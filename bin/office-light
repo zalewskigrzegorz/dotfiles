@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# office-light — toggle an Office light/socket on/off.
+#
+# Usage:
+#   office-light aura     → toggle Office Aura Light
+#   office-light gaming   → toggle Gaming Pixel Light
+#   office-light desk     → toggle Office desk socket
+#
+# Echoes the new onoff state. Wired to three keys on the Stream Deck + Office page.
+set -euo pipefail
+
+case "${1:-}" in
+  aura)   DEV=1f76f87b-de89-401a-9ce9-e062ba4d61d2 ;;
+  gaming) DEV=a67a1154-890b-431d-91dc-c880d34b9f7f ;;
+  desk)   DEV=291a80cd-07b8-4c1e-a03e-2c637876107d ;;
+  *)      echo "usage: office-light aura|gaming|desk" >&2; exit 2 ;;
+esac
+
+cur="$(homey-cap get "$DEV" onoff)"
+
+# Homey/python may report the boolean as True/true — match both.
+case "$cur" in
+  True|true)  new=false ;;
+  *)          new=true ;;
+esac
+
+homey-cap set "$DEV" onoff "$new"
+echo "$new"

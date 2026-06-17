@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# office-rekup-boost — boost the Office recuperator: ventilation on + fan to max.
+#
+# Usage:
+#   office-rekup-boost   → sets onoff.modifier2 (Ventilation) = true and dim (fan
+#                          speed) = 1 on the recuperator.
+#
+# Device: Recuperator. Wired to the "Rekup boost" key on the Stream Deck + Office
+# page for when the room gets stuffy (high CO2).
+set -euo pipefail
+
+DEV=d38d966c-799c-450d-a7ae-19736f96041e
+
+homey-cap set "$DEV" onoff.modifier2 true
+homey-cap set "$DEV" dim 1
+echo "rekup boost on"

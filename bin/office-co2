@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# office-co2 — print the current Office CO2 reading (just the number).
+#
+# Usage:
+#   office-co2   → prints the measure_co2 value (e.g. 1184)
+#
+# Device: Airq. Consumed by the Stream Deck + "API Request" plugin to drive the
+# live CO2 key (color thresholds: <800 green, <1200 yellow, ≥1200 red).
+#
+# NOTE: capability assumed to be `measure_co2` per the plan. If the live device
+# JSON exposes the reading under a different key (the readings dump showed `co2`),
+# swap the capability name below — confirm against the device JSON in Phase 0.2.
+set -euo pipefail
+
+homey-cap get 6be72f95-f01b-41fb-acbd-8db97c2d557e measure_co2

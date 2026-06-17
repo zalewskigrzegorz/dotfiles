@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# office-ac-mode — cycle the Office AC climate_mode: off → cool → heat → off.
+#
+# Usage:
+#   office-ac-mode     → reads current climate_mode, advances to the next in the
+#                        cycle, sets it (enum string), echoes the new mode.
+#
+# Device: Office AC (climate_mode enum: off/cool/heat/dry/fan_only/heat_cool —
+# this script only cycles the off/cool/heat subset).
+# Wired to the AC-temp dial push on the Stream Deck + Office page.
+set -euo pipefail
+
+DEV=f4ebfb86-0303-4f51-84a5-e4fb5a3cb3ee
+
+cur="$(homey-cap get "$DEV" climate_mode)"
+
+case "$cur" in
+  off)  new=cool ;;
+  cool) new=heat ;;
+  heat) new=off ;;
+  *)    new=off ;;   # any other mode (dry/fan_only/heat_cool) → restart cycle at off
+esac
+
+homey-cap sets "$DEV" climate_mode "$new"
+echo "$new"
