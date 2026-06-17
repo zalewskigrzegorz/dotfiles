@@ -135,4 +135,5 @@ Anything installed via `/plugin install`, `claude mcp add`, or `~/.claude/skills
 - `docs/mcp-clients-setup.md` — MCP setup per client
 - `docs/secrets.md` — secret management workflow
 - `docs/setapp-apps.md` — Setapp app handling
+- `docs/streamdeck.md` — Stream Deck + layout + Homey office control
 - `README.md` — public-facing intro (keep CLAUDE.md as the operational source)
