@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# homey-cap — read/write a Homey device capability over the local Homey API.
+#
+# Used by the Stream Deck + Office page action scripts (office-*). Runs under
+# Stream Deck's "Open" action, which is shell-agnostic, so this is bash (not nu).
+#
+# Usage:
+#   homey-cap get  <deviceId> <cap>            → prints the capability value
+#   homey-cap set  <deviceId> <cap> <number>   → PUT numeric value (e.g. 23, 0.5, true)
+#   homey-cap sets <deviceId> <cap> <string>   → PUT string/enum value (e.g. cool, heat)
+#
+# Token    : ${HOMEY_TOKEN_FILE:-$HOME/.config/streamdeck/homey-token}  (PAT)
+# Homey ID : ${HOMEY_ID:-<from $HOME/.config/streamdeck/homey-id>}        (connect subdomain, not secret)
+#
+# Endpoint VERIFIED 2026-06-17 against the Athom cloud API
+# (https://<HOMEY_ID>.connect.athom.com) — GET confirmed on Office AC +
+# Airq (measure_co2). Cloud works from the office Mac regardless of LAN and
+# avoids local-IP discovery / self-signed cert issues.
+set -euo pipefail
+
+TOKEN_FILE="${HOMEY_TOKEN_FILE:-$HOME/.config/streamdeck/homey-token}"
+HOMEY_ID="${HOMEY_ID:-$(cat "${HOMEY_ID_FILE:-$HOME/.config/streamdeck/homey-id}" 2>/dev/null || true)}"
+
+if [[ ! -r "$TOKEN_FILE" ]]; then
+  echo "homey-cap: token file not found or unreadable: $TOKEN_FILE" >&2
+  exit 1
+fi
+TOKEN="$(cat "$TOKEN_FILE")"
+if [[ -z "$HOMEY_ID" ]]; then
+  echo "homey-cap: HOMEY_ID not set (env HOMEY_ID or ~/.config/streamdeck/homey-id)" >&2
+  exit 1
+fi
+
+usage() {
+  echo "usage: homey-cap get|set|sets <deviceId> <cap> [value]" >&2
+  exit 2
+}
+
+cmd="${1:-}"; dev="${2:-}"; cap="${3:-}"
+[[ -z "$cmd" || -z "$dev" || -z "$cap" ]] && usage
+
+base="https://${HOMEY_ID}.connect.athom.com/api/manager/devices/device/$dev"
+
+case "$cmd" in
+  get)
+    curl -fsS -H "Authorization: Bearer $TOKEN" "$base" \
+      | python3 -c "import sys,json;print(json.load(sys.stdin)['capabilitiesObj']['$cap']['value'])"
+    ;;
+  set)
+    # numeric / boolean value — emitted into JSON unquoted (e.g. 23, 0.5, true)
+    val="${4:-}"; [[ -z "$val" ]] && usage
+    curl -fsS -X PUT \
+      -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+      -d "{\"value\": $val}" "$base/capability/$cap" >/dev/null
+    ;;
+  sets)
+    # string / enum value — JSON-quoted via python to escape correctly (e.g. cool)
+    val="${4:-}"; [[ -z "$val" ]] && usage
+    body="$(VAL="$val" python3 -c 'import json,os;print(json.dumps({"value":os.environ["VAL"]}))')"
+    curl -fsS -X PUT \
+      -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+      -d "$body" "$base/capability/$cap" >/dev/null
+    ;;
+  *)
+    usage
+    ;;
+esac

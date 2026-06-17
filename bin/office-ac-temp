@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# office-ac-temp — nudge the Office AC target temperature by ±0.5°C.
+#
+# Usage:
+#   office-ac-temp +   → current target_temperature + 0.5, sets it, echoes new value
+#   office-ac-temp -   → current target_temperature - 0.5, sets it, echoes new value
+#
+# Device: Office AC (target_temperature, range 16–88, step 0.5).
+# Wired to the AC-temp dial on the Stream Deck + Office page (rotate = ±0.5).
+set -euo pipefail
+
+DEV=f4ebfb86-0303-4f51-84a5-e4fb5a3cb3ee
+
+cur="$(homey-cap get "$DEV" target_temperature)"
+
+case "${1:-+}" in
+  +) new="$(echo "$cur + 0.5" | bc)" ;;
+  -) new="$(echo "$cur - 0.5" | bc)" ;;
+  *) echo "usage: office-ac-temp +|-" >&2; exit 2 ;;
+esac
+
+# bc drops the leading zero for values < 1 (".5" / "-.5"); normalize so JSON stays valid.
+[[ "$new" == .* ]]  && new="0$new"
+[[ "$new" == -.* ]] && new="-0.${new#-.}"
+
+homey-cap set "$DEV" target_temperature "$new"
+echo "$new"
