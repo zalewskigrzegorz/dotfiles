@@ -4,8 +4,40 @@ Functional reference for the Stream Deck + setup: what lives on each page, what
 each key/dial does, and how to edit + reproduce it. Read this before touching the
 layout so you know what moves.
 
-> **Status:** design landed 2026-06-17 (spec/plan in `bazgroly/dotfiles/`). Implementation
-> is staged across phases — sections below flagged **TBD** are not yet wired.
+> **Status:** design landed 2026-06-17 (spec/plan in `bazgroly/dotfiles/`).
+> **2026-06-19 PIVOT — read this first.**
+
+## ⚠️ 2026-06-19 — Homey Pro plugin is the way; MCP editing is abandoned
+
+What we learned the hard way:
+
+- **`streamdeck-mcp` (disk editing) does NOT work reliably.** It writes `ProfilesV3`
+  files on disk, but the Elgato app keeps its own in-memory/cloud state and
+  **overwrites disk edits on restart/sync**. Net effect: MCP-written pages (e.g. the
+  old "office" page) silently vanish from the app — they exist on disk but the GUI
+  shows a different set of pages. **Do not edit the layout via MCP.** MCP is fine for
+  *reading* the current profile, nothing else.
+- **Configure the deck in the Elgato GUI, by hand.** That is the only reliable path.
+- **Home control = the `Homey Pro` Stream Deck plugin (Adapted AS).** Native, GUI-
+  configured, supports **dials** (rotate temp/dim, push = toggle) and **live tiles**.
+  Actions: **Toggle Device** (on/off), **Set Device State** (mode/scene), and dial
+  controls. This replaces the old `bin/office-*` scripts *on the deck*. (The free
+  `Homey Pro` covers it; `Homey Pro Plus` is the paid tier — Greg's Plus purchase
+  broke 2026-06-19, awaiting Elgato support, so build on the free plugin.)
+- **AC now has native `onoff` in Homey** (Office/Bedroom/Living/Fun-room AC) — the
+  home-lab agent fixed the Tuya→HA→Homey exposure. So Toggle Device works for AC on/off.
+- The `bin/office-*` + `homey-cap` scripts and the HA `switch.klima_*` still stand —
+  they power **Raycast / CLI / cross-machine** control, just not the deck.
+
+### AC on a dial, with on/off (Homey Pro dial)
+
+On a dial running the Homey Pro **dial** action for `Office AC`:
+
+1. Add the Homey Pro dial action to a dial slot, pick device **Office AC**.
+2. **Rotate** → adjusts `target_temperature` (already working).
+3. Set **Push (dial press)** → **Toggle Device** on `Office AC` → turns the AC on/off.
+
+So rotate = temperature, press = power. Same recipe for any room AC.
 
 ## Hardware
 
@@ -102,6 +134,69 @@ Out of MVP. Candidate if Greg wants it back: lazygit · tests · PR-review count
 (live via API Request `gh`) · Claude · console-ninja · sesh · screenshot; dials
 zoom · scroll · workspace · volume. Add only on confirmation.
 
+## SmartHome layout (rozpiska) — build in GUI with Homey Pro plugin
+
+Goal: a SmartHome section where you pick a **room**, then control that room's
+significant devices. Build entirely in the Elgato GUI.
+
+**Mechanics (Homey Pro plugin):**
+- Key on/off → **Toggle Device** (pick the Homey device). Works for lights, sockets, AC (native `onoff`), lock.
+- Mode / scene → **Set Device State**.
+- Dial → Homey Pro **dial** action: rotate = `target_temperature` (AC) or `dim` (light); **push = Toggle Device** (see AC-dial recipe at top).
+- Room navigation → Stream Deck **Create Folder** action (opens a sub-page; a ⬅ back key is added automatically).
+
+### SmartHome landing page — 8 room folders (4×2)
+
+```
+[Office]    [Living]    [Bedroom]   [Bathroom]
+[Fun room]  [Kitchen]   [Hall 🔒]   [Garden]
+```
+Landing dials: `Office AC temp` · `Living AC temp` · *(free)* · `page switch`.
+Minor rooms (Toilet, Lucy, Stairs, Wardrobe, Upstairs, Garage) → optional 9th "Other" folder.
+
+### Room folders — keys + dials
+
+**Office** — Aura · Gaming · Desk socket · Greg socket · Left · Right · **AC on/off** · ⬅
+Dials: `Aura dim (push=toggle)` · `AC temp (push=on/off)` · — · ⬅
+
+**Living Room** — Lamp · Living Light · Dinner Light · Fireplace · Twinkly · **AC on/off** · Window L · ⬅
+Dials: `Lamp dim` · `AC temp` · `Fireplace speaker vol` · ⬅
+
+**Bedroom** — Bedroom Light · Switch · Greg Night · Esti Night · **AC on/off** · Thermostat · — · ⬅
+Dials: `Night light dim` · `AC temp` · `Thermostat temp` · ⬅
+
+**Bathroom** — Light · LED · Mirror · Button · Star Projector · **Thermostat on/off** · — · ⬅
+Dials: `Star Projector dim` · `Thermostat temp` · — · ⬅
+
+**Fun room** — Neon · Left · Right · **AC on/off** · Thermostat · — · — · ⬅
+Dials: `Neon dim` · `AC temp` · — · ⬅
+
+**Kitchen** — Kitchen Light · **Thermostat on/off** · Nest · — · — · — · — · ⬅
+Dials: `Thermostat temp` · `Nest volume` · — · ⬅
+
+**Hall 🔒** — **Door (LOCK)** · Hall Light · Hall Ledstrip · — · — · — · — · ⬅
+Dials: `Ledstrip dim` · — · — · ⬅  — lock = Toggle Device `locked`; guard against accidental press.
+
+**Garden** — Garage Light · Garden L · Garden R · Watering · — · — · — · ⬅
+Dials: `Garden dim` · — · — · ⬅
+
+### Full controllable-device inventory (per Homey zone, 2026-06-19)
+
+Source for the map above; pull fresh with `homey-cap` / the Homey API if devices change.
+
+| Zone | Devices (controllable) |
+|---|---|
+| Office | Aura Light, Gaming Pixel Light, Left/Right Light, desk socket, greg socket, **AC**, Thermostat |
+| Living Room | Lamp, Living Light, Dinner table Light, Fireplace, Twinkly_Curtain, **AC**, Window switch L/R, Fireplace Speaker |
+| Bedroom | Bedroom Light, Switch, Greg/Esti Night Light, **AC**, Thermostat |
+| Bathroom | Light, LED, Mirror Light, Button, Star Light Projector, Thermostat |
+| Fun room | Neon light, Left/Right Light, **AC**, Thermostat |
+| Kitchen | Kitchen Light, Thermostat, Nest (speaker) |
+| Hall | **Door (lock)**, Hall Light, Hall Ledstrip |
+| Garden | Garage Light, Garden L/R Light, Watering |
+| Toilet | Toilet/Mirror/Shower Light, Thermostat |
+| Other | Lucy room Light+Thermostat, Stairs Light, Wardrobe Light, Upstairs Light, Garage Switch, House Number Sign, Recuperator (Top) |
+
 ## Camera caveat (important)
 
 - **Global** (work from any app): mic mute + cam off via **MuteDeck**.
@@ -122,21 +217,13 @@ hand after a wipe:
 - **API Request** (BarRaider / marketplace; alt: `mjbnz/streamdeck-api-request`) —
   live readouts (CO2, and any future PR/health counts) via polling + per-response icon color.
 
-## Editing the layout via streamdeck-mcp
+## Editing the layout — GUI only (streamdeck-mcp DEPRECATED)
 
-Edits go through the community MCP `verygoodplugins/streamdeck-mcp`, registered
-**project-scoped** in `~/Code/dotfiles/.mcp.json` only (not global, not in Redocly).
-It writes `ProfilesV3` files on disk directly (full dial/`Encoder` + touch-strip
-support) and preserves `button.raw` (so Spotify/MuteDeck plugin settings survive).
-
-- Run: `uvx streamdeck-mcp`.
-- **The Stream Deck app MUST be closed when the MCP writes**, otherwise it throws
-  `StreamDeckAppRunningError`. Workflow for every MCP write:
-  `quit Stream Deck app → MCP write → reopen app → verify render`.
-
-**Fallback:** if the MCP can't read/write `ProfilesV3`, edit the layout by hand in
-the GUI and export `.streamDeckProfile` to the backup dir. The Homey scripts and
-API Request work the same either way (independent of edit method).
+**Edit in the Elgato GUI by hand.** See the 2026-06-19 pivot at the top: the
+`streamdeck-mcp` writes get overwritten by the app's own state, so MCP-written
+pages disappear. The MCP (`uvx streamdeck-mcp`, project-scoped in `.mcp.json`) is
+kept **only for reading** the current profile (`streamdeck_read_profiles` /
+`streamdeck_read_page`) — never for writing the layout.
 
 ## Reproducing the profile (chezmoi)
 
