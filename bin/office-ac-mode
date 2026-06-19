@@ -9,6 +9,8 @@
 # this script only cycles the off/cool/heat subset).
 # Wired to the AC-temp dial push on the Stream Deck + Office page.
 set -euo pipefail
+# Make sibling helpers (homey-cap) resolvable regardless of caller PATH (Stream Deck "Open").
+PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd):$PATH"
 
 DEV=f4ebfb86-0303-4f51-84a5-e4fb5a3cb3ee
 

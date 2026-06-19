@@ -8,6 +8,8 @@
 # Device: Recuperator. Wired to the "Rekup boost" key on the Stream Deck + Office
 # page for when the room gets stuffy (high CO2).
 set -euo pipefail
+# Make sibling helpers (homey-cap) resolvable regardless of caller PATH (Stream Deck "Open").
+PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd):$PATH"
 
 DEV=d38d966c-799c-450d-a7ae-19736f96041e
 

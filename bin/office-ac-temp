@@ -8,6 +8,8 @@
 # Device: Office AC (target_temperature, range 16–88, step 0.5).
 # Wired to the AC-temp dial on the Stream Deck + Office page (rotate = ±0.5).
 set -euo pipefail
+# Make sibling helpers (homey-cap) resolvable regardless of caller PATH (Stream Deck "Open").
+PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd):$PATH"
 
 DEV=f4ebfb86-0303-4f51-84a5-e4fb5a3cb3ee
 
