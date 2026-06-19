@@ -8,6 +8,8 @@
 #
 # Echoes the new onoff state. Wired to three keys on the Stream Deck + Office page.
 set -euo pipefail
+# Make sibling helpers (homey-cap) resolvable regardless of caller PATH (Stream Deck "Open").
+PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd):$PATH"
 
 case "${1:-}" in
   aura)   DEV=1f76f87b-de89-401a-9ce9-e062ba4d61d2 ;;

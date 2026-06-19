@@ -11,5 +11,7 @@
 # JSON exposes the reading under a different key (the readings dump showed `co2`),
 # swap the capability name below — confirm against the device JSON in Phase 0.2.
 set -euo pipefail
+# Make sibling helpers (homey-cap) resolvable regardless of caller PATH (Stream Deck "Open").
+PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd):$PATH"
 
 homey-cap get 6be72f95-f01b-41fb-acbd-8db97c2d557e measure_co2

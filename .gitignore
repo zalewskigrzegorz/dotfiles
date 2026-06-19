@@ -108,3 +108,7 @@ dot_config/zed/prompts/
 .config/zed/.tmp*
 dot_config/zed/.tmp*
 bin/sketchybar-watcher/sketchybar-watcher
+
+# Stream Deck raw profile snapshots embed plugin OAuth tokens (Slack xoxp) — keep out of git
+dot_config/streamdeck/ProfilesV3-snapshot*/
+*.streamDeckProfilesBackup
