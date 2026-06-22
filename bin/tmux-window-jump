@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # tmux-window-jump [--waiting] — floating picker over tmux windows. Rows badged
 # with agent presence (⏳ waiting / ● running), waiting sorted first. With
-# --waiting: only waiting windows; 0 → silent exit; 1 → jump with no picker.
+# --waiting: only waiting windows AND the window you're currently on is excluded
+# (it's the one you're already looking at — surface agents elsewhere); 0 → silent
+# exit; 1 → jump with no picker.
 # Bound to cmd-ctrl-w (all) and cmd-ctrl-a (--waiting) in aerospace.toml.
 set -euo pipefail
 export PATH="/opt/homebrew/bin:$PATH"
@@ -12,6 +14,12 @@ FOCUS_BIN="${CLAUDE_FOCUS_BIN:-$HOME/Code/dotfiles/bin/claude-focus-session}"
 TMUX_BIN="${TMUX_BIN:-/opt/homebrew/bin/tmux}"
 CHOOSE_BIN="${CHOOSE_BIN:-choose}"
 ONLY_WAITING=0; [ "${1:-}" = "--waiting" ] && ONLY_WAITING=1
+
+# In --waiting mode, exclude the window we're currently on — jumping to the
+# window you're already viewing is pointless (it's "waiting" only because the
+# turn ended and it's awaiting YOUR input, which you're about to give).
+CUR=""
+[ "$ONLY_WAITING" = "1" ] && CUR=$("$TMUX_BIN" display-message -p '#{session_name}:#{window_index}' 2>/dev/null || true)
 
 # Presence map: target → glyph (rank for sort: 0 waiting, 1 running, 2 idle).
 declare -A GLYPH RANK
@@ -27,6 +35,7 @@ while IFS=$'\t' read -r target label; do
   [ -n "$target" ] || continue
   g="${GLYPH[$target]:-}"; r="${RANK[$target]:-2}"
   [ "$ONLY_WAITING" = "1" ] && [ "$r" != "0" ] && continue
+  [ "$ONLY_WAITING" = "1" ] && [ -n "$CUR" ] && [ "$target" = "$CUR" ] && continue
   rows+="$r"$'\t'"$target"$'\t'"$label${g:+  $g}"$'\n'
 done < <("$TMUX_BIN" list-windows -a -F '#{session_name}:#{window_index}	#{session_name}  ·  #{window_index} #{window_name}' 2>/dev/null || true)
 
