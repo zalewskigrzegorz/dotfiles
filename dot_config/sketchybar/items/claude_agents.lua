@@ -1,15 +1,15 @@
 local colors = require("colors")
 local settings = require("settings")
 
--- Persistent Claude agent presence chip: ⏳<waiting> ●<running>. Hidden when no
--- agents are live. Backed by the shared state dir via the claude_agents.sh
--- plugin; click jumps to the waiting-only tmux picker.
-local claude = sbar.add("item", "claude_agents", {
+-- Claude agent presence chip:  <blocked>  <waiting>  <running>. Hidden when no
+-- agents need you elsewhere. PUSH-driven by bin/claude-agent-chip (called from the
+-- agent hooks on every state change + a tmux window-switch hook) — sbarlua's
+-- routine/update_freq timer never fired for this item, so there is no timer here.
+-- Click → jump to the agent that needs you (bin/tmux-window-jump).
+sbar.add("item", "claude_agents", {
     position = "right",
     drawing = false,
-    icon = {
-        drawing = false
-    },
+    icon = { drawing = false },
     label = {
         color = colors.red,
         font = {
@@ -18,11 +18,5 @@ local claude = sbar.add("item", "claude_agents", {
             size = 13.0
         }
     },
-    update_freq = 5,
-    script = "$CONFIG_DIR/plugins/claude_agents.sh",
-    click_script = os.getenv("HOME") .. "/Code/dotfiles/bin/tmux-window-jump --waiting"
+    click_script = os.getenv("HOME") .. "/Code/dotfiles/bin/tmux-window-jump"
 })
-
-claude:subscribe({"routine", "forced"}, function()
-    claude:set({})
-end)

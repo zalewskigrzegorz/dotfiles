@@ -38,6 +38,8 @@ case "$MSG" in
 esac
 STATE_BIN="${CLAUDE_AGENT_STATE_BIN:-$HOME/Code/dotfiles/bin/claude-agent-state}"
 [ -x "$STATE_BIN" ] && "$STATE_BIN" set "$STATE" --cwd "$CWD" >/dev/null 2>&1 || true
+CHIP="${CLAUDE_AGENT_CHIP:-$HOME/Code/dotfiles/bin/claude-agent-chip}"
+[ -x "$CHIP" ] && ("$CHIP" >/dev/null 2>&1 &)
 
 # ── Sound ─────────────────────────────────────────────────────────────────
 sound="$HOME/.claude/hooks/sounds/claude-waiting.mp3"
