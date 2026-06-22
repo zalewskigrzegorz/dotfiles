@@ -41,7 +41,7 @@ export CHOOSE_BIN="$TMP/shim/choose"
 # Current window excluded.
 grep -q 'cur:0\|cur  ·  0' "$TMP/choose-in" && { echo "FAIL: current window not excluded"; cat "$TMP/choose-in"; exit 1; }
 # Blocked sorted first (line 1) with 🔴 badge.
-head -1 "$TMP/choose-in" | grep -q '🔴' || { echo "FAIL: blocked not first / no 🔴"; cat "$TMP/choose-in"; exit 1; }
+head -1 "$TMP/choose-in" | grep -q $'\uf071' || { echo "FAIL: blocked not first / no 🔴"; cat "$TMP/choose-in"; exit 1; }
 # choose returned 0 → jumped to blocked (perm) by IDs + explicit client.
 grep -q 'switch-client -c tty0 -t \$1' "$REC" || { echo "FAIL: did not switch to blocked session-id"; cat "$REC"; exit 1; }
 grep -q 'select-window -t @1' "$REC" || { echo "FAIL: did not select blocked window-id"; cat "$REC"; exit 1; }

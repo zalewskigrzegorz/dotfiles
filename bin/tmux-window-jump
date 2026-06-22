@@ -27,8 +27,8 @@ declare -A GLYPH RANK
 while IFS=$'\t' read -r st tg _rest; do
   [ -n "$tg" ] || continue
   case "$st" in
-    blocked) GLYPH[$tg]='🔴'; RANK[$tg]=0 ;;
-    waiting) GLYPH[$tg]='⏳'; RANK[$tg]=1 ;;
+    blocked) GLYPH[$tg]=$'\uf071'; RANK[$tg]=0 ;;
+    waiting) GLYPH[$tg]=$'\uf017'; RANK[$tg]=1 ;;
   esac
 done < <("$STATE_BIN" list 2>/dev/null || true)
 
