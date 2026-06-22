@@ -15,6 +15,8 @@ printf '\033]9;Claude finished\007' > /dev/tty 2>/dev/null || true
 # Mark this agent waiting (turn finished → ball in user's court).
 STATE_BIN="${CLAUDE_AGENT_STATE_BIN:-$HOME/Code/dotfiles/bin/claude-agent-state}"
 [ -x "$STATE_BIN" ] && "$STATE_BIN" set waiting --cwd "${PWD:-$HOME}" >/dev/null 2>&1 || true
+CHIP="${CLAUDE_AGENT_CHIP:-$HOME/Code/dotfiles/bin/claude-agent-chip}"
+[ -x "$CHIP" ] && ("$CHIP" >/dev/null 2>&1 &)
 
 # 2) Finished sound — Cyberpunk pulse #1 (after swap). Backgrounded, never blocks.
 sound="$HOME/.claude/hooks/sounds/claude-finished.mp3"
