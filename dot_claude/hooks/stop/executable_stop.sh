@@ -12,6 +12,10 @@ set -u
 # the sound moved there too. Silently no-ops in hook-subprocess context (no /dev/tty).
 printf '\033]9;Claude finished\007' > /dev/tty 2>/dev/null || true
 
+# Mark this agent waiting (turn finished → ball in user's court).
+STATE_BIN="${CLAUDE_AGENT_STATE_BIN:-$HOME/Code/dotfiles/bin/claude-agent-state}"
+[ -x "$STATE_BIN" ] && "$STATE_BIN" set waiting --cwd "${PWD:-$HOME}" >/dev/null 2>&1 || true
+
 # 2) Finished sound — Cyberpunk pulse #1 (after swap). Backgrounded, never blocks.
 sound="$HOME/.claude/hooks/sounds/claude-finished.mp3"
 [ -f "$sound" ] && (afplay "$sound" >/dev/null 2>&1 &)
