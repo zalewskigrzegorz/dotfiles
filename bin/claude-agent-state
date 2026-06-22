@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Single source of truth for Claude agent presence. One file per agent under
+# $CLAUDE_AGENT_STATE_DIR, keyed by tmux session:window, tagged running|waiting.
+# Written by Claude Code hooks; read by tmux marker, pickers, sketchybar chip.
+set -u
+DIR="${CLAUDE_AGENT_STATE_DIR:-/tmp/claude-agents}"
+TMUX_BIN="${TMUX_BIN:-/opt/homebrew/bin/tmux}"
+
+_safe() { printf '%s' "$1" | tr -c 'A-Za-z0-9._-' '_'; }
+
+# Resolve owning tmux session:window by walking the PID lineage (hook → claude
+# → shell → tmux pane). Unique mapping — beats pane_current_path which collides
+# after a cd. Lifted from notify-waiting.sh.
+_resolve_target() {
+  local panes pid parent match
+  panes=$("$TMUX_BIN" list-panes -a -F '#{pane_pid} #{session_name}:#{window_index}' 2>/dev/null) || return 1
+  [ -n "$panes" ] || return 1
+  pid=$$
+  for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
+    parent=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+    { [ -z "$parent" ] || [ "$parent" = "0" ] || [ "$parent" = "1" ]; } && break
+    match=$(printf '%s\n' "$panes" | awk -v p="$parent" '$1==p {print $2; exit}')
+    [ -n "$match" ] && { printf '%s' "$match"; return 0; }
+    pid="$parent"
+  done
+  return 1
+}
+
+_label() {  # $1=cwd → "repo ▸ branch" or "repo ▸ worktree ▸ branch"
+  local cwd="$1" top worktree branch common repo
+  command -v git >/dev/null 2>&1 || { basename "$cwd"; return; }
+  git -C "$cwd" rev-parse --is-inside-work-tree >/dev/null 2>&1 || { basename "$cwd"; return; }
+  top=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null); worktree=$(basename "$top")
+  branch=$(git -C "$cwd" rev-parse --abbrev-ref HEAD 2>/dev/null)
+  common=$(git -C "$cwd" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+  [ -n "$common" ] && repo=$(basename "$(dirname "$common")") || repo="$worktree"
+  if [ "$repo" = "$worktree" ]; then printf '%s ▸ %s' "$repo" "$branch"
+  else printf '%s ▸ %s ▸ %s' "$repo" "$worktree" "$branch"; fi
+}
+
+cmd="${1:-}"; shift 2>/dev/null || true
+case "$cmd" in
+  set)
+    state="${1:-}"; shift 2>/dev/null || true
+    cwd="$PWD"
+    [ "${1:-}" = "--cwd" ] && cwd="${2:-$PWD}"
+    case "$state" in running|waiting) ;; *) exit 2 ;; esac
+    target=$(_resolve_target) || exit 0   # not in tmux → nothing to show
+    mkdir -p "$DIR"
+    repo_label=$(_label "$cwd")
+    epoch=$(date +%s 2>/dev/null || echo 0)
+    {
+      printf 'state=%s\n' "$state"
+      printf 'target=%s\n' "$target"
+      printf 'label=%s\n' "$repo_label"
+      printf 'cwd=%s\n' "$cwd"
+      printf 'epoch=%s\n' "$epoch"
+    } > "$DIR/$(_safe "$target")"
+    ;;
+  clear)
+    target=""
+    [ "${1:-}" = "--target" ] && target="${2:-}"
+    [ -z "$target" ] && target=$(_resolve_target)
+    [ -n "$target" ] && rm -f "$DIR/$(_safe "$target")"
+    ;;
+  list)
+    only_waiting=0
+    [ "${1:-}" = "--waiting" ] && only_waiting=1
+    [ -d "$DIR" ] || exit 0
+    live=$("$TMUX_BIN" list-windows -a -F '#{session_name}:#{window_index}' 2>/dev/null || true)
+    for f in "$DIR"/*; do
+      [ -e "$f" ] || continue
+      st=$(sed -n 's/^state=//p' "$f"); tg=$(sed -n 's/^target=//p' "$f"); lb=$(sed -n 's/^label=//p' "$f")
+      # GC: drop files whose tmux target vanished.
+      if ! printf '%s\n' "$live" | grep -qxF "$tg"; then rm -f "$f"; continue; fi
+      [ "$only_waiting" = "1" ] && [ "$st" != "waiting" ] && continue
+      printf '%s\t%s\t%s\n' "$st" "$tg" "$lb"
+    done
+    ;;
+  *) echo "usage: claude-agent-state set <running|waiting> [--cwd D] | clear [--target T] | list [--waiting]" >&2; exit 2 ;;
+esac
+exit 0
