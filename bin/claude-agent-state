@@ -26,17 +26,12 @@ _resolve_target() {
   return 1
 }
 
-_label() {  # $1=cwd → "repo ▸ branch" or "repo ▸ worktree ▸ branch"
-  local cwd="$1" top worktree branch common repo
-  command -v git >/dev/null 2>&1 || { basename "$cwd"; return; }
-  git -C "$cwd" rev-parse --is-inside-work-tree >/dev/null 2>&1 || { basename "$cwd"; return; }
-  top=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null); worktree=$(basename "$top")
-  branch=$(git -C "$cwd" rev-parse --abbrev-ref HEAD 2>/dev/null)
-  common=$(git -C "$cwd" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
-  [ -n "$common" ] && repo=$(basename "$(dirname "$common")") || repo="$worktree"
-  if [ "$repo" = "$worktree" ]; then printf '%s ▸ %s' "$repo" "$branch"
-  else printf '%s ▸ %s ▸ %s' "$repo" "$worktree" "$branch"; fi
-}
+# NOTE: no git here. Hooks call `set` on every turn (UserPromptSubmit/Stop), so
+# any git traversal would run under Ghostty each turn and trip the macOS Sequoia
+# "access data from other apps" TCC prompt. The repo▸branch label is unused by
+# readers anyway — the picker labels rows from tmux window names, the chip only
+# counts states — so we store just cwd and let any future reader derive a label
+# lazily on demand (rare) rather than on every hot-path write.
 
 cmd="${1:-}"; shift 2>/dev/null || true
 case "$cmd" in
@@ -47,12 +42,10 @@ case "$cmd" in
     case "$state" in running|waiting) ;; *) exit 2 ;; esac
     target=$(_resolve_target) || exit 0   # not in tmux → nothing to show
     mkdir -p "$DIR"
-    repo_label=$(_label "$cwd")
     epoch=$(date +%s 2>/dev/null || echo 0)
     {
       printf 'state=%s\n' "$state"
       printf 'target=%s\n' "$target"
-      printf 'label=%s\n' "$repo_label"
       printf 'cwd=%s\n' "$cwd"
       printf 'epoch=%s\n' "$epoch"
     } > "$DIR/$(_safe "$target")"
@@ -70,11 +63,11 @@ case "$cmd" in
     live=$("$TMUX_BIN" list-windows -a -F '#{session_name}:#{window_index}' 2>/dev/null || true)
     for f in "$DIR"/*; do
       [ -e "$f" ] || continue
-      st=$(sed -n 's/^state=//p' "$f"); tg=$(sed -n 's/^target=//p' "$f"); lb=$(sed -n 's/^label=//p' "$f")
+      st=$(sed -n 's/^state=//p' "$f"); tg=$(sed -n 's/^target=//p' "$f"); cw=$(sed -n 's/^cwd=//p' "$f")
       # GC: drop files whose tmux target vanished.
       if ! printf '%s\n' "$live" | grep -qxF "$tg"; then rm -f "$f"; continue; fi
       [ "$only_waiting" = "1" ] && [ "$st" != "waiting" ] && continue
-      printf '%s\t%s\t%s\n' "$st" "$tg" "$lb"
+      printf '%s\t%s\t%s\n' "$st" "$tg" "$cw"
     done
     ;;
   *) echo "usage: claude-agent-state set <running|waiting> [--cwd D] | clear [--target T] | list [--waiting]" >&2; exit 2 ;;
