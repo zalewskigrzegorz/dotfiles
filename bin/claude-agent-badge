@@ -1,14 +1,29 @@
 #!/usr/bin/env bash
-# Per-window presence glyph for tmux window-status formats. Fork-cheap: reads
-# one state file, no tmux/git. Usage: claude-agent-badge <session> <window>
+# Per-window presence glyph for tmux window-status formats. Fork-cheap: reads one
+# state file + the window name arg, no tmux/git.
+# Usage: claude-agent-badge <session> <window> [window_name]
+#   🔴 blocked  (waiting on a permission/action confirmation — most urgent)
+#   ⏳ waiting  (turn finished / idle — ball in your court)
+#   ● running   (actively working)
+# Fallback: if no state file but the window NAME carries the claude glyph
+# (U+F06A9), show ⏳ — a claude window with no hook event yet (started before the
+# hooks, or idle since) would otherwise be invisible.
 set -u
 DIR="${CLAUDE_AGENT_STATE_DIR:-/tmp/claude-agents}"
 [ $# -ge 2 ] || exit 0
 target="$1:$2"
+name="${3:-}"
 f="$DIR/$(printf '%s' "$target" | tr -c 'A-Za-z0-9._-' '_')"
-[ -f "$f" ] || exit 0
-case "$(sed -n 's/^state=//p' "$f")" in
-  waiting) printf ' ⏳' ;;
-  running) printf ' ●' ;;
-esac
+
+if [ -f "$f" ]; then
+  case "$(sed -n 's/^state=//p' "$f")" in
+    blocked) printf ' 🔴' ;;
+    waiting) printf ' ⏳' ;;
+    running) printf ' ●' ;;
+  esac
+  exit 0
+fi
+
+# No state file → fallback for claude windows (name carries the claude glyph).
+case "$name" in *$'\U000F06A9'*) printf ' ⏳' ;; esac
 exit 0

@@ -26,10 +26,18 @@ fi
 
 CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // ""' 2>/dev/null || echo "")
 [ -n "$CWD" ] || CWD="$PWD"
+MSG=$(printf '%s' "$INPUT" | jq -r '.message // ""' 2>/dev/null || echo "")
 
-# ── Mark this agent waiting (ball in user's court) ──────────────────────────
+# ── Mark this agent's state ─────────────────────────────────────────────────
+# A permission/action prompt ("Claude needs your permission") is BLOCKED — it
+# can't proceed until you confirm. Anything else ("…waiting for your input",
+# idle) is plain WAITING. The picker/chip prioritise blocked.
+case "$MSG" in
+  *permission*|*Permission*) STATE=blocked ;;
+  *) STATE=waiting ;;
+esac
 STATE_BIN="${CLAUDE_AGENT_STATE_BIN:-$HOME/Code/dotfiles/bin/claude-agent-state}"
-[ -x "$STATE_BIN" ] && "$STATE_BIN" set waiting --cwd "$CWD" >/dev/null 2>&1 || true
+[ -x "$STATE_BIN" ] && "$STATE_BIN" set "$STATE" --cwd "$CWD" >/dev/null 2>&1 || true
 
 # ── Sound ─────────────────────────────────────────────────────────────────
 sound="$HOME/.claude/hooks/sounds/claude-waiting.mp3"
