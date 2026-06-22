@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# tmux-window-jump [--waiting] — floating picker over tmux windows. Rows badged
-# with agent presence (⏳ waiting / ● running), waiting sorted first. With
-# --waiting: only waiting windows AND the window you're currently on is excluded
-# (it's the one you're already looking at — surface agents elsewhere); 0 → silent
-# exit; 1 → jump with no picker.
-# Bound to cmd-ctrl-w (all) and cmd-ctrl-a (--waiting) in aerospace.toml.
+# tmux-window-jump — jump to the Claude agent that needs you. Candidates are
+# Claude windows in state blocked (🔴 permission/action) or waiting (⏳ turn done
+# / idle); running agents and the window you're already on are excluded. Sorted
+# blocked-first. 0 candidates → silent exit; 1 → jump straight there; >1 → a
+# floating picker. Bound to cmd-ctrl-w in aerospace.toml.
+#
+# Switching uses tmux IDs ($session / @window) + an explicit -c <client>, NOT the
+# session NAME: switch-client -t <name> silently no-ops (rc=0) for names with
+# emoji/slashes (fnmatch), and from AeroSpace (no $TMUX) it needs the client named
+# explicitly. IDs are ASCII + unambiguous, sidestepping both.
 set -euo pipefail
 export PATH="/opt/homebrew/bin:$PATH"
 STATE_BIN="${CLAUDE_AGENT_STATE_BIN:-$HOME/Code/dotfiles/bin/claude-agent-state}"
@@ -13,49 +17,55 @@ FOCUS_BIN="${CLAUDE_FOCUS_BIN:-$HOME/Code/dotfiles/bin/claude-focus-session}"
 # shadow any PATH-injected shim with the real binaries.
 TMUX_BIN="${TMUX_BIN:-/opt/homebrew/bin/tmux}"
 CHOOSE_BIN="${CHOOSE_BIN:-choose}"
-ONLY_WAITING=0; [ "${1:-}" = "--waiting" ] && ONLY_WAITING=1
 
-# In --waiting mode, exclude the window we're currently on — jumping to the
-# window you're already viewing is pointless (it's "waiting" only because the
-# turn ended and it's awaiting YOUR input, which you're about to give).
-CUR=""
-[ "$ONLY_WAITING" = "1" ] && CUR=$("$TMUX_BIN" display-message -p '#{session_name}:#{window_index}' 2>/dev/null || true)
+# Exclude the window we're on — jumping to where you already are is pointless.
+CUR=$("$TMUX_BIN" display-message -p '#{session_name}:#{window_index}' 2>/dev/null || true)
 
-# Presence map: target → glyph (rank for sort: 0 waiting, 1 running, 2 idle).
+# Presence map keyed by session:window_index (from claude-agent-state, which
+# already includes fallback-detected claude windows). rank: blocked 0, waiting 1.
 declare -A GLYPH RANK
-while IFS=$'\t' read -r st tg _lb; do
+while IFS=$'\t' read -r st tg _rest; do
   [ -n "$tg" ] || continue
-  case "$st" in waiting) GLYPH[$tg]='⏳'; RANK[$tg]=0 ;; running) GLYPH[$tg]='●'; RANK[$tg]=1 ;; esac
+  case "$st" in
+    blocked) GLYPH[$tg]='🔴'; RANK[$tg]=0 ;;
+    waiting) GLYPH[$tg]='⏳'; RANK[$tg]=1 ;;
+  esac
 done < <("$STATE_BIN" list 2>/dev/null || true)
 
-# Build rows: rank \t target \t label(+glyph). list-windows already emits
-# "target\tlabel".
+# Row: rank \t session_id \t window_id \t label(+glyph). Keep only blocked/waiting
+# windows, excluding the current one.
 rows=""
-while IFS=$'\t' read -r target label; do
-  [ -n "$target" ] || continue
-  g="${GLYPH[$target]:-}"; r="${RANK[$target]:-2}"
-  [ "$ONLY_WAITING" = "1" ] && [ "$r" != "0" ] && continue
-  [ "$ONLY_WAITING" = "1" ] && [ -n "$CUR" ] && [ "$target" = "$CUR" ] && continue
-  rows+="$r"$'\t'"$target"$'\t'"$label${g:+  $g}"$'\n'
-done < <("$TMUX_BIN" list-windows -a -F '#{session_name}:#{window_index}	#{session_name}  ·  #{window_index} #{window_name}' 2>/dev/null || true)
+while IFS=$'\t' read -r sid wid sikey label; do
+  [ -n "$wid" ] || continue
+  [ -n "${RANK[$sikey]:-}" ] || continue
+  [ "$sikey" = "$CUR" ] && continue
+  g="${GLYPH[$sikey]}"; r="${RANK[$sikey]}"
+  rows+="$r"$'\t'"$sid"$'\t'"$wid"$'\t'"$g  $label"$'\n'
+done < <("$TMUX_BIN" list-windows -a -F '#{session_id}	#{window_id}	#{session_name}:#{window_index}	#{session_name}  ·  #{window_index} #{window_name}' 2>/dev/null || true)
 
 rows=$(printf '%s' "$rows" | sed '/^$/d' | sort -t$'\t' -k1,1n)
 [ -n "$rows" ] || exit 0
 
-jump() {  # $1 = target
-  "$TMUX_BIN" switch-client -t "${1%%:*}" 2>/dev/null || true
-  "$TMUX_BIN" select-window -t "$1" 2>/dev/null || true
+jump() {  # $1=session_id ($N)  $2=window_id (@N)
+  local client
+  client=$("$TMUX_BIN" list-clients -F '#{client_name}' 2>/dev/null | head -1)
+  if [ -n "$client" ]; then
+    "$TMUX_BIN" switch-client -c "$client" -t "$1" 2>/dev/null || true
+  else
+    "$TMUX_BIN" switch-client -t "$1" 2>/dev/null || true
+  fi
+  "$TMUX_BIN" select-window -t "$2" 2>/dev/null || true
   exec "$FOCUS_BIN"
 }
 
-# Single waiting → jump straight away.
-if [ "$ONLY_WAITING" = "1" ] && [ "$(printf '%s\n' "$rows" | wc -l | tr -d ' ')" = "1" ]; then
-  jump "$(printf '%s' "$rows" | cut -f2)"
+# Exactly one candidate → jump straight away.
+if [ "$(printf '%s\n' "$rows" | wc -l | tr -d ' ')" = "1" ]; then
+  jump "$(printf '%s' "$rows" | cut -f2)" "$(printf '%s' "$rows" | cut -f3)"
 fi
 
-idx=$(printf '%s\n' "$rows" | cut -f3- \
-        | "$CHOOSE_BIN" -i -z -a -n 14 -w 80 -p tmux -f 'JetBrainsMono Nerd Font Mono' -s 32 -c 8BE9FD -b B347FF) || exit 0
+idx=$(printf '%s\n' "$rows" | cut -f4- \
+        | "$CHOOSE_BIN" -i -z -a -n 14 -w 80 -p agents -f 'JetBrainsMono Nerd Font Mono' -s 32 -c 8BE9FD -b B347FF) || exit 0
 case "$idx" in ''|*[!0-9]*) exit 0 ;; esac
-target=$(printf '%s\n' "$rows" | sed -n "$((idx + 1))p" | cut -f2)
-[ -n "$target" ] || exit 0
-jump "$target"
+row=$(printf '%s\n' "$rows" | sed -n "$((idx + 1))p")
+[ -n "$row" ] || exit 0
+jump "$(printf '%s' "$row" | cut -f2)" "$(printf '%s' "$row" | cut -f3)"

@@ -1,45 +1,49 @@
 #!/usr/bin/env bash
+# tmux-window-jump (agent action-jumper): candidates = blocked/waiting claude
+# windows, current excluded, blocked sorted first, jump by IDs + explicit client.
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 BIN="$HERE/../tmux-window-jump"
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
-export PATH="$TMP/shim:$PATH"; mkdir -p "$TMP/shim"; export REC="$TMP/rec"; : >"$REC"
+mkdir -p "$TMP/shim"; export REC="$TMP/rec"; : >"$REC"
 
-cat >"$TMP/shim/tmux" <<EOF
+# tmux shim: current window = cur:0; list-windows yields ids for perm/work/cur.
+cat >"$TMP/shim/tmux" <<'EOF'
 #!/usr/bin/env bash
-case "\$*" in
-  *"list-windows"*) printf 'main:0\tmain  ·  0 zsh\nwork:1\twork  ·  1 claude\n' ;;
-  *) echo "tmux \$*" >> "\$REC" ;;
+case "$*" in
+  *display-message*) echo "cur:0" ;;
+  *list-clients*) echo "tty0" ;;
+  *list-windows*) printf '$1\t@1\tperm:1\tperm  ·  1 claude\n$2\t@2\twork:2\twork  ·  2 claude\n$0\t@0\tcur:0\tcur  ·  0 claude\n' ;;
+  *) echo "tmux $*" >> "$REC" ;;
 esac
 EOF
-cat >"$TMP/shim/claude-agent-state" <<EOF
+# state: perm:1 blocked, work:2 waiting, cur:0 waiting (current → excluded).
+cat >"$TMP/shim/claude-agent-state" <<'EOF'
 #!/usr/bin/env bash
-# work:1 is waiting; main:0 nothing.
-[ "\$2" = "--waiting" ] || [ "\$1" = "list" ] && printf 'waiting\twork:1\tREDACTED_ORG ▸ main\n'
+printf 'blocked\tperm:1\t/x\nwaiting\twork:2\t/y\nwaiting\tcur:0\t/z\n'
 EOF
 cat >"$TMP/shim/choose" <<EOF
 #!/usr/bin/env bash
-cat > "$TMP/choose-in"   # capture what would be shown
-echo 0                   # pick first row
+cat > "$TMP/choose-in"
+echo 0
 EOF
-cat >"$TMP/shim/claude-focus-session" <<'EOF'
-#!/usr/bin/env bash
-exit 0
-EOF
+printf '#!/usr/bin/env bash\nexit 0\n' >"$TMP/shim/claude-focus-session"
 chmod +x "$TMP/shim/"*
 export CLAUDE_AGENT_STATE_BIN="$TMP/shim/claude-agent-state"
 export CLAUDE_FOCUS_BIN="$TMP/shim/claude-focus-session"
 export TMUX_BIN="$TMP/shim/tmux"
 export CHOOSE_BIN="$TMP/shim/choose"
 
-# Case A: --waiting with exactly one waiting → jump immediately, choose NOT called.
-"$BIN" --waiting
-[ -f "$TMP/choose-in" ] && { echo "FAIL[A]: picker shown for single waiting"; exit 1; }
-grep -q 'tmux switch-client -t work' "$REC" || { echo "FAIL[A]: did not jump to work"; cat "$REC"; exit 1; }
-
-# Case B: full picker badges the waiting row with ⏳.
-rm -f "$TMP/choose-in"; : >"$REC"
 "$BIN"
-grep -q '⏳' "$TMP/choose-in" || { echo "FAIL[B]: no badge in picker"; cat "$TMP/choose-in"; exit 1; }
+
+# Two candidates → picker shown.
+[ -f "$TMP/choose-in" ] || { echo "FAIL: picker not shown for 2 candidates"; exit 1; }
+# Current window excluded.
+grep -q 'cur:0\|cur  ·  0' "$TMP/choose-in" && { echo "FAIL: current window not excluded"; cat "$TMP/choose-in"; exit 1; }
+# Blocked sorted first (line 1) with 🔴 badge.
+head -1 "$TMP/choose-in" | grep -q '🔴' || { echo "FAIL: blocked not first / no 🔴"; cat "$TMP/choose-in"; exit 1; }
+# choose returned 0 → jumped to blocked (perm) by IDs + explicit client.
+grep -q 'switch-client -c tty0 -t \$1' "$REC" || { echo "FAIL: did not switch to blocked session-id"; cat "$REC"; exit 1; }
+grep -q 'select-window -t @1' "$REC" || { echo "FAIL: did not select blocked window-id"; cat "$REC"; exit 1; }
 
 echo "PASS tmux-window-jump"
