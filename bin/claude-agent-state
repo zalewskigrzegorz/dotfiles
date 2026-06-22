@@ -39,7 +39,7 @@ case "$cmd" in
     state="${1:-}"; shift 2>/dev/null || true
     cwd="$PWD"
     [ "${1:-}" = "--cwd" ] && cwd="${2:-$PWD}"
-    case "$state" in running|waiting) ;; *) exit 2 ;; esac
+    case "$state" in running|waiting|blocked) ;; *) exit 2 ;; esac
     target=$(_resolve_target) || exit 0   # not in tmux → nothing to show
     mkdir -p "$DIR"
     epoch=$(date +%s 2>/dev/null || echo 0)
@@ -57,19 +57,34 @@ case "$cmd" in
     [ -n "$target" ] && rm -f "$DIR/$(_safe "$target")"
     ;;
   list)
-    only_waiting=0
-    [ "${1:-}" = "--waiting" ] && only_waiting=1
-    [ -d "$DIR" ] || exit 0
+    # Emit every Claude agent as: STATE<TAB>TARGET<TAB>CWD. STATE is the precise
+    # hook-written value (running|waiting|blocked) when a state file exists, else
+    # a FALLBACK of "waiting" for any tmux window that is a Claude window but has
+    # no file yet (agent started before the hooks, or idle since — would be
+    # invisible otherwise). A Claude window = its name carries the claude nerd
+    # glyph U+F06A9 (set by zz-tmux-window-wrappers / the tmux-session hook).
+    CLAUDE_GLYPH=$'\U000F06A9'
+    declare -A ST CW
     live=$("$TMUX_BIN" list-windows -a -F '#{session_name}:#{window_index}' 2>/dev/null || true)
-    for f in "$DIR"/*; do
-      [ -e "$f" ] || continue
-      st=$(sed -n 's/^state=//p' "$f"); tg=$(sed -n 's/^target=//p' "$f"); cw=$(sed -n 's/^cwd=//p' "$f")
-      # GC: drop files whose tmux target vanished.
-      if ! printf '%s\n' "$live" | grep -qxF "$tg"; then rm -f "$f"; continue; fi
-      [ "$only_waiting" = "1" ] && [ "$st" != "waiting" ] && continue
-      printf '%s\t%s\t%s\n' "$st" "$tg" "$cw"
+    if [ -d "$DIR" ]; then
+      for f in "$DIR"/*; do
+        [ -e "$f" ] || continue
+        st=$(sed -n 's/^state=//p' "$f"); tg=$(sed -n 's/^target=//p' "$f"); cw=$(sed -n 's/^cwd=//p' "$f")
+        # GC: drop files whose tmux target vanished.
+        if ! printf '%s\n' "$live" | grep -qxF "$tg"; then rm -f "$f"; continue; fi
+        ST["$tg"]="$st"; CW["$tg"]="$cw"
+      done
+    fi
+    # Fallback: claude windows with no state file → waiting.
+    while IFS=$'\t' read -r tg name; do
+      [ -n "$tg" ] || continue
+      case "$name" in *"$CLAUDE_GLYPH"*) ;; *) continue ;; esac
+      [ -n "${ST[$tg]:-}" ] || { ST["$tg"]="waiting"; CW["$tg"]=""; }
+    done < <("$TMUX_BIN" list-windows -a -F '#{session_name}:#{window_index}	#{window_name}' 2>/dev/null || true)
+    for tg in "${!ST[@]}"; do
+      printf '%s\t%s\t%s\n' "${ST[$tg]}" "$tg" "${CW[$tg]:-}"
     done
     ;;
-  *) echo "usage: claude-agent-state set <running|waiting> [--cwd D] | clear [--target T] | list [--waiting]" >&2; exit 2 ;;
+  *) echo "usage: claude-agent-state set <running|waiting|blocked> [--cwd D] | clear [--target T] | list" >&2; exit 2 ;;
 esac
 exit 0
