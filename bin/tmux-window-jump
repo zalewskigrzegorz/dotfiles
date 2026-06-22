@@ -1,25 +1,52 @@
 #!/usr/bin/env bash
-# tmux-window-jump — native floating picker for EVERY tmux window across all
-# sessions. Pick one → switch the live client to that session+window →
-# surface Ghostty via AeroSpace. No terminal window. Bound to cmd-ctrl-w in
-# aerospace.toml — the native replacement for the Raycast tmux switcher.
+# tmux-window-jump [--waiting] — floating picker over tmux windows. Rows badged
+# with agent presence (⏳ waiting / ● running), waiting sorted first. With
+# --waiting: only waiting windows; 0 → silent exit; 1 → jump with no picker.
+# Bound to cmd-ctrl-w (all) and cmd-ctrl-a (--waiting) in aerospace.toml.
 set -euo pipefail
-export PATH="/opt/homebrew/bin:$PATH"   # exec-and-forget gives a minimal PATH
+export PATH="/opt/homebrew/bin:$PATH"
+STATE_BIN="${CLAUDE_AGENT_STATE_BIN:-$HOME/Code/dotfiles/bin/claude-agent-state}"
+FOCUS_BIN="${CLAUDE_FOCUS_BIN:-$HOME/Code/dotfiles/bin/claude-focus-session}"
+# tmux/choose overridable for tests — the PATH prepend above would otherwise
+# shadow any PATH-injected shim with the real binaries.
+TMUX_BIN="${TMUX_BIN:-/opt/homebrew/bin/tmux}"
+CHOOSE_BIN="${CHOOSE_BIN:-choose}"
+ONLY_WAITING=0; [ "${1:-}" = "--waiting" ] && ONLY_WAITING=1
 
-# Each row: <target>\t<label>. The label is what choose shows; choose -i
-# returns the 0-based index, which we map back to the session:window target.
-list=$(tmux list-windows -a \
-         -F '#{session_name}:#{window_index}	#{session_name}  ·  #{window_index} #{window_name}#{?window_active, ●,}' \
-       2>/dev/null) || exit 0
-[ -n "$list" ] || exit 0
+# Presence map: target → glyph (rank for sort: 0 waiting, 1 running, 2 idle).
+declare -A GLYPH RANK
+while IFS=$'\t' read -r st tg _lb; do
+  [ -n "$tg" ] || continue
+  case "$st" in waiting) GLYPH[$tg]='⏳'; RANK[$tg]=0 ;; running) GLYPH[$tg]='●'; RANK[$tg]=1 ;; esac
+done < <("$STATE_BIN" list 2>/dev/null || true)
 
-idx=$(printf '%s\n' "$list" | cut -f2- \
-        | choose -i -z -a -n 14 -w 80 -p tmux -f 'JetBrainsMono Nerd Font Mono' -s 32 -c 8BE9FD -b B347FF) || exit 0
+# Build rows: rank \t target \t label(+glyph). list-windows already emits
+# "target\tlabel".
+rows=""
+while IFS=$'\t' read -r target label; do
+  [ -n "$target" ] || continue
+  g="${GLYPH[$target]:-}"; r="${RANK[$target]:-2}"
+  [ "$ONLY_WAITING" = "1" ] && [ "$r" != "0" ] && continue
+  rows+="$r"$'\t'"$target"$'\t'"$label${g:+  $g}"$'\n'
+done < <("$TMUX_BIN" list-windows -a -F '#{session_name}:#{window_index}	#{session_name}  ·  #{window_index} #{window_name}' 2>/dev/null || true)
+
+rows=$(printf '%s' "$rows" | sed '/^$/d' | sort -t$'\t' -k1,1n)
+[ -n "$rows" ] || exit 0
+
+jump() {  # $1 = target
+  "$TMUX_BIN" switch-client -t "${1%%:*}" 2>/dev/null || true
+  "$TMUX_BIN" select-window -t "$1" 2>/dev/null || true
+  exec "$FOCUS_BIN"
+}
+
+# Single waiting → jump straight away.
+if [ "$ONLY_WAITING" = "1" ] && [ "$(printf '%s\n' "$rows" | wc -l | tr -d ' ')" = "1" ]; then
+  jump "$(printf '%s' "$rows" | cut -f2)"
+fi
+
+idx=$(printf '%s\n' "$rows" | cut -f3- \
+        | "$CHOOSE_BIN" -i -z -a -n 14 -w 80 -p tmux -f 'JetBrainsMono Nerd Font Mono' -s 32 -c 8BE9FD -b B347FF) || exit 0
 case "$idx" in ''|*[!0-9]*) exit 0 ;; esac
-
-target=$(printf '%s\n' "$list" | sed -n "$((idx + 1))p" | cut -f1)
+target=$(printf '%s\n' "$rows" | sed -n "$((idx + 1))p" | cut -f2)
 [ -n "$target" ] || exit 0
-
-tmux switch-client -t "${target%%:*}" 2>/dev/null || true
-tmux select-window -t "$target" 2>/dev/null || true
-exec "$HOME/Code/dotfiles/bin/claude-focus-session"
+jump "$target"
