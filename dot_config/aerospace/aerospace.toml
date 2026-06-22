@@ -182,6 +182,7 @@ ctrl-alt-c = 'exec-and-forget $HOME/Code/dotfiles/bin/read-claude --clip'
 cmd-ctrl-l = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-picker'
 cmd-ctrl-s = 'exec-and-forget $HOME/Code/dotfiles/bin/sesh-jump'
 cmd-ctrl-w = 'exec-and-forget $HOME/Code/dotfiles/bin/tmux-window-jump'
+cmd-ctrl-a = 'exec-and-forget $HOME/Code/dotfiles/bin/tmux-window-jump --waiting'
 
 # Jump to workspace of the most recent notification (written by sketchybar-watcher).
 ctrl-n = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-jump-to-notif'
@@ -257,6 +258,7 @@ ctrl-alt-c = 'exec-and-forget $HOME/Code/dotfiles/bin/read-claude --clip'
 cmd-ctrl-l = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-picker'
 cmd-ctrl-s = 'exec-and-forget $HOME/Code/dotfiles/bin/sesh-jump'
 cmd-ctrl-w = 'exec-and-forget $HOME/Code/dotfiles/bin/tmux-window-jump'
+cmd-ctrl-a = 'exec-and-forget $HOME/Code/dotfiles/bin/tmux-window-jump --waiting'
 
 # Jump to workspace of the most recent notification (written by sketchybar-watcher).
 ctrl-n = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-jump-to-notif'
