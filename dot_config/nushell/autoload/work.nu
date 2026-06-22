@@ -273,7 +273,7 @@ def "work help" [
     print "  PR:        work pr <n>  →  praca  →  work rm"
     print ""
     print "KOMENDY  (szczegóły: `work help <komenda>`)"
-    print "  work               4-window layout (terminal/git/claude/nvim)"
+    print "  work               4-window layout (nu/git/claude/nvim)"
     print "  work new           nowy worktree (picker / <name> / --from / --type)"
     print "  work pr            otwórz PR w worktree (gh pr checkout; picker / <numer>)"
     print "  work adopt         wciągnij osierocony worktree (TV picker / . / <path|branch>)"
@@ -317,7 +317,7 @@ def "work _help-cmd" [command: string]: nothing -> nothing {
             print "  1. git fetch origin <default>  — świeży base, ZAWSZE"
             print "  2. git worktree add -b <name> ~/Code/tree/wt-<repo>/<name> origin/<default>"
             print "  3. zapisuje base/session/branch w git config --worktree"
-            print "  4. tmux sesja 🌿<repo>/<emoji><name> + layout (terminal/git/claude/nvim)"
+            print "  4. tmux sesja 🌿<repo>/<emoji><name> + layout (nu/git/claude/nvim)"
             print "  5. sesh connect → przełącza Cię tam"
             print ""
             print "COMMITLINT (repo z commitlint.config.*)"
@@ -985,7 +985,7 @@ def "work _build-layout" [
     cwd: path        # Working dir for terminal/git/claude windows
     bazgroly: path   # Working dir for nvim window
 ]: nothing -> nothing {
-    let term = $"\u{f120}  terminal"
+    let term = $"\u{f120}  nu"
     let git  = $"\u{e725}  git"
     let cc   = $"\u{f06a9}  claude"
     let edit = $"\u{e62b}  nvim"
