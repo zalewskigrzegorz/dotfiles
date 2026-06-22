@@ -455,6 +455,28 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/user-prompt-submit/mark-running.sh",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/session-end/clear-agent.sh",
+            "timeout": 5000
+          }
+        ]
+      }
     ]
     {{- end }}
   },
@@ -486,5 +508,6 @@
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
   "autoUpdatesChannel": "latest",
+  "skipWorkflowUsageWarning": true,
   "model": "claude-opus-4-8"
 }
