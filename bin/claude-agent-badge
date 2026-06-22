@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Per-window presence glyph for tmux window-status formats. Fork-cheap: reads
+# one state file, no tmux/git. Usage: claude-agent-badge <session> <window>
+set -u
+DIR="${CLAUDE_AGENT_STATE_DIR:-/tmp/claude-agents}"
+[ $# -ge 2 ] || exit 0
+target="$1:$2"
+f="$DIR/$(printf '%s' "$target" | tr -c 'A-Za-z0-9._-' '_')"
+[ -f "$f" ] || exit 0
+case "$(sed -n 's/^state=//p' "$f")" in
+  waiting) printf ' ⏳' ;;
+  running) printf ' ●' ;;
+esac
+exit 0
