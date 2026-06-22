@@ -39,6 +39,69 @@ On a dial running the Homey Pro **dial** action for `Office AC`:
 
 So rotate = temperature, press = power. Same recipe for any room AC.
 
+## 2026-06-23 — FINAL layout design (brainstormed on draw.lab)
+
+This supersedes the room-*folder* "SmartHome layout" further down. Built interactively;
+implement in the Elgato GUI with the Homey Pro plugin once Greg's plugin access is back.
+
+### Navigation model (two dials)
+
+- **Right dial (encoder 4) = CONTEXTS** — cycles top-level pages:
+  `Office · Dev/GitHub · Meeting · Slack · Music · HomeLab · Gaming`.
+- **Encoder 3 = ROOM select** — within the home/Office view, cycles rooms
+  (`Office → Living → Bedroom → …`); the keys show the **selected room's** devices.
+  (Effectively a page per room; the dial pages through them.)
+- **Principle:** if something is on a dial, it gets **no separate key**.
+- **Temp = ONE seasonal dial per room:** summer → AC, winter → thermostat
+  (swap mechanism TBD at implementation "so as not to break things"). Rooms with AC
+  have **no thermostat key** (temp lives on the dial). Rooms without AC put the
+  thermostat on that dial. AC dial: rotate = temp, push = on/off.
+
+### Office (landing / default room)
+
+Keys (4×2): `Aura` · `Left` · `Right` (lights) · `🔌 Listwy →` (folder) · `Scena` ·
+`All-off` · `CO2/air` (live) · *(room-dial selects room)*
+- **🔌 Listwy** = FOLDER (Create Folder) — desk + greg are multi-gang strips with many
+  switches (one has an **air purifier**), so they get their own sub-page, not a key.
+- Dials: `Aura dim` (push=toggle) · `Office AC temp` (push=on/off, seasonal) ·
+  `◉ ROOM select` · `◉ PAGES (contexts)`.
+
+### Rooms (encoder-3 cycles; keys = selected room)
+
+Temp dial = seasonal (AC if present, else thermostat). `◉3=ROOM`, `◉4=PAGES` constant.
+
+| Room | Keys | Dial 1 / 2 |
+|---|---|---|
+| Living | Lamp · Living Lt · Dinner · Fireplace · Twinkly · Win-L · Win-R · All-off | Lamp dim / Living AC (seasonal); Fireplace speaker vol optional |
+| Bedroom | Bedroom Lt · Switch · Greg Night · Esti Night · All-off | Night dim / Bedroom AC (seasonal) |
+| Bathroom | Light · LED · Mirror · Button · Star Proj · All-off | Star Proj dim / Thermostat |
+| Fun room | Neon · Left · Right · All-off | Neon dim / Fun AC (seasonal) |
+| Kitchen | Kitchen Light | Thermostat / Nest volume |
+| Hall 🔒 | **Door LOCK** (⚠ guarded push) · Hall Light · Hall Ledstrip | Ledstrip dim / — |
+| Garden | Garage Lt · Garden L · Garden R · Watering · All-off | Garden dim / — |
+| Other | Toilet Lt · Toilet Mirror · Shower LED · Lucy · Stairs · Wardrobe · Upstairs · Garage Sw | — / Toilet+Lucy thermostats |
+
+### Dev / GitHub (merged context)
+
+Lazygit dropped (Greg works in the IDE). Keys = live tiles from the **GitHub plugin**
+(installed): `PR-y do mojego review (live count)` · `Moje PR-y + CI status` ·
+`GH notifications` · `gh-dash / PRs in browser`. 4 keys free (optional Claude / screenshot / sesh).
+Dials: `Zoom / font` · — · — · `◉ PAGES`.
+
+### Meeting (Insta360 Present + MuteDeck)
+
+The **Insta360 "Present" app shortcuts are GLOBAL hotkeys** (work in Zoom/Meet/Teams),
+so camera/framing is reliable on the deck via Stream Deck **Hotkey** actions — NOT
+app-focused (this corrects the earlier Insta360 caveat). Keys:
+`Mic mute ⌥⌘X` · `Camera ⌥⌘O` · `Share start ⌥⌘S` · `Share end ⌥⌘E` ·
+`Cinematic zoom ⌥B` · `Remote ⌥⌘R` · `Framing/layout` · `Leave call`.
+Dials: `Mic gain` · `Speaker` · `Cam zoom` · `◉ PAGES`. MuteDeck = cross-app mute/cam backup.
+
+### Still to draw / define (later)
+
+Slack · Music/Spotify (both already on the deck) · HomeLab (n8n/Tina/brief triggers) ·
+Gaming (own session — Gaming Pixel Light + gaming mode) · the 🔌 Listwy folder contents.
+
 ## Hardware
 
 - **Stream Deck +** (model `20GBD9901`) — **8 keys** (4×2 grid) + **4 dials** + a **touch strip**.
@@ -134,7 +197,11 @@ Out of MVP. Candidate if Greg wants it back: lazygit · tests · PR-review count
 (live via API Request `gh`) · Claude · console-ninja · sesh · screenshot; dials
 zoom · scroll · workspace · volume. Add only on confirmation.
 
-## SmartHome layout (rozpiska) — build in GUI with Homey Pro plugin
+## SmartHome layout (rozpiska) — ⚠️ SUPERSEDED by the 2026-06-23 final design above
+
+> Kept for reference. The room-**folder** model below was replaced by the **room-dial**
+> model (encoder-3 cycles rooms, keys reflect the selected room) — see the 2026-06-23
+> section. The device inventory table at the end is still valid.
 
 Goal: a SmartHome section where you pick a **room**, then control that room's
 significant devices. Build entirely in the Elgato GUI.
