@@ -18,9 +18,20 @@ STATE_BIN="${CLAUDE_AGENT_STATE_BIN:-$HOME/Code/dotfiles/bin/claude-agent-state}
 CHIP="${CLAUDE_AGENT_CHIP:-$HOME/Code/dotfiles/bin/claude-agent-chip}"
 [ -x "$CHIP" ] && ("$CHIP" >/dev/null 2>&1 &)
 
-# 2) Finished sound — Cyberpunk pulse #1 (after swap). Backgrounded, never blocks.
-sound="$HOME/.claude/hooks/sounds/claude-finished.mp3"
+# 2) Sound layer — status-dependent.
+# Finished if clean, error if last tool failed. Always append subagent-done at end.
+if [ -f "$HOME/.claude/hooks/sounds/.error" ]; then
+  # Error state — play error sound instead of finished
+  sound="$HOME/.claude/hooks/sounds/claude-error.mp3"
+  rm -f "$HOME/.claude/hooks/sounds/.error" # clean marker
+else
+  # Success — play finished sound
+  sound="$HOME/.claude/hooks/sounds/claude-finished.mp3"
+fi
 [ -f "$sound" ] && (afplay "$sound" >/dev/null 2>&1 &)
+
+# Subagent-done sound (delayed slightly so it doesn't overlap with main sound)
+(sleep 1; [ -f "$HOME/.claude/hooks/sounds/claude-subagent-done.mp3" ] && afplay "$HOME/.claude/hooks/sounds/claude-subagent-done.mp3" >/dev/null 2>&1 &) &
 
 # 3) Optional Tine TTS push (opt-in via env)
 if [ "${CLAUDE_TINE_NOTIFY:-0}" = "1" ]; then
