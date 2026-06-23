@@ -1,0 +1,95 @@
+#!/usr/bin/env nu
+# tmux-peek — read terminal window scrollback from current tmux session.
+#
+# Default: last 25 lines from window 1 of current session.
+# Flag: -n <N> to read N lines instead (e.g., -n 50, -n 100).
+#
+# Output: plain text (raw scrollback).
+# Error handling: gracefully exit if not in tmux or window not found.
+
+def main [
+    --lines (-n): int = 25
+] {
+    # Check if we're in a tmux session
+    let tmux_env = ($env.TMUX? | default "")
+    if ($tmux_env | is-empty) {
+        print -e "Error: Not in a tmux session"
+        exit 1
+    }
+
+    # Extract socket path from $TMUX (format: /path/to/socket,pid,window_index)
+    let socket_path = (
+        $tmux_env | split row "," | get 0
+    )
+
+    if ($socket_path | is-empty) {
+        print -e "Error: Could not parse tmux socket path"
+        exit 1
+    }
+
+    # Find tmux binary on PATH
+    let tmux_bin = (
+        try {
+            (which tmux | get 0.path)
+        } catch {
+            if ($"/opt/homebrew/bin/tmux" | path exists) {
+                "/opt/homebrew/bin/tmux"
+            } else if ($"/usr/bin/tmux" | path exists) {
+                "/usr/bin/tmux"
+            } else {
+                ""
+            }
+        }
+    )
+
+    if ($tmux_bin | is-empty) {
+        print -e "Error: tmux not found on PATH"
+        exit 1
+    }
+
+    # Resolve the session this client belongs to directly
+    let session_name = (
+        try {
+            ^$tmux_bin -S $socket_path display-message -p '#S'
+            | str trim
+        } catch {
+            ""
+        }
+    )
+
+    if ($session_name | is-empty) {
+        print -e "Error: Could not determine current tmux session"
+        exit 1
+    }
+
+    # Target window 1 in current session
+    let target = $"($session_name):1"
+
+    # Capture pane: -p (print), -S -N (from N lines back through the live screen).
+    # No -E: capturing must include the visible screen, where freshly-run
+    # commands appear — -E -1 would cap at history above the screen and miss them.
+    let start_offset = (-($lines))
+    let result = (^$tmux_bin -S $socket_path capture-pane -p -t $target -S $start_offset | complete)
+
+    if $result.exit_code != 0 {
+        print -e "Error: Could not capture pane or window not found"
+        exit 1
+    }
+
+    let output = $result.stdout
+
+    # Strip trailing blank lines, then keep the last N (capture spans the whole
+    # visible screen, so it's wider than N — trim blanks first, then take N).
+    let trimmed = (
+        $output
+        | lines
+        | reverse
+        | skip while { $in | str trim | is-empty }
+        | reverse
+        | last $lines
+        | str join "\n"
+    )
+
+    # Output to stdout (empty string prints nothing)
+    print $trimmed
+}
