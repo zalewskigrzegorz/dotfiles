@@ -10,6 +10,9 @@
 # emoji/slashes (fnmatch), and from AeroSpace (no $TMUX) it needs the client named
 # explicitly. IDs are ASCII + unambiguous, sidestepping both.
 set -euo pipefail
+# launchd (AeroSpace/sketchybar) starts us with no locale → C, which breaks
+# bash read/assoc-array on multibyte session names (emoji). Force UTF-8.
+export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
 export PATH="/opt/homebrew/bin:$PATH"
 STATE_BIN="${CLAUDE_AGENT_STATE_BIN:-$HOME/Code/dotfiles/bin/claude-agent-state}"
 FOCUS_BIN="${CLAUDE_FOCUS_BIN:-$HOME/Code/dotfiles/bin/claude-focus-session}"
@@ -23,25 +26,30 @@ CUR=$("$TMUX_BIN" display-message -p '#{session_name}:#{window_index}' 2>/dev/nu
 
 # Presence map keyed by session:window_index (from claude-agent-state, which
 # already includes fallback-detected claude windows). rank: blocked 0, waiting 1.
+# Command-substitution + here-string, NOT `done < <(...)`: process substitution
+# yields nothing when launched from AeroSpace (no usable /dev/fd), which left the
+# picker empty \u2192 cmd-ctrl-w did nothing.
 declare -A GLYPH RANK
+STATE_LIST=$("$STATE_BIN" list 2>/dev/null || true)
 while IFS=$'\t' read -r st tg _rest; do
   [ -n "$tg" ] || continue
   case "$st" in
     blocked) GLYPH[$tg]=$'\uf071'; RANK[$tg]=0 ;;
     waiting) GLYPH[$tg]=$'\uf017'; RANK[$tg]=1 ;;
   esac
-done < <("$STATE_BIN" list 2>/dev/null || true)
+done <<< "$STATE_LIST"
 
 # Row: rank \t session_id \t window_id \t label(+glyph). Keep only blocked/waiting
 # windows, excluding the current one.
 rows=""
+WINDOWS=$("$TMUX_BIN" list-windows -a -F '#{session_id}	#{window_id}	#{session_name}:#{window_index}	#{session_name}  ·  #{window_index} #{window_name}' 2>/dev/null || true)
 while IFS=$'\t' read -r sid wid sikey label; do
   [ -n "$wid" ] || continue
   [ -n "${RANK[$sikey]:-}" ] || continue
   [ "$sikey" = "$CUR" ] && continue
   g="${GLYPH[$sikey]}"; r="${RANK[$sikey]}"
   rows+="$r"$'\t'"$sid"$'\t'"$wid"$'\t'"$g  $label"$'\n'
-done < <("$TMUX_BIN" list-windows -a -F '#{session_id}	#{window_id}	#{session_name}:#{window_index}	#{session_name}  ·  #{window_index} #{window_name}' 2>/dev/null || true)
+done <<< "$WINDOWS"
 
 rows=$(printf '%s' "$rows" | sed '/^$/d' | sort -t$'\t' -k1,1n)
 [ -n "$rows" ] || exit 0
