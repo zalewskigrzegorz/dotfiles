@@ -43,6 +43,14 @@ def --wrapped claude [...args] { _tui_window $"\u{f06a9}  claude"   "claude" ...
 # Git TUIs — nf-dev-git_branch (U+E725)
 def --wrapped lazygit [...args] { _tui_window $"\u{e725}  git"      "lazygit" ...$args }
 
+# Diff review (hunk) — nf-oct-diff (U+F440). Read-only review of agent changesets;
+# complements lazygit (which stays the stage/commit/push client). Bare `hunk`
+# defaults to `hunk diff` (working-tree review).
+def --wrapped hunk [...args] {
+    let rest = (if ($args | is-empty) { ["diff"] } else { $args })
+    _tui_window $"\u{f440}  hunk" "hunk" ...$rest
+}
+
 # GitHub dashboard (gh dash extension) — nf-md-github (U+F0865)
 def --wrapped gh-dash [...args] { _tui_window $"\u{f0865}  gh-dash" "gh" "dash" ...$args }
 
