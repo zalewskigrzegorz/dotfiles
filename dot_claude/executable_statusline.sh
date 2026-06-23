@@ -251,7 +251,16 @@ fi
 style_seg=""
 [ -n "$style" ] && [ "$style" != "default" ] && style_seg="${SEP}${GOLD}${style}${N}"
 
-printf '%s%s%s%s%s%s%s%s%s' \
+# Full session title (aiTitle) — read straight from the transcript, so it is
+# NOT truncated like the tmux window name (the hook trims that to ~16 chars).
+win_seg=""
+if [ -n "$transcript" ] && [ -f "$transcript" ]; then
+  ai_title=$(grep '"type":"ai-title"' "$transcript" 2>/dev/null | tail -1 \
+               | jq -r '.aiTitle // empty' 2>/dev/null)
+  [ -n "$ai_title" ] && win_seg="${SEP}${MINT}󰖯 ${ai_title}${N}"
+fi
+
+printf '%s%s%s%s%s%s%s%s%s%s' \
   "$model_seg" "$proj_seg" "$dur_seg" \
   "$tool_seg" "$comp_seg" \
-  "$wait_seg" "$ctx_seg" "$lines_seg" "$style_seg"
+  "$wait_seg" "$ctx_seg" "$lines_seg" "$style_seg" "$win_seg"
