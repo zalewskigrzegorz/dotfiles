@@ -1,4 +1,8 @@
-# Managed by chezmoi. Edit: ~/Code/dotfiles/private_dot_ssh/config.tmpl
+{{ if eq .chezmoi.os "darwin" -}}
+Include {{ .chezmoi.homeDir }}/.colima/ssh_config
+
+{{ end -}}
+# Managed by chezmoi. Edit: ~/Code/dotfiles/private_dot_ssh/private_config.tmpl
 
 Host lab
     HostName lab
