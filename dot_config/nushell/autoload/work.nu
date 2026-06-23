@@ -988,6 +988,7 @@ def "work _build-layout" [
     let term = $"\u{f120}  nu"
     let git  = $"\u{e725}  git"
     let cc   = $"\u{f06a9}  claude"
+    let hunk = $"\u{f440}  hunk"
     let edit = $"\u{e62b}  nvim"
 
     if not ($bazgroly | path exists) {
@@ -1003,6 +1004,7 @@ def "work _build-layout" [
     for spec in [
         { name: $git,  cwd: $cwd,      cmd: ["lazygit"] }
         { name: $cc,   cwd: $cwd,      cmd: ["claude"] }
+        { name: $hunk, cwd: $cwd,      cmd: ["hunk" "diff" "--watch"] }
         { name: $edit, cwd: $bazgroly, cmd: ["nvim" $bazgroly] }
     ] {
         if not ($spec.name in $existing) {
