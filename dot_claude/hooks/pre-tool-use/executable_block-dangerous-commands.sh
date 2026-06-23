@@ -163,6 +163,14 @@ if contains_git '(^|[;&|()]+[[:space:]]*)git[[:space:]]+commit'; then
       fi
     fi
   fi
+  # ── Review gate (Greg, 2026-06-23) ──────────────────────────────────────
+  # `git commit` is intentionally NOT in settings.json allow, so EVERY commit
+  # stops here. This is a deliberate signal, not friction: the prompt is your
+  # cue to review the changeset in hunk (`git review`) and address your inline
+  # comments BEFORE the commit lands. Approving = "I've reviewed the diff."
+  # Default mode → ASK (clear prompt below). Any autonomous mode → DENY, since
+  # there's no human at the keyboard to review the hunk and commenting loop.
+  emit_guard "📋 Review gate — przejrzyj zmiany w hunku (\`git review\`) i ogarnij swoje uwagi, ZANIM zatwierdzisz. Approve = diff przejrzany."
 fi
 
 # ── GitHub PR ops ────────────────────────────────────────────────────────
