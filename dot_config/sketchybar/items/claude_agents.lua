@@ -9,14 +9,29 @@ local settings = require("settings")
 sbar.add("item", "claude_agents", {
     position = "right",
     drawing = false,
+    -- Item-level padding (NOT separate padding items): collapses with the chip
+    -- when drawing=off, so no phantom gap between battery and calendar when idle.
+    padding_left = settings.group_paddings,
+    padding_right = settings.group_paddings,
     icon = { drawing = false },
     label = {
         color = colors.red,
+        padding_left = 8,
+        padding_right = 8,
         font = {
             family = settings.font.text,
             style = settings.font.style_map["Bold"],
             size = 13.0
         }
+    },
+    -- Pill identical to the other widgets; border_color is set per-state by
+    -- bin/claude-agent-chip (red=blocked, gold=waiting, green=running).
+    background = {
+        color = colors.bg1,
+        height = 26,
+        corner_radius = 6,
+        border_color = colors.red,
+        border_width = 1
     },
     click_script = os.getenv("HOME") .. "/Code/dotfiles/bin/tmux-window-jump"
 })
