@@ -97,10 +97,19 @@ app-focused (this corrects the earlier Insta360 caveat). Keys:
 `Cinematic zoom ⌥B` · `Remote ⌥⌘R` · `Framing/layout` · `Leave call`.
 Dials: `Mic gain` · `Speaker` · `Cam zoom` · `◉ PAGES`. MuteDeck = cross-app mute/cam backup.
 
+### HomeLab (context)
+
+HTTP triggers to the lab via the **API Request** plugin (GUI-configured, survives — NOT
+MCP). Keys: `n8n workflow trigger (webhook)` · `Lab status (live tile, poll)` ·
+`Tina / announce event (lab:3001)` · `draw.lab / tools (open)`. 4 keys + 3 dials free.
+Dial 4 = `◉ PAGES`.
+
 ### Still to draw / define (later)
 
-Slack · Music/Spotify (both already on the deck) · HomeLab (n8n/Tina/brief triggers) ·
-Gaming (own session — Gaming Pixel Light + gaming mode) · the 🔌 Listwy folder contents.
+- **Slack** · **Music/Spotify** — already on the deck, keep as-is.
+- **Gaming** — own session (Gaming Pixel Light + gaming mode); Greg undecided on contents.
+- **🔌 Listwy folder** — desk + greg multi-gang strips; needs per-switch labels from Greg
+  (which switch is the air purifier, etc.) before drawing.
 
 ## Hardware
 
