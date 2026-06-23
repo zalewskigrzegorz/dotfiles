@@ -5,6 +5,9 @@
 #    <blocked>  <waiting>  <running>   (counts EXCLUDE the current tmux window —
 # the chip means "agents needing you ELSEWHERE", matching the cmd-ctrl-w jump).
 set -u
+# launchd (AeroSpace/sketchybar) starts us with no locale → C, which breaks
+# bash read/assoc-array on multibyte session names (emoji). Force UTF-8.
+export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
 export PATH="/opt/homebrew/bin:$PATH"
 command -v sketchybar >/dev/null 2>&1 || exit 0
 STATE="$HOME/Code/dotfiles/bin/claude-agent-state"

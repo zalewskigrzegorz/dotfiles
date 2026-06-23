@@ -3,6 +3,9 @@
 # $CLAUDE_AGENT_STATE_DIR, keyed by tmux session:window, tagged running|waiting.
 # Written by Claude Code hooks; read by tmux marker, pickers, sketchybar chip.
 set -u
+# launchd (AeroSpace/sketchybar) starts us with no locale → C, which breaks
+# bash read/assoc-array on multibyte session names (emoji). Force UTF-8.
+export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
 DIR="${CLAUDE_AGENT_STATE_DIR:-/tmp/claude-agents}"
 TMUX_BIN="${TMUX_BIN:-/opt/homebrew/bin/tmux}"
 
