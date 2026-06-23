@@ -30,7 +30,12 @@ label=""
 [ "$r" -gt 0 ] && label="${label:+$label   }${G_RUNNING} $r"
 
 if [ -n "$label" ]; then
-  sketchybar --set claude_agents drawing=on label="$label" >/dev/null 2>&1 || true
+  # Border accent by dominant state (urgency order): blocked=red, waiting=gold,
+  # running=mauve (primary). Must mirror colors.lua hex values.
+  if [ "$b" -gt 0 ]; then bcolor=0xffff6b9d        # red    — needs you
+  elif [ "$w" -gt 0 ]; then bcolor=0xffffd700      # gold   — waiting
+  else bcolor=0xffb347ff; fi                       # mauve  — running (primary)
+  sketchybar --set claude_agents drawing=on label="$label" background.border_color="$bcolor" >/dev/null 2>&1 || true
 else
   sketchybar --set claude_agents drawing=off >/dev/null 2>&1 || true
 fi
