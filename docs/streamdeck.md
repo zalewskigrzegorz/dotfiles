@@ -39,6 +39,13 @@ On a dial running the Homey Pro **dial** action for `Office AC`:
 
 So rotate = temperature, press = power. Same recipe for any room AC.
 
+> ⚠️ **Known limitation (2026-06-23):** the Adapted Homey Pro Plus plugin binds ALL dial
+> events (rotate / press / touch) to the **same capability** — so a temperature dial's
+> **press just re-applies the value, it does NOT toggle on/off**. Press≠rotate-action is
+> not possible, and dials aren't documented on the Adapted site at all. **Workaround:**
+> keep temp on the dial, put on/off on an adjacent **key** (Toggle Device). Feature
+> request sent to the dev (odd@adapted.no) asking for an independent dial-press action.
+
 ## 2026-06-23 — FINAL layout design (brainstormed on draw.lab)
 
 This supersedes the room-*folder* "SmartHome layout" further down. Built interactively;
