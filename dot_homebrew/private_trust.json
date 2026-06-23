@@ -8,6 +8,7 @@
     "timrogers/tap"
   ],
   "trustedformulae": [
-    "keith/formulae/reminders-cli"
+    "keith/formulae/reminders-cli",
+    "modem-dev/tap/hunk"
   ]
 }
