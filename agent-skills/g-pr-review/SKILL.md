@@ -109,19 +109,23 @@ If no PR exists for HEAD and the user gave no number/URL → stop and ask for on
 
 This drives which flow to run. Done once, right after P1.
 
+**First settle the only question that decides authorship: am I the PR author?** Use the helper — it prints a clean `true`/`false` (context on stderr) and is the source of truth. Having commits on the branch, or being a co-author, does **not** make it your PR — only `author.login == me` does.
+
 ```bash
+# true => my PR, false => someone else''s. Exit: 0 mine / 1 not mine / 2 no PR.
+MINE="$(bash "$SCRIPTS/is-pr-mine.sh" "$NUMBER")"   # $NUMBER optional; omit to use current branch
+
 ME="${G_PR_ME:-$(gh api user --jq .login)}"  # cached from P0b
-PR_AUTHOR="$(gh pr view "$NUMBER" ${REPO_FLAG:+-R "$OWNER/$REPO"} --json author --jq .author.login)"
 MY_REVIEWS="$(gh api "repos/$OWNER/$REPO/pulls/$NUMBER/reviews" --jq "[.[] | select(.user.login == \"$ME\")] | length")"
 
-if [[ "$ME" == "$PR_AUTHOR" ]]; then
+if [[ "$MINE" == "true" ]]; then
   MODE=mine
 elif [[ "$MY_REVIEWS" -gt 0 ]]; then
   MODE=mixed
 else
   MODE=reviewing
 fi
-echo "MODE=$MODE (me=$ME, author=$PR_AUTHOR, my_reviews=$MY_REVIEWS)"
+echo "MODE=$MODE (mine=$MINE, my_reviews=$MY_REVIEWS)"
 ```
 
 State the detected mode in one line before proceeding, so the user knows which path we''re on. User override always wins ("just reply, no approve" → treat as `mine` flow; "do a fresh review" → treat as `reviewing` even if I have prior reviews).
@@ -131,6 +135,8 @@ State the detected mode in one line before proceeding, so the user knows which p
 | `mine` | PR author == me | **Flow A — Answer reviewers** (fetch threads → triage → fix → commit → post replies). Never `gh pr review` (GitHub rejects self-approve anyway). |
 | `reviewing` | Someone else''s PR, no prior review from me | **Flow B — Fresh review** (analyze diff silently → per-finding Post/Skip → submit one APPROVE/REQUEST_CHANGES/COMMENT review). |
 | `mixed` | Someone else''s PR, I already left ≥1 review | **Flow C — Follow-up** (handle threads where the author replied to me, optionally finalize an updated verdict). |
+
+**Author vs contributor — don''t conflate them.** When `is-pr-mine.sh` says `false`, you are a **reviewer**, even if you pushed commits to the branch or co-authored the fix. In `reviewing`/`mixed` you never frame replies as the author "closing" threads: a thread opened by reviewer X and answered by the PR author is X''s to resolve — don''t jump in unless you have something to add. Reserve "answer reviewers / apply fix / commit" (Flow A) for `mine == true` only. If unsure, ask the user how they want to act (reviewer follow-up vs fresh review) before drafting anything.
 
 ## P3. `AskUserQuestion` conventions
 
@@ -178,6 +184,7 @@ SCRIPTS="${G_PR_REVIEW_SCRIPTS:-$HOME/.claude/skills/g-pr-review/scripts}"
 
 * `fetch-comments.sh OWNER REPO NUMBER` — unresolved inline threads (GraphQL, paginated), enriched with `pr_author`, `last_comment_author`, `last_comment_at`, `author_replied_last`, `reviewer_followed_up`.
 * `fetch-reviews.sh OWNER REPO NUMBER` — PR-level review bodies + merged top-level inline comments (humans + bots like CodeRabbit, Gemini, Copilot).
+* `is-pr-mine.sh [NUMBER|URL]` — prints `true`/`false` for "am I the PR author" (context on stderr, exit 0 mine / 1 not / 2 no PR). No arg → current branch. Authoritative author check for P2.
 
 ## P8. Rate limits
 
