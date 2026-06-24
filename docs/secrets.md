@@ -49,6 +49,25 @@ The same content is backed by the `GITLEAKS_PRIVATE_CONFIG` item in the 1Passwor
 bin/gitleaks-dotfiles --no-git --redact --log-level error
 ```
 
+## Stream Deck → Homey (macOS only)
+
+The Stream Deck Office page hits the Homey Athom cloud API
+(`https://<HOMEY_ID>.connect.athom.com`). Two secrets back it, restored by
+`run_after_05` into `~/.config/streamdeck/homey-token` and
+`~/.config/streamdeck/homey-id`:
+
+| 1Password item (vault `Dotfiles`) | `password` field holds | Restored to |
+|---|---|---|
+| `HOMEY_TOKEN` | Athom cloud API bearer token | `~/.config/streamdeck/homey-token` |
+| `HOMEY_ID` | Homey cloud ID (subdomain) | `~/.config/streamdeck/homey-id` |
+
+Create both as **Password** items in the `Dotfiles` vault with the value in the
+`password` field (`op://Dotfiles/HOMEY_TOKEN/password`). macOS-only — the lab has
+no Stream Deck, so the "Skipping HOMEY_TOKEN…" notice during `chezmoi apply`
+there is expected and harmless. The Homey **MCP** server
+(`https://mcp.lab/homey/mcp`) is unrelated; it keeps its own credentials
+server-side and does not use these.
+
 ## Sync Flow
 
 On any machine with the repo:
