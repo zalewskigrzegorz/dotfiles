@@ -1,0 +1,76 @@
+#!/usr/bin/env nu
+
+# pr-brief — print a ready-to-run agent prompt for a PR that needs work. Used by
+# bin/pr-watch-open to auto-launch `claude` in the worktree with full context, so
+# clicking the pr_watch chip lands you on an agent that already knows what to do.
+#
+# Standalone (no `work` autoload dependency) — only needs `gh`.
+
+const REPO = "REDACTED_ORG/REDACTED_ORG"
+
+# Unresolved review threads — only reachable via GraphQL (gh pr view --json has no
+# reviewThreads field). Returns [] on any failure.
+def review-threads [num: int]: nothing -> list {
+    let parts = ($REPO | split row "/")
+    let q = 'query($owner:String!,$name:String!,$num:Int!){repository(owner:$owner,name:$name){pullRequest(number:$num){reviewThreads(first:100){nodes{isResolved path line comments(first:1){nodes{author{login} body}}}}}}}'
+    let r = (do {
+        ^gh api graphql -f $"query=($q)" -F $"owner=($parts.0)" -F $"name=($parts.1)" -F $"num=($num)"
+    } | complete)
+    if $r.exit_code != 0 { return [] }
+    ($r.stdout | from json | get -o data.repository.pullRequest.reviewThreads.nodes | default []
+        | each {|t|
+            {
+                isResolved: ($t | get -o isResolved | default false),
+                path: ($t | get -o path | default ""),
+                line: ($t | get -o line | default ""),
+                author: ($t | get -o comments.nodes.0.author.login | default "?"),
+                body: ($t | get -o comments.nodes.0.body | default ""),
+            }
+        })
+}
+
+def main [num: int] {
+    let r = (do { ^gh pr view $num --repo $REPO --json "number,title,url,statusCheckRollup" } | complete)
+    if $r.exit_code != 0 {
+        print $"Pracujesz nad PR #($num). Nie udało się pobrać szczegółów \(gh\): ($r.stderr | str trim)"
+        return
+    }
+    let pr = ($r.stdout | from json)
+
+    let failed = ($pr.statusCheckRollup | where {|c|
+        (($c | get -o conclusion | default "") == "FAILURE") or (($c | get -o state | default "") == "FAILURE")
+    })
+    let threads = (review-threads $num | where {|t| not $t.isResolved})
+
+    print $"Pracujesz nad PR #($pr.number): ($pr.title)"
+    print $pr.url
+    print ""
+
+    if ($failed | is-not-empty) {
+        print "## Failujące checki CI"
+        for c in $failed {
+            let name = ($c | get -o name | default ($c | get -o context | default "check"))
+            let url = ($c | get -o detailsUrl | default ($c | get -o targetUrl | default ""))
+            print $"- ($name) ($url)"
+        }
+        print ""
+        print "Zbadaj logi tych checków, znajdź przyczynę i napraw. Uruchom odpowiednie testy lokalnie żeby potwierdzić fix przed pushem."
+        print ""
+    }
+
+    if ($threads | is-not-empty) {
+        print "## Nierozwiązane wątki review"
+        for t in $threads {
+            let body = ($t.body | str replace -a "\n" " " | str trim)
+            let body_short = (if ($body | str length) > 240 { $"($body | str substring 0..240)…" } else { $body })
+            print $"- [($t.path):($t.line)] @($t.author): ($body_short)"
+        }
+        print ""
+        print "Zaadresuj każdy wątek w kodzie. Po wprowadzeniu zmian napisz krótką odpowiedź na każdy komentarz (po angielsku)."
+        print ""
+    }
+
+    if ($failed | is-empty) and ($threads | is-empty) {
+        print "Brak wykrytych failujących checków ani otwartych wątków review — sprawdź stan PRki ręcznie."
+    }
+}
