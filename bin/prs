@@ -1,0 +1,61 @@
+#!/usr/bin/env nu
+
+# PR triage — open PRs grouped by action needed
+def main [
+    --repo: string = "Redocly/redocly"
+    --author: string = "@me"
+    --limit: int = 30
+] {
+    let raw = (
+        gh pr list
+            --author $author
+            --repo $repo
+            --state open
+            --json "number,title,isDraft,reviewDecision,mergeable,statusCheckRollup,headRefName,url"
+            --limit $limit
+        | from json
+    )
+
+    let rows = ($raw | each { |pr|
+        let failed = ($pr.statusCheckRollup | where { |c| ($c | get -o conclusion) == "FAILURE" } | length)
+        let review = ($pr | get -o reviewDecision | default "")
+        let draft = $pr.isDraft
+
+        let action = (
+            if $draft and $failed > 0    { "draft+CI" }
+            else if $draft               { "draft" }
+            else if $failed > 0          { "fix CI" }
+            else if $review == "CHANGES_REQUESTED" { "changes req" }
+            else if $review == "REVIEW_REQUIRED"   { "needs review" }
+            else if $pr.mergeable == "MERGEABLE"   { "MERGE" }
+            else                                    { "blocked" }
+        )
+
+        let action_colored = (match $action {
+            "MERGE"        => $"(ansi green_bold)MERGE(ansi reset)",
+            "needs review" => $"(ansi yellow)needs review(ansi reset)",
+            "blocked"      => $"(ansi yellow)blocked(ansi reset)",
+            "fix CI"       => $"(ansi red)fix CI(ansi reset)",
+            "changes req"  => $"(ansi red)changes req(ansi reset)",
+            "draft+CI"     => $"(ansi red)draft+CI(ansi reset)",
+            "draft"        => $"(ansi purple)draft(ansi reset)",
+            _              => $action,
+        })
+
+        {
+            "#": $pr.number,
+            action: $action_colored,
+            title: ($pr.title | str substring 0..60),
+            branch: ($pr.headRefName | str substring 0..40),
+            failed: (if $failed > 0 { $failed } else { null }),
+            url: $pr.url,
+        }
+    })
+
+    let order = ["MERGE" "needs review" "blocked" "fix CI" "changes req" "draft" "draft+CI"]
+
+    $rows | sort-by { |r|
+        let plain = ($r.action | ansi strip)
+        $order | enumerate | where { |e| $e.item == $plain } | get -o 0.index | default 99
+    }
+}
