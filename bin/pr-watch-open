@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# pr-watch-open — click handler for the SketchyBar pr_watch chip. Action-aware:
+#
+#   MERGE                 → open the PR page in the browser (you merge in the UI)
+#   fix CI / changes req  → open the worktree (create if missing) AND auto-launch
+#                           `claude` there with a context prompt (bin/pr-brief),
+#                           so you land on an agent that already knows the task
+#
+# Always targets the SINGLE most-urgent actionable PR (fix CI > changes req >
+# MERGE) — handle it, it drops off the chip, next click lands on the next one.
+#
+# `work pr` is a nushell autoload function, so we spawn a real interactive `nu`
+# window and send-keys the command (nu -c would skip autoload). Runs from the
+# SketchyBar click context (no $TMUX), so the client is switched explicitly —
+# same approach as tmux-window-jump.
+set -uo pipefail
+export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+export PATH="/opt/homebrew/bin:$PATH"
+
+TMUX_BIN="${TMUX_BIN:-/opt/homebrew/bin/tmux}"
+CACHE="${PR_WATCH_CACHE:-$HOME/.cache/pr-watch-last.json}"
+REPO="${PR_WATCH_REPO:-REDACTED_ORG/REDACTED_ORG}"
+# `work pr` resolves the repo via `git rev-parse` from $PWD, so the window must
+# open INSIDE the checkout (matches the hardcoded repo in pr-watch).
+REPO_DIR="${PR_WATCH_REPO_DIR:-$HOME/Code/REDACTED_ORG/REDACTED_ORG}"
+BRIEF_BIN="${PR_BRIEF_BIN:-$HOME/Code/dotfiles/bin/pr-brief}"
+
+[ -f "$CACHE" ] || exit 0
+# Most-urgent actionable PR → "<num>\t<action>".
+sel=$(jq -r '
+  [ to_entries[] | select(.value.actionable==true)
+    | . + {rank: ({"fix CI":0,"changes req":1,"MERGE":2}[.value.action] // 3)} ]
+  | sort_by(.rank)
+  | if length>0 then "\(.[0].key)\t\(.[0].value.action)" else empty end' "$CACHE" 2>/dev/null)
+[ -n "$sel" ] || exit 0
+num=${sel%%$'\t'*}
+action=${sel#*$'\t'}
+
+# MERGE → browser, where you click merge. No worktree.
+if [ "$action" = "MERGE" ]; then
+  gh pr view "$num" --repo "$REPO" --web >/dev/null 2>&1 &
+  exit 0
+fi
+
+# fix CI / changes req → worktree + auto-claude with a context prompt.
+brief="/tmp/pr-brief-$num.md"
+"$BRIEF_BIN" "$num" > "$brief" 2>/dev/null || true
+
+# Pick a client to drive; target its session by ID (emoji/slash names break -t).
+client=$("$TMUX_BIN" list-clients -F '#{client_name}' 2>/dev/null | head -1)
+sid=""
+[ -n "$client" ] && sid=$("$TMUX_BIN" display-message -p -t "$client" '#{session_id}' 2>/dev/null || true)
+
+cdir="$HOME"
+[ -d "$REPO_DIR/.git" ] && cdir="$REPO_DIR"
+if [ -n "$sid" ]; then
+  win=$("$TMUX_BIN" new-window -P -F '#{window_id}' -t "$sid" -c "$cdir" -n "pr" "nu" 2>/dev/null) || exit 0
+else
+  win=$("$TMUX_BIN" new-window -P -F '#{window_id}' -c "$cdir" -n "pr" "nu" 2>/dev/null) || exit 0
+fi
+[ -n "$client" ] && "$TMUX_BIN" switch-client -c "$client" -t "$win" 2>/dev/null || true
+"$TMUX_BIN" select-window -t "$win" 2>/dev/null || true
+
+# In the temp window: create/attach the worktree (work pr builds a layout that
+# ALREADY opens a `claude` window, and sesh-connects the client to it), then
+# bracketed-paste the brief into that claude window and submit it. The brief is
+# also put on the clipboard as a fallback (just ⌘V into the claude window if the
+# auto-paste mistimes claude's boot). If `work pr` errors, `let r = (...)` aborts
+# → the error stays visible in the temp window and nothing else fires.
+delay="${PR_OPEN_CLAUDE_DELAY:-3}"
+nu_cmd="open --raw $brief | pbcopy; let r = (work pr $num); sleep ${delay}sec; let cw = (^tmux list-windows -t \$r.session -F '#{window_id}::#{window_name}' | lines | where {|l| \$l =~ 'claude'} | get -o 0 | default '' | split row '::' | get -o 0 | default ''); if (\$cw | is-not-empty) { ^tmux load-buffer -b prbrief $brief; ^tmux paste-buffer -p -t \$cw -b prbrief; ^tmux send-keys -t \$cw Enter; ^tmux select-window -t \$cw }; ^tmux kill-window -t $win"
+# Settle so interactive nu finishes loading autoload before the keys land.
+"$TMUX_BIN" send-keys -t "$win" "$nu_cmd" Enter 2>/dev/null || true
