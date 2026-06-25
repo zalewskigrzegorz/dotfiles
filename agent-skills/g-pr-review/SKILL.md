@@ -163,6 +163,19 @@ Write like a senior engineer leaving a quick review note, not like an AI assista
 * **No semicolons in prose.** New sentences, commas, or em dashes. Literal code may use `;`.
 * Plain technical English. No emoji unless mirroring the reviewer''s own.
 
+## P5.5. Humanizer gate (mandatory)
+
+P5 is how you write the first draft. The `humanizer` skill is the net that catches what still slips through — it''s the dedicated AI-pattern remover, and review comments here keep reading as machine-generated even after P5. So **every body bound for GitHub passes through the `humanizer` skill before the user sees it for confirmation**: inline comments, thread replies, review summary bodies, verdict rationales. If it gets posted, it got humanized first — no exceptions.
+
+How to run it without burning the whole turn:
+
+* **Load the `humanizer` skill once per run** (Skill tool), the first time you draft any GitHub-bound text. It stays loaded for the rest of the flow — don''t re-invoke per comment.
+* **Humanize per batch, not per comment.** Once you''ve drafted the ≤4 bodies for an `AskUserQuestion` batch, run all of them through the humanizer together, then put the *humanized* versions into the question. The user should only ever see post-humanizer text.
+* **Technical mode — no soul injection.** PR comments are reference/technical writing, so apply the humanizer''s CONTENT PATTERNS (AI vocabulary, em-dash overuse, rule of three, vague attributions, filler, negative parallelisms, hedging) but **not** its PERSONALITY AND SOUL section. Don''t add first person, opinions, jokes, or an "I genuinely…" voice — a clean, plain, senior-engineer note is the correct human voice here. The humanizer itself says exactly this for technical text; hold it to that.
+* **Don''t re-humanize `Modify` text.** When Greg pastes a reply himself (A8b), it''s already human — post it verbatim.
+
+Why batch + technical mode: a per-comment full-skill pass on a 20-thread PR is slow, and it tempts the model to inflate a terse nit into a chatty paragraph — the opposite of what we want. The humanizer is here to strip slop, not add words. A one-line nit that''s already clean should come back as the same one line.
+
 ## P6. GitHub blob links
 
 Every file reference uses a clickable blob link pinned to `SHA`:
@@ -269,6 +282,8 @@ Recommendation per thread (P3-default first):
 | `Skip / already handled` | Outdated, duplicate, done in a later commit |
 
 ## A5. After answers, emit plan + reply per thread
+
+Draft each reply per P5, then run the batch through the humanizer (P5.5) before emitting. The reply shown here and posted in A8 is the humanized version.
 
 For each answered thread, emit this block (drop sections that don''t apply):
 
@@ -434,6 +449,8 @@ Cluster duplicates (P4).
 
 Recommend `Post` for Critical by default; judgment for Suggestion/Nit. Zero findings → skip to B4.
 
+Before surfacing each batch, run the drafted `comment_body` values through the humanizer (P5.5). The body in the question is the humanized one — that''s what gets posted in B5. The verdict summary body (B4/B5) goes through the same gate.
+
 ## B4. Verdict
 
 One `AskUserQuestion`, single question: `"<N> comments selected — submit review as?"`. Options:
@@ -507,7 +524,7 @@ Same as A4, but options shift:
 
 ## C4. Post replies (batched)
 
-Same as A8 — batched `AskUserQuestion`, post via `gh api .../comments/{id}/replies`.
+Same as A8 — batched `AskUserQuestion`, post via `gh api .../comments/{id}/replies`. Drafted replies pass through the humanizer (P5.5) before the batch is surfaced.
 
 ## C5. Optional updated verdict
 
@@ -543,6 +560,7 @@ If user picks a verdict, submit via B5 (single `gh api ... /reviews` call, `comm
 # Things to avoid
 
 * Never post a reply or comment without explicit Yes (batched or single).
+* Never surface or post a GitHub-bound body that hasn''t passed the humanizer (P5.5) — except `Modify` text Greg typed himself.
 * Never commit before user confirms diff (A7).
 * Never push — push is always the user''s job.
 * Never post anything in a language other than English on GitHub.
@@ -584,6 +602,7 @@ If user picks a verdict, submit via B5 (single `gh api ... /reviews` call, `comm
 * [ ] P2: `MODE` detected and stated in chat (`mine` / `reviewing` / `mixed`)
 * [ ] P3 batching applied (≤4 per `AskUserQuestion`, `(Recommended)` on default option)
 * [ ] P5 comment-writing rules followed; English only on GitHub
+* [ ] P5.5 humanizer gate: every GitHub-bound body humanized (technical mode, batched) before surfacing; `Modify` text exempt
 * [ ] P6 blob links pinned to `SHA`
 
 ## Flow A (`mine`)
