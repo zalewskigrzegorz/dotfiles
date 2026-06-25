@@ -69,9 +69,12 @@ def "work normalize-session" [branch: string]: nothing -> string {
 
 # Wrap normalized name with 🌿 prefix and repo scope.
 # e.g. ("realm", "feat/billing-page") -> "🌿realm/✨billing-page"
+# Dots are replaced with "_" because tmux silently rewrites "." (and ":") in
+# session names — keeping them here would make `tmux has-session -t` never match
+# the real session and spawn duplicates (e.g. branch chore/bump-caddy-2.11.4).
 def "work session-name" [repo: string, branch: string]: nothing -> string {
     let suffix = (work normalize-session $branch)
-    $"🌿($repo)/($suffix)"
+    $"🌿($repo)/($suffix)" | str replace --all "." "_"
 }
 
 # Conventional commit defaults (fallback when `extends config-conventional`).
@@ -694,6 +697,40 @@ def "work new" [
 # Fork PRs: detached worktree + gh pr checkout (sets up fork remote), then pin to branch.
 #   work pr            interactive picker over open PRs (gh pr list)
 #   work pr <number>   checkout PR #<number> into a worktree (for gh-dash keybinding)
+# Internal: ensure the canonical tmux session for a worktree exists WITH the
+# full layout, then connect. Reuses a stray session already rooted at the path
+# (renames it, preserving windows) instead of leaving a bare path-named
+# duplicate, and `_build-layout` is idempotent so it fills in any missing
+# windows. Used by every `work pr` connect path so each one gets the full
+# layout — never a bare 1-window `sesh connect <path>` session.
+def "work _connect-session" [
+    session: string  # canonical session name
+    wt_path: path    # worktree dir
+    repo: string     # repo name (for bazgroly path)
+]: nothing -> nothing {
+    let canonical_exists = ((do { ^tmux has-session -t $session } | complete).exit_code == 0)
+    if not $canonical_exists {
+        let sessions_r = (do { ^tmux list-sessions -F "#{session_name}|#{session_path}" } | complete)
+        let wt_expanded = ($wt_path | path expand)
+        let stray = (
+            if $sessions_r.exit_code == 0 {
+                $sessions_r.stdout | lines
+                | each { |l| let p = ($l | split row --number 2 "|"); { name: $p.0, path: ($p.1 | path expand) } }
+                | where { |s| $s.path == $wt_expanded and $s.name != $session }
+                | get -o 0
+            } else { null }
+        )
+        if ($stray | is-not-empty) {
+            ^tmux rename-session -t $stray.name $session
+        } else {
+            ^tmux new-session -d -s $session -c $wt_path
+        }
+        let bazgroly = ($env.HOME | path join "Code" "personal" "bazgroly" $repo)
+        work _build-layout $session $wt_path $bazgroly
+    }
+    ^sesh connect $session
+}
+
 def "work pr" [
     number?: int  # PR number (omit → picker over open PRs)
 ]: nothing -> any {
@@ -738,12 +775,7 @@ def "work pr" [
     if ($wt_path | path exists) {
         let session = (work session-name $info.name $head_branch)
         print -e $"Worktree for PR #($pr_num) exists, connecting to ($session)"
-        let has_sess = ((do { ^tmux has-session -t $session } | complete).exit_code == 0)
-        if $has_sess {
-            ^sesh connect $session
-        } else {
-            ^sesh connect $wt_path
-        }
+        work _connect-session $session $wt_path $info.name
         return { repo: $info.name, pr: $pr_num, branch: $head_branch, path: $wt_path, session: $session, created: false }
     }
 
@@ -767,13 +799,10 @@ def "work pr" [
     )
     if ($existing_wt | is-not-empty) {
         let ep = $existing_wt.path
-        let session = (do { ^git -C $ep config --worktree work.session } | complete | get stdout | str trim)
-        print -e $"PR #($pr_num) branch ($head_branch) already checked out at ($ep), connecting"
-        if ($session | is-not-empty) and ((do { ^tmux has-session -t $session } | complete).exit_code == 0) {
-            ^sesh connect $session
-        } else {
-            ^sesh connect $ep
-        }
+        let cfg_session = (do { ^git -C $ep config --worktree work.session } | complete | get stdout | str trim)
+        let session = (if ($cfg_session | is-not-empty) { $cfg_session } else { work session-name $info.name $head_branch })
+        print -e $"PR #($pr_num) branch ($head_branch) already checked out at ($ep), connecting to ($session)"
+        work _connect-session $session $ep $info.name
         return { repo: $info.name, pr: $pr_num, branch: $head_branch, path: $ep, session: $session, created: false }
     }
 
@@ -829,17 +858,8 @@ def "work pr" [
 
     work cache-invalidate
 
-    # Tmux session + layout (skip new-session if a session with this name already
-    # exists — e.g. a stale session from a prior run — and just attach to it).
-    let session_exists = ((do { ^tmux has-session -t $session } | complete).exit_code == 0)
-    if not $session_exists {
-        ^tmux new-session -d -s $session -c $wt_path
-        let bazgroly = ($env.HOME | path join "Code" "personal" "bazgroly" $info.name)
-        work _build-layout $session $wt_path $bazgroly
-    }
-
     print -e $"✅ PR #($pr_num) → worktree ($branch)"
-    ^sesh connect $session
+    work _connect-session $session $wt_path $info.name
 
     { repo: $info.name, pr: $pr_num, branch: $branch, path: $wt_path, session: $session, base: $base, created: true }
 }
