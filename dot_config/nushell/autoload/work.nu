@@ -747,6 +747,36 @@ def "work pr" [
         return { repo: $info.name, pr: $pr_num, branch: $head_branch, path: $wt_path, session: $session, created: false }
     }
 
+    # Branch may already be checked out in ANOTHER worktree (e.g. the main repo
+    # itself, or a pool worktree at a non-canonical path). git refuses a second
+    # checkout of the same branch, so detect that and connect to the existing
+    # checkout instead of dying with "branch is already used by worktree".
+    let existing_wt = (
+        do { ^git -C $info.root worktree list --porcelain } | complete
+        | get stdout
+        | split row "\n\n"
+        | each { |b|
+            let l = ($b | lines)
+            {
+                path: ($l | where { |x| $x | str starts-with "worktree " } | get -o 0 | default "" | str replace "worktree " "")
+                branch: ($l | where { |x| $x | str starts-with "branch " } | get -o 0 | default "" | str replace "branch refs/heads/" "")
+            }
+        }
+        | where { |w| $w.branch == $head_branch and $w.path != $wt_path and ($w.path | is-not-empty) }
+        | get -o 0
+    )
+    if ($existing_wt | is-not-empty) {
+        let ep = $existing_wt.path
+        let session = (do { ^git -C $ep config --worktree work.session } | complete | get stdout | str trim)
+        print -e $"PR #($pr_num) branch ($head_branch) already checked out at ($ep), connecting"
+        if ($session | is-not-empty) and ((do { ^tmux has-session -t $session } | complete).exit_code == 0) {
+            ^sesh connect $session
+        } else {
+            ^sesh connect $ep
+        }
+        return { repo: $info.name, pr: $pr_num, branch: $head_branch, path: $ep, session: $session, created: false }
+    }
+
     # Enable per-worktree config (idempotent)
     ^git -C $info.root config extensions.worktreeConfig true | ignore
 
