@@ -6,17 +6,25 @@
 #
 # "Actionable" mirrors bin/prs action logic — a PR needs MY action when it is
 # ready to MERGE, has CHANGES_REQUESTED, or has failing CI ("fix CI"). PRs that
-# wait on others (needs review / draft / blocked) are NOT actionable → chip stays
-# hidden for them.
+# wait on others (needs review / draft / blocked) are NOT actionable → chip's
+# fix/merge counters stay hidden for them.
 #
-# Thread delta: for actionable PRs only (cheap — usually 0-2), we fetch the
-# unresolved review-thread count. A rise vs cache flags `new_comments` (gold
-# accent), so a fresh reply on a PR you must act on stands out.
+# Outstanding comments: for EVERY open PR (not just actionable), we count
+# comments that still need MY attention — computed LIVE each poll (no delta), so
+# the cyan chip PERSISTS until I deal with them and never silently disappears.
+# A comment is "outstanding" when it is neither RESOLVED nor ANSWERED:
+#   * unresolved review thread whose last comment is NOT mine (and not a bot)
+#   * conversation comment by someone else that I haven't replied to since
+# Bots and my own comments never count. The count drops on the next poll (≤3 min)
+# as soon as I resolve a thread or reply — self-clearing, no manual ack.
 #
-# Cache: ~/.cache/pr-watch-last.json  { "<num>": {action, threads, actionable, title, url} }
+# Cache: ~/.cache/pr-watch-last.json  { "<num>": {action, outstanding, actionable, title, url} }
+# (cache is only a fallback for transient gh/GraphQL failures — the flag is live.)
 
 const REPO = "Redocly/redocly"
 const FIELDS = "number,title,isDraft,reviewDecision,mergeable,statusCheckRollup,headRefName,url"
+# My GitHub login — comments by me never count as "new" (self-clear on reply).
+const ME = "zalewskigrzegorz"
 
 # Nerd Font glyphs — picked to be self-explanatory AND visually distinct from each
 # other (the two git octicons looked alike at chip size). Also disjoint from the
@@ -38,17 +46,44 @@ def set-chip [args: list<string>] {
     }
 }
 
-# Count unresolved review threads — only reachable via GraphQL (gh pr view --json
-# has no reviewThreads field). Returns -1 on failure so the caller keeps the cache.
-def unresolved-thread-count [num: int]: nothing -> int {
+# Helper: is this comment author someone OTHER than me and not a bot?
+def is-foreign [c: any]: nothing -> bool {
+    let login = ($c | get -o author.login | default "")
+    let typ = ($c | get -o author.__typename | default "")
+    ($typ != "Bot") and ($login != $ME) and ($login != "github-actions")
+}
+
+# Count comments on a PR still needing MY attention (unresolved-and-not-mine
+# review threads + conversation comments I haven't replied to since). Only
+# reachable via GraphQL (gh pr view --json has no reviewThreads field). Returns
+# null on failure so the caller keeps the cached count.
+def outstanding-comments [num: int]: nothing -> any {
     let parts = ($REPO | split row "/")
-    let q = 'query($owner:String!,$name:String!,$num:Int!){repository(owner:$owner,name:$name){pullRequest(number:$num){reviewThreads(first:100){nodes{isResolved}}}}}'
+    let q = 'query($owner:String!,$name:String!,$num:Int!){repository(owner:$owner,name:$name){pullRequest(number:$num){reviewThreads(first:100){nodes{isResolved comments(last:1){nodes{author{login __typename}}}}} comments(last:30){nodes{createdAt author{login __typename}}}}}}'
     let r = (do {
         ^gh api graphql -f $"query=($q)" -F $"owner=($parts.0)" -F $"name=($parts.1)" -F $"num=($num)"
     } | complete)
-    if $r.exit_code != 0 { return (-1) }
-    ($r.stdout | from json | get -o data.repository.pullRequest.reviewThreads.nodes | default []
-        | where {|t| not ($t | get -o isResolved | default false)} | length)
+    if $r.exit_code != 0 { return null }
+    let pr = ($r.stdout | from json | get -o data.repository.pullRequest | default {})
+
+    # Review threads: unresolved AND whose last comment is foreign (I haven't
+    # answered or resolved it).
+    let threads_out = ($pr | get -o reviewThreads.nodes | default [] | where {|t|
+        let resolved = ($t | get -o isResolved | default false)
+        let last = ($t | get -o comments.nodes | default [] | last)
+        (not $resolved) and (is-foreign $last)
+    } | length)
+
+    # Conversation: outstanding if the newest foreign comment is later than my
+    # newest comment (i.e. someone spoke last and I haven't replied).
+    let conv = ($pr | get -o comments.nodes | default [])
+    let mine_ts = ($conv | where {|c| ($c | get -o author.login | default "") == $ME} | get -o createdAt | default [])
+    let my_latest = (if ($mine_ts | is-empty) { "" } else { $mine_ts | sort | last })
+    let foreign_ts = ($conv | where {|c| is-foreign $c} | get -o createdAt | default [])
+    let foreign_latest = (if ($foreign_ts | is-empty) { "" } else { $foreign_ts | sort | last })
+    let conv_out = (($foreign_latest != "") and ($foreign_latest > $my_latest))
+
+    $threads_out + (if $conv_out { 1 } else { 0 })
 }
 
 def main [] {
@@ -81,48 +116,46 @@ def main [] {
         {number: $pr.number, action: $action, title: $pr.title, url: $pr.url, actionable: $actionable}
     })
 
-    # Thread counts — actionable PRs only (cheap: one `gh pr view` each).
+    # Outstanding-comment count — EVERY open PR (one GraphQL each, ~7 calls /
+    # 3 min poll). Computed live; cache is only a fallback on GraphQL failure.
     let enriched = ($rows | each { |r|
         let key = ($r.number | into string)
-        let prev_threads = ($prev | get -o $key | get -o threads | default 0)
-        if not $r.actionable {
-            { ...$r, threads: $prev_threads, new_comments: false }
-        } else {
-            let c = (unresolved-thread-count $r.number)
-            let threads = (if $c >= 0 { $c } else { $prev_threads })
-            { ...$r, threads: $threads, new_comments: ($threads > $prev_threads) }
-        }
+        let prev_out = ($prev | get -o $key | get -o outstanding | default 0)
+        let cur = (outstanding-comments $r.number)
+        let out = (if $cur == null { $prev_out } else { $cur })
+        { ...$r, outstanding: $out }
     })
 
-    # Persist cache (all PRs, so non-actionable thread counts survive too).
+    # Persist cache (fallback for transient gh/GraphQL failures).
     let cache = ($enriched | reduce -f {} { |r, acc|
         $acc | insert ($r.number | into string) {
-            action: $r.action, threads: $r.threads, actionable: $r.actionable, title: $r.title, url: $r.url
+            action: $r.action, outstanding: $r.outstanding, actionable: $r.actionable, title: $r.title, url: $r.url
         }
     })
     mkdir ($cache_path | path dirname)
     $cache | to json | save -f $cache_path
 
-    # Build chip from actionable PRs.
+    # Outstanding comments surface on ANY PR; fix/merge counters only from
+    # actionable PRs. n_comments = total comments still awaiting my reply/resolve.
     let act = ($enriched | where actionable)
-    if ($act | is-empty) {
+    let n_comments = ($enriched | get outstanding | math sum)
+    if ($act | is-empty) and ($n_comments == 0) {
         set-chip ["drawing=off"]
         return
     }
 
     let n_fix = ($act | where action in ["fix CI" "changes req"] | length)
     let n_merge = ($act | where action == "MERGE" | length)
-    let n_new = ($act | where new_comments | length)
 
     mut parts = []
     if $n_fix > 0   { $parts = ($parts | append $"($G_FIX) ($n_fix)") }
     if $n_merge > 0 { $parts = ($parts | append $"($G_MERGE) ($n_merge)") }
-    if $n_new > 0   { $parts = ($parts | append $"($G_COMMENT) ($n_new)") }
+    if $n_comments > 0 { $parts = ($parts | append $"($G_COMMENT) ($n_comments)") }
     let label = ($parts | str join "   ")
 
     # Urgency color drives BOTH border and label text (single label can't color
-    # per-segment): orange (needs fix) > cyan (new comment) > green (merge).
-    let bcolor = (if $n_fix > 0 { $C_FIX } else if $n_new > 0 { $C_NEW } else { $C_MERGE })
+    # per-segment): orange (needs fix) > cyan (unanswered comment) > green (merge).
+    let bcolor = (if $n_fix > 0 { $C_FIX } else if $n_comments > 0 { $C_NEW } else { $C_MERGE })
 
     set-chip ["drawing=on" $"label=($label)" $"label.color=($bcolor)" $"background.border_color=($bcolor)"]
 }
