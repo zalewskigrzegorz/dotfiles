@@ -42,9 +42,14 @@ if [ "$action" = "MERGE" ]; then
   exit 0
 fi
 
-# fix CI / changes req → worktree + auto-claude with a context prompt.
+# fix CI / changes req → worktree + auto-claude. The brief is written to a temp
+# file; the `pr-work` skill reads it from disk — we do NOT push it through the
+# prompt. `-current.md` is the stable path the skill reads; the per-num copy
+# stays for debugging.
 brief="/tmp/pr-brief-$num.md"
+brief_current="/tmp/pr-brief-current.md"
 "$BRIEF_BIN" "$num" > "$brief" 2>/dev/null || true
+cp -f "$brief" "$brief_current" 2>/dev/null || true
 
 # Pick a client to drive; target its session by ID (emoji/slash names break -t).
 client=$("$TMUX_BIN" list-clients -F '#{client_name}' 2>/dev/null | head -1)
@@ -63,11 +68,11 @@ fi
 
 # In the temp window: create/attach the worktree (work pr builds a layout that
 # ALREADY opens a `claude` window, and sesh-connects the client to it), then
-# bracketed-paste the brief into that claude window and submit it. The brief is
-# also put on the clipboard as a fallback (just ⌘V into the claude window if the
-# auto-paste mistimes claude's boot). If `work pr` errors, `let r = (...)` aborts
-# → the error stays visible in the temp window and nothing else fires.
+# send `/pr-work` into that claude window. The skill reads the brief from
+# /tmp/pr-brief-current.md itself — nothing is pushed through the prompt. If
+# `work pr` errors, `let r = (...)` aborts → the error stays visible in the temp
+# window and nothing else fires.
 delay="${PR_OPEN_CLAUDE_DELAY:-3}"
-nu_cmd="open --raw $brief | pbcopy; let r = (work pr $num); sleep ${delay}sec; let cw = (^tmux list-windows -t \$r.session -F '#{window_id}::#{window_name}' | lines | where {|l| \$l =~ 'claude'} | get -o 0 | default '' | split row '::' | get -o 0 | default ''); if (\$cw | is-not-empty) { ^tmux load-buffer -b prbrief $brief; ^tmux paste-buffer -p -t \$cw -b prbrief; ^tmux send-keys -t \$cw Enter; ^tmux select-window -t \$cw }; ^tmux kill-window -t $win"
+nu_cmd="let r = (work pr $num); sleep ${delay}sec; let cw = (^tmux list-windows -t \$r.session -F '#{window_id}::#{window_name}' | lines | where {|l| \$l =~ 'claude'} | get -o 0 | default '' | split row '::' | get -o 0 | default ''); if (\$cw | is-not-empty) { ^tmux send-keys -t \$cw '/pr-work' Enter; ^tmux select-window -t \$cw }; ^tmux kill-window -t $win"
 # Settle so interactive nu finishes loading autoload before the keys land.
 "$TMUX_BIN" send-keys -t "$win" "$nu_cmd" Enter 2>/dev/null || true
