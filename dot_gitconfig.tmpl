@@ -1,5 +1,13 @@
 [core]
     pager = delta
+    # fsmonitor: a per-repo background daemon watches FSEvents so `git status`
+    # checks only changed paths instead of rescanning the whole tree. With many
+    # concurrent Claude Code sessions polling `git status --untracked-files=all`
+    # in worktrees, the full rescans pegged git CPU and flooded the Kandji ESF
+    # endpoint-security extension with file-stat events. fsmonitor + the
+    # untracked cache cut both. (git 2.54; added 2026-06-26.)
+    fsmonitor = true
+    untrackedCache = true
 
 [interactive]
     diffFilter = delta --color-only

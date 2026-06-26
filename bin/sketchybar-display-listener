@@ -1,0 +1,37 @@
+#!/usr/bin/osascript -l JavaScript
+// bin/sketchybar-display-listener
+// Resident, event-driven listener for screen reconfiguration. sketchybar
+// survives a resolution change / monitor connect-disconnect as a live,
+// query-responsive process but stops DRAWING ("render-freeze") and only
+// redraws after a delay — confirmed 2026-06-26: PID + `--query bar` stayed
+// healthy the whole time the bar was visually gone. A pgrep/query watchdog
+// cannot see that, so this fires an immediate `sketchybar --reload` on every
+// NSApplicationDidChangeScreenParametersNotification (resolution, connect,
+// disconnect, arrangement). Event-driven = no polling, no exec churn.
+//
+// launchd keeps it resident (KeepAlive) via com.greg.sketchybar-display.plist.
+ObjC.import('Cocoa')
+
+const SB = '/opt/homebrew/bin/sketchybar'
+const LOG = '/tmp/com.greg.sketchybar-display.log'
+let lastFire = 0
+
+function reload() {
+  const now = $.NSDate.date.timeIntervalSince1970
+  if (now - lastFire < 2.0) return   // debounce the burst of notifications
+  lastFire = now
+  const t = $.NSTask.alloc.init
+  t.launchPath = '/bin/bash'
+  // settle 1s so the new display geometry is final, then redraw + log.
+  t.arguments = ['-lc',
+    'echo "$(date +%FT%T): screen change -> sketchybar --reload" >> ' + LOG +
+    '; sleep 1; ' + SB + ' --reload >> ' + LOG + ' 2>&1']
+  t.launch
+}
+
+const app = $.NSApplication.sharedApplication
+$.NSNotificationCenter.defaultCenter.addObserverForNameObjectQueueUsingBlock(
+  'NSApplicationDidChangeScreenParametersNotification', $(), $(),
+  function (_notif) { reload() }
+)
+app.run
