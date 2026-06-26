@@ -1,37 +1,48 @@
 #!/usr/bin/osascript -l JavaScript
 // bin/sketchybar-display-listener
-// Resident, event-driven listener for screen reconfiguration. sketchybar
-// survives a resolution change / monitor connect-disconnect as a live,
-// query-responsive process but stops DRAWING ("render-freeze") and only
-// redraws after a delay — confirmed 2026-06-26: PID + `--query bar` stayed
-// healthy the whole time the bar was visually gone. A pgrep/query watchdog
-// cannot see that, so this fires an immediate `sketchybar --reload` on every
-// NSApplicationDidChangeScreenParametersNotification (resolution, connect,
-// disconnect, arrangement). Event-driven = no polling, no exec churn.
-//
-// launchd keeps it resident (KeepAlive) via com.greg.sketchybar-display.plist.
+// Resident, event-driven listener that forces `sketchybar --reload` when the
+// bar is prone to a "render-freeze": it survives as a live, query-responsive
+// process but stops DRAWING. Confirmed 2026-06-26: PID + `--query bar` stayed
+// healthy the whole time the bar was visually gone, so a pgrep/query watchdog
+// cannot see it. Two triggers:
+//   - NSApplicationDidChangeScreenParametersNotification — resolution change,
+//     monitor connect/disconnect/arrangement.
+//   - NSWorkspaceDidWakeNotification — wake from sleep, where the bar often
+//     comes back blank and never self-recovers.
+// Event-driven = no polling, no exec churn. launchd keeps it resident
+// (KeepAlive) via com.greg.sketchybar-display.plist.
 ObjC.import('Cocoa')
 
 const SB = '/opt/homebrew/bin/sketchybar'
 const LOG = '/tmp/com.greg.sketchybar-display.log'
 let lastFire = 0
 
-function reload() {
+// reason: short label for the log. settle: seconds to wait before reloading,
+// so the display geometry is final (wake needs longer than a resolution flip).
+function reload(reason, settle) {
   const now = $.NSDate.date.timeIntervalSince1970
   if (now - lastFire < 2.0) return   // debounce the burst of notifications
   lastFire = now
   const t = $.NSTask.alloc.init
   t.launchPath = '/bin/bash'
-  // settle 1s so the new display geometry is final, then redraw + log.
   t.arguments = ['-lc',
-    'echo "$(date +%FT%T): screen change -> sketchybar --reload" >> ' + LOG +
-    '; sleep 1; ' + SB + ' --reload >> ' + LOG + ' 2>&1']
+    'echo "$(date +%FT%T): ' + reason + ' -> sketchybar --reload" >> ' + LOG +
+    '; sleep ' + settle + '; ' + SB + ' --reload >> ' + LOG + ' 2>&1']
   t.launch
 }
 
 const app = $.NSApplication.sharedApplication
+
+// Screen reconfiguration — posted on the default notification center.
 $.NSNotificationCenter.defaultCenter.addObserverForNameObjectQueueUsingBlock(
   'NSApplicationDidChangeScreenParametersNotification', $(), $(),
-  function (_notif) { reload() }
+  function (_notif) { reload('screen change', '1') }
 )
+
+// Wake from sleep — posted on the WORKSPACE notification center (not default).
+$.NSWorkspace.sharedWorkspace.notificationCenter.addObserverForNameObjectQueueUsingBlock(
+  'NSWorkspaceDidWakeNotification', $(), $(),
+  function (_notif) { reload('wake from sleep', '3') }
+)
+
 app.run
