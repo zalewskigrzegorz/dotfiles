@@ -1036,14 +1036,7 @@ def "work _build-layout" [
     bazgroly: path   # Working dir for nvim window
 ]: nothing -> nothing {
     let term = $"\u{f120}  nu"
-    let git  = $"\u{e725}  git"
     let cc   = $"\u{f06a9}  claude"
-    let hunk = $"\u{f440}  hunk"
-    let edit = $"\u{e62b}  nvim"
-
-    if not ($bazgroly | path exists) {
-        mkdir $bazgroly
-    }
 
     # Window 1: rename first window of $session to terminal, lock auto-rename off.
     ^tmux set-window-option -t $"($session):1" automatic-rename off
@@ -1051,11 +1044,14 @@ def "work _build-layout" [
 
     let existing = (^tmux list-windows -t $session -F "#{window_name}" | lines)
 
+    # Only the claude window is auto-spawned. The git (lazygit), hunk
+    # (`hunk diff --watch`) and nvim/bazgroly windows used to run in the
+    # background of every session; with several sessions open the lazygit/hunk
+    # git-status polling pegged git CPU and flooded the Kandji ESF extension.
+    # Launch on demand instead: `changes` (one-shot hunk diff), `lazygit`, or
+    # `baz` (nvim in this repo's bazgroly dir).
     for spec in [
-        { name: $git,  cwd: $cwd,      cmd: ["lazygit"] }
         { name: $cc,   cwd: $cwd,      cmd: ["claude"] }
-        { name: $hunk, cwd: $cwd,      cmd: ["hunk" "diff" "--watch"] }
-        { name: $edit, cwd: $bazgroly, cmd: ["nvim" $bazgroly] }
     ] {
         if not ($spec.name in $existing) {
             let wid = (^tmux new-window -d -t $session -P -F "#{window_id}" -n $spec.name -c $spec.cwd ...$spec.cmd | str trim)
@@ -1088,6 +1084,13 @@ def work [
     # BUG FIX from audit: use parent repo name even when in worktree.
     let bazgroly = (work bazgroly-path)
     work _build-layout $session $env.PWD $bazgroly
+}
+
+# Open nvim in this repo's bazgroly dir (AI artifacts / notes) on demand.
+def baz []: nothing -> nothing {
+    let dir = (work bazgroly-path)
+    if not ($dir | path exists) { mkdir $dir }
+    ^nvim $dir
 }
 
 # Helper: gather metadata for all worktrees in the pool.

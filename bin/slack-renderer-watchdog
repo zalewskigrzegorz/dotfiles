@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# bin/slack-renderer-watchdog
+# Restarts Slack.app when its "Slack Helper (Renderer)" process hangs and pegs
+# the CPU. Observed 2026-06-26: a single renderer climbing to 130-185% and
+# staying there, which also drags WindowServer + the Kandji ESF extension up.
+# launchd runs this every 60s (dot_config/launchd/com.greg.slack-watch.plist.tmpl).
+#
+# Logic: requires THRESHOLD% sustained across CONSECUTIVE checks before acting,
+# so a momentary spike (loading a huge thread, joining a huddle) never triggers
+# a restart. COOLDOWN after each restart prevents a restart loop.
+set -euo pipefail
+
+THRESHOLD=120        # %CPU on a single renderer process (>1 core pegged)
+CONSECUTIVE=3        # consecutive over-threshold checks (~3 min at 60s interval)
+COOLDOWN=900         # seconds to wait after a restart before acting again
+
+STATE_DIR="${TMPDIR:-/tmp}/slack-watch"
+mkdir -p "$STATE_DIR"
+COUNT_FILE="$STATE_DIR/count"
+LAST_RESTART_FILE="$STATE_DIR/last_restart"
+
+now=$(date +%s)
+
+# Cooldown guard — never restart twice within COOLDOWN.
+if [[ -f "$LAST_RESTART_FILE" ]]; then
+  last=$(cat "$LAST_RESTART_FILE" 2>/dev/null || echo 0)
+  if (( now - last < COOLDOWN )); then
+    exit 0
+  fi
+fi
+
+# Highest-CPU Slack renderer helper right now (there can be several).
+cpu=$(ps -Ao %cpu,command | grep -F "Slack Helper (Renderer)" | grep -v grep \
+  | awk '{print int($1)}' | sort -rn | head -1)
+cpu=${cpu:-0}
+
+if (( cpu >= THRESHOLD )); then
+  count=$(( $(cat "$COUNT_FILE" 2>/dev/null || echo 0) + 1 ))
+  echo "$count" > "$COUNT_FILE"
+  echo "$(date +%FT%T): renderer at ${cpu}% (${count}/${CONSECUTIVE})"
+  if (( count >= CONSECUTIVE )); then
+    echo "$(date +%FT%T): restarting Slack (renderer hung at ${cpu}%)"
+    osascript -e 'quit app "Slack"' 2>/dev/null || true
+    sleep 3
+    pkill -x Slack 2>/dev/null || true   # force if the graceful quit was ignored
+    sleep 1
+    open -a Slack
+    echo "$now" > "$LAST_RESTART_FILE"
+    echo "0" > "$COUNT_FILE"
+    if command -v alerter >/dev/null 2>&1; then
+      alerter -message "Slack renderer wisiał (${cpu}%) — zrestartowane" \
+              -title "slack-watch" -timeout 5 >/dev/null 2>&1 || true
+    fi
+  fi
+else
+  echo "0" > "$COUNT_FILE"
+fi

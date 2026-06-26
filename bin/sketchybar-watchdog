@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# bin/sketchybar-watchdog
+# Restarts sketchybar when it DIES or HANGS (frozen but alive). Both happen on
+# display reconfiguration — resolution change, monitor connect/disconnect — and
+# occasionally at random. Detection is consequence-based (dead OR unresponsive),
+# so it catches the failure regardless of what triggered it. launchd runs this
+# every 15s (dot_config/launchd/com.greg.sketchybar-watch.plist.tmpl).
+#
+# Liveness probe: `sketchybar --query bar` is a cheap mach round-trip (~0.08s)
+# when healthy, so a 3s timeout only trips on a genuine freeze. Requires
+# CONSECUTIVE failures before acting (no flap on a transient), and a COOLDOWN so
+# a slow display transition can't trigger a restart loop. The restart itself is
+# delegated to bin/sketchybar-restart (also relaunches the watcher).
+set -uo pipefail
+
+CONSECUTIVE=2        # consecutive failed probes before restart (~30s hung)
+COOLDOWN=60          # seconds to wait after a restart before acting again
+SB=/opt/homebrew/bin/sketchybar
+
+STATE_DIR="${TMPDIR:-/tmp}/sketchybar-watch"
+mkdir -p "$STATE_DIR"
+FAIL_FILE="$STATE_DIR/fails"
+LAST_RESTART_FILE="$STATE_DIR/last_restart"
+
+now=$(date +%s)
+
+restart() {
+  echo "$(date +%FT%T): $1 — restarting sketchybar"
+  "$HOME/Code/dotfiles/bin/sketchybar-restart" >> /tmp/com.greg.sketchybar-watch.log 2>&1 || true
+  echo "$now" > "$LAST_RESTART_FILE"
+  echo 0 > "$FAIL_FILE"
+}
+
+# Cooldown guard — let a previous restart (and any display transition) settle.
+if [[ -f "$LAST_RESTART_FILE" ]]; then
+  last=$(cat "$LAST_RESTART_FILE" 2>/dev/null || echo 0)
+  if (( now - last < COOLDOWN )); then
+    exit 0
+  fi
+fi
+
+# Dead — restart immediately, no consecutive-count needed.
+if ! pgrep -x sketchybar >/dev/null 2>&1; then
+  restart "sketchybar not running"
+  exit 0
+fi
+
+# Alive — probe responsiveness.
+if timeout 3 "$SB" --query bar >/dev/null 2>&1; then
+  echo 0 > "$FAIL_FILE"
+else
+  fails=$(( $(cat "$FAIL_FILE" 2>/dev/null || echo 0) + 1 ))
+  echo "$fails" > "$FAIL_FILE"
+  echo "$(date +%FT%T): query failed/hung (${fails}/${CONSECUTIVE})"
+  if (( fails >= CONSECUTIVE )); then
+    restart "sketchybar hung (${fails} consecutive probe failures)"
+  fi
+fi
