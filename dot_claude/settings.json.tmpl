@@ -479,6 +479,29 @@
         ]
       }
     ]
+    {{- else }},
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/bazgroly.sh push-on-start",
+            "timeout": 30000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/bazgroly.sh push-on-stop",
+            "timeout": 30000
+          }
+        ]
+      }
+    ]
     {{- end }}
   },
   "statusLine": {
