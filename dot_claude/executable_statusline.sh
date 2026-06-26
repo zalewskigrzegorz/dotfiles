@@ -69,19 +69,31 @@ SEP=" ${SEPC}▌${N} "
 
 now_ts=$(date +%s)
 
-# --- ccusage cache (30s) — session block auto-detect ---
+# --- ccusage cache (60s, single-flight) — session block auto-detect ---
+# ccusage is a ~50%-CPU node spawn. With several concurrent Claude sessions all
+# rendering this statusline, an unlocked cache lets them ALL refresh at once when
+# it expires (thundering herd → N× ccusage). A mkdir lock makes exactly one
+# session refresh per window; the rest read the cache. Stale lock is reaped.
 cache_dir="${TMPDIR:-/tmp}/claude-statusline-$UID"
 mkdir -p "$cache_dir" 2>/dev/null
 cache_file="$cache_dir/ccusage.json"
+lock_dir="$cache_dir/ccusage.lock"
 if [ -f "$cache_file" ]; then
   mtime=$(stat -f %m "$cache_file" 2>/dev/null || stat -c %Y "$cache_file" 2>/dev/null || echo 0)
   age=$(( now_ts - mtime ))
 else
   age=9999
 fi
-if [ "$age" -gt 30 ] && command -v ccusage >/dev/null 2>&1; then
+# Reap a stale lock left by a session that died mid-refresh.
+if [ -d "$lock_dir" ]; then
+  lmtime=$(stat -f %m "$lock_dir" 2>/dev/null || stat -c %Y "$lock_dir" 2>/dev/null || echo 0)
+  [ $(( now_ts - lmtime )) -gt 60 ] && rmdir "$lock_dir" 2>/dev/null
+fi
+if [ "$age" -gt 60 ] && command -v ccusage >/dev/null 2>&1 && mkdir "$lock_dir" 2>/dev/null; then
+  touch "$cache_file" 2>/dev/null   # claim the window so peers stop seeing stale
   ccusage blocks --json --active --offline 2>/dev/null | jq '.blocks[0] // null' > "$cache_file.tmp" 2>/dev/null \
     && mv "$cache_file.tmp" "$cache_file"
+  rmdir "$lock_dir" 2>/dev/null
 fi
 
 
