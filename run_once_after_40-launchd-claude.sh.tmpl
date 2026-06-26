@@ -12,13 +12,17 @@
 #   - com.greg.sketchybar-watch (every 15s; restarts sketchybar when it dies or
 #                          hangs — happens on display reconfig / resolution
 #                          change — see bin/sketchybar-watchdog)
+#   - com.greg.sketchybar-display (resident KeepAlive; listens for screen-param
+#                          changes and forces `sketchybar --reload` to fix the
+#                          render-freeze where the bar survives but stops drawing
+#                          — see bin/sketchybar-display-listener)
 # Legacy labels (claude-watcher / claude-idle-timer) are explicitly torn down
 # below — they fed the now-removed sketchybar claude_sessions widget.
 # `run_once_*` per chezmoi semantics — re-runs only when this script's content
 # changes. To force a re-bootstrap (e.g. after editing the plists), bump the
 # version stamp in the comment below.
 #
-# Version: 2026-06-26.2
+# Version: 2026-06-26.3
 set -eu
 
 SRC_DIR="${HOME}/.config/launchd"
@@ -31,7 +35,7 @@ for legacy in com.greg.claude-watcher com.greg.claude-idle-timer; do
   rm -f "${DST_DIR}/${legacy}.plist"
 done
 
-for label in com.greg.aerospace-watchdog com.greg.temp-watch com.greg.slack-watch com.greg.sketchybar-watch; do
+for label in com.greg.aerospace-watchdog com.greg.temp-watch com.greg.slack-watch com.greg.sketchybar-watch com.greg.sketchybar-display; do
   src="${SRC_DIR}/${label}.plist"
   dst="${DST_DIR}/${label}.plist"
   if [[ ! -f "$src" ]]; then
