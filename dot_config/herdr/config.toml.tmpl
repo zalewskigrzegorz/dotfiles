@@ -111,6 +111,23 @@ type = "shell"
 command = "{{ if eq .chezmoi.os "darwin" }}/opt/homebrew/bin/herdr{{ else }}/home/linuxbrew/.linuxbrew/bin/herdr{{ end }} plugin pane open --plugin greg.herdr-pick --entrypoint file-picker --focus"
 description = "Pick a file from any pane's scrollback → nvim (new tab)"
 
+# picker-plus: unified fuzzy picker (workspaces / SSH hosts / zoxide / agent panes /
+# roots / quick actions). One key — the Dygma-button candidate. (thanhdat77, Rust TUI.)
+[[keys.command]]
+key = "prefix+t"
+type = "plugin_action"
+command = "herdr-picker-plus.open"
+description = "Picker Plus: workspaces / servers / agents / zoxide / roots"
+
+# tokscale: token-usage + cost dashboard pane (wraps the tokscale TUI). prefix+t is taken
+# by picker-plus; prefix+y reads as yank, so tokscale gets prefix+m (money/meter).
+# (astkaasa; needs tokscale via TOKSCALE_CMD.)
+[[keys.command]]
+key = "prefix+m"
+type = "plugin_action"
+command = "tokscale.dashboard.open"
+description = "Tokscale token-usage dashboard"
+
 # vim-herdr-navigation NOT bound: ctrl+hjkl is AeroSpace window-focus, and alt is
 # reserved for Polish diacritics (option+l=ł), so there's no clean no-prefix chord.
 # Use herdr's native prefix+h/j/k/l for pane focus instead.
