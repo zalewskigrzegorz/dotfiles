@@ -22,7 +22,6 @@ command -v herdr >/dev/null 2>&1 || { echo "herdr-plugins sync: herdr not on PAT
 herdr status >/dev/null 2>&1 || { echo "herdr-plugins sync: no running herdr server — launch herdr, then \`chezmoi apply\` to install."; exit 0; }
 
 PLUGINS=(
-  paulbkim-dev/vim-herdr-navigation   # Ctrl+hjkl pane<->nvim navigation
   rmarganti/herdr-pluck               # pick a visible token (URL/path/SHA) -> clipboard (prefix+u)
   persiyanov/herdr-reviewr            # code-review sidebar: diff + inline comments -> agent (prefix+shift+v)
   zom-2018/herdr-ntfy-notify          # ntfy push when an agent goes blocked/done (needs an ntfy server)

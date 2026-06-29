@@ -86,28 +86,6 @@ type = "plugin_action"
 command = "persiyanov.reviewr.toggle"
 description = "Toggle reviewr code-review sidebar"
 
-# vim-herdr-navigation: ctrl+hjkl move across herdr panes AND nvim splits seamlessly
-# (the nvim half needs vim-tmux-navigator installed in nvim).
-[[keys.command]]
-key = "ctrl+h"
-type = "plugin_action"
-command = "vim-herdr-navigation.left"
-description = "Navigate left (pane/nvim)"
-
-[[keys.command]]
-key = "ctrl+j"
-type = "plugin_action"
-command = "vim-herdr-navigation.down"
-description = "Navigate down (pane/nvim)"
-
-[[keys.command]]
-key = "ctrl+k"
-type = "plugin_action"
-command = "vim-herdr-navigation.up"
-description = "Navigate up (pane/nvim)"
-
-[[keys.command]]
-key = "ctrl+l"
-type = "plugin_action"
-command = "vim-herdr-navigation.right"
-description = "Navigate right (pane/nvim)"
+# vim-herdr-navigation NOT bound: ctrl+hjkl is AeroSpace window-focus, and alt is
+# reserved for Polish diacritics (option+l=ł), so there's no clean no-prefix chord.
+# Use herdr's native prefix+h/j/k/l for pane focus instead.
