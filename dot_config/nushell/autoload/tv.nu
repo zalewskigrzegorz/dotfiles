@@ -19,18 +19,6 @@ def tv_smart_autocomplete [] {
     }
 }
 
-def tv_shell_history [] {
-    let line = (commandline)
-    let cursor = (commandline get-cursor)
-    let lhs = ($line | str substring 0..$cursor)
-    let output = (^tv nu-history --inline --input $lhs | str trim)
-
-    if ($output | is-not-empty) {
-        commandline edit --replace $output
-        commandline set-cursor --end
-    }
-}
-
 # Pastes the selected tool into the prompt buffer (no execution). User hits Enter themselves.
 def tv_tools_pick [] {
     let output = (^tv tools | str trim)
