@@ -24,6 +24,9 @@ herdr status >/dev/null 2>&1 || { echo "herdr-plugins sync: no running herdr ser
 PLUGINS=(
   persiyanov/herdr-reviewr            # code-review sidebar: diff + inline comments -> agent (prefix+r)
   zom-2018/herdr-ntfy-notify          # ntfy push when an agent goes blocked/done (needs an ntfy server)
+  thanhdat77/herdr-picker-plus        # unified fuzzy picker: workspaces/ssh/zoxide/agents (prefix+t) — Rust build
+  rjyo/herdr-window-title-sync        # sets OS window title (Ghostty/Moshi) from agent/prompt — needs bun, event-driven
+  astkaasa/herdr-tokscale-dashboard   # token-usage + cost dashboard (prefix+m) — needs tokscale via TOKSCALE_CMD
 )
 
 installed="$(herdr plugin list 2>/dev/null || true)"
@@ -49,3 +52,13 @@ for id in "${!LOCAL_PLUGINS[@]}"; do
     herdr plugin link "${LOCAL_PLUGINS[$id]}" || echo "  ⚠️  failed to link: $id"
   fi
 done
+
+# Per-plugin config that must exist for the plugin to work. tokscale needs a
+# tokscale binary; we don't install one, so point it at `bunx tokscale@latest`
+# (bun is in the Brewfile). Written once; left alone if already present.
+tk_cfg_dir="$(herdr plugin config-dir tokscale.dashboard 2>/dev/null || true)"
+if [[ -n "$tk_cfg_dir" && ! -f "$tk_cfg_dir/config.env" ]]; then
+  mkdir -p "$tk_cfg_dir"
+  printf 'TOKSCALE_CMD="bunx tokscale@latest"\n' > "$tk_cfg_dir/config.env"
+  echo "herdr-plugins: wrote tokscale config.env (TOKSCALE_CMD=bunx)."
+fi
