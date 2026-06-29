@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Focus the herdr agent that most needs attention — first blocked, else done
+# (finished, unseen), else working — skipping the pane you're already on.
+# Bound to a herdr keybind so one key jumps you to "the agent that's waiting".
+# No-op if nothing needs attention.
+export PATH="/opt/homebrew/bin:$PATH"
+HERDR="${HERDR_BIN:-/opt/homebrew/bin/herdr}"
+command -v "$HERDR" >/dev/null 2>&1 || HERDR=herdr
+
+target=$("$HERDR" agent list 2>/dev/null | python3 -c '
+import json, sys
+try:
+    agents = json.load(sys.stdin)["result"]["agents"]
+except Exception:
+    sys.exit(0)
+rank = {"blocked": 0, "done": 1, "working": 2}
+cands = [a for a in agents
+         if not a.get("focused") and a.get("agent_status") in rank and a.get("pane_id")]
+cands.sort(key=lambda a: rank[a["agent_status"]])
+if cands:
+    print(cands[0]["pane_id"])
+')
+
+[ -n "$target" ] && "$HERDR" agent focus "$target" >/dev/null 2>&1

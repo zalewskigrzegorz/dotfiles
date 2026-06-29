@@ -100,27 +100,6 @@ quit-after-last-window-closed = true
 # Quake terminal
 keybind = global:cmd+f2=toggle_quick_terminal
 
-# Free cmd+1..9 (default = goto tab) for herdr — no Ghostty tabs used; herdr binds
-# cmd+1..9 = jump to agent N (see dot_config/herdr/config.toml [keys.indexed]).
-keybind = super+1=unbind
-keybind = super+2=unbind
-keybind = super+3=unbind
-keybind = super+4=unbind
-keybind = super+5=unbind
-keybind = super+6=unbind
-keybind = super+7=unbind
-keybind = super+8=unbind
-keybind = super+9=unbind
-keybind = super+digit_1=unbind
-keybind = super+digit_2=unbind
-keybind = super+digit_3=unbind
-keybind = super+digit_4=unbind
-keybind = super+digit_5=unbind
-keybind = super+digit_6=unbind
-keybind = super+digit_7=unbind
-keybind = super+digit_8=unbind
-keybind = super+digit_9=unbind
-
 # Enable macos notifications
 desktop-notifications = true
 
