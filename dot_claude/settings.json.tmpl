@@ -399,17 +399,6 @@
         ]
       }
     ],
-    "Notification": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/notification/notify-waiting.sh",
-            "timeout": 5000
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "hooks": [
@@ -453,28 +442,6 @@
           {
             "type": "command",
             "command": "mempalace hook run --hook precompact --harness claude-code"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/user-prompt-submit/mark-running.sh",
-            "timeout": 5000
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/session-end/clear-agent.sh",
-            "timeout": 5000
           }
         ]
       }
