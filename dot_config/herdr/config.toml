@@ -1,0 +1,58 @@
+# herdr configuration — managed by chezmoi (source: dot_config/herdr/config.toml)
+# tmux+sesh replacement. Plan: bazgroly/dotfiles/plans/2026-06-28-herdr-migration-mac.md
+# Backup of the old tmux setup: git tag `pre-herdr` / branch `pre-herdr-backup`.
+
+# Onboarding wizard already done.
+onboarding = false
+
+[terminal]
+# Mac path. NOTE: when herdr lands on the lab (later phase) this needs a
+# templated per-OS path (.tmpl) — Debian nu is not at /opt/homebrew.
+default_shell = "/opt/homebrew/bin/nu"
+shell_mode = "auto"
+new_cwd = "follow"
+
+[theme]
+name = "catppuccin"
+
+# Mocha Neon overrides on top of catppuccin (see dot_config/mocha-neon/palette.lua).
+# Token set is fixed: panel_bg, accent, blue, green, red, yellow (no cyan token).
+[theme.custom]
+panel_bg = "#1E1E2E"
+accent   = "#B347FF"
+blue     = "#8BE9FD"
+green    = "#A6E3A1"
+red      = "#FF6B9D"
+yellow   = "#FFD700"
+
+[worktrees]
+directory = "~/.herdr/worktrees"
+
+[ui]
+# The whole reason for the switch: attention-queue ordering (blocked first).
+agent_panel_sort = "priority"
+accent = "#B347FF"
+# Show detected agent labels on pane borders when no manual name is set.
+show_agent_labels_on_pane_borders = true
+
+[ui.toast]
+# macOS desktop notification when a background agent changes state.
+delivery = "system"
+delay_seconds = 1
+
+[ui.sound]
+enabled = true
+
+[ui.sound.agents]
+claude = "on"
+droid  = "off"
+
+[session]
+# "continuum for agents" — re-attach Claude conversations after a server restart.
+resume_agents_on_restore = true
+
+[keys]
+# Prefix = ctrl+space — a space combo (not bare space, which would eat every space you type).
+prefix = "ctrl+space"
+# Jump straight to agent N in the sidebar.
+focus_agent = "prefix+alt+1..9"
