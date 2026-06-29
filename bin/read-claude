@@ -28,8 +28,18 @@ if not DRY and subprocess.run(["pgrep", "-x", "afplay"], capture_output=True).re
 def claude_last():
     """Last assistant text from the FOCUSED tmux pane's project session."""
     files = []
-    cwd = subprocess.run(["tmux", "display-message", "-p", "#{pane_current_path}"],
-                         capture_output=True, text=True).stdout.strip()
+    cwd = ""
+    try:
+        out = subprocess.run(["herdr", "pane", "list"], capture_output=True, text=True).stdout
+        panes = json.loads(out)["result"]["panes"]
+        focused = next((p for p in panes if p.get("focused")), None)
+        if focused:
+            cwd = (focused.get("foreground_cwd") or focused.get("cwd") or "").strip()
+    except Exception:
+        cwd = ""
+    if not cwd:  # fallback: backup tmux session
+        cwd = subprocess.run(["tmux", "display-message", "-p", "#{pane_current_path}"],
+                             capture_output=True, text=True).stdout.strip()
     if cwd:
         files = glob.glob(os.path.expanduser("~/.claude/projects/" + cwd.replace("/", "-") + "/*.jsonl"))
     if not files:

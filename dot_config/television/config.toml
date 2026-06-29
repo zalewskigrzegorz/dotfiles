@@ -261,7 +261,6 @@ fallback_channel = "files"
 "work-branches" = ["work new"]
 "docker-images" = ["docker run"]
 "git-repos" = ["nvim", "code", "hx", "git clone"]
-"tmux" = ["tmux attach", "ta"]
 "pnpm" = ["pnpm", "p"]
 "nx" = ["pnpm nx"]
 "playwright-tests" = ["pwt", "pnpm exec playwright test", "pnpm playwright test"]
