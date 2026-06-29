@@ -6,9 +6,8 @@
 onboarding = false
 
 [terminal]
-# Mac path. NOTE: when herdr lands on the lab (later phase) this needs a
-# templated per-OS path (.tmpl) — Debian nu is not at /opt/homebrew.
-default_shell = "/opt/homebrew/bin/nu"
+# Per-OS: Mac uses the homebrew nu path; Linux (lab) resolves nu on PATH at pane spawn.
+default_shell = "{{ if eq .chezmoi.os "darwin" }}/opt/homebrew/bin/nu{{ else }}nu{{ end }}"
 shell_mode = "auto"
 new_cwd = "follow"
 

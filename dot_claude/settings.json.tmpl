@@ -398,15 +398,6 @@
             "timeout": 300
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/tmux-session/tmux-window.sh",
-            "timeout": 5000
-          }
-        ]
       }
     ],
     "Stop": [
@@ -423,15 +414,6 @@
           {
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/stop/stop.sh",
-            "timeout": 5000
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/tmux-session/tmux-window.sh",
             "timeout": 5000
           }
         ]
