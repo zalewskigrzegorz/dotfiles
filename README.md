@@ -62,7 +62,9 @@ If no 1Password account is configured, run `op account add` once. On a headless 
 
 Until `op` is on `PATH` and authenticated, `sync` will apply public dotfiles and skip only the private restore.
 
-### tmux: window icons / names missing
+### tmux: window icons / names missing (backup-only — pre-herdr tmux)
+
+> The Mac multiplexer is now **herdr** (`hd`); tmux is kept only as a cold backup. This applies if you revert to tmux (`git checkout pre-herdr`) or are on the lab, where tmux is still active.
 
 Tab labels with icons come from TPM plugin `tmux-nerd-font-window-name` plus `~/.config/tmux/tmux-nerd-font-window-name.yml`. After a fresh machine or chezmoi migration:
 
