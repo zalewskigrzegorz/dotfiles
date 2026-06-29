@@ -54,22 +54,25 @@ resume_agents_on_restore = true
 [keys]
 # Prefix = ctrl+space — a space combo (not bare space, which would eat every space you type).
 prefix = "ctrl+space"
-# Jump straight to agent N in the sidebar.
-focus_agent = "prefix+alt+1..9"
-# Cycle the agent sidebar (priority-sorted: blocked first) — the core nav.
+# Cycle the agent sidebar (priority-sorted: blocked first) — the core nav. ✅ works.
 next_agent = "prefix+a"
 previous_agent = "prefix+shift+a"
-# Jump to workspace N (worktrees are workspaces).
-switch_workspace = "prefix+shift+1..9"
-# Open an existing worktree via herdr's native picker (work switch also does this).
+# Open an existing worktree via herdr's native picker (work switch also does this). ✅
 open_worktree = "prefix+shift+o"
 # Toggle to the last pane.
 last_pane = "prefix+backtick"
-# Cycle workspaces.
+# Cycle workspaces. period = next ✅; comma = prev.
 previous_workspace = "prefix+comma"
 next_workspace = "prefix+period"
-# Native remove-worktree (deliberate combo; `work rm` is the scripted path with confirmation).
-remove_worktree = "prefix+shift+backspace"
+# Native remove-worktree (d = delete; `work rm` is the scripted path with confirmation).
+remove_worktree = "prefix+d"
+
+# Indexed jumps by number. ctrl+digit = AeroSpace workspaces, alt = dead (Polish),
+# so we use cmd (freed from Ghostty's goto-tab binds — see dot_config/ghostty/config).
+# prefix+1..9 stays = switch tab ("okna").
+[keys.indexed]
+agents = "cmd"           # cmd+1..9 → jump to agent N
+workspaces = "cmd+shift" # cmd+shift+1..9 → jump to workspace N
 
 # Plugin keybinds (installed via run_onchange_after_34-herdr-plugins-sync).
 # pluck: pick a visible URL/path/SHA from the pane → clipboard (old tmux `prefix u`).
