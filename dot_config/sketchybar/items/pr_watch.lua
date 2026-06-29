@@ -3,7 +3,7 @@ local settings = require("settings")
 
 -- Actionable-PR chip:  <fix N>  <merge N>  <new-comment N>. Hidden when no PR of
 -- mine needs action. PUSH-driven by bin/pr-watch (launchd, every 3 min) — no
--- timer here, same as claude_agents. border_color is set per-poll by pr-watch
+-- timer here. border_color is set per-poll by pr-watch
 -- (red=needs fix, gold=new comment, green=ready to merge).
 -- Click (bin/pr-watch-open, action-aware on the most-urgent PR):
 --   MERGE → open PR in browser;  fix CI / changes req → worktree + auto-claude
