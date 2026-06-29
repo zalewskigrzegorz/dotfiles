@@ -1,20 +1,20 @@
-# work.nu — git worktree workflow integration with sesh + tv + tmux.
+# work.nu — git worktree workflow on herdr (replaces the tmux+sesh version).
 #
-# Subcommands (added in later phases):
-#   work                 — 4-window layout in current tmux session
-#   work new <name>      — create worktree + session + layout
-#   work pr [number]     — open GitHub PR in worktree (gh pr checkout)
-#   work ls              — picker over all worktrees
-#   work rm [branch]     — cleanup worktree + branch + session
-#   work prune           — batch cleanup merged worktrees
-#   work help            — cheatsheet
+# Each worktree = one herdr workspace (grouped under the source repo, native
+# `prefix+shift+g`). This CLI wraps `herdr worktree …` so the same flow works
+# from the prompt and keeps Greg's path scheme + commitlint branch naming.
 #
-# Commands return nu data — pipe `| to json` for scripting.
-# Source of truth spec: ~/Code/personal/bazgroly/dotfiles/specs/2026-05-26-work-worktree-design.md
+#   work new <name>   — create worktree + herdr workspace, focus it
+#   work ls           — list worktrees of the current repo (nu data)
+#   work switch (sw)   — picker over worktrees → focus that workspace
+#   work rm [branch]  — remove worktree + workspace + git branch
+#   work pr [number]  — open a GitHub PR in a worktree
+#   work prune        — batch-remove merged worktrees
+#   work help         — cheatsheet
+#
+# Old tmux version: `git -C ~/Code/dotfiles show pre-herdr:dot_config/nushell/autoload/work.nu`.
 
-# Emoji-prefix mapping for tmux session names.
-# Source: commitlint-conventional + REDACTED_ORG type-enum.
-# Used by `work normalize-session`.
+# Emoji-prefix mapping for worktree workspace labels (commitlint types).
 const WORK_PREFIX_EMOJI = {
     feat: "✨"
     fix: "🐛"
@@ -31,7 +31,6 @@ const WORK_PREFIX_EMOJI = {
     style: "💄"
 }
 
-# Reverse table — for `work help` display.
 const WORK_PREFIX_DESC = {
     feat: "new feature"
     fix: "bug fix"
@@ -47,48 +46,28 @@ const WORK_PREFIX_DESC = {
     style: "formatting/style"
 }
 
-# Normalize branch name to tmux-safe session suffix.
-# - "feat/billing-page"   -> "✨billing-page"
-# - "fix/auth-loop"       -> "🐛auth-loop"
-# - "wip/something"       -> "wip-something"  (unknown prefix → dash fallback)
-# - "experimental"        -> "experimental"   (no prefix)
-def "work normalize-session" [branch: string]: nothing -> string {
-    if not ($branch | str contains "/") {
-        return $branch
-    }
+# Normalize branch name to a short label suffix.
+#   "feat/billing-page" -> "✨billing-page"   "wip/x" -> "wip-x"   "experimental" -> "experimental"
+def "work normalize-label" [branch: string]: nothing -> string {
+    if not ($branch | str contains "/") { return $branch }
     let parts = ($branch | split row --number 2 "/")
-    let prefix = $parts.0
-    let suffix = $parts.1
-    let emoji = ($WORK_PREFIX_EMOJI | get --optional $prefix)
-    if ($emoji | is-not-empty) {
-        $"($emoji)($suffix)"
-    } else {
-        $"($prefix)-($suffix)"
-    }
+    let emoji = ($WORK_PREFIX_EMOJI | get --optional $parts.0)
+    if ($emoji | is-not-empty) { $"($emoji)($parts.1)" } else { $"($parts.0)-($parts.1)" }
 }
 
-# Wrap normalized name with 🌿 prefix and repo scope.
-# e.g. ("realm", "feat/billing-page") -> "🌿realm/✨billing-page"
-# Dots are replaced with "_" because tmux silently rewrites "." (and ":") in
-# session names — keeping them here would make `tmux has-session -t` never match
-# the real session and spawn duplicates (e.g. branch chore/bump-caddy-2.11.4).
-def "work session-name" [repo: string, branch: string]: nothing -> string {
-    let suffix = (work normalize-session $branch)
-    $"🌿($repo)/($suffix)" | str replace --all "." "_"
+# herdr workspace label for a worktree: "🌿realm/✨billing-page".
+def "work _label" [repo: string, branch: string]: nothing -> string {
+    $"🌿($repo)/(work normalize-label $branch)"
 }
 
-# Conventional commit defaults (fallback when `extends config-conventional`).
 const WORK_CONVENTIONAL_DEFAULTS = [
     "build" "chore" "ci" "docs" "feat" "fix"
     "perf" "refactor" "revert" "style" "test"
 ]
 
 # Load allowed commit type prefixes from a repo's commitlint config.
-# Returns empty list if no config found (= no enforcement).
-# Returns conventional defaults if config extends config-conventional without override.
-# Returns explicit type-enum list if found.
 def "work load-commitlint-types" [
-    repo_path?: path  # Default: current working directory
+    repo_path?: path
 ]: nothing -> list<string> {
     let repo_path = (if ($repo_path | is-empty) { $env.PWD | path expand } else { $repo_path })
     let candidates = [
@@ -97,27 +76,16 @@ def "work load-commitlint-types" [
         ($repo_path | path join "commitlint.config.mjs")
         ($repo_path | path join "package.json")
     ]
-    let config_file = (
-        $candidates
-        | where { |p| $p | path exists }
-        | first
-    )
-
-    if ($config_file | is-empty) {
-        return []
-    }
-
+    let config_file = ($candidates | where { |p| $p | path exists } | first)
+    if ($config_file | is-empty) { return [] }
     let content = (open --raw $config_file)
 
-    # package.json: parse as JSON, only look inside commitlint key (avoid false positives).
     if ($config_file | str ends-with "package.json") {
         let pkg = (try { open $config_file } catch { return [] })
         let cl = ($pkg | get -o "commitlint")
         if ($cl == null) { return [] }
         let type_enum = ($cl | get -o "rules" | default {} | get -o "type-enum")
-        if ($type_enum != null and ($type_enum | length) >= 3) {
-            return ($type_enum | get 2)  # [level, when, [types]] format
-        }
+        if ($type_enum != null and ($type_enum | length) >= 3) { return ($type_enum | get 2) }
         let extends_list = ($cl | get -o "extends" | default [])
         if ($extends_list | any { |e| $e | str contains "config-conventional" }) {
             return $WORK_CONVENTIONAL_DEFAULTS
@@ -125,56 +93,35 @@ def "work load-commitlint-types" [
         return []
     }
 
-    # .js/.cjs/.mjs: multi-line tolerant regex on full content.
-    # (?s) makes . match newlines so .*? spans multi-line arrays.
-    # Accepts both single and double quotes around type-enum key.
     let match = (
         $content
         | parse --regex `(?s)["']type-enum["']\s*:\s*\[\s*\d+\s*,\s*["'][^"']+["']\s*,\s*\[(.*?)\]`
     )
-
     if ($match | is-empty) {
-        if ($content | str contains "config-conventional") {
-            return $WORK_CONVENTIONAL_DEFAULTS
-        }
+        if ($content | str contains "config-conventional") { return $WORK_CONVENTIONAL_DEFAULTS }
         print $"⚠️  ($config_file) — type-enum niewykryty. Użyj --type aby wymusić prefix."
         return []
     }
-
-    # Extract quoted identifiers from the captured array body
-    $match.capture0.0
-    | parse --regex `["']([^"']+)["']`
-    | get capture0
+    $match.capture0.0 | parse --regex `["']([^"']+)["']` | get capture0
 }
 
-# Resolve repo info regardless of whether we're in parent or worktree.
-# Returns record with: name (basename of common dir parent), root (parent repo path),
-# default_branch, common_dir (.git path), is_worktree (bool), worktree_path (if worktree).
+# Resolve repo info from parent or worktree.
 def "work repo-info" []: nothing -> record {
     let toplevel = (do { ^git rev-parse --show-toplevel } | complete)
-    if $toplevel.exit_code != 0 {
-        error make { msg: "Not inside a git repository." }
-    }
+    if $toplevel.exit_code != 0 { error make { msg: "Not inside a git repository." } }
     let worktree_path = ($toplevel.stdout | str trim)
 
     let common_dir_r = (do { ^git rev-parse --path-format=absolute --git-common-dir } | complete)
-    if $common_dir_r.exit_code != 0 {
-        error make { msg: "Failed to resolve git common dir" }
-    }
+    if $common_dir_r.exit_code != 0 { error make { msg: "Failed to resolve git common dir" } }
     let common_dir_raw = ($common_dir_r.stdout | str trim)
-    # common_dir = "/Users/greg/Code/realm/.git"
-    # Strip trailing /.git to get parent repo root
     let parent_root = (
         if ($common_dir_raw | str ends-with "/.git") {
             $common_dir_raw | str substring 0..(($common_dir_raw | str length) - 6)
-        } else {
-            $common_dir_raw | path dirname
-        }
+        } else { $common_dir_raw | path dirname }
     )
     let name = ($parent_root | path basename)
 
     let git_dir_r = (do { ^git rev-parse --git-dir } | complete)
-    if $git_dir_r.exit_code != 0 { error make { msg: "Failed to resolve git-dir" } }
     let git_dir = ($git_dir_r.stdout | str trim)
     let is_worktree = ($git_dir != ".git" and $git_dir != $common_dir_raw)
 
@@ -182,9 +129,7 @@ def "work repo-info" []: nothing -> record {
     let default_branch = (
         if $head_ref.exit_code == 0 {
             $head_ref.stdout | str trim | str replace "refs/remotes/origin/" ""
-        } else {
-            "master"
-        }
+        } else { "master" }
     )
 
     {
@@ -197,293 +142,107 @@ def "work repo-info" []: nothing -> record {
     }
 }
 
-# Compute path for a worktree based on repo name + branch.
+# Worktree path: ~/Code/tree/wt-<repo>/<branch>.
 def "work worktree-path" [repo: string, branch: string]: nothing -> path {
     $env.HOME | path join "Code" "tree" $"wt-($repo)" $branch
 }
 
-# Compute bazgroly path for current repo (always uses parent repo name).
+# bazgroly dir for the current repo.
 def "work bazgroly-path" []: nothing -> path {
     let in_repo = ((do { ^git rev-parse --show-toplevel } | complete | get exit_code) == 0)
-    let name = (
-        if $in_repo {
-            (work repo-info | get name)
-        } else {
-            "scratch"
-        }
-    )
+    let name = (if $in_repo { (work repo-info | get name) } else { "scratch" })
     $env.HOME | path join "Code" "personal" "bazgroly" $name
 }
 
-# Verify all required CLI tools are available. Errors with install hint if missing.
+# Preflight: git always; gh/fzf only where used.
 def "work deps-preflight" []: nothing -> nothing {
-    let required = ["git" "tmux" "sesh" "tv" "jq" "flock"]
-    let optional = ["gtimeout" "fzf"]  # gtimeout = coreutils, fzf = fallback for tv
-
-    let missing = ($required | where { |c| (which $c | is-empty) })
-    if ($missing | is-not-empty) {
-        error make {
-            msg: $"Missing required dependencies: ($missing | str join ', '). Install: brew install ($missing | str join ' ')"
-        }
-    }
-
-    let missing_optional = ($optional | where { |c| (which $c | is-empty) })
-    if ($missing_optional | is-not-empty) {
-        print -e $"⚠️  Optional missing: ($missing_optional | str join ', '). Install via: brew install coreutils fzf"
-    }
+    if (which git | is-empty) { error make { msg: "git required." } }
+    if (which herdr | is-empty) { error make { msg: "herdr required: brew install herdr" } }
 }
 
-# Find tmux sessions matching 🌿* that don't have a corresponding worktree.
-# Useful for detecting sessions left behind after manual worktree removal.
-def "work stale-sessions" []: nothing -> list<string> {
-    let known = (work scan-worktrees | get session | where { |s| $s != "" })
-    let all_r = (do { ^tmux list-sessions -F "#{session_name}" } | complete)
-    if $all_r.exit_code != 0 { return [] }
-    $all_r.stdout
-    | lines
-    | where { |s| $s | str starts-with "🌿" }
-    | where { |s| not ($s in $known) }
+# Scan worktrees ON DISK (~/Code/tree/wt-*/), cross-repo — so worktrees made by
+# the old setup (or by hand) show up, not just ones herdr already opened.
+# Returns records: {repo, root, branch, path, status, head}.
+def "work _scan-worktrees" []: nothing -> list<record> {
+    let pool = ($env.HOME | path join "Code" "tree")
+    if not ($pool | path exists) { return [] }
+    glob $"($pool)/wt-*/**/.git" --depth 6
+    | par-each { |m|
+        let wt = ($m | path dirname)
+        let cd_r = (do { ^git -C $wt rev-parse --path-format=absolute --git-common-dir } | complete)
+        if $cd_r.exit_code != 0 { return null }
+        let cd = ($cd_r.stdout | str trim)
+        let root = (if ($cd | str ends-with "/.git") { $cd | str substring 0..(($cd | str length) - 6) } else { $cd | path dirname })
+        let br = (do { ^git -C $wt branch --show-current } | complete | get stdout | str trim)
+        let st = (do { ^git -C $wt status --porcelain } | complete | get stdout | str trim)
+        let hd = (do { ^git -C $wt rev-parse HEAD } | complete | get stdout | str trim)
+        {
+            repo: ($root | path basename)
+            root: $root
+            branch: (if ($br | is-empty) { "(detached)" } else { $br })
+            path: $wt
+            status: (if ($st | is-empty) { "clean" } else { "dirty" })
+            head: ($hd | str substring 0..6)
+        }
+    }
+    | where { |it| $it != null }
 }
 
-# Kill all stale 🌿* tmux sessions (those without a corresponding worktree).
-def "work clean-stale-sessions" []: nothing -> nothing {
-    let stale = (work stale-sessions)
-    if ($stale | is-empty) {
-        print -e "No stale 🌿 sessions."
-        return
-    }
-    for s in $stale {
-        print -e $"Killing stale session: ($s)"
-        ^tmux kill-session -t $s
-    }
+# herdr workspace_id for an open worktree path (empty if not open), via herdr.
+def "work _herdr-ws-for" [repo_root: path, wt_path: path]: nothing -> string {
+    let r = (do { ^herdr worktree list --cwd $repo_root --json } | complete)
+    if $r.exit_code != 0 { return "" }
+    let wts = (try { $r.stdout | from json | get -o result.worktrees | default [] } catch { [] })
+    let want = ($wt_path | path expand)
+    let m = ($wts | where { |w| ($w.path | path expand) == $want })
+    if ($m | is-empty) { "" } else { ($m | first | get -o open_workspace_id | default "") }
 }
 
-# Print cheatsheet for the work command family.
-# In a worktree, also shows base/branch/path of the current worktree.
-def "work help" [
-    command?: string  # Pokaż szczegóły konkretnej komendy (np `work help new`)
-]: nothing -> nothing {
-    if ($command | is-not-empty) {
-        work _help-cmd $command
-        return
-    }
-
-    print "📖 Work — worktree workflow"
-    print ""
-    print "WORKFLOW"
-    print "  praca:     work new <name>  →  commit / push  →  lazygit merge  →  work rm <name>"
-    print "  przełącz:  work switch  →  enter      (albo: s <nazwa>)"
-    print "  PR:        work pr <n>  →  praca  →  work rm"
-    print ""
-    print "KOMENDY  (szczegóły: `work help <komenda>`)"
-    print "  work               4-window layout (nu/git/claude/nvim)"
-    print "  work new           nowy worktree (picker / <name> / --from / --type)"
-    print "  work pr            otwórz PR w worktree (gh pr checkout; picker / <numer>)"
-    print "  work adopt         wciągnij osierocony worktree (TV picker / . / <path|branch>)"
-    print "  work ls            lista worktree (nu data; `| to json` dla JSON)"
-    print "  work switch (sw)   picker po worktree → przełącz sesję"
-    print "  work rm            usuń worktree + branch + sesję (atomowo)"
-    print "  work prune         batch cleanup merged-into-master"
-    print "  work stale-sessions / clean-stale-sessions   osierocone 🌿 sesje"
-    print "  work help <cmd>    szczegóły komendy (new/ls/switch/rm/prune/pr/model)"
-
-    # Jeśli jesteśmy w worktree — pokaż jego kontekst
-    let in_repo = (try { work repo-info | is-not-empty } catch { false })
-    if $in_repo {
-        let info = (work repo-info)
-        if $info.is_worktree {
-            let base = (do { ^git -C $info.worktree_path config --worktree work.base } | complete | get stdout | str trim)
-            let branch = (do { ^git -C $info.worktree_path config --worktree work.branch } | complete | get stdout | str trim)
-            print ""
-            print "🌿 JESTEŚ W WORKTREE:"
-            print $"  branch: ($branch)   base: ($base)"
-            print $"  path:   ($info.worktree_path)"
+# Auto-layout for a worktree workspace: ensure a "claude" tab running claude.
+# Matches the old tmux layout (only claude auto-spawned; git/nvim stay on-demand
+# via `lazygit` / `baz` to spare CPU). Idempotent — skips if a claude tab exists.
+def "work _apply-layout" [workspace_id: string, cwd: path]: nothing -> nothing {
+    if ($workspace_id | is-empty) { return }
+    let tabs = (try { (do { ^herdr tab list --workspace $workspace_id } | complete).stdout | from json | get -o result.tabs | default [] } catch { [] })
+    # Name the bare-numbered terminal tab with a nerd-font terminal icon (nf-fa-terminal).
+    for t in $tabs {
+        if (($t.label? | default "") =~ '^[0-9]+$') {
+            do { ^herdr tab rename $t.tab_id $"\u{f120}  nu" } | complete | ignore
         }
     }
+    # Ensure a claude tab (only one auto-spawned; git/nvim stay on-demand).
+    if ($tabs | any { |t| ($t.label? | default "" | str contains "claude") }) { return }
+    let r = (do { ^herdr tab create --workspace $workspace_id --cwd $cwd --label $"\u{f06a9}  claude" --no-focus } | complete)
+    let pane = (try { $r.stdout | from json | get -o result.root_pane.pane_id } catch { "" })
+    if ($pane | is-not-empty) { do { ^herdr pane run $pane "claude" } | complete | ignore }
 }
 
-# Per-command help details. Called by `work help <command>`.
-def "work _help-cmd" [command: string]: nothing -> nothing {
-    match $command {
-        "new" => {
-            print "work new — nowy worktree + tmux sesja + layout"
-            print ""
-            print "UŻYCIE"
-            print "  work new                     interaktywny picker po branchach (+ Create new...)"
-            print "  work new <name>              nowy branch <name> ze świeżego origin/master"
-            print "  work new <name> --from <r>   base ref = <r> zamiast origin/master"
-            print "  work new <name> --pick-from  picker po base ref"
-            print "  work new <name> --type <t>   wymuś prefix <t>/ (pomiń commitlint picker)"
-            print "  work new <name> --no-prefix  pomiń commitlint enforcement"
-            print ""
-            print "CO ROBI (po kolei)"
-            print "  1. git fetch origin <default>  — świeży base, ZAWSZE"
-            print "  2. git worktree add -b <name> ~/Code/tree/wt-<repo>/<name> origin/<default>"
-            print "  3. zapisuje base/session/branch w git config --worktree"
-            print "  4. tmux sesja 🌿<repo>/<emoji><name> + layout (nu/git/claude/nvim)"
-            print "  5. sesh connect → przełącza Cię tam"
-            print ""
-            print "COMMITLINT (repo z commitlint.config.*)"
-            print "  work new billing  → picker typu (✨feat 🐛fix 🚑hotfix 🧹chore 📝docs 🧪tests)"
-            print "  Wybór → branch feat/billing. Repo bez commitlint → branch as-is."
-            print ""
-            print "KOLIZJA NAZW (branch już istnieje lokalnie/origin)"
-            print "  [c] checkout istniejący   [n] nowa nazwa   [a] abort"
-            print ""
-            print "EMOJI-PREFIX (tylko w nazwie sesji — branch zostaje czysty)"
-            print "  feat→✨ fix→🐛 hotfix→🚑 docs→📝 tests→🧪 chore→🧹"
-            print "  refactor→♻ perf→⚡ build→📦 ci→👷 revert→⏪ style→💄"
-        }
-        "ls" => {
-            print "work ls — lista wszystkich worktree (NIE przełącza — to dane)"
-            print ""
-            print "  work ls             nu tabela (repo/branch/path/base/session/status/head)"
-            print "  work ls | to json   JSON string (do scriptingu)"
-            print "  work ls --no-cache  wymuś re-scan (pomija 5s cache)"
-            print ""
-            print "FILTRY (zwykły nu pipe)"
-            print "  work ls | where status == \"dirty\""
-            print "  work ls | where session_active"
-            print ""
-            print "Czyste dane (tylko tabela). Stale sesje: `work stale-sessions`."
-        }
-        "switch" | "sw" => {
-            print "work switch (sw) — picker po worktree → przełącz sesję"
-            print ""
-            print "  TV picker (tylko worktree) → sesh connect. Twój główny switcher."
-            print ""
-            print "ALTERNATYWY"
-            print "  s <nazwa>      direct jump (znasz nazwę sesji)"
-            print "  s             TV picker po WSZYSTKICH sesjach (nie tylko worktree)"
-            print "  prefix+f → ^w  sesh-picker popup w tmux, tab worktrees"
-        }
-        "rm" => {
-            print "work rm — usuń worktree + branch + sesję (atomowo)"
-            print ""
-            print "  work rm                    w worktree: usuń bieżący (z potwierdzeniem); poza: picker"
-            print "  work rm <branch>           usuń po nazwie (Tab autouzupełnia)"
-            print "  work rm <path>             usuń po ścieżce worktree"
-            print "  work rm <b> --force        pomiń dirty-check (uncommitted changes)"
-            print "  work rm <b> --keep-branch  usuń worktree+sesję, ZOSTAW brancha gita"
-            print ""
-            print "CO ROBI"
-            print "  git worktree remove --force → tmux kill-session → git branch -d"
-            print "  Cross-repo: znajdzie worktree w innym repo (np z bazgroly usuń dotfiles)."
-            print "  W bieżącym worktree → auto-switch do parent sesji, potem cleanup."
-        }
-        "prune" => {
-            print "work prune — batch usuń wszystkie merged-into-master worktree"
-            print ""
-            print "  work prune            fzf multi-select (merged+clean) → usuń zaznaczone"
-            print "  work prune --dry-run  wypisz kandydatów bez usuwania"
-            print ""
-            print "Cross-repo: każdy worktree sprawdzany względem default brancha JEGO repo."
-            print "Na listę trafia tylko clean (bez uncommitted) + merged."
-        }
-        "pr" => {
-            print "work pr — otwórz GitHub PR w nowym worktree"
-            print ""
-            print "  work pr            picker po otwartych PR (gh pr list) → checkout"
-            print "  work pr <numer>    checkout PR #<numer> w worktree (dla gh-dash)"
-            print ""
-            print "CO ROBI"
-            print "  same-repo: fetch + worktree add ON branch (tracking) → branch + push działa"
-            print "  fork: worktree add --detach → gh pr checkout (fork remote) → pin branch"
-            print "  → tmux sesja + layout → sesh connect"
-            print "  Z gh-dash: klawisz T na PR (open in worktree)."
-        }
-        "adopt" => {
-            print "work adopt — wciągnij osierocony worktree do `work`"
-            print ""
-            print "UŻYCIE"
-            print "  work adopt                     TV picker po osieroconych worktree"
-            print "  work adopt .                   adoptuj bieżący katalog (musi być worktree)"
-            print "  work adopt <path>              adoptuj worktree pod ścieżką"
-            print "  work adopt <branch>            adoptuj po nazwie brancha (cross-repo)"
-            print "  work adopt --base <ref>        wymuś base (domyślnie origin/<default-branch>)"
-            print "  work adopt --no-tmux           tylko config, bez tmux"
-            print "  work adopt --force             re-adoptuj nawet jeśli work.* już ustawione"
-            print ""
-            print "CO ROBI"
-            print "  1. git config --worktree work.branch / work.base / work.session"
-            print "  2. tmux: jeśli istnieje sesja wskazująca na ten worktree → rename do kanonicznej"
-            print "          (windows zachowane); w przeciwnym razie → utwórz z 4-window layoutem"
-            print "  3. cache invalidate → work ls/switch/rm od razu widzą worktree"
-            print ""
-            print "KIEDY UŻYĆ"
-            print "  - worktree stworzony ręcznie (`git worktree add ...`)"
-            print "  - worktree z EnterWorktree / Plan Mode subagenta"
-            print "  - po migracji worktree z innej ścieżki"
-        }
-        "stale-sessions" | "clean-stale-sessions" => {
-            print "work stale-sessions / clean-stale-sessions"
-            print ""
-            print "  work stale-sessions        lista 🌿 sesji tmux bez worktree (data)"
-            print "  work clean-stale-sessions  ubij je wszystkie"
-            print ""
-            print "Powstają gdy worktree usunięty ręcznie (rm -rf) a sesja tmux została."
-        }
-        "model" => {
-            print "🧠 MENTAL MODEL"
-            print "  Worktree = osobny katalog wskazujący na branch."
-            print "  Każdy worktree = własny HEAD → commitujesz niezależnie."
-            print "  Wszystkie dzielą jedno .git/ (objects, refs)."
-            print ""
-            print "💾 COMMIT + PUSH"
-            print "  Commit ZAWSZE leci na branch feature. Parent repo nietknięty."
-            print "  cd <worktree>; git commit; git push -u origin <branch>"
-            print "  (lazygit w oknie git robi to wizualnie)"
-            print ""
-            print "📂 LOKALIZACJA"
-            print "  Worktree:     ~/Code/tree/wt-<repo>/<branch>/"
-            print "  AI artefakty: ~/Code/personal/bazgroly/<repo>/  (wspólne, nie per-branch)"
-        }
-        _ => {
-            print $"Nieznana komenda: ($command)"
-            print "Dostępne: new, pr, adopt, ls, switch, rm, prune, stale-sessions, model"
-            print "`work help` — overview + workflow."
-        }
-    }
-}
-
-# Create a new worktree + tmux session + layout.
-# Phase 4: full collision detection, commitlint enforcement, base-ref picker.
-# name is optional — omit to get an interactive branch picker (TV or fzf fallback).
+# Create a new worktree + herdr workspace, focus it.
 def "work new" [
-    name: string@"work _complete-branches-no-wt" = ""  # Branch name (empty = interactive picker)
-    --from: string = ""  # Custom base ref (default: origin/<default-branch>)
-    --type: string = ""  # Conventional commit type prefix (skip picker)
-    --pick-from         # Interactive picker for base ref
-    --no-prefix         # Skip commitlint enforcement
+    name: string@"work _complete-branches-no-wt" = ""
+    --from: string = ""
+    --type: string = ""
+    --pick-from
+    --no-prefix
+    --no-focus
 ]: nothing -> any {
     work deps-preflight
-
     let info = (work repo-info)
     let repo = $info.name
     let parent = $info.root
     let default_branch = $info.default_branch
 
-    # --- Branch name resolution (picker when name empty) ---
+    # --- Branch name (picker when empty) ---
     mut effective_name = $name
-
     if ($name | is-empty) {
-        let env_repo = $info.root
-        let picked = (
-            if (which tv | is-not-empty) {
-                with-env { WORK_REPO: $env_repo } {
-                    ^tv work-branches | str trim
-                }
-            } else {
-                let local_r = (do { ^git -C $info.root for-each-ref --format='%(refname:short)' refs/heads/ } | complete)
-                let local_b = (if $local_r.exit_code == 0 { $local_r.stdout | lines } else { [] })
-                let remote_r = (do { ^git -C $info.root for-each-ref --format='%(refname:short)' refs/remotes/origin/ } | complete)
-                let remote_b = (if $remote_r.exit_code == 0 { $remote_r.stdout | lines | where { |b| $b != "HEAD" } } else { [] })
-                let cands = ($local_b ++ $remote_b ++ ["+ Create new branch..."])
-                $cands | str join "\n" | ^fzf --prompt "Branch: " | str trim
-            }
-        )
+        if (which fzf | is-empty) { error make { msg: "Pass a branch name (fzf not installed for picker)." } }
+        let local_r = (do { ^git -C $parent for-each-ref --format='%(refname:short)' refs/heads/ } | complete)
+        let local_b = (if $local_r.exit_code == 0 { $local_r.stdout | lines } else { [] })
+        let remote_r = (do { ^git -C $parent for-each-ref --format='%(refname:short)' refs/remotes/origin/ } | complete)
+        let remote_b = (if $remote_r.exit_code == 0 { $remote_r.stdout | lines | where { |b| $b != "HEAD" } } else { [] })
+        let cands = ($local_b ++ $remote_b ++ ["+ Create new branch..."])
+        let picked = ($cands | str join "\n" | ^fzf --prompt "Branch: " | str trim)
         if ($picked | is-empty) { error make { msg: "No branch selected." } }
-
         if $picked == "+ Create new branch..." {
             let new_name = (input "New branch name: ")
             if ($new_name | is-empty) { error make { msg: "No name given." } }
@@ -494,1088 +253,336 @@ def "work new" [
             $effective_name = $picked
         }
     }
-
-    # Snapshot effective_name as immutable before any closure usage.
     let input_name = $effective_name
 
-    # --- Base ref resolution (--from | --pick-from | default origin/<default>) ---
+    # --- Base ref ---
     let base_ref = (
         if $pick_from {
-            let env_repo = $info.root
-            let picked = (
-                if (which tv | is-not-empty) {
-                    with-env { WORK_REPO: $env_repo } {
-                        ^tv work-base-refs | str trim
-                    }
-                } else {
-                    let cands_r = (do { ^git -C $info.root for-each-ref --format='%(refname:short)' refs/remotes/origin/ refs/heads/ } | complete)
-                    let candidates = (if $cands_r.exit_code == 0 { $cands_r.stdout | lines } else { [] })
-                    $candidates | str join "\n" | ^fzf --prompt "Base ref: " | str trim
-                }
-            )
-            if ($picked | is-empty) { error make { msg: "No base ref selected, aborting." } }
+            if (which fzf | is-empty) { error make { msg: "--pick-from needs fzf." } }
+            let cands_r = (do { ^git -C $parent for-each-ref --format='%(refname:short)' refs/remotes/origin/ refs/heads/ } | complete)
+            let candidates = (if $cands_r.exit_code == 0 { $cands_r.stdout | lines } else { [] })
+            let picked = ($candidates | str join "\n" | ^fzf --prompt "Base ref: " | str trim)
+            if ($picked | is-empty) { error make { msg: "No base ref selected." } }
             $picked
-        } else if ($from | is-empty) {
-            $"origin/($default_branch)"
-        } else {
-            $from
-        }
+        } else if ($from | is-empty) { $"origin/($default_branch)" } else { $from }
     )
 
-    # --- Commitlint enforcement ---
-    let allowed_types = (work load-commitlint-types $info.root)
+    # --- Commitlint type enforcement ---
+    let allowed_types = (work load-commitlint-types $parent)
     let has_enforcement = (not ($allowed_types | is-empty))
     let has_slash = ($input_name | str contains "/")
-
     mut final_name = $input_name
 
     if $has_enforcement and not $has_slash and not $no_prefix {
         if not ($type | is-empty) {
             if not ($type in $allowed_types) {
-                error make { msg: $"Type '($type)' not in allowed list: ($allowed_types | str join ', ')" }
+                error make { msg: $"Type '($type)' not allowed: ($allowed_types | str join ', ')" }
             }
             $final_name = $"($type)/($input_name)"
         } else {
-            # Interactive picker
-            print $"\n⚠️  Repo '($info.name)' uses commitlint — choose branch type:"
-            mut menu_lines = []
+            print $"\n⚠️  Repo '($repo)' uses commitlint — choose branch type:"
             for row in ($allowed_types | enumerate) {
                 let emoji = ($WORK_PREFIX_EMOJI | get --optional $row.item | default "  ")
                 let desc = ($WORK_PREFIX_DESC | get --optional $row.item | default "")
-                $menu_lines = ($menu_lines | append $"  [($row.index + 1)] ($emoji) ($row.item)      ($desc)")
+                print $"  [($row.index + 1)] ($emoji) ($row.item)      ($desc)"
             }
-            print ($menu_lines | str join "\n")
             print "  [a] abort"
             let choice = (input "Choice: ")
-            if $choice == "a" or ($choice | is-empty) {
-                error make { msg: "Aborted." }
-            }
-            let idx = (
-                try { ($choice | into int) - 1 } catch {
-                    error make { msg: $"Invalid choice: '($choice)' — expected number from menu." }
-                }
-            )
-            if $idx < 0 or $idx >= ($allowed_types | length) {
-                error make { msg: $"Invalid choice: ($choice) — out of range." }
-            }
-            let chosen_type = ($allowed_types | get $idx)
-            $final_name = $"($chosen_type)/($input_name)"
+            if $choice == "a" or ($choice | is-empty) { error make { msg: "Aborted." } }
+            let idx = (try { ($choice | into int) - 1 } catch { error make { msg: $"Invalid choice: ($choice)" } })
+            if $idx < 0 or $idx >= ($allowed_types | length) { error make { msg: "Out of range." } }
+            $final_name = $"(($allowed_types | get $idx))/($input_name)"
             print $"→ branch: ($final_name)"
         }
     }
-
-    # Snapshot final_name as immutable — Nu forbids capturing mut vars in closures.
     let branch_name = $final_name
-
     let wt_path = (work worktree-path $repo $branch_name)
+    let label = (work _label $repo $branch_name)
+    let focus_flag = (if $no_focus { "--no-focus" } else { "--focus" })
 
-    # Auto-attach if worktree already exists on disk
+    # Already on disk → just open it as a workspace.
     if ($wt_path | path exists) {
-        let session = (work session-name $repo $branch_name)
-        let session_exists = ((do { ^tmux has-session -t $session } | complete).exit_code == 0)
-        if $session_exists {
-            print -e $"Worktree exists, connecting to session ($session)"
-            ^sesh connect $session
-        } else {
-            print -e $"Worktree exists (no tmux session), connecting by path ($wt_path)"
-            ^sesh connect $wt_path
-        }
-        let stored_base = (do { ^git -C $wt_path config --worktree work.base } | complete | get stdout | str trim)
-        return {
-            repo: $repo
-            branch: $branch_name
-            path: $wt_path
-            session: $session
-            base: (if ($stored_base | is-empty) { "(unknown)" } else { $stored_base })
-            created: false
-        }
+        print -e $"Worktree exists, opening ($label)"
+        let r = (do { ^herdr worktree open --cwd $parent --path $wt_path --label $label $focus_flag --json } | complete)
+        if $r.exit_code != 0 { error make { msg: $"herdr worktree open failed: ($r.stderr)" } }
+        let ws = (try { $r.stdout | from json | get -o result.workspace.workspace_id } catch { "" })
+        work _apply-layout $ws $wt_path
+        return { repo: $repo, branch: $branch_name, path: $wt_path, label: $label, created: false }
     }
 
-    # Enable per-worktree config (idempotent)
-    ^git -C $parent config extensions.worktreeConfig true | ignore
-
-    # Fresh fetch (timeout 5s)
+    # Fresh fetch (best-effort).
     let fetch_ref = ($base_ref | str replace "origin/" "")
-    let fetch = (do { ^gtimeout 5 git -C $parent fetch origin $fetch_ref } | complete)
-    if $fetch.exit_code != 0 {
-        print $"⚠️  fetch failed/timeout — using local ($base_ref)"
-    }
+    do { ^git -C $parent fetch origin $fetch_ref } | complete | ignore
 
-    # --- Collision check ---
-    let branch_exists_local = (
-        (do { ^git -C $parent rev-parse --verify --quiet $"refs/heads/($branch_name)" } | complete | get exit_code) == 0
-    )
-    let branch_exists_remote = (
-        (do { ^git -C $parent rev-parse --verify --quiet $"refs/remotes/origin/($branch_name)" } | complete | get exit_code) == 0
-    )
-    let exists_anywhere = ($branch_exists_local or $branch_exists_remote)
-
-    mut should_create_branch = true
-
-    if $exists_anywhere {
-        print $"\n⚠️  Branch '($branch_name)' already exists:"
-        if $branch_exists_local { print "    local:  exists" }
-        if $branch_exists_remote { print $"    remote: origin/($branch_name)" }
-        print ""
-        print "What do you want to do?"
-        print "  [c] checkout existing branch into worktree (skip fresh start)"
-        print "  [n] new name — enter a different name"
-        print "  [a] abort  (default)"
+    # Collision check.
+    let exists_local = ((do { ^git -C $parent rev-parse --verify --quiet $"refs/heads/($branch_name)" } | complete | get exit_code) == 0)
+    let exists_remote = ((do { ^git -C $parent rev-parse --verify --quiet $"refs/remotes/origin/($branch_name)" } | complete | get exit_code) == 0)
+    mut checkout_existing = false
+    if ($exists_local or $exists_remote) {
+        print $"\n⚠️  Branch '($branch_name)' already exists — local=($exists_local) remote=($exists_remote)."
+        print "  [c] checkout existing into worktree   [n] new name   [a] abort"
         let choice = (input "Choice [c/n/a]: ")
         match $choice {
-            "c" => { $should_create_branch = false }
+            "c" => { $checkout_existing = true }
             "n" => {
-                let new_name = (input "New branch name: ")
-                if ($new_name | is-empty) { error make { msg: "Aborted." } }
-                if $no_prefix {
-                    work new $new_name --from $base_ref --no-prefix
-                } else if (not ($type | is-empty)) {
-                    work new $new_name --from $base_ref --type $type
-                } else {
-                    work new $new_name --from $base_ref
-                }
-                return
+                let nn = (input "New branch name: ")
+                if ($nn | is-empty) { error make { msg: "Aborted." } }
+                return (work new $nn --from $base_ref)
             }
             _ => { error make { msg: "Aborted." } }
         }
     }
 
-    # Advisory lock
-    let pool_dir = ($env.HOME | path join "Code" "tree" $"wt-($repo)")
-    if not ($pool_dir | path exists) { mkdir $pool_dir }
-    let lock_file = ($pool_dir | path join ".lock")
-    touch $lock_file  # flock needs file to exist
-
-    let result = (
-        if $should_create_branch {
-            do { ^flock -n $lock_file git -C $parent worktree add -b $branch_name $wt_path $base_ref } | complete
+    # herdr creates the checkout at --path + opens it as a workspace.
+    # Existing branch → omit --base (herdr checks it out); new branch → --base.
+    let r = (
+        if $checkout_existing {
+            do { ^herdr worktree create --cwd $parent --branch $branch_name --path $wt_path --label $label $focus_flag --json } | complete
         } else {
-            do { ^flock -n $lock_file git -C $parent worktree add $wt_path $branch_name } | complete
+            do { ^herdr worktree create --cwd $parent --branch $branch_name --base $base_ref --path $wt_path --label $label $focus_flag --json } | complete
         }
     )
+    if $r.exit_code != 0 { error make { msg: $"herdr worktree create failed: ($r.stderr)" } }
+    let ws = (try { $r.stdout | from json | get -o result.workspace.workspace_id } catch { "" })
+    work _apply-layout $ws $wt_path
 
-    if $result.exit_code == 1 and ($result.stderr | str trim | is-empty) {
-        # flock -n returns 1 with no stderr when lock unavailable
-        error make { msg: $"work new: another `work new` is in progress for ($repo). Try again in a moment." }
-    }
-    if $result.exit_code != 0 {
-        error make { msg: $"work new failed: ($result.stderr)" }
-    }
-
-    # Persist metadata
-    let session = (work session-name $repo $branch_name)
-    if $should_create_branch {
-        ^git -C $wt_path config --worktree work.base $base_ref
-    } else {
-        ^git -C $wt_path config --worktree work.base "(existing branch)"
-    }
-    ^git -C $wt_path config --worktree work.session $session
-    ^git -C $wt_path config --worktree work.branch $branch_name
-
-    # Tmux session + layout (build directly via tmux — no send-keys race).
-    ^tmux new-session -d -s $session -c $wt_path
-    let bazgroly = ($env.HOME | path join "Code" "personal" "bazgroly" $repo)
-    work _build-layout $session $wt_path $bazgroly
-
-    let result = {
-        repo: $repo
-        branch: $branch_name
-        path: $wt_path
-        session: $session
-        base: $base_ref
-        created: true
-    }
-
-    work cache-invalidate
-
-    ^sesh connect $session
-    $result
+    print -e $"✅ ($branch_name) → ($wt_path)"
+    { repo: $repo, branch: $branch_name, path: $wt_path, label: $label, workspace_id: $ws, base: $base_ref, created: true }
 }
 
-# Open a GitHub PR in a new worktree + tmux session + layout.
-# Same-repo PRs: fetch + worktree add ON the branch with tracking (commit/push works).
-# Fork PRs: detached worktree + gh pr checkout (sets up fork remote), then pin to branch.
-#   work pr            interactive picker over open PRs (gh pr list)
-#   work pr <number>   checkout PR #<number> into a worktree (for gh-dash keybinding)
-# Internal: ensure the canonical tmux session for a worktree exists WITH the
-# full layout, then connect. Reuses a stray session already rooted at the path
-# (renames it, preserving windows) instead of leaving a bare path-named
-# duplicate, and `_build-layout` is idempotent so it fills in any missing
-# windows. Used by every `work pr` connect path so each one gets the full
-# layout — never a bare 1-window `sesh connect <path>` session.
-def "work _connect-session" [
-    session: string  # canonical session name
-    wt_path: path    # worktree dir
-    repo: string     # repo name (for bazgroly path)
-]: nothing -> nothing {
-    let canonical_exists = ((do { ^tmux has-session -t $session } | complete).exit_code == 0)
-    if not $canonical_exists {
-        let sessions_r = (do { ^tmux list-sessions -F "#{session_name}|#{session_path}" } | complete)
-        let wt_expanded = ($wt_path | path expand)
-        let stray = (
-            if $sessions_r.exit_code == 0 {
-                $sessions_r.stdout | lines
-                | each { |l| let p = ($l | split row --number 2 "|"); { name: $p.0, path: ($p.1 | path expand) } }
-                | where { |s| $s.path == $wt_expanded and $s.name != $session }
-                | get -o 0
-            } else { null }
-        )
-        if ($stray | is-not-empty) {
-            ^tmux rename-session -t $stray.name $session
-        } else {
-            ^tmux new-session -d -s $session -c $wt_path
-        }
-        let bazgroly = ($env.HOME | path join "Code" "personal" "bazgroly" $repo)
-        work _build-layout $session $wt_path $bazgroly
-    }
-    ^sesh connect $session
-}
-
+# Open a GitHub PR in a new worktree workspace.
 def "work pr" [
-    number?: int  # PR number (omit → picker over open PRs)
+    number?: int
+    --no-focus
 ]: nothing -> any {
     work deps-preflight
-    if (which gh | is-empty) {
-        error make { msg: "gh CLI required: brew install gh" }
-    }
+    if (which gh | is-empty) { error make { msg: "gh CLI required: brew install gh" } }
     let info = (work repo-info)
+    let parent = $info.root
+    let focus_flag = (if $no_focus { "--no-focus" } else { "--focus" })
 
-    # Resolve PR number (picker if not given)
     let pr_num = (
-        if ($number | is-not-empty) {
-            $number
-        } else {
-            # Picker over open PRs. gh pr list → fzf (tab-separated number/title/branch).
+        if ($number | is-not-empty) { $number } else {
+            if (which fzf | is-empty) { error make { msg: "Pass a PR number (fzf not installed)." } }
             let rows = (^gh pr list --limit 50 --json number,title,headRefName --jq '.[] | "\(.number)\t\(.title)\t\(.headRefName)"')
-            if ($rows | str trim | is-empty) {
-                error make { msg: "No open PRs (or gh not authenticated)." }
-            }
+            if ($rows | str trim | is-empty) { error make { msg: "No open PRs." } }
             let picked = ($rows | ^fzf --delimiter "\t" --with-nth=1,2,3 --prompt "PR: " | str trim)
             if ($picked | is-empty) { error make { msg: "No PR selected." } }
             ($picked | split row "\t" | first | into int)
         }
     )
 
-    # Resolve PR metadata (head branch, base branch, fork flag) in one call
     let pr_meta_r = (do { ^gh pr view $pr_num --json headRefName,baseRefName,isCrossRepository } | complete)
-    if $pr_meta_r.exit_code != 0 {
-        error make { msg: $"Cannot resolve PR #($pr_num): ($pr_meta_r.stderr)" }
-    }
+    if $pr_meta_r.exit_code != 0 { error make { msg: $"Cannot resolve PR #($pr_num): ($pr_meta_r.stderr)" } }
     let pr_meta = ($pr_meta_r.stdout | from json)
     let head_branch = $pr_meta.headRefName
-    if ($head_branch | is-empty) {
-        error make { msg: $"PR #($pr_num) has no head branch." }
-    }
+    if ($head_branch | is-empty) { error make { msg: $"PR #($pr_num) has no head branch." } }
     let is_fork = $pr_meta.isCrossRepository
     let base = $"origin/($pr_meta.baseRefName)"
-
     let wt_path = (work worktree-path $info.name $head_branch)
+    let label = (work _label $info.name $head_branch)
 
-    # Auto-attach if worktree already exists
     if ($wt_path | path exists) {
-        let session = (work session-name $info.name $head_branch)
-        print -e $"Worktree for PR #($pr_num) exists, connecting to ($session)"
-        work _connect-session $session $wt_path $info.name
-        return { repo: $info.name, pr: $pr_num, branch: $head_branch, path: $wt_path, session: $session, created: false }
+        print -e $"Worktree for PR #($pr_num) exists, opening."
+        do { ^herdr worktree open --cwd $parent --path $wt_path --label $label $focus_flag --json } | complete | ignore
+        return { repo: $info.name, pr: $pr_num, branch: $head_branch, path: $wt_path, created: false }
     }
 
-    # Branch may already be checked out in ANOTHER worktree (e.g. the main repo
-    # itself, or a pool worktree at a non-canonical path). git refuses a second
-    # checkout of the same branch, so detect that and connect to the existing
-    # checkout instead of dying with "branch is already used by worktree".
-    let existing_wt = (
-        do { ^git -C $info.root worktree list --porcelain } | complete
-        | get stdout
-        | split row "\n\n"
-        | each { |b|
-            let l = ($b | lines)
-            {
-                path: ($l | where { |x| $x | str starts-with "worktree " } | get -o 0 | default "" | str replace "worktree " "")
-                branch: ($l | where { |x| $x | str starts-with "branch " } | get -o 0 | default "" | str replace "branch refs/heads/" "")
-            }
+    if $is_fork {
+        # Fork: git creates the detached checkout + gh sets up the fork remote, then herdr opens it.
+        let a = (do { ^git -C $parent worktree add --detach $wt_path } | complete)
+        if $a.exit_code != 0 { error make { msg: $"worktree add failed: ($a.stderr)" } }
+        let co = (do { ^bash -c $"cd '($wt_path)' && gh pr checkout ($pr_num)" } | complete)
+        if $co.exit_code != 0 {
+            ^git -C $parent worktree remove $wt_path --force
+            error make { msg: $"gh pr checkout #($pr_num) failed: ($co.stderr)" }
         }
-        | where { |w| $w.branch == $head_branch and $w.path != $wt_path and ($w.path | is-not-empty) }
-        | get -o 0
-    )
-    if ($existing_wt | is-not-empty) {
-        let ep = $existing_wt.path
-        let cfg_session = (do { ^git -C $ep config --worktree work.session } | complete | get stdout | str trim)
-        let session = (if ($cfg_session | is-not-empty) { $cfg_session } else { work session-name $info.name $head_branch })
-        print -e $"PR #($pr_num) branch ($head_branch) already checked out at ($ep), connecting to ($session)"
-        work _connect-session $session $ep $info.name
-        return { repo: $info.name, pr: $pr_num, branch: $head_branch, path: $ep, session: $session, created: false }
+        let cur = (do { ^git -C $wt_path branch --show-current } | complete | get stdout | str trim)
+        if ($cur | is-empty) { ^git -C $wt_path checkout -B $head_branch | ignore }
+        do { ^herdr worktree open --cwd $parent --path $wt_path --label $label $focus_flag --json } | complete | ignore
+    } else {
+        # Same-repo: herdr creates the checkout tracking the PR branch.
+        do { ^git -C $parent fetch origin $head_branch } | complete | ignore
+        let r = (do { ^herdr worktree create --cwd $parent --branch $head_branch --base $"origin/($head_branch)" --path $wt_path --label $label $focus_flag --json } | complete)
+        if $r.exit_code != 0 { error make { msg: $"herdr worktree create failed: ($r.stderr)" } }
     }
 
-    # Enable per-worktree config (idempotent)
-    ^git -C $info.root config extensions.worktreeConfig true | ignore
-
-    # Create pool dir
-    let pool_dir = ($env.HOME | path join "Code" "tree" $"wt-($info.name)")
-    if not ($pool_dir | path exists) { mkdir $pool_dir }
-
-    # Branch-aware checkout:
-    # - Same-repo PR: fetch + worktree add ON the branch with upstream tracking (no detach)
-    # - Fork PR: detached worktree + gh pr checkout (sets up fork remote), then pin branch
-    let add_r = (
-        if $is_fork {
-            # Fork: detached worktree + gh pr checkout (sets up fork remote)
-            let a = (do { ^git -C $info.root worktree add --detach $wt_path } | complete)
-            if $a.exit_code != 0 { error make { msg: $"worktree add failed: ($a.stderr)" } }
-            let co = (do { ^bash -c $"cd '($wt_path)' && gh pr checkout ($pr_num)" } | complete)
-            if $co.exit_code != 0 {
-                ^git -C $info.root worktree remove $wt_path --force
-                error make { msg: $"gh pr checkout #($pr_num) failed: ($co.stderr)" }
-            }
-            # Pin to branch if gh left it detached
-            let cur = (do { ^git -C $wt_path branch --show-current } | complete | get stdout | str trim)
-            if ($cur | is-empty) {
-                ^git -C $wt_path checkout -B $head_branch | ignore
-            }
-            $co
-        } else {
-            # Same-repo: fetch branch, then worktree add on the branch (with tracking)
-            do { ^gtimeout 10 git -C $info.root fetch origin $head_branch } | complete | ignore
-            let local_exists = ((do { ^git -C $info.root rev-parse --verify --quiet $"refs/heads/($head_branch)" } | complete).exit_code == 0)
-            if $local_exists {
-                do { ^git -C $info.root worktree add $wt_path $head_branch } | complete
-            } else {
-                do { ^git -C $info.root worktree add --track -b $head_branch $wt_path $"origin/($head_branch)" } | complete
-            }
-        }
-    )
-    if $add_r.exit_code != 0 {
-        error make { msg: $"work pr checkout failed: ($add_r.stderr)" }
-    }
-
-    let branch = $head_branch
-
-    let session = (work session-name $info.name $branch)
-
-    # Persist metadata
-    ^git -C $wt_path config --worktree work.base $base
-    ^git -C $wt_path config --worktree work.session $session
-    ^git -C $wt_path config --worktree work.branch $branch
-
-    work cache-invalidate
-
-    print -e $"✅ PR #($pr_num) → worktree ($branch)"
-    work _connect-session $session $wt_path $info.name
-
-    { repo: $info.name, pr: $pr_num, branch: $branch, path: $wt_path, session: $session, base: $base, created: true }
+    work _apply-layout (work _herdr-ws-for $parent $wt_path) $wt_path
+    print -e $"✅ PR #($pr_num) → ($head_branch)"
+    { repo: $info.name, pr: $pr_num, branch: $head_branch, path: $wt_path, base: $base, created: true }
 }
 
-# Internal: TV picker over orphan worktrees (no `work.*` config).
-# Returns the picked worktree path. Errors if nothing picked or no orphans.
-def "work _pick-orphan" []: nothing -> path {
-    let picked_raw = (
-        if (which tv | is-not-empty) {
-            ^tv work-orphans | str trim
-        } else {
-            let pool = ($env.HOME | path join "Code" "tree")
-            if not ($pool | path exists) {
-                error make { msg: "No worktree pool at ~/Code/tree." }
-            }
-            let orphans = (
-                glob $"($pool)/wt-*/**/.git" --depth 6
-                | each { |m|
-                    let wp = ($m | path dirname)
-                    let b = (do { ^git -C $wp config --worktree work.branch } | complete | get stdout | str trim)
-                    if ($b | is-empty) { $wp } else { null }
-                }
-                | where { |it| $it != null }
-            )
-            if ($orphans | is-empty) {
-                error make { msg: "No orphan worktrees found." }
-            }
-            $orphans | str join "\n" | ^fzf --prompt "Adopt orphan: " | str trim
-        }
-    )
-    if ($picked_raw | is-empty) { error make { msg: "Nothing picked." } }
-    $picked_raw | str trim --right --char "/"
+# List ALL worktrees on disk (cross-repo). nu data; `| to json` for scripting.
+def "work ls" []: nothing -> list<record> {
+    work _scan-worktrees | select repo branch status head path
 }
 
-# Adopt an orphan worktree into the `work` system.
-# For worktrees created manually or by EnterWorktree (no work.* git config).
-# Idempotent — running on an already-adopted worktree is a noop unless --force.
-#
-# Usage:
-#   work adopt              TV picker over all orphans → adopt picked
-#   work adopt .            adopt current directory (must be a worktree)
-#   work adopt <path>       adopt worktree at <path>
-#   work adopt <branch>     adopt by branch name (cross-repo search)
-#   work adopt --base <r>   override base ref (default: origin/<default-branch>)
-#   work adopt --no-tmux    skip tmux session create/rename
-#   work adopt --force      re-adopt even if work.* config already set
-def "work adopt" [
-    target?: string  # path / branch / "." (omit → TV picker)
-    --base: string = ""
-    --no-tmux
+# Picker over disk worktrees → open/focus that workspace in herdr.
+def "work switch" []: nothing -> nothing {
+    let wts = (work _scan-worktrees)
+    if ($wts | is-empty) {
+        print "No worktrees on disk. Use `work new <branch>` to create one."
+        return
+    }
+    if (which fzf | is-empty) { error make { msg: "fzf not installed for the picker." } }
+    # line: repo\tbranch\tstatus\tpath\troot  (display first 3)
+    let picked = (
+        $wts | each { |w| $"($w.repo)\t($w.branch)\t($w.status)\t($w.path)\t($w.root)" }
+        | str join "\n"
+        | ^fzf --delimiter "\t" --with-nth=1,2,3 --prompt "Switch to worktree: "
+        | str trim
+    )
+    if ($picked | is-empty) { return }
+    let f = ($picked | split row "\t")
+    let label = (work _label ($f | get 0) ($f | get 1))
+    let r = (do { ^herdr worktree open --cwd ($f | get 4) --path ($f | get 3) --label $label --focus --json } | complete)
+    if $r.exit_code != 0 { error make { msg: $"herdr worktree open failed: ($r.stderr)" } }
+    let ws = (try { $r.stdout | from json | get -o result.workspace.workspace_id } catch { "" })
+    work _apply-layout $ws ($f | get 3)
+}
+
+def "work sw" []: nothing -> nothing { work switch }
+
+# Remove worktree + workspace + git branch.
+def "work rm" [
+    branch?: string@"work _complete-worktrees"
     --force
+    --keep-branch
 ]: nothing -> record {
     work deps-preflight
+    let wts = (work _scan-worktrees)
 
-    # --- Resolve target worktree path ---
-    let wt_path = (
-        if ($target | is-empty) {
-            work _pick-orphan
-        } else if $target == "." {
-            $env.PWD | path expand
-        } else if (($target | path exists) and (($target | path type) == "dir")) {
-            $target | path expand
-        } else {
-            let matches = (work scan-worktrees | where branch == $target)
-            if ($matches | is-empty) {
-                error make { msg: $"No worktree found for '($target)'." }
-            } else if ($matches | length) > 1 {
-                let repos = ($matches | get repo | str join ", ")
-                error make { msg: $"Ambiguous '($target)' — exists in: ($repos). Pass full path instead." }
-            } else {
-                ($matches | first | get path)
+    let target = (
+        if ($branch | is-not-empty) {
+            let m = ($wts | where branch == $branch)
+            if ($m | is-empty) { error make { msg: $"No worktree for branch '($branch)'." } }
+            if ($m | length) > 1 {
+                error make { msg: $"Ambiguous '($branch)' — in: (($m | get repo) | str join ', '). Use the picker (`work rm`)." }
             }
-        }
+            ($m | first)
+        } else if (which fzf | is-not-empty) {
+            if ($wts | is-empty) { error make { msg: "No worktrees." } }
+            let picked = ($wts | each { |w| $"($w.repo)\t($w.branch)\t($w.status)\t($w.path)" } | str join "\n" | ^fzf --delimiter "\t" --with-nth=1,2,3 --prompt "Remove worktree: " | str trim)
+            if ($picked | is-empty) { error make { msg: "Nothing picked." } }
+            let p = ($picked | split row "\t" | get 3)
+            ($wts | where path == $p | first)
+        } else { error make { msg: "Pass a branch name (fzf not installed)." } }
     )
 
-    # --- Resolve parent repo from worktree's common dir ---
-    let common_r = (do { ^git -C $wt_path rev-parse --path-format=absolute --git-common-dir } | complete)
-    if $common_r.exit_code != 0 {
-        error make { msg: $"Not a git worktree: ($wt_path)" }
+    if $target.status == "dirty" and (not $force) {
+        let yn = (input $"⚠️  ($target.branch) has uncommitted changes. Force remove? [y/N]: ")
+        if $yn != "y" { error make { msg: "Aborted." } }
     }
-    let cd = ($common_r.stdout | str trim)
-    let parent_root = (
-        if ($cd | str ends-with "/.git") {
-            $cd | str substring 0..(($cd | str length) - 6)
-        } else {
-            $cd | path dirname
+
+    # If the worktree is open as a herdr workspace, herdr removes checkout + closes it;
+    # otherwise plain git removes the checkout. git keeps the branch either way.
+    let ws = (work _herdr-ws-for $target.root $target.path)
+    if ($ws | is-not-empty) {
+        let r = (do { ^herdr worktree remove --workspace $ws --force } | complete)
+        if $r.exit_code != 0 { error make { msg: $"herdr worktree remove failed: ($r.stderr)" } }
+    } else {
+        ^git -C $target.root worktree remove $target.path --force
+    }
+    if not $keep_branch {
+        let r = (do { ^git -C $target.root branch -d $target.branch } | complete)
+        if $r.exit_code != 0 {
+            print -e $"⚠️  Branch ($target.branch) not fully merged — `git branch -D ($target.branch)` to force."
         }
+    }
+    print -e $"✅ Removed: ($target.branch)"
+    { removed: $target.branch, path: $target.path }
+}
+
+# Batch-remove merged + clean worktrees (cross-repo; each checked vs its own default).
+def "work prune" [--dry-run]: nothing -> any {
+    work deps-preflight
+    let candidates = (
+        work _scan-worktrees
+        | where status == "clean"
+        | each { |w|
+            let head_ref = (do { ^git -C $w.root symbolic-ref refs/remotes/origin/HEAD } | complete)
+            let def = (if $head_ref.exit_code == 0 { $head_ref.stdout | str trim | str replace "refs/remotes/origin/" "" } else { "master" })
+            let merged_r = (do { ^git -C $w.root branch --merged $def } | complete)
+            let merged = (if $merged_r.exit_code == 0 { $merged_r.stdout | lines | each { |l| $l | str trim | str replace "* " "" } } else { [] })
+            if ($w.branch in $merged) { $w } else { null }
+        }
+        | where { |it| $it != null }
     )
-    let repo = ($parent_root | path basename)
+    if ($candidates | is-empty) { print -e "Nothing to prune (no merged + clean worktrees)."; return [] }
+    if $dry_run { return ($candidates | select repo branch path) }
 
-    # --- Resolve branch (detached = refuse) ---
-    let branch = (do { ^git -C $wt_path branch --show-current } | complete | get stdout | str trim)
-    if ($branch | is-empty) {
-        error make { msg: $"Worktree ($wt_path) is detached — cannot adopt without a branch." }
-    }
-
-    # --- Idempotency guard ---
-    let existing_branch = (do { ^git -C $wt_path config --worktree work.branch } | complete | get stdout | str trim)
-    if (not ($existing_branch | is-empty)) and (not $force) {
-        let existing_session = (do { ^git -C $wt_path config --worktree work.session } | complete | get stdout | str trim)
-        print -e $"Already adopted — branch=($existing_branch), session=($existing_session). Use --force to re-adopt."
-        return { adopted: false, path: $wt_path, branch: $existing_branch, session: $existing_session }
-    }
-
-    # --- Resolve default branch for base ref ---
-    let head_ref = (do { ^git -C $parent_root symbolic-ref refs/remotes/origin/HEAD } | complete)
-    let default_branch = (
-        if $head_ref.exit_code == 0 {
-            $head_ref.stdout | str trim | str replace "refs/remotes/origin/" ""
-        } else {
-            "master"
-        }
+    let picked = (
+        if (which fzf | is-not-empty) {
+            $candidates | each { |c| $"($c.repo)/($c.branch)\t($c.path)" } | str join "\n"
+            | ^fzf --multi --prompt "Prune (Tab=multi): " --delimiter "\t" --with-nth=1 | lines
+        } else { $candidates | each { |c| $"($c.repo)/($c.branch)\t($c.path)" } }
     )
-    let resolved_base = (if ($base | is-empty) { $"origin/($default_branch)" } else { $base })
-    let session = (work session-name $repo $branch)
-
-    # --- 1. Enable per-worktree config (idempotent) ---
-    ^git -C $parent_root config extensions.worktreeConfig true | ignore
-
-    # --- 2. Inject metadata ---
-    ^git -C $wt_path config --worktree work.branch $branch
-    ^git -C $wt_path config --worktree work.base $resolved_base
-    ^git -C $wt_path config --worktree work.session $session
-
-    print -e $"✅ Adopted: ($wt_path)"
-    print -e $"   repo:    ($repo)"
-    print -e $"   branch:  ($branch)"
-    print -e $"   base:    ($resolved_base)"
-    print -e $"   session: ($session)"
-
-    # --- 3. Tmux integration — rename stray session OR create canonical one ---
-    if not $no_tmux {
-        let sessions_r = (do { ^tmux list-sessions -F "#{session_name}|#{session_path}" } | complete)
-        let sessions = (
-            if $sessions_r.exit_code == 0 {
-                $sessions_r.stdout
-                | lines
-                | each { |l|
-                    let parts = ($l | split row --number 2 "|")
-                    { name: $parts.0, path: ($parts.1 | path expand) }
-                }
-            } else { [] }
-        )
-        let wt_expanded = ($wt_path | path expand)
-        let stray = ($sessions | where { |s| $s.path == $wt_expanded and $s.name != $session })
-        let canonical_exists = ($sessions | any { |s| $s.name == $session })
-
-        if ($stray | is-not-empty) and (not $canonical_exists) {
-            let old = ($stray | first | get name)
-            ^tmux rename-session -t $old $session
-            print -e $"   tmux:    renamed ($old) → ($session) (windows preserved)"
-        } else if (not $canonical_exists) {
-            ^tmux new-session -d -s $session -c $wt_path
-            let bazgroly = ($env.HOME | path join "Code" "personal" "bazgroly" $repo)
-            work _build-layout $session $wt_path $bazgroly
-            print -e $"   tmux:    created ($session) with 4-window layout"
-        } else {
-            print -e $"   tmux:    canonical session ($session) already exists"
-        }
+    if ($picked | is-empty) { return [] }
+    for line in $picked {
+        let p = ($line | split row "\t" | get 1)
+        let w = ($candidates | where path == $p | first)
+        work rm $w.branch --force
     }
-
-    work cache-invalidate
-    { adopted: true, repo: $repo, branch: $branch, path: $wt_path, base: $resolved_base, session: $session }
+    print -e $"✅ Pruned ($picked | length) worktrees."
+    { pruned: ($picked | each { |l| $l | split row "\t" | first }) }
 }
 
-# Internal: build the 4-window layout targeting an explicit tmux session.
-# Used by `work` (current session), `work new`, `work pr`.
-# Does NOT depend on $env.TMUX — works from any context, including detached
-# session creation in `work new`/`work pr` (avoids the send-keys race that
-# previously left freshly-created sessions without any windows).
-def "work _build-layout" [
-    session: string  # Target tmux session
-    cwd: path        # Working dir for terminal/git/claude windows
-    bazgroly: path   # Working dir for nvim window
-]: nothing -> nothing {
-    let term = $"\u{f120}  nu"
-    let cc   = $"\u{f06a9}  claude"
-
-    # Window 1: rename first window of $session to terminal, lock auto-rename off.
-    ^tmux set-window-option -t $"($session):1" automatic-rename off
-    ^tmux rename-window -t $"($session):1" $term
-
-    let existing = (^tmux list-windows -t $session -F "#{window_name}" | lines)
-
-    # Only the claude window is auto-spawned. The git (lazygit), hunk
-    # (`hunk diff --watch`) and nvim/bazgroly windows used to run in the
-    # background of every session; with several sessions open the lazygit/hunk
-    # git-status polling pegged git CPU and flooded the Kandji ESF extension.
-    # Launch on demand instead: `changes` (one-shot hunk diff), `lazygit`, or
-    # `baz` (nvim in this repo's bazgroly dir).
-    for spec in [
-        { name: $cc,   cwd: $cwd,      cmd: ["claude"] }
-    ] {
-        if not ($spec.name in $existing) {
-            let wid = (^tmux new-window -d -t $session -P -F "#{window_id}" -n $spec.name -c $spec.cwd ...$spec.cmd | str trim)
-            ^tmux set-window-option -t $wid automatic-rename off
-            ^tmux rename-window -t $wid $spec.name
-        }
-    }
-
-    ^tmux select-window -t $"($session):1"
-}
-
-# Set up 4-window layout in current tmux session.
-# Windows: terminal | git (lazygit) | claude | nvim (bazgroly/<repo>/)
-# Idempotent — skips windows that already exist by name.
-# Use this from inside any session (parent repo or worktree).
-def work [
-    --help (-h)  # Show cheatsheet (delegates to `work help`)
-]: nothing -> nothing {
-    if $help {
-        work help
-        return
-    }
-
-    if ($env.TMUX? == null) {
-        print "work: not inside tmux. Run `tn` first."
-        return
-    }
-
-    let session = (^tmux display-message -p '#{session_name}' | str trim)
-    # BUG FIX from audit: use parent repo name even when in worktree.
-    let bazgroly = (work bazgroly-path)
-    work _build-layout $session $env.PWD $bazgroly
-}
-
-# Open nvim in this repo's bazgroly dir (AI artifacts / notes) on demand.
+# Open nvim in this repo's bazgroly dir.
 def baz []: nothing -> nothing {
     let dir = (work bazgroly-path)
     if not ($dir | path exists) { mkdir $dir }
     ^nvim $dir
 }
 
-# Helper: gather metadata for all worktrees in the pool.
-# Uses `git worktree list --porcelain` from the parent repo as canonical source —
-# avoids naive subdir scan that incorrectly includes nested dirs (Bug 2).
-# Returns list of records: {repo, branch, path, session, session_active, base, status, head}
-def "work scan-worktrees" []: nothing -> list<record> {
-    let pool = ($env.HOME | path join "Code" "tree")
-    if not ($pool | path exists) { return [] }
-
-    # Discover worktree ROOTS by finding their `.git` marker under the pool.
-    # Repo-location-independent: each worktree's parent repo is derived from its
-    # own git-common-dir, NOT from an assumed ~/Code/<repo> path (e.g. REDACTED_ORG
-    # actually lives at ~/Code/REDACTED_ORG/REDACTED_ORG, not ~/Code/REDACTED_ORG).
-    let git_markers = (glob $"($pool)/wt-*/**/.git" --depth 6)
-    let candidates = (
-        $git_markers | each { |marker|
-            let wt_path = ($marker | path dirname)
-            # Derive parent repo name from this worktree's common git dir.
-            let cd_r = (do { ^git -C $wt_path rev-parse --path-format=absolute --git-common-dir } | complete)
-            if $cd_r.exit_code != 0 { return null }
-            let cd = ($cd_r.stdout | str trim)
-            let parent_root = (
-                if ($cd | str ends-with "/.git") {
-                    $cd | str substring 0..(($cd | str length) - 6)
-                } else {
-                    $cd | path dirname
-                }
-            )
-            let repo_name = ($parent_root | path basename)
-            let branch_r = (do { ^git -C $wt_path branch --show-current } | complete)
-            let branch = ($branch_r.stdout | str trim)
-            { repo: $repo_name, branch: (if ($branch | is-empty) { "(detached)" } else { $branch }), path: $wt_path }
-        }
-        | where { |it| $it != null }
-    )
-
-    $candidates | par-each { |wt|
-        let status_r = (do { ^git -C $wt.path status --porcelain } | complete)
-        let dirty = ($status_r.stdout | str trim | is-not-empty)
-
-        let base_r = (do { ^git -C $wt.path config --worktree work.base } | complete)
-        let base = ($base_r.stdout | str trim)
-
-        let session_r = (do { ^git -C $wt.path config --worktree work.session } | complete)
-        let session = ($session_r.stdout | str trim)
-
-        # Bug 3/8b: session_active must be false when session is empty or non-🌿
-        let has_sess = (
-            if ($session | is-empty) or (not ($session | str starts-with "🌿")) {
-                false
-            } else {
-                ((do { ^tmux has-session -t $session } | complete).exit_code == 0)
-            }
-        )
-
-        let head_r = (do { ^git -C $wt.path rev-parse HEAD } | complete)
-        let head = ($head_r.stdout | str trim | str substring 0..6)
-
-        $wt | merge {
-            base: (if ($base | is-empty) { "(unknown)" } else { $base })
-            session: $session
-            session_active: $has_sess
-            status: (if $dirty { "dirty" } else { "clean" })
-            head: $head
-        }
-    }
+# Bare `work` — apply the layout (claude tab) to the current herdr workspace.
+# Outside herdr, or with --help, show the cheatsheet.
+def work [--help (-h)]: nothing -> nothing {
+    if $help { work help; return }
+    let ws = ($env.HERDR_WORKSPACE_ID? | default "")
+    if ($ws | is-empty) { work help; return }
+    work _apply-layout $ws $env.PWD
+    print -e "layout applied (claude tab)"
 }
 
-# List all worktrees in the pool.
-# Returns nu records (auto-printed as table). Pipe to `| to json` for JSON.
-# --no-cache: force re-scan.
-# Picker lives in `bin/sesh-picker` bound to ^w — not here.
-def "work ls" [
-    --no-cache   # Force re-scan (skip TTL cache)
-]: nothing -> list<record> {
-    let cached = (if $no_cache { null } else { work cache-read })
-    let worktrees = (
-        if ($cached | is-empty) {
-            let fresh = (work scan-worktrees)
-            work cache-write $fresh
-            $fresh
-        } else {
-            $cached
-        }
-    )
-
-    $worktrees
+# Cheatsheet.
+def "work help" []: nothing -> nothing {
+    print "📖 Work — git worktree workflow on herdr"
+    print ""
+    print "WORKFLOW"
+    print "  work new <name>  →  praca  →  commit / push  →  work rm <name>"
+    print "  przełącz:  work switch   (albo prefix+w / prefix+g / sidebar)"
+    print "  PR:        work pr <n>"
+    print ""
+    print "KOMENDY"
+    print "  work new [name]    worktree + workspace (picker / <name> / --from / --type / --no-prefix)"
+    print "  work pr [number]   otwórz PR w worktree (gh pr checkout)"
+    print "  work ls            lista worktree (nu data; `| to json`)"
+    print "  work switch (sw)   picker → focus workspace"
+    print "  work rm [branch]   usuń worktree + workspace + branch (--force / --keep-branch)"
+    print "  work prune         batch usuń merged + clean (--dry-run)"
+    print "  baz                nvim w bazgroly tego repo"
+    print ""
+    print "NAWIGACJA herdr:  prefix=ctrl+space · prefix w workspace · prefix g goto · prefix b sidebar · prefix ? help"
 }
 
-# Interactive picker over all worktrees → connect to its tmux session (sesh).
-# Worktree-only (unlike `s` which lists all sesh sessions).
-# Usage: work switch   (alias: work sw)
-def "work switch" []: nothing -> nothing {
-    let worktrees = (work scan-worktrees)
-    if ($worktrees | is-empty) {
-        print "No worktrees. Use `work new <branch>` to create one."
-        return
-    }
-
-    # Pick a worktree path (tv worktrees channel → fzf fallback)
-    let picked_raw = (
-        if (which tv | is-not-empty) {
-            ^tv worktrees | str trim
-        } else {
-            $worktrees
-            | each { |w| $w.path }
-            | str join (char newline)
-            | ^fzf --prompt "Switch to worktree: "
-            | str trim
-        }
-    )
-    if ($picked_raw | is-empty) { return }
-
-    # Normalize: tv returns trailing-slash paths; scan-worktrees paths have none.
-    let picked = ($picked_raw | str trim --right --char "/")
-
-    let match = ($worktrees | where path == $picked)
-    if ($match | is-empty) {
-        # Path not in scan (edge case) — connect by path directly, sesh will handle it.
-        ^sesh connect $picked
-        return
-    }
-
-    let wt = ($match | first)
-    if ($wt.session | is-empty) {
-        # Worktree without a recorded session (created manually) — connect by path.
-        print $"No session recorded for ($wt.branch); connecting by path."
-        ^sesh connect $wt.path
-    } else {
-        ^sesh connect $wt.session
-    }
-}
-
-# Short alias for `work switch`.
-def "work sw" []: nothing -> nothing {
-    work switch
-}
-
-const WORK_CACHE_TTL_SEC = 5
-
-def "work cache-path" []: nothing -> path {
-    $env.HOME | path join "Code" "tree" ".work-ls-cache.json"
-}
-
-def "work cache-invalidate" []: nothing -> nothing {
-    let cache = (work cache-path)
-    if ($cache | path exists) { rm $cache }
-}
-
-# Read cache if fresh enough. Returns null if stale, missing, or old schema version.
-def "work cache-read" []: nothing -> any {
-    let cache = (work cache-path)
-    if not ($cache | path exists) { return null }
-
-    let content = (try { open $cache } catch { return null })
-    if ($content | is-empty) { return null }
-
-    # Version guard — old caches (missing version or version != 2) are rejected
-    if (($content | get -o version | default 1) != 2) {
-        return null
-    }
-
-    let generated = (try { $content.generated_at | into datetime } catch { return null })
-    let age = ((date now) - $generated)
-    let age_sec = ($age | into int) / 1_000_000_000
-
-    if $age_sec > $WORK_CACHE_TTL_SEC {
-        return null
-    }
-    $content.worktrees
-}
-
-def "work cache-write" [worktrees: list]: nothing -> nothing {
-    let cache = (work cache-path)
-    let pool = ($env.HOME | path join "Code" "tree")
-    if not ($pool | path exists) { return }
-    {
-        version: 2
-        generated_at: (date now | format date "%+")
-        worktrees: $worktrees
-    } | to json | save -f $cache
-}
-
-# Remove worktree + tmux session + (optional) git branch.
-# Atomic: removes worktree, kills session, optionally deletes branch.
-# - work rm <branch>  → cleanup specified branch (or cross-repo search)
-# - work rm <path>    → cleanup by worktree path (unambiguous, used by prune)
-# - work rm           → picker (fzf over all worktrees)
-def "work rm" [
-    branch?: string@"work _complete-worktrees"  # Worktree branch name OR path (e.g. "feat/billing-page" or "/path/to/wt")
-    --force          # Skip dirty check
-    --keep-branch    # Don't delete git branch
-]: nothing -> record {
-    work deps-preflight
-    let info = (work repo-info)
-
-    # Detect if the arg is an existing directory path (path-mode vs branch-mode).
-    let arg_is_path = (
-        ($branch | is-not-empty)
-        and ($branch | path exists)
-        and (($branch | path type) == "dir")
-    )
-
-    # PATH MODE: arg is a direct worktree path — no branch→path resolution needed.
-    let wt_path = (
-        if $arg_is_path {
-            $branch | path expand
-        } else {
-            # BRANCH MODE: resolve from picker or branch name.
-            let target_b = (
-                if ($branch | is-empty) and $info.is_worktree {
-                    # No arg + you're INSIDE a worktree → propose removing THIS one (with confirm).
-                    let cur_cfg = (do { ^git -C $info.worktree_path config --worktree work.branch } | complete | get stdout | str trim)
-                    let cur_branch = (
-                        if ($cur_cfg | is-empty) {
-                            (do { ^git -C $info.worktree_path branch --show-current } | complete | get stdout | str trim)
-                        } else { $cur_cfg }
-                    )
-                    if ($cur_branch | is-empty) {
-                        error make { msg: "Can't resolve current worktree branch. Pass a name: work rm <branch>" }
-                    }
-                    let yn = (input $"Remove current worktree '($cur_branch)'? [y/N]: ")
-                    if $yn != "y" { error make { msg: "Aborted." } }
-                    $cur_branch
-                } else if ($branch | is-empty) {
-                    let all = (work scan-worktrees)
-                    if ($all | is-empty) {
-                        error make { msg: "No worktrees. Use `work new <branch>` to create one." }
-                    }
-                    # TV worktrees channel (preferred) → fzf fallback
-                    let picked_raw = (
-                        if (which tv | is-not-empty) {
-                            ^tv worktrees | str trim
-                        } else {
-                            $all
-                            | each { |wt| $"($wt.branch)\t($wt.status)\tfrom ($wt.base)" }
-                            | str join "\n"
-                            | ^fzf --prompt "Remove worktree: " --delimiter "\t" --with-nth=1
-                            | str trim
-                        }
-                    )
-                    if ($picked_raw | is-empty) { error make { msg: "Nothing picked." } }
-                    # TV returns a path → map to branch; fzf returns "branch\t..." → first column
-                    let picked = ($picked_raw | str trim --right --char "/")
-                    let by_path = ($all | where path == $picked)
-                    if ($by_path | is-not-empty) {
-                        ($by_path | first | get branch)
-                    } else {
-                        $picked_raw | split row "\t" | first
-                    }
-                } else {
-                    $branch
-                }
-            )
-
-            # Resolve path from branch name (local pool first, then cross-repo search).
-            let wt_path_local = (work worktree-path $info.name $target_b)
-            if ($wt_path_local | path exists) {
-                $wt_path_local
-            } else {
-                let matches = (
-                    work scan-worktrees
-                    | where branch == $target_b
-                )
-                if ($matches | length) == 0 {
-                    error make { msg: $"No worktree for branch '($target_b)' found in any repo." }
-                } else if ($matches | length) > 1 {
-                    let repos = ($matches | get repo | str join ", ")
-                    error make { msg: $"Ambiguous branch '($target_b)' — exists in: ($repos). Run `cd ~/Code/<repo> && work rm ($target_b)` to disambiguate." }
-                } else {
-                    let m = ($matches | first)
-                    let repo = $m.repo
-                    print -e $"Found ($target_b) in repo ($repo) — switching from ($info.name)."
-                    $m.path
-                }
-            }
-        }
-    )
-
-    # Derive target_branch from path (path-mode: read from git config; branch-mode: already known).
-    let target_branch = (
-        if $arg_is_path {
-            let b = (do { ^git -C $wt_path config --worktree work.branch } | complete | get stdout | str trim)
-            if ($b | is-empty) { ($wt_path | path basename) } else { $b }
-        } else {
-            # In branch-mode, re-derive from what was passed (picker or arg).
-            # We need to re-extract target_b here — compute from wt_path basename as fallback.
-            let stored = (do { ^git -C $wt_path config --worktree work.branch } | complete | get stdout | str trim)
-            if ($stored | is-not-empty) { $stored } else { $wt_path | path basename }
-        }
-    )
-
-    # Resolve which parent repo this worktree belongs to
-    let _common_r = (do { ^git -C $wt_path rev-parse --path-format=absolute --git-common-dir } | complete)
-    if $_common_r.exit_code != 0 {
-        error make { msg: $"Cannot resolve git-common-dir for ($wt_path)" }
-    }
-    let _cd = ($_common_r.stdout | str trim)
-    let target_repo_root = (
-        if ($_cd | str ends-with "/.git") {
-            $_cd | str substring 0..(($_cd | str length) - 6)
-        } else {
-            $_cd | path dirname
-        }
-    )
-    let target_repo_name = ($target_repo_root | path basename)
-
-    # Auto-switch away if we're inside the worktree we're trying to remove
-    if $info.is_worktree and ($info.worktree_path == $wt_path) {
-        let other_sessions = (
-            do { ^tmux list-sessions -F "#{session_name}" } | complete
-            | get stdout | lines
-            | where { |s| not ($s | str starts-with "🌿") }
-        )
-        let parent_session = (
-            if ($other_sessions | is-empty) {
-                ^tmux new-session -d -s "main"
-                "main"
-            } else {
-                $other_sessions | first
-            }
-        )
-        print -e $"🔀 Switching to ($parent_session) before removing ($target_branch)..."
-        ^tmux switch-client -t $parent_session
-        # cd to repo root so nushell's $env.PWD stays valid after worktree dir is removed.
-        # Without this, nushell raises "PWD points to a non-existent directory" at every
-        # subsequent command boundary and the branch-delete + kill-session never run.
-        cd $target_repo_root
-    }
-
-    # Dirty check
-    let dirty_r = (do { ^git -C $wt_path status --porcelain } | complete)
-    let dirty = ($dirty_r.stdout | str trim | is-not-empty)
-    if $dirty and (not $force) {
-        print -e $"⚠️  Worktree ($target_branch) has uncommitted changes."
-        let yn = (input "Force remove? [y/N]: ")
-        if $yn != "y" { error make { msg: "Aborted." } }
-    }
-
-    # Prefer stored session name; fall back to computed name if not recorded.
-    let stored_session_r = (do { ^git -C $wt_path config --worktree work.session } | complete)
-    let stored_session = ($stored_session_r.stdout | str trim)
-    let session = (
-        if ($stored_session | is-not-empty) {
-            $stored_session
-        } else {
-            work session-name $target_repo_name $target_branch
-        }
-    )
-
-    # Cleanup ORDER: worktree first, then branch, then cache, then output, FINALLY session-kill.
-    # kill-session is last because in self-worktree mode it SIGHUPs the current nu shell,
-    # killing every command that follows it.
-    ^git -C $target_repo_root worktree remove $wt_path --force
-    if not $keep_branch {
-        let r = (do { ^git -C $target_repo_root branch -d $target_branch } | complete)
-        if $r.exit_code != 0 {
-            print -e $"⚠️  Branch ($target_branch) not fully merged — use 'git branch -D ($target_branch)' to force-delete."
-        }
-    }
-
-    work cache-invalidate
-
-    let result = { removed: $target_branch, path: $wt_path, session: $session }
-    print -e $"✅ Removed: ($target_branch)"
-    do { ^tmux kill-session -t $session } | complete | ignore
-    $result
-}
-
-# Batch-remove all worktrees whose branch is merged into the default branch
-# of their OWN parent repo. Scans ALL pools (cross-repo). Interactive fzf -m.
-def "work prune" [
-    --dry-run  # Don't remove, just list candidates
-]: nothing -> any {
-    work deps-preflight
-
-    let all = (work scan-worktrees)
-    if ($all | is-empty) {
-        print -e "No worktrees."
-        return []
-    }
-
-    # For each clean worktree, check if merged into its own parent's default branch.
-    # Returns augmented record with parent_root + is_merged fields; filter to merged ones.
-    let candidates = (
-        $all
-        | where status == "clean"
-        | each { |wt|
-            # Resolve parent repo for this worktree
-            let common_r = (do { ^git -C $wt.path rev-parse --path-format=absolute --git-common-dir } | complete)
-            if $common_r.exit_code != 0 { return null }
-            let cd = ($common_r.stdout | str trim)
-            let root = (
-                if ($cd | str ends-with "/.git") {
-                    $cd | str substring 0..(($cd | str length) - 6)
-                } else {
-                    $cd | path dirname
-                }
-            )
-            # Get default branch for this parent repo
-            let head_ref = (do { ^git -C $root symbolic-ref refs/remotes/origin/HEAD } | complete)
-            let default_branch = (
-                if $head_ref.exit_code == 0 {
-                    $head_ref.stdout | str trim | str replace "refs/remotes/origin/" ""
-                } else {
-                    "master"
-                }
-            )
-            # Check merged
-            let merged_r = (do { ^git -C $root branch --merged $default_branch } | complete)
-            if $merged_r.exit_code != 0 { return null }
-            let merged = (
-                $merged_r.stdout
-                | lines
-                | each { |l| $l | str trim | str replace "* " "" }
-                | where { |it| $it != $default_branch and $it != "" }
-            )
-            if not ($wt.branch in $merged) { return null }
-            $wt | merge { parent_root: $root, default_branch: $default_branch }
-        }
-        | where { |it| $it != null }
-    )
-
-    if ($candidates | is-empty) {
-        print -e "Nothing to prune (no merged + clean worktrees across all pools)."
-        return []
-    }
-
-    if $dry_run {
-        return $candidates
-    }
-
-    # Multi-select picker (fzf -m) — embed path as hidden second column so prune
-    # can pass unambiguous paths to `work rm` (avoids cross-repo branch ambiguity).
-    let lines = ($candidates | each { |c| $"($c.repo)/($c.branch)\t($c.path)" })
-    let picked = (
-        $lines
-        | str join "\n"
-        | ^fzf --multi --prompt "Prune (Tab to select multiple): " --delimiter "\t" --with-nth=1
-        | lines
-    )
-
-    if ($picked | is-empty) { return [] }
-
-    # Extract path (second tab-delimited field) — unambiguous even with duplicate branch names.
-    let paths_to_remove = ($picked | each { |line| $line | split row "\t" | last })
-
-    print -e $"Removing ($paths_to_remove | length) worktrees..."
-    for p in $paths_to_remove {
-        work rm $p --force
-    }
-
-    work cache-invalidate
-    print -e $"✅ Pruned ($paths_to_remove | length) worktrees."
-    { pruned: $paths_to_remove }
-}
-
-# Completer: list of local branches that DON'T have a worktree.
-# For `work new <name>` autocompletion (so we don't suggest names already used).
+# Completer: local branches without a worktree (for `work new`).
 def "work _complete-branches-no-wt" []: nothing -> list<string> {
-    let info_r = (do { ^git rev-parse --show-toplevel } | complete)
-    if $info_r.exit_code != 0 { return [] }
-    let root = ($info_r.stdout | str trim)
-
+    let root_r = (do { ^git rev-parse --show-toplevel } | complete)
+    if $root_r.exit_code != 0 { return [] }
+    let root = ($root_r.stdout | str trim)
     let wt_r = (do { ^git -C $root worktree list --porcelain } | complete)
-    if $wt_r.exit_code != 0 { return [] }
     let active = (
-        $wt_r.stdout
-        | lines
-        | where ($it | str starts-with "branch ")
-        | each { |l| $l | str replace "branch refs/heads/" "" }
+        if $wt_r.exit_code == 0 {
+            $wt_r.stdout | lines | where ($it | str starts-with "branch ")
+            | each { |l| $l | str replace "branch refs/heads/" "" }
+        } else { [] }
     )
     let refs_r = (do { ^git -C $root for-each-ref --format='%(refname:short)' refs/heads/ } | complete)
     if $refs_r.exit_code != 0 { return [] }
-    $refs_r.stdout
-    | lines
-    | where { |b| not ($b in $active) }
+    $refs_r.stdout | lines | where { |b| not ($b in $active) }
 }
 
-# Completer: list of branches that DO have a worktree in current repo.
-# For `work rm <branch>` autocompletion.
-# Bug 4 fix: excludes the main repo's branch (e.g. master) so it doesn't appear in rm picker.
+# Completer: branches that have a worktree on disk (for `work rm`).
 def "work _complete-worktrees" []: nothing -> list<string> {
-    # Scan ALL pools (not just current repo) — work rm supports cross-repo removal,
-    # and you often run it from a different repo (e.g. bazgroly) than the worktree's.
-    work scan-worktrees | get branch | uniq
+    work _scan-worktrees | get branch | uniq
 }
