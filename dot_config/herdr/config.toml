@@ -66,8 +66,9 @@ previous_workspace = "prefix+comma"
 next_workspace = "prefix+period"
 # Native remove-worktree (d = delete; `work rm` is the scripted path with confirmation).
 remove_worktree = "prefix+d"
-# Free prefix+shift+r for reviewr (below) — reload via the `hd-reload` CLI instead.
+# reviewr takes plain prefix+r (r = review); resize moves to shift+r; reload → hd-reload CLI.
 reload_config = ""
+resize_mode = "prefix+shift+r"
 
 # Numbered jump (focus_agent / switch_workspace by digit) is impossible here:
 # ctrl+digit = AeroSpace workspaces, alt = dead (Polish option layer), cmd+digit =
@@ -82,9 +83,9 @@ type = "plugin_action"
 command = "rmarganti.herdr-pluck.pluck"
 description = "Pluck a visible token (URL/path/SHA) to clipboard"
 
-# reviewr: toggle the code-review sidebar (r = review). Was prefix+shift+v.
+# reviewr: toggle the code-review sidebar (r = review).
 [[keys.command]]
-key = "prefix+shift+r"
+key = "prefix+r"
 type = "plugin_action"
 command = "persiyanov.reviewr.toggle"
 description = "Toggle reviewr code-review sidebar"
