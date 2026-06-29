@@ -374,6 +374,16 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash '{{ .chezmoi.homeDir }}/.claude/hooks/herdr-agent-state.sh' session",
+            "timeout": 10
+          }
+        ],
+        "matcher": "*"
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/bazgroly.sh push-on-start",
             "timeout": 30000
           }
