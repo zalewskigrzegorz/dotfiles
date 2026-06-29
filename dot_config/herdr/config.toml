@@ -65,6 +65,11 @@ switch_workspace = "prefix+shift+1..9"
 open_worktree = "prefix+shift+o"
 # Toggle to the last pane.
 last_pane = "prefix+backtick"
+# Cycle workspaces.
+previous_workspace = "prefix+comma"
+next_workspace = "prefix+period"
+# Native remove-worktree (deliberate combo; `work rm` is the scripted path with confirmation).
+remove_worktree = "prefix+shift+backspace"
 
 # Plugin keybinds (installed via run_onchange_after_34-herdr-plugins-sync).
 # pluck: pick a visible URL/path/SHA from the pane → clipboard (old tmux `prefix u`).
@@ -80,3 +85,29 @@ key = "prefix+shift+v"
 type = "plugin_action"
 command = "persiyanov.reviewr.toggle"
 description = "Toggle reviewr code-review sidebar"
+
+# vim-herdr-navigation: ctrl+hjkl move across herdr panes AND nvim splits seamlessly
+# (the nvim half needs vim-tmux-navigator installed in nvim).
+[[keys.command]]
+key = "ctrl+h"
+type = "plugin_action"
+command = "vim-herdr-navigation.left"
+description = "Navigate left (pane/nvim)"
+
+[[keys.command]]
+key = "ctrl+j"
+type = "plugin_action"
+command = "vim-herdr-navigation.down"
+description = "Navigate down (pane/nvim)"
+
+[[keys.command]]
+key = "ctrl+k"
+type = "plugin_action"
+command = "vim-herdr-navigation.up"
+description = "Navigate up (pane/nvim)"
+
+[[keys.command]]
+key = "ctrl+l"
+type = "plugin_action"
+command = "vim-herdr-navigation.right"
+description = "Navigate right (pane/nvim)"
