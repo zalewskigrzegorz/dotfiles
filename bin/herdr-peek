@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# herdr-peek — read the shell/terminal pane's recent scrollback in the CURRENT
+# herdr workspace, so Claude can see what a command did without pasting.
+# Replaces tmux-peek (which assumed tmux window 1 = terminal). Uses herdr's socket.
+#
+#   herdr-peek            # last 25 lines of the workspace's shell pane
+#   herdr-peek -n 100     # more lines
+#   herdr-peek w2:p1      # explicit pane
+#
+# Auto-pick: a non-agent pane (agent_status "unknown" = a plain shell, not a
+# claude/codex agent) in the caller's workspace, excluding the caller's own pane.
+export PATH="/opt/homebrew/bin:$PATH"
+HERDR="${HERDR_BIN:-herdr}"
+command -v "$HERDR" >/dev/null 2>&1 || HERDR=/opt/homebrew/bin/herdr
+
+N=25
+PANE=""
+case "${1:-}" in
+  -n) N="${2:-25}" ;;
+  "") ;;
+  *)  PANE="$1" ;;
+esac
+
+if [ -z "$PANE" ]; then
+  PANE=$("$HERDR" pane list 2>/dev/null | HERDR_WS="${HERDR_WORKSPACE_ID:-}" HERDR_ME="${HERDR_PANE_ID:-}" python3 -c '
+import json, os, sys
+ws = os.environ.get("HERDR_WS", "")
+me = os.environ.get("HERDR_ME", "")
+try:
+    panes = json.load(sys.stdin)["result"]["panes"]
+except Exception:
+    sys.exit(0)
+cands = [p for p in panes if p.get("workspace_id") == ws and p.get("pane_id") != me]
+# shell panes report agent_status "unknown"; agents report idle/working/blocked/done
+shells = [p for p in cands if p.get("agent_status") == "unknown"]
+pick = shells or cands
+if pick:
+    print(pick[0]["pane_id"])
+')
+fi
+
+[ -z "$PANE" ] && { echo "herdr-peek: no shell pane found in this workspace (HERDR_WORKSPACE_ID=${HERDR_WORKSPACE_ID:-unset}). Pass one: herdr-peek <w:p>"; exit 0; }
+"$HERDR" pane read "$PANE" --source recent --lines "$N"
