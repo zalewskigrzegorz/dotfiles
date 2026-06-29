@@ -35,3 +35,17 @@ for p in "${PLUGINS[@]}"; do
     herdr plugin install "$p" --yes || echo "  ⚠️  failed: $p (missing build deps? re-run later)"
   fi
 done
+
+# Local (in-repo) plugins: chezmoi renders the source into ~/.config/herdr/plugins-src,
+# and we `herdr plugin link` it (no GitHub clone, no build — pure nu). Keyed by plugin_id.
+declare -A LOCAL_PLUGINS=(
+  [greg.herdr-pick]="${HOME}/.config/herdr/plugins-src/herdr-pick"   # url/file picker -> prefix+u / prefix+f
+)
+for id in "${!LOCAL_PLUGINS[@]}"; do
+  if printf '%s' "$installed" | grep -q "$id"; then
+    echo "herdr-plugins: $id already linked."
+  else
+    echo "herdr-plugins: linking $id ..."
+    herdr plugin link "${LOCAL_PLUGINS[$id]}" || echo "  ⚠️  failed to link: $id"
+  fi
+done

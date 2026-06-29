@@ -94,6 +94,23 @@ type = "shell"
 command = "/Users/greg/Code/dotfiles/bin/herdr-focus-waiting"
 description = "Focus the agent that needs attention (blocked first)"
 
+# URL / file picker — our own greg.herdr-pick plugin (dot_config/herdr/plugins-src).
+# type="shell" calls `herdr plugin pane open` to spawn the picker overlay (real TTY →
+# fzf works). The picker scans EVERY pane's scrollback. url → browser (ctrl-y copies),
+# file → nvim in a new tab. Replaces the old tmux fzf-url-picker (prefix u) +
+# open-file-window (prefix F/H/G), and the `url`/`of` nu commands.
+[[keys.command]]
+key = "prefix+u"
+type = "shell"
+command = "{{ if eq .chezmoi.os "darwin" }}/opt/homebrew/bin/herdr{{ else }}/home/linuxbrew/.linuxbrew/bin/herdr{{ end }} plugin pane open --plugin greg.herdr-pick --entrypoint url-picker --focus"
+description = "Pick a URL from any pane's scrollback → browser"
+
+[[keys.command]]
+key = "prefix+f"
+type = "shell"
+command = "{{ if eq .chezmoi.os "darwin" }}/opt/homebrew/bin/herdr{{ else }}/home/linuxbrew/.linuxbrew/bin/herdr{{ end }} plugin pane open --plugin greg.herdr-pick --entrypoint file-picker --focus"
+description = "Pick a file from any pane's scrollback → nvim (new tab)"
+
 # vim-herdr-navigation NOT bound: ctrl+hjkl is AeroSpace window-focus, and alt is
 # reserved for Polish diacritics (option+l=ł), so there's no clean no-prefix chord.
 # Use herdr's native prefix+h/j/k/l for pane focus instead.
