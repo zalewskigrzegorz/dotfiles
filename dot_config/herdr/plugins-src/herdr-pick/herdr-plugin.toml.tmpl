@@ -1,0 +1,32 @@
+id = "greg.herdr-pick"
+name = "herdr pick (url/file)"
+version = "0.1.0"
+min_herdr_version = "0.7.0"
+platforms = ["macos", "linux"]
+description = "Pick a URL (-> browser) or file path (-> nvim, new tab) from pane scrollback via fzf. Our own native replacement for the old tmux fzf-url-picker + open-file-window."
+
+# Titles use TOML \uXXXX escapes so the nerd-font codepoints survive edits.
+# Overlay pane: scan every pane's scrollback, fzf-pick a URL. Enter opens it in the
+# browser, ctrl-y copies it. Bound to prefix+u (config.toml `type = "shell"` keybind
+# that runs `herdr plugin pane open ... --entrypoint url-picker`).
+[[panes]]
+id = "url-picker"
+title = "\uf0c1  url"
+placement = "overlay"
+command = ["sh", "-c", "exec {{ if eq .chezmoi.os "darwin" }}/opt/homebrew/bin/nu{{ else }}/home/linuxbrew/.linuxbrew/bin/nu{{ end }} --no-config-file \"$HERDR_PLUGIN_ROOT/pick.nu\" url"]
+
+# Overlay pane: same scan for file paths. Enter hands the chosen file to the `edit`
+# entrypoint, which opens nvim in a fresh tab. Bound to prefix+f.
+[[panes]]
+id = "file-picker"
+title = "\uf15b  file"
+placement = "overlay"
+command = ["sh", "-c", "exec {{ if eq .chezmoi.os "darwin" }}/opt/homebrew/bin/nu{{ else }}/home/linuxbrew/.linuxbrew/bin/nu{{ end }} --no-config-file \"$HERDR_PLUGIN_ROOT/pick.nu\" file"]
+
+# nvim launcher tab. pick.nu (file mode) opens this entrypoint as a new tab with
+# PICK_FILE set, so nvim spawns directly (no shell-prompt race, no send-text).
+[[panes]]
+id = "edit"
+title = "\ue62b  nvim"
+placement = "tab"
+command = ["sh", "-c", "exec {{ if eq .chezmoi.os "darwin" }}/opt/homebrew/bin/nvim{{ else }}/home/linuxbrew/.linuxbrew/bin/nvim{{ end }} \"$PICK_FILE\""]
