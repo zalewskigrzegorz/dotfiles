@@ -17,5 +17,5 @@ alias lg = lazygit
 alias zmiany = hunk diff
 # review working-tree changes before commit (one-shot hunk diff)
 alias changes = hunk diff
-# hunk diff — review working-tree changes before commit (one-shot)
-alias hd = hunk diff
+# NB: `hd` is the herdr launcher now (autoload/herdr.nu). For one-shot hunk diff
+# use `changes` or `zmiany` above.
