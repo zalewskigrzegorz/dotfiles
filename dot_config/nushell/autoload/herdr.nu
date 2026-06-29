@@ -23,3 +23,15 @@ def hd-restart [] {
 
 # Stop the herdr server (detaches everything, processes end).
 def hd-stop [] { herdr server stop }
+
+# Attach the lab's herdr server as a thin client (client-server, not ssh+tmux).
+# --remote-keybindings server: the LAB interprets the prefix with its own config
+# (ctrl+space). Default `local` does NOT intercept the prefix in remote-attach,
+# so the leader appears dead. Run from a plain Ghostty window (not nested in herdr).
+def hd-lab [] {
+    if ($env.HERDR_ENV? | is-not-empty) {
+        print -e "You're inside herdr — --remote only works from a plain terminal. Open a fresh Ghostty window."
+        return
+    }
+    herdr --remote lab --remote-keybindings server
+}
