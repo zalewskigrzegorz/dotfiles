@@ -102,8 +102,10 @@ keybindings:
   prs:
     - key: T
       name: worktree
+      # herdr-native: work pr creates + focuses the worktree workspace itself
+      # (gh-dash runs inside a herdr pane, so the socket call lands on the server).
       command: >
-        tmux new-window -c "{{.RepoPath}}" -n "pr#{{.PrNumber}}" "nu -c 'source ~/.config/nushell/autoload/work.nu; work pr {{.PrNumber}}'"
+        nu -c 'cd {{.RepoPath}}; source ~/.config/nushell/autoload/work.nu; work pr {{.PrNumber}}'
   branches: []
 repoPaths:
   "zalewskigrzegorz/dotfiles": "/Users/greg/Code/dotfiles"
