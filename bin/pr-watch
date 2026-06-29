@@ -2,7 +2,7 @@
 
 # pr-watch — poll GitHub for actionable PRs of mine, push state to the SketchyBar
 # `pr_watch` chip. Run by launchd every 3 min (com.greg.pr-watch). PUSH-driven:
-# ends with `sketchybar --set` just like bin/claude-agent-chip.
+# ends with `sketchybar --set`.
 #
 # "Actionable" mirrors bin/prs action logic — a PR needs MY action when it is
 # ready to MERGE, has CHANGES_REQUESTED, or has failing CI ("fix CI"). PRs that
@@ -27,15 +27,12 @@ const FIELDS = "number,title,isDraft,reviewDecision,mergeable,statusCheckRollup,
 const ME = "zalewskigrzegorz"
 
 # Nerd Font glyphs — picked to be self-explanatory AND visually distinct from each
-# other (the two git octicons looked alike at chip size). Also disjoint from the
-# claude_agents chip (FA clock/warning/circle).
+# other (the two git octicons looked alike at chip size).
 const G_FIX = "\u{f0ad}"     # wrench   — changes req / fix CI (needs your fix)
 const G_MERGE = "\u{f00c}"   # check    — ready to merge
 const G_COMMENT = "\u{f075}" # comment  — new unresolved thread since last poll
 
-# State colors — dynamic like the agents chip, but drawn from hues the agents
-# chip NEVER uses (it cycles red/gold/mauve) so the two pills don't blend when
-# adjacent. Mirror dot_config/sketchybar/colors.lua.
+# State colors — dynamic. Mirror dot_config/sketchybar/colors.lua.
 const C_FIX = "0xffff8c42"   # orange — needs your fix (urgent, but not agents' red)
 const C_MERGE = "0xff50fa7b" # green  — ready to merge
 const C_NEW = "0xff8be9fd"   # cyan   — new comment
