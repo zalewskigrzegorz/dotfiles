@@ -56,3 +56,27 @@ resume_agents_on_restore = true
 prefix = "ctrl+space"
 # Jump straight to agent N in the sidebar.
 focus_agent = "prefix+alt+1..9"
+# Cycle the agent sidebar (priority-sorted: blocked first) — the core nav.
+next_agent = "prefix+a"
+previous_agent = "prefix+shift+a"
+# Jump to workspace N (worktrees are workspaces).
+switch_workspace = "prefix+shift+1..9"
+# Open an existing worktree via herdr's native picker (work switch also does this).
+open_worktree = "prefix+shift+o"
+# Toggle to the last pane.
+last_pane = "prefix+backtick"
+
+# Plugin keybinds (installed via run_onchange_after_34-herdr-plugins-sync).
+# pluck: pick a visible URL/path/SHA from the pane → clipboard (old tmux `prefix u`).
+[[keys.command]]
+key = "prefix+u"
+type = "plugin_action"
+command = "rmarganti.herdr-pluck.pluck"
+description = "Pluck a visible token (URL/path/SHA) to clipboard"
+
+# reviewr: toggle the code-review sidebar (diff + inline comments → back to agent).
+[[keys.command]]
+key = "prefix+shift+v"
+type = "plugin_action"
+command = "persiyanov.reviewr.toggle"
+description = "Toggle reviewr code-review sidebar"
