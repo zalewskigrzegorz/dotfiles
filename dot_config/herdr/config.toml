@@ -76,12 +76,9 @@ resize_mode = "prefix+shift+r"
 # the "jump to the waiting agent" command below (prefix+0).
 
 # Plugin keybinds (installed via run_onchange_after_34-herdr-plugins-sync).
-# pluck: pick a visible URL/path/SHA from the pane → clipboard (old tmux `prefix u`).
-[[keys.command]]
-key = "prefix+u"
-type = "plugin_action"
-command = "rmarganti.herdr-pluck.pluck"
-description = "Pluck a visible token (URL/path/SHA) to clipboard"
+# pluck (URL/file picker) removed — its picker pane assumes a POSIX shell and breaks
+# under nu. Replaced by the `url` / `of` nu commands (autoload/herdr-pick.nu): run them
+# in a shell pane to fzf-pick a link/file from the scrollback and open it.
 
 # reviewr: toggle the code-review sidebar (r = review).
 [[keys.command]]
