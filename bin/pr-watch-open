@@ -1,78 +1,31 @@
 #!/usr/bin/env bash
-# pr-watch-open — click handler for the SketchyBar pr_watch chip. Action-aware:
+# pr-watch-open — click handler for the SketchyBar pr_watch chip.
 #
-#   MERGE                 → open the PR page in the browser (you merge in the UI)
-#   fix CI / changes req  → open the worktree (create if missing) AND auto-launch
-#                           `claude` there with a context prompt (bin/pr-brief),
-#                           so you land on an agent that already knows the task
+# Opens gh-dash (my Redocly PRs) in a herdr workspace and focuses it; you take it
+# from there. In gh-dash: `T` opens the selected PR in a worktree workspace (see
+# dot_config/private_gh-dash/config.yml), or open it in the browser to merge.
 #
-# Always targets the SINGLE most-urgent actionable PR (fix CI > changes req >
-# MERGE) — handle it, it drops off the chip, next click lands on the next one.
-#
-# `work pr` is a nushell autoload function, so we spawn a real interactive `nu`
-# window and send-keys the command (nu -c would skip autoload). Runs from the
-# SketchyBar click context (no $TMUX), so the client is switched explicitly —
-# same approach as tmux-window-jump.
+# Reuses an existing gh-dash workspace if one is already open, else creates one
+# running `gh dash`. No-ops cleanly if the herdr server isn't running.
 set -uo pipefail
-export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
 export PATH="/opt/homebrew/bin:$PATH"
 
-TMUX_BIN="${TMUX_BIN:-/opt/homebrew/bin/tmux}"
-CACHE="${PR_WATCH_CACHE:-$HOME/.cache/pr-watch-last.json}"
-REPO="${PR_WATCH_REPO:-Redocly/redocly}"
-# `work pr` resolves the repo via `git rev-parse` from $PWD, so the window must
-# open INSIDE the checkout (matches the hardcoded repo in pr-watch).
+HERDR_BIN="${HERDR_BIN:-/opt/homebrew/bin/herdr}"
 REPO_DIR="${PR_WATCH_REPO_DIR:-$HOME/Code/Redocly/redocly}"
-BRIEF_BIN="${PR_BRIEF_BIN:-$HOME/Code/dotfiles/bin/pr-brief}"
+LABEL="${PR_WATCH_DASH_LABEL:-📋 gh-dash}"
 
-[ -f "$CACHE" ] || exit 0
-# Most-urgent actionable PR → "<num>\t<action>".
-sel=$(jq -r '
-  [ to_entries[] | select(.value.actionable==true)
-    | . + {rank: ({"fix CI":0,"changes req":1,"MERGE":2}[.value.action] // 3)} ]
-  | sort_by(.rank)
-  | if length>0 then "\(.[0].key)\t\(.[0].value.action)" else empty end' "$CACHE" 2>/dev/null)
-[ -n "$sel" ] || exit 0
-num=${sel%%$'\t'*}
-action=${sel#*$'\t'}
+command -v jq >/dev/null 2>&1 || exit 0
+[ -x "$HERDR_BIN" ] || exit 0
 
-# MERGE → browser, where you click merge. No worktree.
-if [ "$action" = "MERGE" ]; then
-  gh pr view "$num" --repo "$REPO" --web >/dev/null 2>&1 &
-  exit 0
-fi
+# Reuse an open gh-dash workspace if present; otherwise create one running `gh dash`.
+ws=$("$HERDR_BIN" workspace list 2>/dev/null \
+  | jq -r --arg l "$LABEL" '.result.workspaces[]? | select(.label==$l) | .workspace_id' 2>/dev/null \
+  | head -1)
 
-# fix CI / changes req → worktree + auto-claude. The brief is written to a temp
-# file; the `pr-work` skill reads it from disk — we do NOT push it through the
-# prompt. `-current.md` is the stable path the skill reads; the per-num copy
-# stays for debugging.
-brief="/tmp/pr-brief-$num.md"
-brief_current="/tmp/pr-brief-current.md"
-"$BRIEF_BIN" "$num" > "$brief" 2>/dev/null || true
-cp -f "$brief" "$brief_current" 2>/dev/null || true
-
-# Pick a client to drive; target its session by ID (emoji/slash names break -t).
-client=$("$TMUX_BIN" list-clients -F '#{client_name}' 2>/dev/null | head -1)
-sid=""
-[ -n "$client" ] && sid=$("$TMUX_BIN" display-message -p -t "$client" '#{session_id}' 2>/dev/null || true)
-
-cdir="$HOME"
-[ -d "$REPO_DIR/.git" ] && cdir="$REPO_DIR"
-if [ -n "$sid" ]; then
-  win=$("$TMUX_BIN" new-window -P -F '#{window_id}' -t "$sid" -c "$cdir" -n "pr" "nu" 2>/dev/null) || exit 0
+if [ -n "$ws" ]; then
+  "$HERDR_BIN" workspace focus "$ws" >/dev/null 2>&1 || true
 else
-  win=$("$TMUX_BIN" new-window -P -F '#{window_id}' -c "$cdir" -n "pr" "nu" 2>/dev/null) || exit 0
+  out=$("$HERDR_BIN" workspace create --cwd "$REPO_DIR" --label "$LABEL" --focus 2>/dev/null || true)
+  pane=$(printf '%s' "$out" | jq -r '.result.root_pane.pane_id // empty' 2>/dev/null)
+  [ -n "$pane" ] && "$HERDR_BIN" pane run "$pane" "gh dash" >/dev/null 2>&1 || true
 fi
-[ -n "$client" ] && "$TMUX_BIN" switch-client -c "$client" -t "$win" 2>/dev/null || true
-"$TMUX_BIN" select-window -t "$win" 2>/dev/null || true
-
-# In the temp window: create/attach the worktree (work pr builds a layout that
-# ALREADY opens a `claude` window, and sesh-connects the client to it), then
-# send `/pr-work` into that claude window. The skill reads the brief from
-# /tmp/pr-brief-current.md itself — nothing is pushed through the prompt. If
-# `work pr` errors, `let r = (...)` aborts → the error stays visible in the temp
-# window and nothing else fires.
-delay="${PR_OPEN_CLAUDE_DELAY:-3}"
-nu_cmd="let r = (work pr $num); sleep ${delay}sec; let cw = (^tmux list-windows -t \$r.session -F '#{window_id}::#{window_name}' | lines | where {|l| \$l =~ 'claude'} | get -o 0 | default '' | split row '::' | get -o 0 | default ''); if (\$cw | is-not-empty) { ^tmux send-keys -t \$cw '/pr-work' Enter; ^tmux select-window -t \$cw }; ^tmux kill-window -t $win"
-# Settle so interactive nu finishes loading autoload before the keys land.
-"$TMUX_BIN" send-keys -t "$win" "$nu_cmd" Enter 2>/dev/null || true
