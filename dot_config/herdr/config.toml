@@ -67,12 +67,10 @@ next_workspace = "prefix+period"
 # Native remove-worktree (d = delete; `work rm` is the scripted path with confirmation).
 remove_worktree = "prefix+d"
 
-# Indexed jumps by number. ctrl+digit = AeroSpace workspaces, alt = dead (Polish),
-# so we use cmd (freed from Ghostty's goto-tab binds — see dot_config/ghostty/config).
-# prefix+1..9 stays = switch tab ("okna").
-[keys.indexed]
-agents = "cmd"           # cmd+1..9 → jump to agent N
-workspaces = "cmd+shift" # cmd+shift+1..9 → jump to workspace N
+# Numbered jump (focus_agent / switch_workspace by digit) is impossible here:
+# ctrl+digit = AeroSpace workspaces, alt = dead (Polish option layer), cmd+digit =
+# macOS/Ghostty (and cmd+shift+digit = screenshots). So navigate by cycle/picker +
+# the "jump to the waiting agent" command below (prefix+0).
 
 # Plugin keybinds (installed via run_onchange_after_34-herdr-plugins-sync).
 # pluck: pick a visible URL/path/SHA from the pane → clipboard (old tmux `prefix u`).
@@ -88,6 +86,14 @@ key = "prefix+shift+v"
 type = "plugin_action"
 command = "persiyanov.reviewr.toggle"
 description = "Toggle reviewr code-review sidebar"
+
+# Jump to the agent that needs you: first blocked, else done(unseen), else working
+# (bin/herdr-focus-waiting). The one-key "go to the waiting agent" Greg wanted.
+[[keys.command]]
+key = "prefix+0"
+type = "shell"
+command = "/Users/greg/Code/dotfiles/bin/herdr-focus-waiting"
+description = "Focus the agent that needs attention (blocked first)"
 
 # vim-herdr-navigation NOT bound: ctrl+hjkl is AeroSpace window-focus, and alt is
 # reserved for Polish diacritics (option+l=ł), so there's no clean no-prefix chord.
