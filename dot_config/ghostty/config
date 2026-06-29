@@ -103,5 +103,5 @@ keybind = global:cmd+f2=toggle_quick_terminal
 # Enable macos notifications
 desktop-notifications = true
 
-# Set TERM environment variable for tmux auto-start
+# Set TERM so the multiplexer (herdr) + nvim get the right terminfo
 env = TERM=xterm-ghostty

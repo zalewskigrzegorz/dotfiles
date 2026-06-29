@@ -203,7 +203,7 @@ ctrl-comma = 'layout accordion horizontal vertical'
 # full screen
 ctrl-f = 'macos-native-fullscreen'
 
-# Focus controls will be controlled by tmux
+# Focus controls will be controlled by herdr
 # ctrl-h = 'focus left'
 # ctrl-j = 'focus down'
 # ctrl-k = 'focus up'

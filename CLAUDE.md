@@ -106,11 +106,10 @@ Anything installed via `/plugin install`, `claude mcp add`, or `~/.claude/skills
 - Templated secrets in `*.tmpl` files use chezmoi's secret functions (1Password on Mac, see `docs/secrets.md`)
 - `1Password CLI` on Linux is **not** in homebrew — install via apt (see Linux block in `dot_Brewfile.tmpl`)
 
-## tmux + persistence
+## Multiplexer — herdr (Mac)
 
-- **No auto-tmux on shell start.** `dot_config/nushell/autoload/ghostty.nu` and `ssh-tmux.nu` keep their auto-`exec tmux` / `exec sesh connect` blocks commented out. Start tmux manually (`tn` alias = `tmux new-session -s main`). Reason: multiple race / crash modes when auto-tmux fires during shell init (TTY race in Ghostty, `sesh connect` requires a session arg, restored panes spawn through wrappers).
-- **`tmux-resurrect` + `tmux-continuum` re-enabled 2026-06-04** with safe defaults: `@continuum-save-interval '15'` (background save), `@continuum-restore 'on'` (auto-restore on tmux server start; flipped from `off` same day after manual restore verified working), `@resurrect-processes 'false'` (sessions/windows/panes/cwd restored, but no command re-launch — avoids feedback loop with `zz-tmux-window-wrappers`; panes come back as bare nu prompts, TUIs must be re-launched manually), `@resurrect-capture-pane-contents 'on'`. Snapshots in `~/.local/share/tmux/resurrect/`. Manual restore: `prefix Ctrl-R`. Rationale + full crash-mode history: `~/Code/personal/bazgroly/dotfiles/specs/2026-05-24-tmux-auto-launch-and-resurrect-disabled.md`.
-- **Window wrappers** (`dot_config/nushell/autoload/zz-tmux-window-wrappers.nu`) spawn each TUI in its own tmux window with a nerd-font icon: `nvim`/`vim`/`vi`, `claude`, `lazygit`, `gh-dash`, `lazydocker`, `btop`. Use `\u{xxxx}` escapes so codepoints survive every edit; literal glyphs in source have been silently stripped before.
+- **`hd` / `herdr` is the launcher** (`dot_config/nushell/autoload/herdr.nu` → `hd`, `hd-restart`, `hd-stop`). Prefix = `ctrl+space`. The priority-sorted **agent sidebar** (blocked-first) is the core — it replaces the old `claude-agent-presence` stack and the window-wrappers. Worktrees via the herdr-native `work` CLI (`new`/`ls`/`switch`/`rm`/`pr`). Nav: `prefix+w` workspace picker · `prefix+g` goto · `prefix+a` agent-cycle · `prefix+0` jump-to-waiting-agent · `prefix+h/j/k/l` panes. Config: `dot_config/herdr/config.toml`. Full reference: `docs/herdr.md`.
+- **tmux kept as a cold backup only (pre-herdr).** `dot_config/tmux/tmux.conf` (with `tmux-resurrect`/`tmux-continuum` and `zz-tmux-window-wrappers.nu`), `brew "tmux"`, and TPM stay in place but are NOT the active multiplexer. Revert = `git -C ~/Code/dotfiles checkout pre-herdr` (tag `pre-herdr` / branch `pre-herdr-backup`).
 
 ## Shell history (nushell)
 
@@ -118,6 +117,8 @@ Anything installed via `/plugin install`, `claude mcp add`, or `~/.claude/skills
 - **Do not propose Atuin** until upstream nushell issues close: [atuinsh/atuin#2900](https://github.com/atuinsh/atuin/issues/2900) (executehostcommand pastes literal text) + [#2820](https://github.com/atuinsh/atuin/issues/2820) (nu integration broken). Both still open as of 2026-05-16. Re-verify with `gh issue view` before recommending.
 
 ## Lab (`minis`, Debian) — connect & cold-start
+
+> **herdr DEFERRED on lab** — the lab still runs tmux until herdr lands there (`default_shell` in `config.toml` is the Mac nu path, needs per-OS templatizing first). The nested-tmux workflow below is lab-current, NOT Mac-current; on the Mac use herdr (`hd`).
 
 - SSH alias: `ssh lab` (chezmoi-templated `~/.ssh/config`); fallback `ssh lab-via-ip` (192.168.50.10).
 - **One-time terminfo install per remote** so tmux/nvim accept `xterm-ghostty`:

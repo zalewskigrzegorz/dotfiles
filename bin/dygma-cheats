@@ -319,9 +319,9 @@ def build_entries():
         ("vs autocomplete", "2×tap"): "read selection aloud (TTS ⌥Esc)",
         ("Read reset talk", "tap"): "reset layers → base",
         ("Read reset talk", "2×tap"): "Slack channel/contact search (Raycast)",
-        ("Windows", "tap"): "aerospace picker", ("Windows", "hold"): "sesh (session switch)",
-        ("Windows", "2×tap"): "tmux window switch",
-        ("leaders", "tap"): "tmux leader", ("leaders", "hold"): "aerospace leader",
+        ("Windows", "tap"): "aerospace picker", ("Windows", "hold"): "herdr workspace picker (prefix+w)",
+        ("Windows", "2×tap"): "herdr agent cycle (prefix+a)",
+        ("leaders", "tap"): "herdr prefix (ctrl+space)", ("leaders", "hold"): "aerospace leader",
     }
     slot = ["tap", "hold", "tap&hold", "2×tap", "2×hold"]
     for sk in n.get("superkeys", []):

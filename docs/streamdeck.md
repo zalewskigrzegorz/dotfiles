@@ -92,7 +92,7 @@ Temp dial = seasonal (AC if present, else thermostat). `◉3=ROOM`, `◉4=PAGES`
 
 Lazygit dropped (Greg works in the IDE). Keys = live tiles from the **GitHub plugin**
 (installed): `PR-y do mojego review (live count)` · `Moje PR-y + CI status` ·
-`GH notifications` · `gh-dash / PRs in browser`. 4 keys free (optional Claude / screenshot / sesh).
+`GH notifications` · `gh-dash / PRs in browser`. 4 keys free (optional Claude / screenshot).
 Dials: `Zoom / font` · — · — · `◉ PAGES`.
 
 ### Meeting (Insta360 Present + MuteDeck)
@@ -210,7 +210,7 @@ Base helper for all of these: `homey-cap get|set <deviceId> <capability> [value]
 ### Dev page — optional, NOT built
 
 Out of MVP. Candidate if Greg wants it back: lazygit · tests · PR-review count
-(live via API Request `gh`) · Claude · console-ninja · sesh · screenshot; dials
+(live via API Request `gh`) · Claude · console-ninja · screenshot; dials
 zoom · scroll · workspace · volume. Add only on confirmation.
 
 ## SmartHome layout (rozpiska) — ⚠️ SUPERSEDED by the 2026-06-23 final design above

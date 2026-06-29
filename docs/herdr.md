@@ -6,10 +6,15 @@ That sidebar is the reason for the switch — it replaces the whole hand-built
 `claude-agent-presence` stack. Migration plan + research live in
 `~/Code/personal/bazgroly/dotfiles/{plans,analysis}/2026-06-28-herdr-*.md`.
 
-## Status: trial, tmux NOT removed
+## Status: migrated to herdr
 
-tmux + sesh stay fully intact as the fallback. Nothing is decommissioned until the
-go/no-go test below passes.
+herdr is the active multiplexer on the Mac. `claude-agent-presence` (sketchybar chip,
+`bin/claude-agent-*`, `tmux-window-jump`) and the whole sesh family (`bin/sesh*`,
+`sesh.nu`, `dot_config/sesh`, `claude-focus-session`) are **decommissioned**. url/file
+opening is now the `url` and `of` nu commands (`autoload/herdr-pick.nu`), not pluck.
+
+tmux is kept as a **cold backup only** — `dot_config/tmux/tmux.conf`, `brew "tmux"`, TPM,
+and the statusline scripts feeding tmux.conf stay in place but are not active.
 
 - **Backup point:** `git tag pre-herdr` and branch `pre-herdr-backup`.
 - **Revert:** `git -C ~/Code/dotfiles checkout pre-herdr` (tmux config never changed).
@@ -23,17 +28,17 @@ go/no-go test below passes.
   - Regenerate the default for reference: `herdr --default-config`.
   - **Lab TODO:** `default_shell` is the Mac nu path — templatize per-OS before lab rollout.
 - Launcher aliases: `dot_config/nushell/autoload/herdr.nu` → `hd`, `hd-restart`, `hd-stop`.
+- Worktree workflow via the herdr-native `work` CLI: `new` / `ls` / `switch` / `rm` / `pr`.
 
 ## Key bindings (defaults kept)
 
 | Key | Action |
 |---|---|
-| `ctrl+b` | prefix |
+| `ctrl+space` | prefix |
 | `prefix+?` | help / keys-search (native — replaces keys-search.sh) |
 | `prefix+b` | toggle sidebar |
-| `prefix+shift+g` | new git worktree (→ grouped workspace) |
-| `prefix+g` / `prefix+w` | goto picker / workspace nav |
-| `prefix+alt+1..9` | jump to agent N |
+| `prefix+w` / `prefix+g` | workspace picker / goto |
+| `prefix+a` | agent cycle · `prefix+0` jump to waiting agent |
 | `prefix+h/j/k/l` | focus pane · `prefix+[` copy mode · `prefix+q` detach |
 
 ## Peek (replaces tmux-peek)
@@ -47,7 +52,7 @@ Native `herdr` agent skill: `herdr pane read <w-p> --source recent --lines 50`,
 ```
 herdr integration install claude        # writes ~/.claude/hooks/herdr-agent-state.sh
                                          # + a SessionStart hook in ~/.claude/settings.json
-herdr integration status                # integration version must be >= 7
+herdr integration status                # integration version must be >= 7 (v7 in use)
 ```
 
 Gives session-identity for `--resume` after a server restart (NOT the blocked/idle
@@ -55,17 +60,14 @@ state — that's screen-scraped). **chezmoi gotcha:** mirror the added hook bloc
 `dot_claude/settings.json.tmpl` and the script into `dot_claude/hooks/`, or
 `chezmoi apply` reverts it.
 
-## GO / NO-GO test (issue #846) — do this before removing tmux
+## GO / NO-GO test (issue #846) — RESULT: GO
 
-Open issue [#846](https://github.com/ogulcancelik/herdr/issues/846): unfocused panes may
-not re-scan, so a background Claude agent at an approval prompt can stay `idle` instead
-of going `blocked`. That defeats the sidebar.
+The go/no-go gate was whether [#846](https://github.com/ogulcancelik/herdr/issues/846)
+(unfocused panes may not re-scan, so a background Claude agent at an approval prompt
+stays `idle` instead of going `blocked`) defeats the sidebar in practice.
 
-1. `hd`, open two panes, run `claude` in one.
-2. Focus the other pane (background the claude one).
-3. Let the claude agent hit a tool-approval prompt.
-4. **Does the sidebar flip that agent to `blocked` (red) within seconds, unfocused?**
-   - Yes → GO. No (stays idle until focused) → NO-GO, stay on tmux.
+**Result: GO.** Greg confirmed agent state updates fine — a background, unfocused
+blocked agent flips to `blocked` (red) in the sidebar within seconds. Migration adopted.
 
 Also sanity-check while trialling: nvim `Ctrl+/` + mouse drag-select (#847/#693),
 F1–F4 in nvim (#818), and never use `herdr update --handoff` — it breaks `op`/1Password
