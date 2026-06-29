@@ -7,7 +7,7 @@ onboarding = false
 
 [terminal]
 # Per-OS: Mac uses the homebrew nu path; Linux (lab) resolves nu on PATH at pane spawn.
-default_shell = "{{ if eq .chezmoi.os "darwin" }}/opt/homebrew/bin/nu{{ else }}nu{{ end }}"
+default_shell = "{{ if eq .chezmoi.os "darwin" }}/opt/homebrew/bin/nu{{ else }}/home/linuxbrew/.linuxbrew/bin/nu{{ end }}"
 shell_mode = "auto"
 new_cwd = "follow"
 
