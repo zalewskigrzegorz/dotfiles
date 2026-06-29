@@ -423,6 +423,15 @@
         "hooks": [
           {
             "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/stop/herdr-claude-title.sh",
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/bazgroly.sh push-on-stop",
             "timeout": 30000
           }
