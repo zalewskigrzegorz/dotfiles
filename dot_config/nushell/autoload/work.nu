@@ -55,9 +55,11 @@ def "work normalize-label" [branch: string]: nothing -> string {
     if ($emoji | is-not-empty) { $"($emoji)($parts.1)" } else { $"($parts.0)-($parts.1)" }
 }
 
-# herdr workspace label for a worktree: "🌿realm/✨billing-page".
+# herdr workspace label for a worktree — just the branch (emoji type prefix kept).
+# herdr already groups the worktree under its source repo in the sidebar, so the
+# repo name in the label is redundant.
 def "work _label" [repo: string, branch: string]: nothing -> string {
-    $"🌿($repo)/(work normalize-label $branch)"
+    work normalize-label $branch
 }
 
 const WORK_CONVENTIONAL_DEFAULTS = [
@@ -217,6 +219,22 @@ def "work _apply-layout" [workspace_id: string, cwd: path]: nothing -> nothing {
     if ($pane | is-not-empty) { do { ^herdr pane run $pane "claude" } | complete | ignore }
 }
 
+# Path where a branch is already checked out (any worktree), "" if none.
+# Git refuses to check a branch out twice, so create must defer to open when set.
+def "work _checkout-path" [repo_root: path, branch: string]: nothing -> string {
+    let r = (do { ^git -C $repo_root worktree list --porcelain } | complete)
+    if $r.exit_code != 0 { return "" }
+    mut path = ""
+    mut found = ""
+    for line in ($r.stdout | lines) {
+        if ($line | str starts-with "worktree ") { $path = ($line | str replace "worktree " "") }
+        if ($line | str starts-with "branch ") {
+            if (($line | str replace "branch refs/heads/" "") == $branch) { $found = $path }
+        }
+    }
+    $found
+}
+
 # Create a new worktree + herdr workspace, focus it.
 def "work new" [
     name: string@"work _complete-branches-no-wt" = ""
@@ -300,14 +318,16 @@ def "work new" [
     let label = (work _label $repo $branch_name)
     let focus_flag = (if $no_focus { "--no-focus" } else { "--focus" })
 
-    # Already on disk → just open it as a workspace.
-    if ($wt_path | path exists) {
+    # Branch already checked out anywhere on disk → open that checkout (git won't
+    # check a branch out twice), don't try to re-create at the canonical path.
+    let existing_co = (work _checkout-path $parent $branch_name)
+    if ($existing_co | is-not-empty) {
         print -e $"Worktree exists, opening ($label)"
-        let r = (do { ^herdr worktree open --cwd $parent --path $wt_path --label $label $focus_flag --json } | complete)
+        let r = (do { ^herdr worktree open --cwd $parent --path $existing_co --label $label $focus_flag --json } | complete)
         if $r.exit_code != 0 { error make { msg: $"herdr worktree open failed: ($r.stderr)" } }
         let ws = (try { $r.stdout | from json | get -o result.workspace.workspace_id } catch { "" })
-        work _apply-layout $ws $wt_path
-        return { repo: $repo, branch: $branch_name, path: $wt_path, label: $label, created: false }
+        work _apply-layout $ws $existing_co
+        return { repo: $repo, branch: $branch_name, path: $existing_co, label: $label, created: false }
     }
 
     # Fresh fetch (best-effort).
@@ -382,10 +402,13 @@ def "work pr" [
     let wt_path = (work worktree-path $info.name $head_branch)
     let label = (work _label $info.name $head_branch)
 
-    if ($wt_path | path exists) {
+    let existing_co = (work _checkout-path $parent $head_branch)
+    if ($existing_co | is-not-empty) {
         print -e $"Worktree for PR #($pr_num) exists, opening."
-        do { ^herdr worktree open --cwd $parent --path $wt_path --label $label $focus_flag --json } | complete | ignore
-        return { repo: $info.name, pr: $pr_num, branch: $head_branch, path: $wt_path, created: false }
+        let r = (do { ^herdr worktree open --cwd $parent --path $existing_co --label $label $focus_flag --json } | complete)
+        let ws = (try { $r.stdout | from json | get -o result.workspace.workspace_id } catch { "" })
+        work _apply-layout $ws $existing_co
+        return { repo: $info.name, pr: $pr_num, branch: $head_branch, path: $existing_co, created: false }
     }
 
     if $is_fork {
