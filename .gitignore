@@ -29,6 +29,10 @@ ssh/
 *.cer
 *.gpg
 *.asc
+
+# Exception: lab CA public cert (no private key) — needed by NODE_EXTRA_CA_CERTS,
+# safe to track so `chezmoi apply` restores it on a fresh machine.
+!dot_claude/lab-ca.pem
 *_rsa
 *_dsa
 *_ecdsa
