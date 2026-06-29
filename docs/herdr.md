@@ -120,6 +120,19 @@ Two community projects overlap with the above — worth wiring in, not yet adopt
   clipboard copy, and a native keybind. Its default `alt+u` won't work here (alt is
   reserved for Polish diacritics) — pick a `prefix+…` chord if adopted.
 
+- **[Matovidlo/herdr-pr-tracker](https://github.com/Matovidlo/herdr-pr-tracker)** —
+  herdr plugin (shell + `gh` + `jq`). Polls `herdr agent list`, maps each session to its
+  PR, shows a board with PR number, state, review decision, CI checks. Keys: `r` refresh,
+  `1-9` open PR, `c`+digit checkout, `m`+digit merge, `p`+digit edit plan note. **Strong
+  fit** for Greg's PR flow (g-pr skills, gh-dash). Internal plugin id `martinv.pr-tracker`;
+  open via `herdr plugin pane open martinv.pr-tracker pr-board` or a `plugin_action` keybind.
+- **[astkaasa/herdr-tokscale-dashboard](https://github.com/astkaasa/herdr-tokscale-dashboard)** —
+  herdr plugin that opens [Tokscale](https://github.com/astkaasa) (local token-usage +
+  pricing telemetry) as a dashboard pane. Needs Tokscale installed separately (`npx
+  tokscale@latest`, or `TOKSCALE_CMD`). Relates to the **parked** usage-chip idea (that was
+  blocked by Cloudflare JA3 on the claude.ai scrape — Tokscale scans local telemetry, a
+  different angle). Low maturity (new, ~2 commits) — watch before adopting.
+
 If adopted, the installable plugins (`herdr-window-title-sync`, `herdr-push`,
-`herdr-picker-plus`, `herdr-fzf-url`) go into
-`run_onchange_after_34-herdr-plugins-sync.sh`; the relay server is separate infra.
+`herdr-picker-plus`, `herdr-fzf-url`, `herdr-pr-tracker`, `herdr-tokscale-dashboard`) go
+into `run_onchange_after_34-herdr-plugins-sync.sh`; the relay server is separate infra.
