@@ -256,7 +256,7 @@ fallback_channel = "files"
   "git push",
 ]
 "git-log" = ["git log", "git show"]
-"worktrees" = ["work switch", "work sw", "sesh connect"]
+"worktrees" = ["work switch", "work sw"]
 "work-worktrees" = ["work rm"]
 "work-branches" = ["work new"]
 "docker-images" = ["docker run"]

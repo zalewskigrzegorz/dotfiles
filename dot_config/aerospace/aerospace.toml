@@ -177,12 +177,10 @@ ctrl-alt-slash = 'exec-and-forget $HOME/Code/dotfiles/bin/dygma-cheats --choose'
 ctrl-alt-r = 'exec-and-forget $HOME/Code/dotfiles/bin/read-claude'
 # Read the CLIPBOARD aloud (copy a selection with ⌘C first). Copy superkey 2×tap.
 ctrl-alt-c = 'exec-and-forget $HOME/Code/dotfiles/bin/read-claude --clip'
-# Native floating pickers (choose-gui, Mocha Neon). Dygma "Windows" superkey
-# taps cmd-ctrl-l. cmd-ctrl-s mirrors the old Raycast sesh switcher.
-# cmd-ctrl-w (agent window-jump) removed — herdr's native sidebar +
-# prefix+alt+1..9 (focus_agent) replaces it.
+# Native floating picker (choose-gui, Mocha Neon). Dygma "Windows" superkey taps cmd-ctrl-l.
+# cmd-ctrl-s (sesh) + cmd-ctrl-w (agent jump) removed — decommissioned under herdr
+# (native picker prefix+g/w + agent sidebar + prefix+0 replace them). cmd-ctrl-s now free.
 cmd-ctrl-l = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-picker'
-cmd-ctrl-s = 'exec-and-forget $HOME/Code/dotfiles/bin/sesh-jump'
 
 # Jump to workspace of the most recent notification (written by sketchybar-watcher).
 ctrl-n = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-jump-to-notif'
@@ -253,12 +251,10 @@ ctrl-alt-slash = 'exec-and-forget $HOME/Code/dotfiles/bin/dygma-cheats --choose'
 ctrl-alt-r = 'exec-and-forget $HOME/Code/dotfiles/bin/read-claude'
 # Read the CLIPBOARD aloud (copy a selection with ⌘C first). Copy superkey 2×tap.
 ctrl-alt-c = 'exec-and-forget $HOME/Code/dotfiles/bin/read-claude --clip'
-# Native floating pickers (choose-gui, Mocha Neon). Dygma "Windows" superkey
-# taps cmd-ctrl-l. cmd-ctrl-s mirrors the old Raycast sesh switcher.
-# cmd-ctrl-w (agent window-jump) removed — herdr's native sidebar +
-# prefix+alt+1..9 (focus_agent) replaces it.
+# Native floating picker (choose-gui, Mocha Neon). Dygma "Windows" superkey taps cmd-ctrl-l.
+# cmd-ctrl-s (sesh) + cmd-ctrl-w (agent jump) removed — decommissioned under herdr
+# (native picker prefix+g/w + agent sidebar + prefix+0 replace them). cmd-ctrl-s now free.
 cmd-ctrl-l = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-picker'
-cmd-ctrl-s = 'exec-and-forget $HOME/Code/dotfiles/bin/sesh-jump'
 
 # Jump to workspace of the most recent notification (written by sketchybar-watcher).
 ctrl-n = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-jump-to-notif'
