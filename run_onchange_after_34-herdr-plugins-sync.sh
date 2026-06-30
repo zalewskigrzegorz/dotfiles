@@ -27,8 +27,14 @@ PLUGINS=(
   thanhdat77/herdr-picker-plus        # unified fuzzy picker: workspaces/ssh/zoxide/agents (prefix+t) — Rust build
   rjyo/herdr-window-title-sync        # sets OS window title (Ghostty/Moshi) from agent/prompt — needs bun, event-driven
   astkaasa/herdr-tokscale-dashboard   # token-usage + cost dashboard (prefix+m) — needs tokscale via TOKSCALE_CMD
-  dcolinmorgan/herdr-push             # push blocked/done events to the herdr-remote relay (web/PWA approve)
 )
+
+# NOTE: dcolinmorgan/herdr-push was removed. The Mac feeds the relay via the
+# bun worker (com.greg.herdr-worker, run_onchange_after_46) which connects
+# OUTBOUND over WebSocket and pushes full host snapshots + serves read/respond
+# locally. Kandji reverts macOS Remote Login, so inbound SSH-poll of the Mac is
+# unstable; the worker is the Kandji-proof replacement. The lab is polled locally
+# by the relay (host="minis"). See docs/herdr.md.
 
 installed="$(herdr plugin list 2>/dev/null || true)"
 for p in "${PLUGINS[@]}"; do
@@ -62,20 +68,4 @@ if [[ -n "$tk_cfg_dir" && ! -f "$tk_cfg_dir/config.env" ]]; then
   mkdir -p "$tk_cfg_dir"
   printf 'TOKSCALE_CMD="bunx tokscale@latest"\n' > "$tk_cfg_dir/config.env"
   echo "herdr-plugins: wrote tokscale config.env (TOKSCALE_CMD=bunx)."
-fi
-
-# herdr-push needs a relay URL (no token — the token gates WS *clients*, not the push
-# path). The Mac feeds the lab relay over the .lab domain; the lab host hits the relay's
-# published port locally (its own agents are also covered by the relay's local poll, so
-# push there is just lower-latency/redundant). Written once; left alone if present.
-push_cfg_dir="$(herdr plugin config-dir herdr.push 2>/dev/null || true)"
-if [[ -n "$push_cfg_dir" && ! -f "$push_cfg_dir/.env" ]]; then
-  case "$(uname -s)" in
-    Darwin) push_relay="ws://herdr-ws.lab" ;;
-    *)      push_relay="ws://localhost:8375" ;;
-  esac
-  mkdir -p "$push_cfg_dir"
-  printf 'HERDR_RELAY="%s"\n' "$push_relay" > "$push_cfg_dir/.env"
-  echo "herdr-plugins: wrote herdr-push .env (HERDR_RELAY=$push_relay)."
-  herdr server reload-config >/dev/null 2>&1 || true
 fi
