@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Install + (re)load the com.greg.herdr-worker LaunchAgent: a persistent bun
+# WebSocket worker that connects OUTBOUND to the herdr relay (ws://herdr-ws.lab/)
+# and serves read-pane / respond / send-keys / send-text for this host's herdr
+# panes locally via the herdr CLI. Replaces the relay's inbound SSH-poll of the
+# Mac (Kandji reverts macOS Remote Login → no stable sshd). Mac-only.
+#
+# Self-contained (emits the plist inline) so `chezmoi apply` reproduces it on a
+# fresh machine — mirrors run_onchange_after_43-pr-watch-launchd's approach.
+# The worker script itself ships verbatim at dot_config/herdr/worker/herdr-worker.js.
+#
+# Bump this version comment to force re-run when the plist/env changes.
+# Version: 2026-06-30.1
+set -euo pipefail
+
+{{ if eq .chezmoi.os "darwin" -}}
+plist_dir="$HOME/Library/LaunchAgents"
+plist_file="$plist_dir/com.greg.herdr-worker.plist"
+mkdir -p "$plist_dir"
+
+cat > "$plist_file" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.greg.herdr-worker</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/bun</string>
+    <string>{{ .chezmoi.homeDir }}/.config/herdr/worker/herdr-worker.js</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HERDR_BIN</key>
+    <string>/opt/homebrew/bin/herdr</string>
+    <key>HERDR_RELAY_WS</key>
+    <string>ws://herdr-ws.lab/</string>
+    <key>HERDR_WORKER_HOST</key>
+    <string>NeuroMancer</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>5</integer>
+  <key>StandardOutPath</key>
+  <string>/tmp/com.greg.herdr-worker.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/com.greg.herdr-worker.err</string>
+</dict>
+</plist>
+PLIST
+
+if launchctl list | grep -q "com.greg.herdr-worker"; then
+  launchctl unload "$plist_file" || true
+fi
+launchctl load "$plist_file"
+echo "[ok] com.greg.herdr-worker loaded (persistent WS to ws://herdr-ws.lab/)"
+{{ else -}}
+exit 0
+{{ end -}}
