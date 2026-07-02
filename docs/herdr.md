@@ -39,6 +39,8 @@ and the statusline scripts feeding tmux.conf stay in place but are not active.
 | `prefix+b` | toggle sidebar |
 | `prefix+w` / `prefix+g` | workspace picker / goto |
 | `prefix+a` | agent cycle · `prefix+0` jump to waiting agent |
+| `prefix+shift+g` | **new worktree in the focused repo** (`bin/herdr-worktree-new` → `work new`; native popup disabled, it hit the wrong repo — herdr 0.7.1 bug) |
+| `prefix+shift+o` / `prefix+d` | open worktree picker / remove worktree |
 | `prefix+h/j/k/l` | focus pane · `prefix+[` copy mode · `prefix+q` detach |
 | `prefix+u` / `prefix+f` | pick URL → browser / file → nvim (our `greg.herdr-pick` plugin) |
 | `prefix+t` | picker-plus: workspaces / ssh / zoxide / agent panes |
