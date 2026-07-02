@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# New git worktree in the FOCUSED workspace's repo — replacement for herdr's
+# native new-worktree popup (prefix+shift+g).
+#
+# Why: herdr 0.7.1's native popup always opens the dialog on the wrong workspace
+# (server log shows ws_idx=1 / REDACTED_ORG) instead of the focused one, so the
+# checkout lands under ~/.herdr/worktrees/<wrong-repo>/. That's a herdr binary
+# bug, not fixable from config. This script reads the *focused* workspace from
+# `herdr workspace list`, opens a tab in that repo, and runs `work new` there —
+# the fzf branch picker resolves the repo from the pane cwd, so the worktree
+# lands in the repo you're actually on (~/Code/tree/wt-<repo>/, via work.nu).
+export PATH="/opt/homebrew/bin:$PATH"
+HERDR="${HERDR_BIN:-/opt/homebrew/bin/herdr}"
+command -v "$HERDR" >/dev/null 2>&1 || HERDR=herdr
+
+read -r ws_id repo_root < <("$HERDR" workspace list 2>/dev/null | python3 -c '
+import json, sys
+try:
+    wss = json.load(sys.stdin)["result"]["workspaces"]
+except Exception:
+    sys.exit(0)
+f = next((w for w in wss if w.get("focused")), None)
+if not f:
+    sys.exit(0)
+root = (f.get("worktree") or {}).get("repo_root")
+if not root:
+    sys.exit(0)
+print(f.get("workspace_id"), root)
+')
+
+# Focused workspace isn't a git repo (e.g. gh-dash) → nothing to do.
+[ -z "$ws_id" ] && exit 0
+
+pane_id=$("$HERDR" tab create --workspace "$ws_id" --cwd "$repo_root" --focus --label "󰙅  work new" 2>/dev/null | python3 -c '
+import json, sys
+try:
+    print(json.load(sys.stdin)["result"]["root_pane"]["pane_id"])
+except Exception:
+    pass
+')
+
+[ -z "$pane_id" ] && exit 0
+
+# Give the nu shell a beat to boot its line editor before feeding the command,
+# else the keystrokes can be dropped during reedline init.
+sleep 0.5
+"$HERDR" pane run "$pane_id" "work new" >/dev/null 2>&1

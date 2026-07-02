@@ -65,6 +65,10 @@ previous_workspace = "prefix+comma"
 next_workspace = "prefix+period"
 # Native remove-worktree (d = delete; `work rm` is the scripted path with confirmation).
 remove_worktree = "prefix+d"
+# Native new-worktree popup DISABLED — herdr 0.7.1 targets the wrong workspace
+# (always ws_idx=1) instead of the focused one, so worktrees land under the wrong
+# repo. prefix+shift+g is rebound below to bin/herdr-worktree-new (→ `work new`).
+new_worktree = ""
 # reviewr takes plain prefix+r (r = review); resize moves to shift+r; reload → hd-reload CLI.
 reload_config = ""
 resize_mode = "prefix+shift+r"
@@ -93,6 +97,14 @@ key = "prefix+0"
 type = "shell"
 command = "/Users/greg/Code/dotfiles/bin/herdr-focus-waiting"
 description = "Focus the agent that needs attention (blocked first)"
+
+# New worktree in the FOCUSED workspace's repo (replaces the buggy native popup
+# above). Opens a tab in the current repo and runs `work new` (fzf branch picker).
+[[keys.command]]
+key = "prefix+shift+g"
+type = "shell"
+command = "/Users/greg/Code/dotfiles/bin/herdr-worktree-new"
+description = "New worktree in the focused repo (work new)"
 
 # URL / file picker — our own greg.herdr-pick plugin (dot_config/herdr/plugins-src).
 # type="shell" calls `herdr plugin pane open` to spawn the picker overlay (real TTY →
