@@ -1,31 +1,141 @@
 #!/usr/bin/env bash
 # pr-watch-open — click handler for the SketchyBar pr_watch chip.
 #
-# Opens gh-dash (my REDACTED_ORG PRs) in a herdr workspace and focuses it; you take it
-# from there. In gh-dash: `T` opens the selected PR in a worktree workspace (see
-# dot_config/private_gh-dash/config.yml), or open it in the browser to merge.
-#
-# Reuses an existing gh-dash workspace if one is already open, else creates one
-# running `gh dash`. No-ops cleanly if the herdr server isn't running.
+# LEFT click  → toggle a popup under the chip listing every open PR from the
+#               pr-watch cache (~/.cache/pr-watch-last.json): action glyph +
+#               "#num  title  <comment count>". Clicking a row opens that PR
+#               in the browser and closes the popup. No herdr dependency.
+# RIGHT click → gh-dash flow: open/focus a herdr workspace running `gh dash`
+#               (my REDACTED_ORG PRs). Reuses an existing workspace if one is open.
+#               No-ops cleanly if the herdr server isn't running.
 set -uo pipefail
 export PATH="/opt/homebrew/bin:$PATH"
 
-HERDR_BIN="${HERDR_BIN:-/opt/homebrew/bin/herdr}"
-REPO_DIR="${PR_WATCH_REPO_DIR:-$HOME/Code/REDACTED_ORG/REDACTED_ORG}"
-LABEL="${PR_WATCH_DASH_LABEL:-📋 gh-dash}"
+CACHE="$HOME/.cache/pr-watch-last.json"
+FONT="JetBrainsMono Nerd Font"
+
+# Mocha Neon — mirror bin/pr-watch + dot_config/sketchybar/colors.lua
+C_FIX="0xffff8c42"    # orange — needs my fix (CI / changes requested)
+C_CONF="0xffff6b9d"   # red      — merge conflict with base
+C_NEW="0xff8be9fd"    # sky      — unresolved threads to resolve
+C_MERGE="0xff50fa7b"  # green    — ready to merge
+C_REVIEW="0xff9580ff" # lavender — waiting on someone's review
+C_CI="0xffffd700"     # gold     — CI in progress
+C_DRAFT="0xffb347ff"  # mauve    — draft WIP
+C_DRAFTCI="0xffff80bf" # pink    — draft with red CI
+C_MUTED="0xff7f849c"  # overlay  — fallback/unknown
+C_TEXT="0xfff0f0ff"   # label text (mocha-neon `text`, docs/mocha-neon-palette.md)
+
+G_COMMENT=""   # comment glyph f075 — outstanding comments
 
 command -v jq >/dev/null 2>&1 || exit 0
-[ -x "$HERDR_BIN" ] || exit 0
 
-# Reuse an open gh-dash workspace if present; otherwise create one running `gh dash`.
-ws=$("$HERDR_BIN" workspace list 2>/dev/null \
-  | jq -r --arg l "$LABEL" '.result.workspaces[]? | select(.label==$l) | .workspace_id' 2>/dev/null \
-  | head -1)
+gh_dash() {
+    local herdr_bin="${HERDR_BIN:-/opt/homebrew/bin/herdr}"
+    local repo_dir="${PR_WATCH_REPO_DIR:-$HOME/Code/REDACTED_ORG/REDACTED_ORG}"
+    local label="${PR_WATCH_DASH_LABEL:-📋 gh-dash}"
+    [ -x "$herdr_bin" ] || return 0
 
-if [ -n "$ws" ]; then
-  "$HERDR_BIN" workspace focus "$ws" >/dev/null 2>&1 || true
-else
-  out=$("$HERDR_BIN" workspace create --cwd "$REPO_DIR" --label "$LABEL" --focus 2>/dev/null || true)
-  pane=$(printf '%s' "$out" | jq -r '.result.root_pane.pane_id // empty' 2>/dev/null)
-  [ -n "$pane" ] && "$HERDR_BIN" pane run "$pane" "gh dash" >/dev/null 2>&1 || true
-fi
+    local ws
+    ws=$("$herdr_bin" workspace list 2>/dev/null \
+        | jq -r --arg l "$label" '.result.workspaces[]? | select(.label==$l) | .workspace_id' 2>/dev/null \
+        | head -1)
+
+    if [ -n "$ws" ]; then
+        "$herdr_bin" workspace focus "$ws" >/dev/null 2>&1 || true
+    else
+        local out pane
+        out=$("$herdr_bin" workspace create --cwd "$repo_dir" --label "$label" --focus 2>/dev/null || true)
+        pane=$(printf '%s' "$out" | jq -r '.result.root_pane.pane_id // empty' 2>/dev/null)
+        [ -n "$pane" ] && "$herdr_bin" pane run "$pane" "gh dash" >/dev/null 2>&1 || true
+    fi
+    # bring the terminal forward so the focus jump is actually visible
+    open -a Ghostty 2>/dev/null || true
+}
+
+popup() {
+    if [ "${PR_WATCH_REBUILD:-}" != "1" ]; then
+        # already open → close and be done (toggle semantics)
+        local drawing
+        drawing=$(sketchybar --query pr_watch 2>/dev/null | jq -r '.popup.drawing // "off"')
+        if [ "$drawing" = "on" ]; then
+            sketchybar --set pr_watch popup.drawing=off
+            return
+        fi
+
+        # rows render instantly from cache (may be up to 3 min stale) — kick a
+        # fresh poll in the background and rebuild in place when it lands, if
+        # the popup is still open. PR_WATCH_REBUILD=1 guards against recursion.
+        (
+            "$HOME/Code/dotfiles/bin/pr-watch" >/dev/null 2>&1
+            still=$(sketchybar --query pr_watch 2>/dev/null | jq -r '.popup.drawing // "off"')
+            [ "$still" = "on" ] && PR_WATCH_REBUILD=1 BUTTON=left "$0"
+        ) >/dev/null 2>&1 &
+    fi
+
+    # rebuild rows from scratch each open — cache may have changed since
+    sketchybar --remove '/pr_watch\.pr\..*/' >/dev/null 2>&1 || true
+
+    local added=0
+    if [ -s "$CACHE" ]; then
+        local num action outstanding title url tag color short suffix
+        # actionable first, then newest PR number on top within each group
+        while IFS=$'\t' read -r num action outstanding title url; do
+            # status tag: plain colored text — glyphs said nothing (user feedback)
+            case "$action" in
+                "fix CI")       tag="fix CI"    color="$C_FIX" ;;
+                "changes req")  tag="changes!"  color="$C_FIX" ;;
+                "run e2e")      tag="run e2e!"  color="$C_FIX" ;;
+                conflict)       tag="conflict"  color="$C_CONF" ;;
+                resolve)        tag="resolve "  color="$C_NEW" ;;
+                "CI…")          tag="CI runs…"  color="$C_CI" ;;
+                MERGE)          tag="merge ✓"   color="$C_MERGE" ;;
+                "draft+CI")     tag="draft+CI"  color="$C_DRAFTCI" ;;
+                draft)          tag="draft"     color="$C_DRAFT" ;;
+                "needs review") tag="review?"   color="$C_REVIEW" ;;
+                *)              tag="$action"   color="$C_MUTED" ;;
+            esac
+
+            short="$title"
+            [ "${#short}" -gt 48 ] && short="${short:0:47}…"
+            suffix=""
+            [ "$outstanding" -gt 0 ] 2>/dev/null && suffix="   ${G_COMMENT} ${outstanding}"
+
+            sketchybar --add item "pr_watch.pr.$num" "popup.pr_watch" \
+                --set "pr_watch.pr.$num" \
+                icon="$tag" \
+                icon.color="$color" \
+                icon.font="$FONT:SemiBold:11.0" \
+                icon.width=82 \
+                icon.align=left \
+                icon.padding_left=10 \
+                label="#${num}  ${short}${suffix}" \
+                label.color="$C_TEXT" \
+                label.font="$FONT:Regular:12.0" \
+                label.padding_right=10 \
+                click_script="open '$url'; sketchybar --set pr_watch popup.drawing=off"
+            added=$((added + 1))
+        done < <(jq -r 'to_entries
+                        | sort_by([(.value.actionable | not), (-(.key | tonumber))])
+                        | .[]
+                        | [.key, .value.action, (.value.outstanding // 0 | tostring), .value.title, .value.url]
+                        | @tsv' "$CACHE" 2>/dev/null)
+    fi
+
+    if [ "$added" -eq 0 ]; then
+        sketchybar --add item "pr_watch.pr.none" "popup.pr_watch" \
+            --set "pr_watch.pr.none" \
+            icon.drawing=off \
+            label="brak danych — poczekaj na następny poll pr-watch" \
+            label.color="$C_MUTED" \
+            label.font="$FONT:Regular:12.0" \
+            label.padding_left=8 label.padding_right=8
+    fi
+
+    sketchybar --set pr_watch popup.drawing=on
+}
+
+case "${BUTTON:-left}" in
+    right) gh_dash ;;
+    *)     popup ;;
+esac
