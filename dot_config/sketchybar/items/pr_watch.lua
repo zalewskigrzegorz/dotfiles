@@ -5,9 +5,9 @@ local settings = require("settings")
 -- mine needs action. PUSH-driven by bin/pr-watch (launchd, every 3 min) — no
 -- timer here. border_color is set per-poll by pr-watch
 -- (red=needs fix, gold=new comment, green=ready to merge).
--- Click (bin/pr-watch-open, action-aware on the most-urgent PR):
---   MERGE → open PR in browser;  fix CI / changes req → worktree + auto-claude
---   launched with a context brief (bin/pr-brief).
+-- Click (bin/pr-watch-open): LEFT → popup listing my open PRs from the
+-- pr-watch cache (row click opens the PR in the browser); RIGHT → gh-dash
+-- in a herdr workspace.
 sbar.add("item", "pr_watch", {
     position = "right",
     drawing = false,
@@ -30,6 +30,15 @@ sbar.add("item", "pr_watch", {
         corner_radius = 6,
         border_color = colors.green,
         border_width = 1
+    },
+    popup = {
+        align = "right",
+        background = {
+            color = colors.bg1,
+            border_color = colors.grey,
+            border_width = 1,
+            corner_radius = 6
+        }
     },
     click_script = os.getenv("HOME") .. "/Code/dotfiles/bin/pr-watch-open"
 })

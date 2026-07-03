@@ -31,11 +31,13 @@ const ME = "zalewskigrzegorz"
 const G_FIX = "\u{f0ad}"     # wrench   — changes req / fix CI (needs your fix)
 const G_MERGE = "\u{f00c}"   # check    — ready to merge
 const G_COMMENT = "\u{f075}" # comment  — new unresolved thread since last poll
+const G_RUN = "\u{f017}"     # clock    — CI run in progress (e2e / pipeline)
 
-# State colors — dynamic. Mirror dot_config/sketchybar/colors.lua.
-const C_FIX = "0xffff8c42"   # orange — needs your fix (urgent, but not agents' red)
-const C_MERGE = "0xff50fa7b" # green  — ready to merge
-const C_NEW = "0xff8be9fd"   # cyan   — new comment
+# State colors — dynamic. Mirror docs/mocha-neon-palette.md.
+const C_FIX = "0xffff8c42"   # peach — needs your fix (urgent, but not agents' red)
+const C_MERGE = "0xff50fa7b" # green — ready to merge
+const C_NEW = "0xff8be9fd"   # sky   — new comment
+const C_RUN = "0xffffd700"   # gold  — CI in progress
 
 def set-chip [args: list<string>] {
     if (which sketchybar | is-not-empty) {
@@ -80,7 +82,13 @@ def outstanding-comments [num: int]: nothing -> any {
     let foreign_latest = (if ($foreign_ts | is-empty) { "" } else { $foreign_ts | sort | last })
     let conv_out = (($foreign_latest != "") and ($foreign_latest > $my_latest))
 
-    $threads_out + (if $conv_out { 1 } else { 0 })
+    # unresolved_any: ALL unresolved threads (even where I spoke last) — GitHub
+    # blocks merging on any unresolved conversation, regardless of last author.
+    let unresolved_any = ($pr | get -o reviewThreads.nodes | default [] | where {|t|
+        not ($t | get -o isResolved | default false)
+    } | length)
+
+    { out: ($threads_out + (if $conv_out { 1 } else { 0 })), unresolved: $unresolved_any }
 }
 
 def main [] {
@@ -98,18 +106,37 @@ def main [] {
 
     let rows = ($prs | each { |pr|
         let failed = ($pr.statusCheckRollup | where {|c| ($c | get -o conclusion) == "FAILURE"} | length)
+        # Still-running/expected checks: CheckRun has status (COMPLETED/IN_PROGRESS/
+        # QUEUED), StatusContext has state (PENDING/EXPECTED/...). Either kind
+        # unfinished → the PR is NOT mergeable yet, whatever GitHub's mergeable says.
+        let pending = ($pr.statusCheckRollup | where {|c|
+            let st = ($c | get -o status | default "")
+            let state = ($c | get -o state | default "")
+            (($st != "") and ($st != "COMPLETED")) or ($state in ["PENDING" "EXPECTED"])
+        } | length)
+        # e2e never started: a required StatusContext sits EXPECTED ("waiting for
+        # status to be reported") while no e2e CheckRun is actually running —
+        # happens when "E2E tests: skip by label" skipped. Fix = run_e2e toggle.
+        let e2e_expected = ($pr.statusCheckRollup | where {|c| ($c | get -o state | default "") == "EXPECTED"} | length)
+        let e2e_running = ($pr.statusCheckRollup | where {|c|
+            let st = ($c | get -o status | default "")
+            (($st != "") and ($st != "COMPLETED")) and (($c | get -o name | default "") =~ "(?i)e2e")
+        } | length)
         let review = ($pr | get -o reviewDecision | default "")
         let draft = $pr.isDraft
         let action = (
             if $draft and $failed > 0            { "draft+CI" }
             else if $draft                       { "draft" }
             else if $failed > 0                  { "fix CI" }
+            else if $pr.mergeable == "CONFLICTING" { "conflict" }
             else if $review == "CHANGES_REQUESTED" { "changes req" }
             else if $review == "REVIEW_REQUIRED"   { "needs review" }
+            else if ($e2e_expected > 0) and ($e2e_running == 0) { "run e2e" }
+            else if $pending > 0                   { "CI…" }
             else if $pr.mergeable == "MERGEABLE"   { "MERGE" }
             else                                    { "blocked" }
         )
-        let actionable = ($action in ["MERGE" "changes req" "fix CI"])
+        let actionable = ($action in ["MERGE" "changes req" "fix CI" "conflict" "run e2e"])
         {number: $pr.number, action: $action, title: $pr.title, url: $pr.url, actionable: $actionable}
     })
 
@@ -118,15 +145,20 @@ def main [] {
     let enriched = ($rows | each { |r|
         let key = ($r.number | into string)
         let prev_out = ($prev | get -o $key | get -o outstanding | default 0)
+        let prev_unres = ($prev | get -o $key | get -o unresolved | default 0)
         let cur = (outstanding-comments $r.number)
-        let out = (if $cur == null { $prev_out } else { $cur })
-        { ...$r, outstanding: $out }
+        let out = (if $cur == null { $prev_out } else { $cur.out })
+        let unres = (if $cur == null { $prev_unres } else { $cur.unresolved })
+        # GitHub blocks merge on ANY unresolved conversation → never claim MERGE
+        # while threads are open; my action is to resolve them.
+        let action = (if ($r.action == "MERGE") and ($unres > 0) { "resolve" } else { $r.action })
+        $r | merge { action: $action, actionable: ($r.actionable or ($action == "resolve")), outstanding: $out, unresolved: $unres }
     })
 
     # Persist cache (fallback for transient gh/GraphQL failures).
     let cache = ($enriched | reduce -f {} { |r, acc|
         $acc | insert ($r.number | into string) {
-            action: $r.action, outstanding: $r.outstanding, actionable: $r.actionable, title: $r.title, url: $r.url
+            action: $r.action, outstanding: $r.outstanding, unresolved: $r.unresolved, actionable: $r.actionable, title: $r.title, url: $r.url
         }
     })
     mkdir ($cache_path | path dirname)
@@ -136,23 +168,26 @@ def main [] {
     # actionable PRs. n_comments = total comments still awaiting my reply/resolve.
     let act = ($enriched | where actionable)
     let n_comments = ($enriched | get outstanding | math sum)
-    if ($act | is-empty) and ($n_comments == 0) {
+    let n_run = ($enriched | where action == "CI…" | length)
+    if ($act | is-empty) and ($n_comments == 0) and ($n_run == 0) {
         set-chip ["drawing=off"]
         return
     }
 
-    let n_fix = ($act | where action in ["fix CI" "changes req"] | length)
+    let n_fix = ($act | where action in ["fix CI" "changes req" "conflict" "run e2e"] | length)
     let n_merge = ($act | where action == "MERGE" | length)
 
     mut parts = []
     if $n_fix > 0   { $parts = ($parts | append $"($G_FIX) ($n_fix)") }
     if $n_merge > 0 { $parts = ($parts | append $"($G_MERGE) ($n_merge)") }
     if $n_comments > 0 { $parts = ($parts | append $"($G_COMMENT) ($n_comments)") }
+    if $n_run > 0   { $parts = ($parts | append $"($G_RUN) ($n_run)") }
     let label = ($parts | str join "   ")
 
     # Urgency color drives BOTH border and label text (single label can't color
-    # per-segment): orange (needs fix) > cyan (unanswered comment) > green (merge).
-    let bcolor = (if $n_fix > 0 { $C_FIX } else if $n_comments > 0 { $C_NEW } else { $C_MERGE })
+    # per-segment): peach (needs fix) > sky (unanswered comment) > gold (CI
+    # running) > green (merge).
+    let bcolor = (if $n_fix > 0 { $C_FIX } else if $n_comments > 0 { $C_NEW } else if $n_run > 0 { $C_RUN } else { $C_MERGE })
 
     set-chip ["drawing=on" $"label=($label)" $"label.color=($bcolor)" $"background.border_color=($bcolor)"]
 }
