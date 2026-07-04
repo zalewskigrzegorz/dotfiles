@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Tracked pre-push hook — wired via `git config core.hooksPath scripts/git-hooks`.
 #
-# Scans the FULL git history with both rule sets before anything leaves the
-# machine. Catches commits made with --no-verify, on other machines, or from
-# tools that bypass the pre-commit hook. Whole-history scan is ~2s on this repo.
+# Scans ONLY the commits actually being pushed (per ref, the range
+# remote_sha..local_sha) with both rule sets. Scoping to the push — rather than
+# the whole local object store — means local backup tags/branches that hold
+# pre-rewrite history don't block an otherwise-clean push. Catches commits made
+# with --no-verify or from tools that bypass the pre-commit hook.
 set -euo pipefail
 
 for d in /opt/homebrew/bin /home/linuxbrew/.linuxbrew/bin /usr/local/bin; do
@@ -16,13 +18,10 @@ if ! command -v gitleaks >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "🔍 gitleaks pre-push (public rules, full history)…"
-gitleaks detect --source . --no-banner --config .gitleaks.toml
-
 private_config="${DOTFILES_GITLEAKS_PRIVATE_CONFIG:-$HOME/.local/state/dotfiles/secrets/gitleaks-private.toml}"
+have_private=0
 if [[ -f "$private_config" ]]; then
-  echo "🔍 gitleaks pre-push (private rules, full history)…"
-  gitleaks detect --source . --no-banner --config "$private_config"
+  have_private=1
 elif [[ "${DOTFILES_SKIP_PRIVATE_GITLEAKS:-0}" == "1" ]]; then
   echo "pre-push: private gitleaks rules SKIPPED via DOTFILES_SKIP_PRIVATE_GITLEAKS=1." >&2
 else
@@ -31,6 +30,38 @@ else
   echo "   $private_config" >&2
   echo "Run 'sync' to restore it from 1Password." >&2
   exit 1
+fi
+
+zero="0000000000000000000000000000000000000000"
+
+scan_range() {
+  # $1 = git log revision range/args describing the commits being pushed
+  echo "🔍 gitleaks pre-push (public rules): $1"
+  gitleaks detect --no-banner --config .gitleaks.toml --log-opts "$1"
+  if [[ "$have_private" == "1" ]]; then
+    echo "🔍 gitleaks pre-push (private rules): $1"
+    gitleaks detect --no-banner --config "$private_config" --log-opts "$1"
+  fi
+}
+
+pushed_anything=0
+# stdin lines: <local ref> <local sha> <remote ref> <remote sha>
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [[ "$local_sha" == "$zero" ]] && continue          # branch deletion — nothing to scan
+  pushed_anything=1
+  if [[ "$remote_sha" == "$zero" ]]; then
+    # new ref on remote — scan every commit reachable from it that isn't already
+    # on any other remote-tracking branch
+    range="$local_sha --not --remotes"
+  else
+    range="$remote_sha..$local_sha"
+  fi
+  scan_range "$range"
+done
+
+if [[ "$pushed_anything" == "0" ]]; then
+  # no stdin (e.g. manual invocation) — fall back to scanning HEAD's history
+  scan_range "HEAD"
 fi
 
 echo "✅ gitleaks clean — pushing."
