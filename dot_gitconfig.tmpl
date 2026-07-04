@@ -25,20 +25,9 @@
 
 [diff]
     colorMoved = default
-    tool = hunk
 
 [difftool]
     prompt = false
-
-[difftool "hunk"]
-    cmd = hunk difftool "$LOCAL" "$REMOTE"
-
-[alias]
-    # hunk = review-first TUI for agent changesets (delta stays the pager).
-    # `git review` / `git rv` open the working-tree diff in watch mode so the
-    # view auto-reloads as an agent edits. Pass a target to review a ref/branch.
-    review = !hunk diff --watch
-    rv = !hunk diff --watch
 
 [user]
     email = grzegorz.zalewski@REDACTED_ORG.com

@@ -50,9 +50,6 @@ def --wrapped vi   [...args] { _herdr_tui $"\u{e62b}  nvim" "nvim" ...$args }
 # lazygit — nf-dev-git (U+E725). `lg` alias expands to lazygit → hits this def.
 def --wrapped lazygit [...args] { _herdr_tui $"\u{e725}  git" "lazygit" ...$args }
 
-# hunk — nf-md-source_branch_check (U+F440)
-def --wrapped hunk [...args] { _herdr_tui $"\u{f440}  hunk" "hunk" ...$args }
-
 # GitHub dashboard (gh dash extension) — nf-md-github (U+F0865)
 def --wrapped gh-dash [...args] { _herdr_tui $"\u{f0865}  gh-dash" "gh" "dash" ...$args }
 

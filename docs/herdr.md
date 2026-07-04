@@ -82,7 +82,7 @@ TCC attribution (#808); restart the server instead.
 
 - **In-herdr tab labels** are ours:
   - `work` names the worktree's tabs (claude tab `󰚩 claude`, shell tab ` nu`).
-  - `zz-herdr-tui-wrappers.nu` — running `lg`/`dash`/`nvim`/`lazydocker`/`btop`/`hunk`
+  - `zz-herdr-tui-wrappers.nu` — running `lg`/`dash`/`nvim`/`lazydocker`/`btop`
     renames the *current* tab to a nerd-font icon while the TUI runs, restoring the
     previous label on exit. Port of the old tmux window wrappers.
   - `dot_claude/hooks/stop/herdr-claude-title.sh` (Stop hook) — renames the claude tab
