@@ -1,4 +1,4 @@
-# Issue body sections (REDACTED_ORG/REDACTED_ORG)
+# Issue body sections (work monorepo)
 
 Use these structures when building the issue body. **Fill all user-visible content in English.** If the user did not provide a value, ask—do not invent facts.
 

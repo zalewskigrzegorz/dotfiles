@@ -2,7 +2,7 @@
 # Sync agent-skills/ -> BOTH ~/.cursor/skills and ~/.claude/skills via rsync.
 # Re-runs whenever the fingerprint below changes (i.e. anything in agent-skills/).
 #
-# fingerprint: {{ output "bash" "-c" (printf "cd %q && find agent-skills -type f -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
+# fingerprint: {{ output "bash" "-c" (printf "cd %q && { find agent-skills -type f -print0 2>/dev/null; find \"${DOTFILES_SECRET_DIR:-$HOME/.local/state/dotfiles/secrets}/agent-skills\" -type f -print0 2>/dev/null; } | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
 
 set -e
 
@@ -31,11 +31,19 @@ if ! command -v rsync >/dev/null 2>&1; then
   fi
 fi
 
+# Private overlay: work-specific skills that must not live in the public repo.
+# Restored from 1Password by run_after_05; layered AFTER the public rsync so the
+# --delete pass above doesn't wipe them permanently (they're re-added each run).
+PRIVATE_SOURCE="${DOTFILES_SECRET_DIR:-$HOME/.local/state/dotfiles/secrets}/agent-skills"
+
 for target in "${HOME}/.cursor/skills" "${HOME}/.claude/skills"; do
   mkdir -p "$target"
   rsync -a --delete \
     --exclude '.DS_Store' \
     "${SOURCE}/" "${target}/"
+  if [[ -d "$PRIVATE_SOURCE" ]]; then
+    rsync -a --exclude '.DS_Store' "${PRIVATE_SOURCE}/" "${target}/"
+  fi
 done
 
 echo "agent-skills sync: $(ls -1d "${HOME}/.cursor/skills"/*/ 2>/dev/null | wc -l | tr -d ' ') skill(s) in each target."

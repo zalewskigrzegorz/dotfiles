@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Point the dotfiles repo at the TRACKED git hooks (scripts/git-hooks/) so the
+# gitleaks pre-commit + pre-push guards survive a fresh clone. The old untracked
+# .git/hooks/pre-commit is superseded by core.hooksPath.
+#
+# fingerprint: {{ output "bash" "-c" (printf "cd %q && find scripts/git-hooks -type f -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
+
+set -e
+
+REPO="{{ .chezmoi.sourceDir }}"
+
+if [[ ! -d "$REPO/.git" || ! -d "$REPO/scripts/git-hooks" ]]; then
+  echo "git-hooks: $REPO is not a git checkout with scripts/git-hooks — skipping."
+  exit 0
+fi
+
+chmod +x "$REPO"/scripts/git-hooks/* 2>/dev/null || true
+git -C "$REPO" config core.hooksPath scripts/git-hooks
+echo "git-hooks: core.hooksPath -> scripts/git-hooks (pre-commit + pre-push gitleaks)."

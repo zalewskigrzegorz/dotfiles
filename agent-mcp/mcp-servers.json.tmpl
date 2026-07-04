@@ -51,7 +51,7 @@
       "args": ["-y", "@jetbrains/mcp-proxy"]
     },
     {{ if eq .chezmoi.os "darwin" -}}
-    {{/* REDACTED_ORG work MCPs (grafana + cloudwatch) — Mac only. On the lab they only
+    {{/* Work MCPs (grafana + cloudwatch) — Mac only. On the lab they only
          spawned orphaned docker containers (grafana/mcp-grafana, mcp/cloudwatch)
          with no use case there. */}}
     "grafana": {
@@ -71,7 +71,7 @@
         "stdio"
       ],
       "env": {
-        "GRAFANA_URL": "https://grafana.REDACTED_ORG.com",
+        "GRAFANA_URL": {{ (index (index . "work" | default dict) "grafanaUrl" | default "") | quote }},
         "GRAFANA_SERVICE_ACCOUNT_TOKEN": {{ if lookPath "op" }}{{ onepasswordRead (printf "op://%s/GRAFANA_SERVICE_ACCOUNT_TOKEN/password" (index . "onePasswordVault" | default "Dotfiles")) | quote }}{{ else }}""{{ end }}
       }
     },
@@ -92,7 +92,7 @@
         "stdio"
       ],
       "env": {
-        "GRAFANA_URL": "https://grafana.REDACTED_ORG.com",
+        "GRAFANA_URL": {{ (index (index . "work" | default dict) "grafanaUrl" | default "") | quote }},
         "GRAFANA_SERVICE_ACCOUNT_TOKEN": {{ if lookPath "op" }}{{ onepasswordRead (printf "op://%s/GRAFANA_SERVICE_ACCOUNT_TOKEN/password" (index . "onePasswordVault" | default "Dotfiles")) | quote }}{{ else }}""{{ end }}
       }
     },
@@ -105,7 +105,7 @@
         "-v",
         "{{ .chezmoi.homeDir }}/.aws:/app/.aws",
         "-e",
-        "AWS_PROFILE=REDACTED_ORG-prod",
+        {{ printf "AWS_PROFILE=%s" (index (index . "work" | default dict) "awsProfile" | default "") | quote }},
         "mcp/cloudwatch-mcp-server:latest"
       ]
     },

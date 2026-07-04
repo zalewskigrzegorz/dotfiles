@@ -59,6 +59,7 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 | 32 | `run_onchange_after_32-agent-mcp-sync.sh.tmpl` | apply `agent-mcp/mcp-servers.json.tmpl` |
 | 33 | `run_onchange_after_33-claude-plugins-sync.sh.tmpl` | apply `agent-plugins/plugins.json.tmpl` |
 | 35 | `run_after_35-raycast-scripts-compat.sh.tmpl` | Raycast compatibility shim |
+| 36 | `run_onchange_after_36-git-hooks.sh.tmpl` | wire tracked git hooks (`core.hooksPath` → gitleaks pre-commit/pre-push) |
 | 45 | `run_once_after_45-install-tmux-plugins.sh` | TPM + tmux plugins |
 
 Bootstrap from scratch: `./bootstrap.sh` (installs chezmoi + runs first apply).
@@ -102,7 +103,9 @@ Anything installed via `/plugin install`, `claude mcp add`, or `~/.claude/skills
 
 - `private/` — gitignored staging area, restored to `~/` by `run_after_05`
 - `private_dot_ssh/` → `~/.ssh` at mode 0600 (templated)
-- `.gitleaks.toml` — secret scanner config; run `bin/gitleaks-dotfiles` before pushing
+- **Work identifiers (employer, team, roster, Slack IDs, client names) NEVER go in this repo** — it's public. They live in `~/.local/state/dotfiles/secrets/{work-context.md,work.env}` + `.chezmoidata/private-work.toml` (gitignored), all restored from 1Password (see `docs/secrets.md` → "Work identifiers"). Skills reference *work-context*; scripts read `WORK_*` env vars; templates use `{{ index . "work" ... }}`.
+- Private skills/rules (client/product-specific) go in the `PRIVATE_AGENT_ASSETS_TAR` 1Password overlay, not `agent-skills/`/`agent-rules/`.
+- `.gitleaks.toml` — public scanner rules; private identifier rules in `~/.local/state/dotfiles/secrets/gitleaks-private.toml`. Enforced by **tracked hooks** `scripts/git-hooks/{pre-commit,pre-push}` (wired via `core.hooksPath` by `run_onchange_after_36`); both block when the private config is missing. Manual full scan: `bin/gitleaks-dotfiles`.
 - Templated secrets in `*.tmpl` files use chezmoi's secret functions (1Password on Mac, see `docs/secrets.md`)
 - `1Password CLI` on Linux is **not** in homebrew — install via apt (see Linux block in `dot_Brewfile.tmpl`)
 

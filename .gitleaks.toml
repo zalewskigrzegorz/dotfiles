@@ -14,6 +14,12 @@ id = "project-update-dump"
 description = "Local work status dump should not be committed"
 path = '''(^|/)project-update\.md$|(^|/)statuses/'''
 
+[[rules]]
+id = "sk-underscore-api-key"
+description = "Generic sk_-prefixed API key (e.g. IDE extension keys)"
+regex = '''sk_[A-Za-z0-9+/=_-]{30,}'''
+keywords = ["sk_"]
+
 [allowlist]
 paths = [
   '''^docs/dotfiles-inventory\.md$''',

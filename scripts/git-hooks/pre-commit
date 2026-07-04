@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Tracked pre-commit hook — wired via `git config core.hooksPath scripts/git-hooks`
+# (set automatically by run_onchange_after_36-git-hooks.sh).
+#
+# Two gitleaks passes over STAGED changes:
+#   1. public rules   (.gitleaks.toml, committed)
+#   2. private rules  (~/.local/state/dotfiles/secrets/gitleaks-private.toml,
+#                      restored from 1Password by `sync` — work identifiers,
+#                      names, Slack IDs)
+# The private pass is REQUIRED — a missing private config blocks the commit,
+# because that's exactly the state in which work identifiers slip through.
+set -euo pipefail
+
+for d in /opt/homebrew/bin /home/linuxbrew/.linuxbrew/bin /usr/local/bin; do
+  [[ -d "$d" ]] && PATH="$d:$PATH"
+done
+export PATH
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-commit: gitleaks not installed (brew install gitleaks)" >&2
+  exit 1
+fi
+
+echo "🔍 gitleaks (public rules)…"
+gitleaks protect --staged --no-banner --config .gitleaks.toml
+
+private_config="${DOTFILES_GITLEAKS_PRIVATE_CONFIG:-$HOME/.local/state/dotfiles/secrets/gitleaks-private.toml}"
+if [[ -f "$private_config" ]]; then
+  echo "🔍 gitleaks (private rules)…"
+  gitleaks protect --staged --no-banner --config "$private_config"
+elif [[ "${DOTFILES_SKIP_PRIVATE_GITLEAKS:-0}" == "1" ]]; then
+  echo "pre-commit: private gitleaks rules SKIPPED via DOTFILES_SKIP_PRIVATE_GITLEAKS=1." >&2
+else
+  echo "" >&2
+  echo "🚫 COMMIT BLOCKED — private gitleaks config missing:" >&2
+  echo "   $private_config" >&2
+  echo "Run 'sync' to restore it from 1Password." >&2
+  echo "One-off bypass (NOT recommended): DOTFILES_SKIP_PRIVATE_GITLEAKS=1 git commit …" >&2
+  exit 1
+fi
+
+echo "✅ gitleaks clean."

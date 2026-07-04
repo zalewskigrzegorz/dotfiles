@@ -3,7 +3,7 @@
 # native new-worktree popup (prefix+shift+g).
 #
 # Why: herdr 0.7.1's native popup always opens the dialog on the wrong workspace
-# (server log shows ws_idx=1 / REDACTED_ORG) instead of the focused one, so the
+# (server log shows ws_idx=1 / another repo) instead of the focused one, so the
 # checkout lands under ~/.herdr/worktrees/<wrong-repo>/. That's a herdr binary
 # bug, not fixable from config. This script reads the *focused* workspace from
 # `herdr workspace list`, opens a tab in that repo, and runs `work new` there —

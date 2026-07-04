@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Tracked pre-push hook — wired via `git config core.hooksPath scripts/git-hooks`.
+#
+# Scans the FULL git history with both rule sets before anything leaves the
+# machine. Catches commits made with --no-verify, on other machines, or from
+# tools that bypass the pre-commit hook. Whole-history scan is ~2s on this repo.
+set -euo pipefail
+
+for d in /opt/homebrew/bin /home/linuxbrew/.linuxbrew/bin /usr/local/bin; do
+  [[ -d "$d" ]] && PATH="$d:$PATH"
+done
+export PATH
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-push: gitleaks not installed (brew install gitleaks)" >&2
+  exit 1
+fi
+
+echo "🔍 gitleaks pre-push (public rules, full history)…"
+gitleaks detect --source . --no-banner --config .gitleaks.toml
+
+private_config="${DOTFILES_GITLEAKS_PRIVATE_CONFIG:-$HOME/.local/state/dotfiles/secrets/gitleaks-private.toml}"
+if [[ -f "$private_config" ]]; then
+  echo "🔍 gitleaks pre-push (private rules, full history)…"
+  gitleaks detect --source . --no-banner --config "$private_config"
+elif [[ "${DOTFILES_SKIP_PRIVATE_GITLEAKS:-0}" == "1" ]]; then
+  echo "pre-push: private gitleaks rules SKIPPED via DOTFILES_SKIP_PRIVATE_GITLEAKS=1." >&2
+else
+  echo "" >&2
+  echo "🚫 PUSH BLOCKED — private gitleaks config missing:" >&2
+  echo "   $private_config" >&2
+  echo "Run 'sync' to restore it from 1Password." >&2
+  exit 1
+fi
+
+echo "✅ gitleaks clean — pushing."

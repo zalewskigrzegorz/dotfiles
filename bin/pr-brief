@@ -6,12 +6,22 @@
 #
 # Standalone (no `work` autoload dependency) — only needs `gh`.
 
-const REPO = "REDACTED_ORG/REDACTED_ORG"
+# Work repo comes from the private work.env (restored from 1Password by `sync`);
+# never hardcode org/repo names here — this file is public.
+def work-repo []: nothing -> string {
+    let from_env = ($env.WORK_MAIN_REPO? | default "")
+    if $from_env != "" { return $from_env }
+    let f = ($nu.home-dir | path join ".local/state/dotfiles/secrets/work.env")
+    if not ($f | path exists) {
+        error make {msg: "WORK_MAIN_REPO not set and work.env missing — run `sync` to restore it"}
+    }
+    open $f | lines | where {|l| $l starts-with "WORK_MAIN_REPO="} | first | str replace "WORK_MAIN_REPO=" ""
+}
 
 # Unresolved review threads — only reachable via GraphQL (gh pr view --json has no
 # reviewThreads field). Returns [] on any failure.
 def review-threads [num: int]: nothing -> list {
-    let parts = ($REPO | split row "/")
+    let parts = ((work-repo) | split row "/")
     let q = 'query($owner:String!,$name:String!,$num:Int!){repository(owner:$owner,name:$name){pullRequest(number:$num){reviewThreads(first:100){nodes{isResolved path line comments(first:1){nodes{author{login} body}}}}}}}'
     let r = (do {
         ^gh api graphql -f $"query=($q)" -F $"owner=($parts.0)" -F $"name=($parts.1)" -F $"num=($num)"
@@ -30,7 +40,7 @@ def review-threads [num: int]: nothing -> list {
 }
 
 def main [num: int] {
-    let r = (do { ^gh pr view $num --repo $REPO --json "number,title,url,statusCheckRollup" } | complete)
+    let r = (do { ^gh pr view $num --repo (work-repo) --json "number,title,url,statusCheckRollup" } | complete)
     if $r.exit_code != 0 {
         print $"Pracujesz nad PR #($num). Nie udało się pobrać szczegółów \(gh\): ($r.stderr | str trim)"
         return

@@ -1,6 +1,6 @@
 ---
 name: g-pr
-description: Creates or updates a GitHub PR using gh CLI and the repo pull_request_template.md, changesets for REDACTED_ORG, no-changeset-needed label when appropriate, and Fixes/Closes issue links in Reference. Use when the user wants to open or refresh a PR body/title.
+description: Creates or updates a GitHub PR using gh CLI and the repo pull_request_template.md, changesets for the work monorepo, no-changeset-needed label when appropriate, and Fixes/Closes issue links in Reference. Use when the user wants to open or refresh a PR body/title.
 ---
 
 # g-pr
@@ -22,7 +22,7 @@ Always run the **generated PR body through the `humanizer` skill** before creati
 
 ## Title
 
-Same convention as commits: `type(scope): subject` with types from repo `commitlint.config.js` when present (REDACTED_ORG: `feat`, `fix`, `docs`, `chore`, `tests`, `hotfix`). Gitmoji on the PR title is optional; match the latest or main commit if helpful.
+Same convention as commits: `type(scope): subject` with types from repo `commitlint.config.js` when present (work monorepo: `feat`, `fix`, `docs`, `chore`, `tests`, `hotfix`). Gitmoji on the PR title is optional; match the latest or main commit if helpful.
 
 ## Body sections
 
@@ -38,9 +38,9 @@ Same convention as commits: `type(scope): subject` with types from repo `commitl
 
 Infer `Fixes #n` / `Closes #n` only when the user stated it, the branch name contains the issue number in a clear convention, or an existing PR body already references that issue. Otherwise ask for the issue number.
 
-## Changesets (REDACTED_ORG monorepo)
+## Changesets (work monorepo)
 
-When working in **REDACTED_ORG** with user-facing changes:
+When working in **the work monorepo** with user-facing changes:
 
 - **Reunite** user-facing: run `pnpm changeset:reunite --empty`
 - **Realm** user-facing: run `pnpm changeset:realm --empty`

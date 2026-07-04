@@ -1,6 +1,6 @@
 # mise task shortcuts for nushell.
 #
-# Repos like REDACTED_ORG/REDACTED_ORG define `[shell_alias]` in mise.toml (up, down,
+# Repos like work repos define `[shell_alias]` in mise.toml (up, down,
 # install, build → `mise run <task>`). mise's `hook-env` injects those as real
 # shell aliases for bash/zsh/fish, but the nushell hook-env output drops them
 # entirely — so in nu the bare `up`/`down`/… never get defined. These static

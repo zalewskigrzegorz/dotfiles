@@ -120,7 +120,7 @@ One short message at the end:
 
 ## Notes on the `run_e2e` label
 
-This label is a REDACTED_ORG-specific convention: removing then re-adding it causes the workflow to fire again. The toggle pattern (remove → add) is intentional — adding a label that's already there is a no-op, so a remove-first-then-add guarantees an event. If a repo doesn't have a `run_e2e` label, `gh pr edit --remove-label run_e2e` will print a warning to stderr and exit non-zero. In that case, do **not** treat it as a hard failure for the whole skill — report it in the summary ("PR #1234 rebased + pushed; no run_e2e label in this repo, skipped re-trigger") and move on.
+This label is a work-repo convention: removing then re-adding it causes the workflow to fire again. The toggle pattern (remove → add) is intentional — adding a label that's already there is a no-op, so a remove-first-then-add guarantees an event. If a repo doesn't have a `run_e2e` label, `gh pr edit --remove-label run_e2e` will print a warning to stderr and exit non-zero. In that case, do **not** treat it as a hard failure for the whole skill — report it in the summary ("PR #1234 rebased + pushed; no run_e2e label in this repo, skipped re-trigger") and move on.
 
 ## Things to avoid
 
