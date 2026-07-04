@@ -91,8 +91,8 @@
     "errorLens.gutterIconSet": "emoji",
     "errorLens.problemRangeDecorationEnabled": true,
     "errorLens.followCursor": "closestProblemMultilineInViewport",
-    "REDACTED_ORGOpenAPI.api.key": {{ if lookPath "op" }}{{ onepasswordRead (printf "op://%s/OPENAPI_IDE_EXTENSION_KEY/password" (index . "onePasswordVault" | default "Dotfiles")) | quote }}{{ else }}""{{ end }},
-    "REDACTED_ORGOpenAPI.api.region": "us",
+    "redoclyOpenAPI.api.key": {{ if lookPath "op" }}{{ onepasswordRead (printf "op://%s/OPENAPI_IDE_EXTENSION_KEY/password" (index . "onePasswordVault" | default "Dotfiles")) | quote }}{{ else }}""{{ end }},
+    "redoclyOpenAPI.api.region": "us",
     "[javascript]": {
         "editor.defaultFormatter": "vscode.typescript-language-features"
     },

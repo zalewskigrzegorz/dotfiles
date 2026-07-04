@@ -52,7 +52,7 @@ Password-field items:
 
 | 1Password item | Field | Used by |
 |---|---|---|
-| `OPENAPI_IDE_EXTENSION_KEY` | `password` | VS Code + Cursor `settings.json.tmpl` (`REDACTED_ORGOpenAPI.api.key`) |
+| `OPENAPI_IDE_EXTENSION_KEY` | `password` | VS Code + Cursor `settings.json.tmpl` (`redoclyOpenAPI.api.key`) |
 
 Fresh-machine bootstrap note: the first `chezmoi apply` renders templates before
 `run_after_05` restores `.chezmoidata/private-work.toml`, so work-templated files
