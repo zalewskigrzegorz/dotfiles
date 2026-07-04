@@ -1,9 +1,15 @@
 ---
 name: daily-brief
-description: Multi-source personal briefing for Greg (Staff Engineer at REDACTED_ORG, Team REDACTED_TEAM). Pulls his own GitHub PRs bucketed by state, PRs awaiting his review, in-progress issues, Spark mail action items extracted from Inbox+Archive bodies (last 7d) + Spark task flags (starred/pinned/Later/has:reminder), Drafts.app brain dumps from the last 7d, calendar + meeting transcripts, Slack DMs + mentions, Hindsight memory recall (incl. time-filtered "shipped" and "decision" queries), recent git activity across ~/Code/**, weather (anomaly-only) + USD + AQI band from wttr.in/NBP/Open-Meteo, home signals from Homey (pet trackers, waste schedule, pollen alarm via get_home_alarms on Pylenie device), a walk-window recommendation for the dogs scored at 17:00 preferred with workday/evening/morning fallbacks and a 26°C hard cap, and a Tina (announce-agent) recap from the last 24h filtered to chores/calendar/anomalies via http://lab:3001/api/events. On Monday and Wednesday additionally layers a REDACTED_TEAM pre-sync rundown before the standup at 12:00. Outputs a 3-5 minute spoken Polish briefing in Rick-Sanchez-LITE tone as plain prose (NO audio tags) ready for ElevenLabs v2 TTS. Use whenever Greg says "brief", "daily brief", "morning brief", "co dziś", "co na dziś", "dzień dobry", "co przed standupem", "co przed syncem", invokes `/daily-brief`, or otherwise asks for an audio rundown of his day.
+description: Multi-source personal briefing for Greg (Staff Engineer; org/team/roster in the private work-context file). Pulls his own GitHub PRs bucketed by state, PRs awaiting his review, in-progress issues, Spark mail action items extracted from Inbox+Archive bodies (last 7d) + Spark task flags (starred/pinned/Later/has:reminder), Drafts.app brain dumps from the last 7d, calendar + meeting transcripts, Slack DMs + mentions, Hindsight memory recall (incl. time-filtered "shipped" and "decision" queries), recent git activity across ~/Code/**, weather (anomaly-only) + USD + AQI band from wttr.in/NBP/Open-Meteo, home signals from Homey (pet trackers, waste schedule, pollen alarm via get_home_alarms on Pylenie device), a walk-window recommendation for the dogs scored at 17:00 preferred with workday/evening/morning fallbacks and a 26°C hard cap, and a Tina (announce-agent) recap from the last 24h filtered to chores/calendar/anomalies via http://lab:3001/api/events. On Monday and Wednesday additionally layers a team pre-sync rundown before the standup at 12:00. Outputs a 3-5 minute spoken Polish briefing in Rick-Sanchez-LITE tone as plain prose (NO audio tags) ready for ElevenLabs v2 TTS. Use whenever Greg says "brief", "daily brief", "morning brief", "co dziś", "co na dziś", "dzień dobry", "co przed standupem", "co przed syncem", invokes `/daily-brief`, or otherwise asks for an audio rundown of his day.
 ---
 
 # daily-brief
+
+> **Private work context — READ FIRST:** `~/.local/state/dotfiles/secrets/work-context.md`
+> holds the org/repo names, team name + scope, roster, Greg's email anchors and all Slack
+> channel/user IDs (restored from 1Password by `sync`). Referenced below as *work-context*.
+> For shell commands, `source ~/.local/state/dotfiles/secrets/work.env` provides
+> `$WORK_GITHUB_ORG`, `$WORK_MAIN_REPO`, `$WORK_TEAM_LABEL`.
 
 ## When to use
 
@@ -45,33 +51,12 @@ Imagine Rick when he's *actually working with Morty on a real problem* — sharp
 | "nic strasznego"         | "nic czego sam byś nie ogarnął, choć z naciskiem na *gdybyś*"                   |
 | "team jest cicho"        | "team milczy jak grób — albo coś knują, albo nic nie robią"                     |
 
-## Scope — Team REDACTED_TEAM (used in Mon/Wed mode and for filtering scope-relevant items)
+## Scope — Greg's team (used in Mon/Wed mode and for filtering scope-relevant items)
 
-REDACTED_TEAM own **authentication, access, AND permissions** for the Reunite product (formerly REDACTED_CODENAME):
-
-- Password login, social login (Google)
-- SSO (SAML/OIDC), identity domains
-- Device login (Replay, REDACTED_ORG CLI)
-- People management + invitations
-- RBAC (teams, roles, access levels)
-- API Keys
-- SCIM 2.0
-- Subscription management (plans, payment, entitlements)
-- Notifications
-
-Anything in PRs / Slack / tickets touching: `login`, `auth`, `SSO`, `RBAC`, `IdP`, `SCIM`, `invitation`, `API key`, `subscription`, `entitlement`, `billing`, `plan`, `seat`, `access denied`, `permission denied`, `role`, `Owner`, `Maintainer`, or "user has role X but can't do Y" — counts as REDACTED_TEAM scope, even when wrapped in non-auth language.
-
-## Roster (use first names, never raw logins aloud)
-
-| GitHub login         | First name | Notes                        |
-|----------------------|------------|------------------------------|
-| `zalewskigrzegorz`   | Greg       | The listener.                |
-| `REDACTED_NAMEa-REDACTED_ORG`  | Adam       | Adam REDACTED_NAME                |
-| `REDACTED_LOGIN`         | Jakub      | Jakub REDACTED_NAME              |
-| `REDACTED_LOGIN`             | Bartek     | Bartłomiej REDACTED_NAME        |
-| `REDACTED_LOGIN`         | Artem      | Artem REDACTED_NAME             |
-
-Not on the team — ignore: Radek (REDACTED_NAME) left, Yevhen is a different team.
+Team name, full ownership scope (auth/access/permissions product areas), scope keywords,
+team-owned package patterns, and the roster table (GitHub login → first name) live in
+**work-context** (§Team scope, §Roster). Read them before filtering PRs/Slack/tickets.
+Use first names, never raw logins aloud.
 
 **Greg's household (the family the brief talks to):** Greg + wife + three pets — **Lucy** (cat), **Daisy** and **Buffy** (dogs). No human kids; the pets ARE the family. When the walk-window or pet sections speak about them, lean warm — these aren't "the animals", they're family members. Never refer to Familijne / Home calendar as "kids' stuff".
 
@@ -79,7 +64,7 @@ Not on the team — ignore: Radek (REDACTED_NAME) left, Yevhen is a different te
 
 Run `date +%u` (1 = Mon, …, 7 = Sun) to detect today.
 
-- **1 (Monday) or 3 (Wednesday)** → **Mon/Wed mode**: include section 8 (REDACTED_TEAM pre-sync rundown) before the closing. Sync is at 12:00.
+- **1 (Monday) or 3 (Wednesday)** → **Mon/Wed mode**: include section 8 (team pre-sync rundown) before the closing. Sync is at 12:00.
   - If the brief runs **before 12:00** → **pre-sync framing**: *"za chwilę masz sync, lecę z rundą"* / *"sync o dwunastej, oto na co zerknij"*.
   - If the brief runs **after 12:00** → **post-sync recap framing**: *"sync był dziś o dwunastej, oto co przegapiłeś / co wyszło"*. **Never** say *"sync masz jutro"* on a Mon/Wed afternoon — sync was today.
 - **Any other day** → **personal mode**: skip section 8 entirely. Sections 1-7 + closing.
@@ -174,17 +159,17 @@ Look at **the last 5 days** by default.
 
 Run these queries in parallel; bucket the results before composing:
 
-**Greg's own PRs (across the REDACTED_ORG org):**
+**Greg's own PRs (across the work org):**
 
 ```bash
-gh pr list --author @me --state open --repo REDACTED_ORG/REDACTED_ORG \
+gh pr list --author @me --state open --repo "$WORK_MAIN_REPO" \
   --json number,title,reviewDecision,updatedAt,isDraft,mergeable,statusCheckRollup --limit 30
 ```
 
 For each PR also pull comments/reviews to detect *response-waiting*:
 
 ```bash
-gh pr view <number> --repo REDACTED_ORG/REDACTED_ORG --json reviews,comments,reviewRequests \
+gh pr view <number> --repo "$WORK_MAIN_REPO" --json reviews,comments,reviewRequests \
   --jq '{ reviews: [.reviews[] | {author: .author.login, state, submittedAt}],
           last_comment_author: (.comments | last | .author.login // ""),
           last_review_author: (.reviews | last | .author.login // "") }'
@@ -196,22 +181,22 @@ Bucket Greg's PRs into three:
 2. **Merge-ready** — `reviewDecision == "APPROVED" && mergeable == "MERGEABLE" && isDraft == false`. These are easy wins, mention every one of them — Rick gets to be incredulous about each.
 3. **Response-waiting** — last review or last comment is from someone *other than* Greg, dated within the last 5 days, and the PR is not in the other two buckets. These are "the ball is in your court".
 
-**PRs awaiting Greg's review** (across the REDACTED_ORG org):
+**PRs awaiting Greg's review** (across the work org):
 
 ```bash
-gh search prs --review-requested @me --state open --owner REDACTED_ORG \
+gh search prs --review-requested @me --state open --owner "$WORK_GITHUB_ORG" \
   --json number,title,repository,updatedAt,author --limit 30
 ```
 
 Filter aggressively:
-- **Skip** dependabot / renovate / other bot PRs from the *count*, BUT — if a bot PR is on a REDACTED_TEAM-owned package (`REDACTED_ORG-auth`, anything with `auth`/`rbac`/`scim`/`subscription` in the path) AND is labeled `[security]`, surface it separately as a security item.
-- If after filtering there are **>5** human PRs awaiting review — group by team membership, prioritize REDACTED_TEAM roster (Adam / Jakub / Bartek / Artem), give a count for the rest.
+- **Skip** dependabot / renovate / other bot PRs from the *count*, BUT — if a bot PR is on a team-owned package (patterns in work-context §Team scope) AND is labeled `[security]`, surface it separately as a security item.
+- If after filtering there are **>5** human PRs awaiting review — group by team membership, prioritize the team roster (work-context §Roster), give a count for the rest.
 - If **≤5** human PRs — one 1-sentence sketch each ("Roman's autonomous agent UI, dziś rano podbity").
 
 **Issues "in progress" assigned to Greg:**
 
 ```bash
-gh search issues --assignee @me --state open --owner REDACTED_ORG \
+gh search issues --assignee @me --state open --owner "$WORK_GITHUB_ORG" \
   --json number,title,repository,updatedAt,labels --limit 30
 ```
 
@@ -252,7 +237,7 @@ spark meetings --filter "newer_than:2d"
 
 **Drafts mail folder is NOT queried** — Greg's drafts are garbage, explicitly excluded.
 
-**NEVER truncate the `spark events` output** (no `head`, no `| head -N`). The list interleaves many shared calendars sorted by time, so a real Greg meeting (e.g. a REDACTED_CLIENT sync at 15:30) can sit far down the list after a pile of other people's all-day/standup entries. Read the FULL output and scan every entry's `Calendar:`/`Attendees:` line before deciding what to surface. Missing a real meeting because it was below a truncation cutoff is a bug.
+**NEVER truncate the `spark events` output** (no `head`, no `| head -N`). The list interleaves many shared calendars sorted by time, so a real Greg meeting (e.g. a client sync at 15:30) can sit far down the list after a pile of other people's all-day/standup entries. Read the FULL output and scan every entry's `Calendar:`/`Attendees:` line before deciding what to surface. Missing a real meeting because it was below a truncation cutoff is a bug.
 
 **Calendar filter — exclude family/shared calendars (Greg's wife shares some):**
 
@@ -263,11 +248,11 @@ For each `spark events` entry, check the `Calendar:` line. **Drop** the event si
 - `Team: Dom` (iCloud shared "Dom" team)
 - Any `Holidays`/`Holiday`/`Święta` calendar — public holidays already known, low signal.
 
-**Exception — keep the event** even from those calendars if Greg is in the `Attendees:` list AND it's not a public holiday (he was explicitly invited to a shared-calendar event = it concerns him). Greg's email anchors: `grzegorz.zalewski@REDACTED_ORG.com`, `maksim009@gmail.com`, `zalewski.grzegorz@icloud.com`.
+**Exception — keep the event** even from those calendars if Greg is in the `Attendees:` list AND it's not a public holiday (he was explicitly invited to a shared-calendar event = it concerns him). Greg's email anchors: the list in work-context (§Greg's email anchors).
 
 **Filtered events MUST be dropped SILENTLY — do NOT mention them with any disclaimer** (no *"to nie twoje, więc ignoruj"*, no *"żona ma to wbite"*, no *"ignoruj"*). They simply do not exist in the brief output. Mentioning + ignoring is worse than mentioning — it wastes audio time and reminds Greg of something he shouldn't be thinking about.
 
-For surviving entries: if attendees include REDACTED_TEAM roster, mention it; if external attendee (non-REDACTED_ORG.com domain), mention the meeting + the attendee's company.
+For surviving entries: if attendees include the team roster, mention it; if external attendee (non-work domain), mention the meeting + the attendee's company.
 
 For meeting transcripts from today, optionally call `spark meeting --transcript <id>` to pull the full transcript if you need to summarise what happened — useful for the briefing right after a meeting Greg may have half-listened to.
 
@@ -296,7 +281,7 @@ If Greg's user id `U044DRVH8UF` is not detected by `<@U044DRVH8UF>` modifier (Sl
 mcp__hindsight__recall  query="daily-brief-leftover"   # what Greg left open yesterday
 mcp__hindsight__recall  query="wip-context"            # current in-flight topics
 mcp__hindsight__recall  query="tomorrow"               # things Greg asked to remind about
-mcp__hindsight__recall  query="REDACTED_TEAM"             # team context
+mcp__hindsight__recall  query="<team name from work-context>"   # team context
 mcp__hindsight__recall  query="sync-prep"              # explicit sync-prep notes
 mcp__hindsight__recall  query="ongoing concerns"       # generic safety net
 mcp__hindsight__recall  query="shipped this week"      # v2: recent work
@@ -448,7 +433,7 @@ Skip drafts tagged `done`, `archived`, `processed`. Skip trashed.
 
 ### Out-of-office detection
 
-From `spark events --week`, scan calendar entries titled `Out of office` or `OOO` or with all-day events from REDACTED_TEAM roster members. If a roster member is OOO **today**, mention it in section 4.
+From `spark events --week`, scan calendar entries titled `Out of office` or `OOO` or with all-day events from team roster members. If a roster member is OOO **today**, mention it in section 4.
 
 ## Section structure (in this order)
 
@@ -544,13 +529,13 @@ If all three buckets are empty, one short sentence: "Twoje pull requesty są w p
 
 ### 3. Do przejrzenia — PRs awaiting your review
 
-If **>5** human PRs: count + REDACTED_TEAM-team-first listing ("z teamu masz Adamowy SSO refactor i Bartka invitation flow, plus dwanaście innych głównie z Lightsaberów i Hot Dogs"). If **≤5**: one short clause each. Always skip dependabot from the count, separately surface any security PR on REDACTED_TEAM packages.
+If **>5** human PRs: count + own-team-first listing ("z teamu masz Adamowy SSO refactor i Bartka invitation flow, plus dwanaście innych z pozostałych teamów"). If **≤5**: one short clause each. Always skip dependabot from the count, separately surface any security PR on team-owned packages.
 
 ### 4. Kalendarz + transkrypcje + OOO
 
 - Today's remaining meetings (time + name + Meet/Zoom link signal if external).
 - Yesterday's / today's meeting transcripts (1-line takeaway each if useful).
-- OOO from REDACTED_TEAM roster, only today.
+- OOO from the team roster, only today.
 
 ### 5. Inbox + Slack catchup
 
@@ -745,32 +730,20 @@ Render scenarios:
 
 If pollen alarm is on AND a slot was found → ALWAYS append: *"weź antyhistaminę przed wyjściem"*.
 
-### 8. REDACTED_TEAM pre-sync — ONLY on Mon/Wed
+### 8. Team pre-sync — ONLY on Mon/Wed
 
-Apply the existing REDACTED_TEAM ownership filter (sections "Scope" + "Data sources / Slack" from the legacy `REDACTED_TEAM-brief` skill — that logic lives inline here). Cover:
+Apply the team ownership filter (work-context §Team scope + §Slack tables). Cover:
 
 - Team PRs grouped by state (security label / approved-unmerged / changes-requested / stale).
-- REDACTED_TEAM-scope Slack from `#REDACTED_CHANNEL`, `#REDACTED_CHANNEL`, `#dev`, `#general`, `#cursor-ai`, `#REDACTED_CHANNEL`, `#emergency`, `#REDACTED_CLIENT`, `#support`, `#releases` — apply per-channel filter from the section below.
+- Team-scope Slack from the channels listed in work-context — apply the per-channel filter from the section below.
 - Heads-up line if there's an active security CVE in shipped packages or a customer-blocking auth issue.
 
 If today is **not** Mon/Wed, skip this section entirely.
 
 ### Per-channel Slack filter (used in section 8)
 
-| Channel ID   | Channel           | What to extract                                                                 |
-|--------------|-------------------|---------------------------------------------------------------------------------|
-| `REDACTED_SLACK_ID`| `#REDACTED_CHANNEL`| Full read — blockers, help, deadlines, PR discussions involving roster.         |
-| `REDACTED_SLACK_ID`| `#REDACTED_CHANNEL`     | Quick scan; mention only if actionable (rare).                                  |
-| `REDACTED_SLACK_ID`  | `#dev`            | One clause if relevant: Reunite deploy issues, repo-wide tooling, ownership questions about REDACTED_TEAM infra. |
-| `REDACTED_SLACK_ID`  | `#general`        | One clause if it affects the week (holidays, ops, leadership absences). Skip social. |
-| `REDACTED_SLACK_ID`| `#cursor-ai`      | One clause ONLY if new directive / change in team AI approach. Skip product news, jokes. |
-| `REDACTED_SLACK_ID`| `#REDACTED_CHANNEL`      | Active training this week + has Greg done it. Max one clause or skip.           |
-| `REDACTED_SLACK_ID`| `#emergency`      | Temperature read. Active incident → heads-up.                                   |
-| `REDACTED_SLACK_ID`  | `#REDACTED_CLIENT`        | Strict: only subscription / billing / plan downgrades / entitlement bugs.       |
-| `REDACTED_SLACK_ID`| `#support`        | INCLUDE anything touching access/permissions/roles/auth/login/SSO/RBAC/SCIM/API key/invitation/subscription/entitlements/device login. **A "user has role X but can't do Y" ticket is YOURS (RBAC engine), even if Y is "add remote content" / "deploy" / "view project".** EXCLUDE: pure docs/rendering bugs, performance with no auth component. |
-| `REDACTED_SLACK_ID`| `#releases`       | Strict: only `:rocket:` headers OR mention of REDACTED_TEAM-owned package. Skip all `:bookmark:` patch bumps. |
-
-Do not read: `#REDACTED_CHANNEL-alerts` (spam), `#REDACTED_CHANNEL` (bot dumps).
+The channel table (IDs, names, per-channel extraction rules, do-not-read list) lives in
+**work-context** (§Slack — daily-brief per-channel filter). Apply it verbatim.
 
 ### 9. Closing
 
@@ -922,9 +895,9 @@ fi
 **What goes into the agenda bullets** (distill from the brief's own context, NOT raw dumps):
 
 - PRs where that person is requested reviewer or last commenter on Greg's PR.
-- Support / Slack threads where that person pinged Greg or where Greg owes a reply (`REDACTED_CHANNEL`, support tickets, DMs).
+- Support / Slack threads where that person pinged Greg or where Greg owes a reply (the PR-review channel, support tickets, DMs).
 - Outstanding action items mutually owed (from Hindsight `wip-context` / `tomorrow` tags matched to that person).
-- Recent REDACTED_TEAM-scope incidents touching the person's area (for Adam: SSO/RBAC; for Roman: API gateway / Reunite; etc.).
+- Recent team-scope incidents touching the person's area (per-person areas in work-context §Roster).
 - If the brief has nothing thematic → single bullet: `- Brak konkretnych tematów, spytaj o blokery i co potrzebuje`.
 
 Format each bullet as ONE actionable line, Polish, max 12 words. No paragraphs. No notes section — that's Greg's job after the meeting.
@@ -1006,7 +979,7 @@ After the brief is delivered (text + TTS), **auto-retain** the leftover items in
 For each item in the brief that represents an *unresolved state* — call `mcp__hindsight__retain` once. Examples:
 
 - Greg's own PRs still in `Broken` or `Merge-ready-as-draft` bucket.
-- Customer-facing issues mentioned (#support, #REDACTED_CLIENT tickets touching REDACTED_TEAM scope) that aren't closed.
+- Customer-facing issues mentioned (support/client channels touching team scope) that aren't closed.
 - Calendar prep (a future meeting where Greg may need to do something — e.g. Thursday Academy demo).
 - Roster OOO with knock-on effects ("Artem off → his PR waits").
 - Anything Greg himself said in the session like "leave this for tomorrow" / "remind me about X".
@@ -1018,7 +991,7 @@ Content = one self-contained sentence stating the fact. Include the **date** and
 ```
 mcp__hindsight__retain(
   content="As of 2026-06-08, Greg's PR cw-to-coralogix (ignore patterns for nomad chatter) is APPROVED and MERGEABLE but still marked as DRAFT — easy 30-second win, undraft and merge.",
-  context="daily-brief-leftover wip-context REDACTED_TEAM"
+  context="daily-brief-leftover wip-context <team-tag>"
 )
 ```
 
@@ -1027,8 +1000,8 @@ Use `context` to attach **tags** (space-separated) drawn from this whitelist:
 - `daily-brief-leftover` — always include for leftovers (tomorrow's brief queries this)
 - `wip-context` — work-in-progress topic
 - `tomorrow` — Greg should think about this tomorrow
-- `REDACTED_TEAM` — REDACTED_TEAM team scope
-- `sync-prep` — relevant before next REDACTED_TEAM sync (Mon/Wed)
+- `<team-tag>` — team scope (tag name = team name from work-context, lowercase)
+- `sync-prep` — relevant before next team sync (Mon/Wed)
 - `customer-issue` — customer-blocking
 - `security` — security-labeled
 - `personal` — life event (dentist, school, etc.)

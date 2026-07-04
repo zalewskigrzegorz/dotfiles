@@ -161,6 +161,26 @@ restore_password_field() {
 restore_document "WEEKLY_PROJECT_UPDATE_SCRIPT" "$secret_dir/weekly-slack-board-update.nu"
 restore_password_field "GITLEAKS_PRIVATE_CONFIG" "$secret_dir/gitleaks-private.toml"
 
+# Work identifiers (org/team/roster/Slack IDs) live OUTSIDE the public repo.
+# Three consumers, three formats — all backed by 1Password documents:
+#   WORK_CONTEXT_MD    → prose/tables read at runtime by skills (daily-brief, g-pr-bump, ...)
+#   WORK_ENV           → env file sourced by bin/* scripts and work-env.nu
+#   DOTFILES_WORK_DATA → chezmoi template data (.chezmoidata/private-work.toml, gitignored)
+restore_document "WORK_CONTEXT_MD" "$secret_dir/work-context.md"
+restore_document "WORK_ENV" "$secret_dir/work.env"
+restore_document "DOTFILES_WORK_DATA" "{{ .chezmoi.sourceDir }}/.chezmoidata/private-work.toml"
+
+# Private skills/rules overlay: work-specific skills and rules that must not sit
+# in the public repo. One tar bundle (agent-skills/... + agent-rules/... inside),
+# extracted into the secrets dir; synced into ~/.claude + ~/.cursor by scripts
+# 30/31 AFTER the public rsync.
+if restore_document "PRIVATE_AGENT_ASSETS_TAR" "$secret_dir/private-agent-assets.tar"; then
+  if tar -tf "$secret_dir/private-agent-assets.tar" >/dev/null 2>&1; then
+    tar -xf "$secret_dir/private-agent-assets.tar" -C "$secret_dir"
+    echo "Extracted private agent assets overlay."
+  fi
+fi
+
 # Stream Deck Office page → Homey Athom cloud API (https://<HOMEY_ID>.connect.athom.com).
 # bin/homey-cap reads the PAT from ~/.config/streamdeck/homey-token (0600) and the
 # Homey ID (connect subdomain) from ~/.config/streamdeck/homey-id. Both live in

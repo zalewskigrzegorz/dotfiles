@@ -67,7 +67,7 @@ if ! git push --force-with-lease; then
   exit 1
 fi
 
-# Toggle run_e2e. Missing-label is not a hard failure — REDACTED_ORG repos have it,
+# Toggle run_e2e. Missing-label is not a hard failure — work repos have it,
 # other repos may not. Report and move on.
 e2e_status=0
 if ! gh pr edit "$pr" --remove-label run_e2e 2>/dev/null; then

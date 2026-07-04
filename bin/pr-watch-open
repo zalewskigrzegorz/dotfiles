@@ -6,7 +6,7 @@
 #               "#num  title  <comment count>". Clicking a row opens that PR
 #               in the browser and closes the popup. No herdr dependency.
 # RIGHT click → gh-dash flow: open/focus a herdr workspace running `gh dash`
-#               (my REDACTED_ORG PRs). Reuses an existing workspace if one is open.
+#               (my work PRs). Reuses an existing workspace if one is open.
 #               No-ops cleanly if the herdr server isn't running.
 set -uo pipefail
 export PATH="/opt/homebrew/bin:$PATH"
@@ -32,7 +32,18 @@ command -v jq >/dev/null 2>&1 || exit 0
 
 gh_dash() {
     local herdr_bin="${HERDR_BIN:-/opt/homebrew/bin/herdr}"
-    local repo_dir="${PR_WATCH_REPO_DIR:-$HOME/Code/REDACTED_ORG/REDACTED_ORG}"
+    local repo_dir="${PR_WATCH_REPO_DIR:-}"
+    if [[ -z "$repo_dir" ]]; then
+        # Work monorepo path lives in the private work.env (restored by sync).
+        local work_env="$HOME/.local/state/dotfiles/secrets/work.env"
+        # shellcheck disable=SC1090
+        [[ -f "$work_env" ]] && source "$work_env"
+        repo_dir="${WORK_MONOREPO_DIR:-}"
+    fi
+    if [[ -z "$repo_dir" ]]; then
+        echo "pr-watch-open: set PR_WATCH_REPO_DIR or restore work.env (run sync)" >&2
+        return 1
+    fi
     local label="${PR_WATCH_DASH_LABEL:-📋 gh-dash}"
     [ -x "$herdr_bin" ] || return 0
 

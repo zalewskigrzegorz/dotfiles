@@ -1,5 +1,5 @@
 ---
-description: Every AI-generated scratch artifact (plan, spec, brainstorm, analysis, audit, research note, design doc) lives in the bazgroly repo. Only human-facing docs (README, CHANGELOG, REDACTED_ORG/docs/, etc.) stay in the project repo.
+description: Every AI-generated scratch artifact (plan, spec, brainstorm, analysis, audit, research note, design doc) lives in the bazgroly repo. Only human-facing docs (README, CHANGELOG, in-repo docs/ trees, etc.) stay in the project repo.
 alwaysApply: true
 ---
 
@@ -23,7 +23,7 @@ In scope (→ bazgroly):
 Out of scope (→ project repo, as usual):
 
 - `README.md`, `CHANGELOG.md`, `LICENSE`, `CONTRIBUTING.md`
-- Project documentation directories that ship with the codebase (`docs/`, `REDACTED_ORG/docs/`, `apps/*/docs/`, etc.)
+- Project documentation directories that ship with the codebase (`docs/`, `apps/*/docs/`, etc.)
 - Inline code comments, JSDoc, docstrings
 - Commit messages, PR bodies, issue bodies
 - Configuration files, source code, tests
@@ -48,7 +48,7 @@ Always:
 └── notes/YYYY-MM-DD-<topic>.md
 ```
 
-`<repo-basename>` = the basename of the repo root the user is currently working in (e.g. `dotfiles`, `REDACTED_ORG-cms`, `reunite`, `realm`). If the user is not inside a git repo, use `scratch/` or another descriptive folder. Create the directory if missing — never refuse, just relocate.
+`<repo-basename>` = the basename of the repo root the user is currently working in (e.g. `dotfiles`, `home-lab`, a work repo basename). If the user is not inside a git repo, use `scratch/` or another descriptive folder. Create the directory if missing — never refuse, just relocate.
 
 `bazgroly` lives at `github.com/zalewskigrzegorz/bazgroly` (private). Working tree: `~/Code/personal/bazgroly/`. The `~/.claude/hooks/bazgroly.sh` hook auto-stages on `PostToolUse` (Edit|Write) and squash-commits + pushes on `Stop` to `origin/master` — you do not need to commit by hand.
 

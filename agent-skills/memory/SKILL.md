@@ -224,16 +224,16 @@ client = Hindsight(base_url="http://192.168.50.10:8888")
 # retain
 client.retain(
     bank_id="greg",
-    content="Project REDACTED_ORG oklepuje certyfikaty w marcu — termin oddania DR jest 2026-03-15",
-    context="REDACTED_ORG-deadline",
+    content="Project Acme oklepuje certyfikaty w marcu — termin oddania DR jest 2026-03-15",
+    context="acme-deadline",
     metadata={"source": "claude-code", "type": "deadline"}
 )
 
 # recall
-results = client.recall(bank_id="greg", query="kiedy są deadliny w REDACTED_ORG")
+results = client.recall(bank_id="greg", query="kiedy są deadliny w Acme")
 
 # reflect
-narrative = client.reflect(bank_id="greg", query="co wiesz o REDACTED_ORG")
+narrative = client.reflect(bank_id="greg", query="co wiesz o Acme")
 ```
 
 ## From n8n

@@ -3,11 +3,13 @@
 #   - ~/.cursor/rules/<name>.mdc  (passes original frontmatter through)
 #   - ~/.claude/CLAUDE.md         (always-applied rules concatenated)
 #
-# fingerprint: {{ output "bash" "-c" (printf "cd %q && find agent-rules -type f -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
+# fingerprint: {{ output "bash" "-c" (printf "cd %q && { find agent-rules -type f -print0 2>/dev/null; find \"${DOTFILES_SECRET_DIR:-$HOME/.local/state/dotfiles/secrets}/agent-rules\" -type f -print0 2>/dev/null; } | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
 
 set -e
 
 SOURCE="{{ .chezmoi.sourceDir }}/agent-rules"
+# Private overlay: work-specific rules restored from 1Password by run_after_05.
+PRIVATE_SOURCE="${DOTFILES_SECRET_DIR:-$HOME/.local/state/dotfiles/secrets}/agent-rules"
 CURSOR_RULES="${HOME}/.cursor/rules"
 CLAUDE_MD="${HOME}/.claude/CLAUDE.md"
 
@@ -27,6 +29,13 @@ for f in "$SOURCE"/*.md; do
   cp "$f" "${CURSOR_RULES}/${name}.mdc"
   keep_cursor["${name}.mdc"]=1
 done
+if [[ -d "$PRIVATE_SOURCE" ]]; then
+  for f in "$PRIVATE_SOURCE"/*.md; do
+    name="$(basename "${f%.md}")"
+    cp "$f" "${CURSOR_RULES}/${name}.mdc"
+    keep_cursor["${name}.mdc"]=1
+  done
+fi
 for existing in "$CURSOR_RULES"/*.mdc; do
   base="$(basename "$existing")"
   if [[ -z "${keep_cursor[$base]:-}" ]]; then
@@ -38,19 +47,21 @@ for existing in "$CURSOR_RULES"/*.mdc; do
 done
 
 # 2) Claude: concatenate alwaysApply: true rules into ~/.claude/CLAUDE.md.
-python3 - "$SOURCE" "$CLAUDE_MD" <<'PY'
+python3 - "$SOURCE" "$PRIVATE_SOURCE" "$CLAUDE_MD" <<'PY'
 import os
 import re
 import sys
 from pathlib import Path
 
-src = Path(sys.argv[1])
-out = Path(sys.argv[2])
+src_dirs = [Path(p) for p in sys.argv[1:-1] if Path(p).is_dir()]
+out = Path(sys.argv[-1])
 
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
+rule_files = sorted((md for d in src_dirs for md in d.glob("*.md")), key=lambda p: p.name)
+
 sections = []
-for md in sorted(src.glob("*.md")):
+for md in rule_files:
     text = md.read_text(encoding="utf-8")
     m = FRONTMATTER_RE.match(text)
     fm = {}

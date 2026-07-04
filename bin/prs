@@ -2,10 +2,17 @@
 
 # PR triage — open PRs grouped by action needed
 def main [
-    --repo: string = "REDACTED_ORG/REDACTED_ORG"
+    --repo: string = ""  # defaults to WORK_MAIN_REPO from the private work.env
     --author: string = "@me"
     --limit: int = 30
 ] {
+    let repo = if $repo != "" { $repo } else {
+        $env.WORK_MAIN_REPO? | default (
+            open ($nu.home-dir | path join ".local/state/dotfiles/secrets/work.env")
+            | lines | where {|l| $l starts-with "WORK_MAIN_REPO="} | first
+            | str replace "WORK_MAIN_REPO=" ""
+        )
+    }
     let raw = (
         gh pr list
             --author $author

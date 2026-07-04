@@ -15,9 +15,14 @@ private_config="${DOTFILES_GITLEAKS_PRIVATE_CONFIG:-$secret_dir/gitleaks-private
 gitleaks detect --source . --config .gitleaks.toml "$@"
 
 if [[ ! -f "$private_config" ]]; then
-  echo "Skipping private gitleaks rules; not found: $private_config" >&2
-  echo "Run sync to restore private files from 1Password." >&2
-  exit 0
+  if [[ "${DOTFILES_SKIP_PRIVATE_GITLEAKS:-0}" == "1" ]]; then
+    echo "Private gitleaks rules SKIPPED via DOTFILES_SKIP_PRIVATE_GITLEAKS=1." >&2
+    exit 0
+  fi
+  echo "FAIL: private gitleaks config missing: $private_config" >&2
+  echo "Run sync to restore it from 1Password (a missing private config is a hole, not a pass)." >&2
+  echo "One-off bypass: DOTFILES_SKIP_PRIVATE_GITLEAKS=1 bin/gitleaks-dotfiles" >&2
+  exit 1
 fi
 
 gitleaks detect --source . --config "$private_config" "$@"

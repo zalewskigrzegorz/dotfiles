@@ -25,7 +25,7 @@ deprecated and the local instance has been archived to `memory.legacy-*/`.
 - Project facts ("home-lab deploy: git push + ssh + pull + force-recreate")
 - Feedback / corrections that should apply in future sessions
 - Decisions or rationale worth keeping ("picked Hindsight over mem0 because no docker image")
-- Pointers to external resources ("REDACTED_ORG bugs tracked in Linear INGEST")
+- Pointers to external resources ("work bugs tracked in the issue tracker")
 - Anything you'd previously route to the `user`, `feedback`, `project`, or
   `reference` memory types
 

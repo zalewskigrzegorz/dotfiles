@@ -10,12 +10,10 @@
         "asyncapi",
         "Baracus",
         "Betainsiders",
-        "REDACTED_CODENAME",
         "growthbook",
         "Kratos",
         "oidc",
         "PKCE",
-        "REDACTED_CLIENT",
         "SCIM",
         "SSOSAML",
         "syncer",
@@ -93,7 +91,7 @@
     "errorLens.gutterIconSet": "emoji",
     "errorLens.problemRangeDecorationEnabled": true,
     "errorLens.followCursor": "closestProblemMultilineInViewport",
-    "REDACTED_ORGOpenAPI.api.key": "***REDACTED-API-KEY***",
+    "REDACTED_ORGOpenAPI.api.key": {{ if lookPath "op" }}{{ onepasswordRead (printf "op://%s/OPENAPI_IDE_EXTENSION_KEY/password" (index . "onePasswordVault" | default "Dotfiles")) | quote }}{{ else }}""{{ end }},
     "REDACTED_ORGOpenAPI.api.region": "us",
     "[javascript]": {
         "editor.defaultFormatter": "vscode.typescript-language-features"

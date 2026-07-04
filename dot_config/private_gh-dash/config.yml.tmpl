@@ -1,18 +1,19 @@
+{{- $w := index . "work" | default dict -}}{{- $gd := index $w "ghdash" | default dict -}}
 prSections:
-- title: "👾 REDACTED_TEAM"
+- title: {{ index $gd "teamTitle" | default "Team" | quote }}
   filters: >-
     is:open
     review-requested:@me
-    team-review-requested:REDACTED_ORG/REDACTED_TEAM
+    team-review-requested:{{ index $gd "teamFilter" | default "" }}
     -author:@me
     -author:app/renovate
     -author:app/dependabot
   type: null
-- title: "👷🏼 Staff Engineers"
+- title: {{ index $gd "staffTitle" | default "Guild" | quote }}
   filters: >-
     is:open
     review-requested:@me
-    team-review-requested:REDACTED_ORG/staff-engineers
+    team-review-requested:{{ index $gd "staffFilter" | default "" }}
     -author:@me
     -author:app/renovate
     -author:app/dependabot
@@ -105,13 +106,13 @@ keybindings:
       # herdr-native: work pr creates + focuses the worktree workspace itself
       # (gh-dash runs inside a herdr pane, so the socket call lands on the server).
       command: >
-        nu -c 'cd {{.RepoPath}}; source ~/.config/nushell/autoload/work.nu; work pr {{.PrNumber}}'
+        nu -c 'cd {{ `{{.RepoPath}}` }}; source ~/.config/nushell/autoload/work.nu; work pr {{ `{{.PrNumber}}` }}'
   branches: []
 repoPaths:
   "zalewskigrzegorz/dotfiles": "/Users/greg/Code/dotfiles"
   "zalewskigrzegorz/home-lab": "/Users/greg/Code/home-lab"
   "Labs/*": "/Users/greg/Code/Labs"
-  "REDACTED_ORG/REDACTED_ORG": "/Users/greg/Code/REDACTED_ORG/REDACTED_ORG"
+  {{ index $w "mainRepo" | default "" | quote }}: {{ index $w "monorepoDir" | default "" | quote }}
 theme:
   ui:
     sectionsShowCount: true

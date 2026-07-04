@@ -92,15 +92,15 @@ voice applies to any short message.
 > Deploy BH Stage run (28179414187) failed on
 > `nx run caddy-public:docker:build` at the xcaddy build step with exit code 1.
 > Here's why. PR #24334 bumped caddyserver/caddy/v2 from 2.11.1 to 2.11.4 in
-> packages/REDACTED_ORG-auth/go.mod. But apps/caddy-public/Dockerfile builds on a
-> CVE-pinned, SHA-locked caddy:2.11.3-builder-alpine. So the REDACTED_ORG-auth
+> packages/acme-auth/go.mod. But apps/caddy-public/Dockerfile builds on a
+> CVE-pinned, SHA-locked caddy:2.11.3-builder-alpine. So the acme-auth
 > plugin asks for caddy 2.11.4 while the builder only has 2.11.3. xcaddy
 > refuses to compile, no image comes out. I made revert and now should work.
 
 **Output** (Greg's voice):
 
 > My bad — didn't catch that PR #24334 bumped `caddyserver/caddy/v2` to 2.11.4
-> in `REDACTED_ORG-auth`, while the `caddy-public` Dockerfile is SHA-locked to the
+> in `acme-auth`, while the `caddy-public` Dockerfile is SHA-locked to the
 > 2.11.3 builder, so xcaddy blew up in CI and stage never got a fresh image.
 > Reverted it, should be good now.
 

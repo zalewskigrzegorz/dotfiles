@@ -21,9 +21,9 @@ Screenshots: `~/Code/personal/bazgroly/dotfiles/screenshots/mocha-neon-tier2/<ap
   - **Repo source of truth:** `dot_config/raycast/themes/mocha-neon.json`. To re-import on a fresh machine: open the file, copy contents, paste into Theme Studio's import field.
   - **One-click deeplink:** `https://themes.ray.so?version=1&name=Mocha%20Neon&author=Grzegorz%20Zalewski&authorUsername=zalewskigrzegorz&colors=%231E1E2E,%231E1E2E,%23F0F0FF,%23B347FF,%23B347FF,%23FF6B9D,%23FF8C42,%23FFD700,%2350FA7B,%238BE9FD,%239580FF,%23FF80BF&appearance=dark&addToRaycast`
   - Token order: `background, backgroundSecondary, text, selection, loader, red, orange, yellow, green, blue, purple, magenta` (matches Theme Studio sidebar order).
-- [x] **Slack (standard / Reunite)** — Two flavors stored in `dot_config/slack/`:
+- [x] **Slack (standard / work client)** — Two flavors stored in `dot_config/slack/`:
   - **Standard Slack** (10-hex sidebar) → `mocha-neon-sidebar.txt`. Paste the comma-separated line into Preferences → Sidebar → Customize → Color Picker bottom field.
-  - **Reunite** (REDACTED_ORG's client, 4-color custom theme + Window gradient toggle) → `mocha-neon-reunite.json`. Reunite uses a different model: `systemNavigation`, `selectedItems`, `presenceIndication`, `notifications`. Paste each hex into the matching color picker under Preferences → Appearance → Custom theme; leave **Window gradient** checked.
+  - **Work chat client** (4-color custom theme + Window gradient toggle) → `mocha-neon-work-client.json`. It uses a different model: `systemNavigation`, `selectedItems`, `presenceIndication`, `notifications`. Paste each hex into the matching color picker under Preferences → Appearance → Custom theme; leave **Window gradient** checked.
   - Screenshot: `mocha-neon-tier2/slack.png`.
 - [x] **Cursor** — Catppuccin for VSCode extension installed + theme set to "Catppuccin Mocha". `workbench.colorCustomizations` + `editor.tokenColorCustomizations` blocks merged into `~/Library/Application Support/Cursor/User/settings.json` (chezmoi-managed via `dot_config/cursor/User/settings.json` + `run_onchange_after_38` hook syncs to the Library path on every apply). Screenshot: `mocha-neon-tier2/cursor.png`.
 - [x] **Obsidian** — Catppuccin theme installed manually; Mocha Neon CSS snippet at `dot_config/obsidian/snippets/mocha-neon.css` synced into every vault's `.obsidian/snippets/` by `run_onchange_after_40-obsidian-snippets-sync`. Enable via Settings → Appearance → CSS snippets → toggle `mocha-neon`. Screenshot: `mocha-neon-tier2/obsidian.png`.
@@ -50,7 +50,7 @@ Screenshots: `~/Code/personal/bazgroly/dotfiles/screenshots/mocha-neon-tier2/<ap
 
 - [x] **Spark Mail (email account color coding)** — Spark exposes a 5×4 preset grid (no custom hex). Top row picks for all three accounts:
   - `maksim009@gmail.com` → Row 1, col 3 (orange) → peach proxy
-  - `grzegorz.zalewski@REDACTED_ORG.com` → Row 1, col 1 (deep purple) → mauve proxy (work = primary)
+  - work address → Row 1, col 1 (deep purple) → mauve proxy (work = primary)
   - `zalewski.grzegorz@icloud.com` → Row 1, col 4 (green) → green proxy
   - Settings → Appearance → Color coding for accounts. Top-row alignment is the canon — change if Spark ever adds custom hex picker.
 

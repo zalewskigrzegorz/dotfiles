@@ -35,6 +35,29 @@ Run it with:
 bin/weekly-project-update --since YYYY-MM-DD
 ```
 
+## Work identifiers (org / team / roster / Slack IDs)
+
+The public repo never names the employer, team, coworkers, clients, or Slack IDs.
+Those live in three private artifacts, all restored by `run_after_05` from the
+1Password `Dotfiles` vault:
+
+| 1Password item (document) | Restored to | Consumed by |
+|---|---|---|
+| `WORK_CONTEXT_MD` | `~/.local/state/dotfiles/secrets/work-context.md` | skills at runtime (daily-brief, g-pr-bump, …) — roster, team scope, Slack channel/subteam tables |
+| `WORK_ENV` | `~/.local/state/dotfiles/secrets/work.env` | `bin/prs`, `bin/pr-watch`, `bin/pr-brief`, `bin/pr-watch-open`, g-* skills; loaded into the shell env by `dot_config/nushell/autoload/work-env.nu` (`WORK_GITHUB_ORG`, `WORK_MAIN_REPO`, `WORK_MONOREPO_DIR`, `WORK_TEAM_SLUG`, `WORK_TEAM_LABEL`) |
+| `DOTFILES_WORK_DATA` | `<source-dir>/.chezmoidata/private-work.toml` (gitignored) | chezmoi templates: gh-dash config, mcp-servers, Stream Deck Slack buttons (`{{ index . "work" ... }}`) |
+| `PRIVATE_AGENT_ASSETS_TAR` | `~/.local/state/dotfiles/secrets/private-agent-assets.tar` (auto-extracted) | private skills/rules overlay (`agent-skills/`, `agent-rules/` inside the tar) — layered into `~/.claude` + `~/.cursor` by sync scripts 30/31 after the public rsync |
+
+Password-field items:
+
+| 1Password item | Field | Used by |
+|---|---|---|
+| `OPENAPI_IDE_EXTENSION_KEY` | `password` | VS Code + Cursor `settings.json.tmpl` (`REDACTED_ORGOpenAPI.api.key`) |
+
+Fresh-machine bootstrap note: the first `chezmoi apply` renders templates before
+`run_after_05` restores `.chezmoidata/private-work.toml`, so work-templated files
+render with empty defaults; the second `sync` fills them in.
+
 ## Private Gitleaks Rules
 
 The tracked `.gitleaks.toml` contains only generic rules. Private identifier rules live outside the repo:
@@ -48,6 +71,14 @@ The same content is backed by the `GITLEAKS_PRIVATE_CONFIG` item in the 1Passwor
 ```bash
 bin/gitleaks-dotfiles --no-git --redact --log-level error
 ```
+
+### Enforcement (tracked git hooks)
+
+`scripts/git-hooks/pre-commit` and `pre-push` run gitleaks with BOTH configs;
+`run_onchange_after_36-git-hooks.sh` wires them via `git config core.hooksPath
+scripts/git-hooks`. A missing private config **blocks** commits and pushes
+(escape hatch: `DOTFILES_SKIP_PRIVATE_GITLEAKS=1`). `bin/gitleaks-dotfiles`
+likewise exits non-zero when the private config is missing.
 
 ## Stream Deck → Homey (macOS only)
 
