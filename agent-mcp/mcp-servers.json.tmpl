@@ -50,6 +50,10 @@
       "command": "npx",
       "args": ["-y", "@jetbrains/mcp-proxy"]
     },
+    {{ if eq .chezmoi.os "darwin" -}}
+    {{/* REDACTED_ORG work MCPs (grafana + cloudwatch) — Mac only. On the lab they only
+         spawned orphaned docker containers (grafana/mcp-grafana, mcp/cloudwatch)
+         with no use case there. */}}
     "grafana": {
       "command": "docker",
       "args": [
@@ -105,6 +109,7 @@
         "mcp/cloudwatch-mcp-server:latest"
       ]
     },
+    {{- end }}
     "n8n-mcp": {
       "type": "http",
       "url": "http://n8n.lab/mcp-server/http",
