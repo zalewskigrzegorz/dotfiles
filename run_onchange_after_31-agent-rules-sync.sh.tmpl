@@ -62,7 +62,13 @@ rule_files = sorted((md for d in src_dirs for md in d.glob("*.md")), key=lambda 
 
 sections = []
 for md in rule_files:
-    text = md.read_text(encoding="utf-8")
+    # Tolerate a stray non-UTF-8 byte in any rule file — a single bad byte must
+    # not abort the whole `chezmoi apply`. Replace undecodable bytes instead.
+    try:
+        text = md.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        print(f"agent-rules sync: WARNING {md} is not valid UTF-8 — decoding with replacement.", file=sys.stderr)
+        text = md.read_text(encoding="utf-8", errors="replace")
     m = FRONTMATTER_RE.match(text)
     fm = {}
     body = text
