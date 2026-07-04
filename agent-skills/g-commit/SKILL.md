@@ -41,33 +41,16 @@ If `$WORK_COMPANY` is available, `$WORK_MAIN_PROJECT` usually is too — you may
 
 1. Run `git status`. If there are no staged changes, stop and tell the user to stage files first. Do not stage on their behalf.
 2. Determine the mode (see above).
-3. **Hunk comment gate** (non-blocking — see below). Resolve unaddressed user review comments in a live hunk session before composing the commit.
-4. Analyze the staged diff: `git diff --cached`.
-5. Build the commit message (rules below).
-6. **Suggest-only mode:**
+3. Analyze the staged diff: `git diff --cached`.
+4. Build the commit message (rules below).
+5. **Suggest-only mode:**
    - Print the **raw** commit message exactly as it would be committed (no markdown fences, no commentary around it).
    - Add one short follow-up line: "Commit and push are up to you."
    - Stop. Do not run any git mutation command.
-7. **Work mode, branch guard:** if `git rev-parse --abbrev-ref HEAD` is `main` or `master`, create a feature branch first:
+6. **Work mode, branch guard:** if `git rev-parse --abbrev-ref HEAD` is `main` or `master`, create a feature branch first:
    - `git checkout -b <type>/<scope>-<short-slug>` (e.g. `feat/<scope>-short-thing`).
    - Slug: lowercase, hyphens, short. Pick `type`/`scope` consistent with the commit you are about to make.
-8. **Work mode, commit:** run `git commit` **only after the user explicitly asks to commit**. Output the message first for confirmation. Never run `git push`.
-
-## Hunk comment gate (step 3)
-
-Before composing the commit, check whether the user left inline review comments in a
-live **hunk** session (the user reviews diffs in hunk and drops notes on lines worth
-attention). This gate is **non-blocking and best-effort**:
-
-1. `hunk session comment list --repo . --type user --json` (after confirming a session
-   exists via `hunk session list --json`).
-2. **No live session, or no user comments → say nothing of note and proceed** with the
-   commit. This is the common case; do not nag.
-3. **User comments exist → invoke the `hunk-comment-review` skill** to resolve them
-   (edit code or reply inline) *before* writing the commit message, so the commit
-   reflects the addressed feedback. Then continue.
-4. The user can always override ("just commit") — honour it; the gate never blocks a
-   commit the user explicitly asks for.
+7. **Work mode, commit:** run `git commit` **only after the user explicitly asks to commit**. Output the message first for confirmation. Never run `git push`.
 
 ## Commit message rules
 

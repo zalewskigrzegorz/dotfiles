@@ -1,6 +1,6 @@
 ---
 name: herdr-peek
-description: Read the scrollback of Greg's terminal/shell pane in his herdr workspace on demand, so Claude can see a command + its output without Greg copy-pasting. Runs `herdr-peek` (wraps `herdr pane read`) to grab the last ~25 lines of the non-agent shell pane in the current herdr workspace, then Claude reads them and only asks for more if truncated. Use when Greg says "co się zawaliło", "co zwróciła ta komenda", "terminal nie przeszło", "zobacz w terminalu", "sprawdź terminal", "co na terminalu", "zobacz w oknie co się stało", "check terminal", "terminal output", "scrollback", "what's on the terminal", "show me the terminal" — or otherwise refers to a command he just ran in a shell pane whose output Claude needs to see. Shell pane only; for git/hunk/nvim Greg copy-pastes.
+description: Read the scrollback of Greg's terminal/shell pane in his herdr workspace on demand, so Claude can see a command + its output without Greg copy-pasting. Runs `herdr-peek` (wraps `herdr pane read`) to grab the last ~25 lines of the non-agent shell pane in the current herdr workspace, then Claude reads them and only asks for more if truncated. Use when Greg says "co się zawaliło", "co zwróciła ta komenda", "terminal nie przeszło", "zobacz w terminalu", "sprawdź terminal", "co na terminalu", "zobacz w oknie co się stało", "check terminal", "terminal output", "scrollback", "what's on the terminal", "show me the terminal" — or otherwise refers to a command he just ran in a shell pane whose output Claude needs to see. Shell pane only; for git/nvim TUIs Greg copy-pastes.
 ---
 
 # herdr-peek
@@ -47,6 +47,6 @@ If `herdr-peek` prints `no shell pane found in this workspace` (e.g. only the ag
 
 ## Scope
 
-- **Shell panes only.** Does not read git/hunk/nvim TUIs — Greg pastes from those.
+- **Shell panes only.** Does not read git/nvim TUIs — Greg pastes from those.
 - Output is **raw text** (ANSI/prompt lines come through as-is) — read past the 🦄/statusline noise to the actual command + output.
 - **Read-only.** Never sends keys or runs commands in Greg's panes.

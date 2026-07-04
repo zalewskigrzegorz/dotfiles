@@ -53,7 +53,7 @@ So when this skill fires, **your cwd is already the PR's worktree** and the brie
    - **Unresolved review threads** → delegate to the **`g-pr-review`** skill (mine-PR / answer-reviewers branch). Address each thread in code, then draft an English reply per thread.
    - **Both** → handle CI first (a red PR can't merge anyway), then threads.
 
-5. **Don't auto-commit / auto-push.** Follow the global commit gate (hunk review → g-commit, Greg approves the commit). Pushing stays Greg's call.
+5. **Don't auto-commit / auto-push.** Follow the global commit gate (reviewr diff review → g-commit, Greg approves the commit). Pushing stays Greg's call.
 
 ## Notes
 
