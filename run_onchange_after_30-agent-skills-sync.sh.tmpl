@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Sync agent-skills/ -> BOTH ~/.cursor/skills and ~/.claude/skills via rsync.
-# Re-runs whenever the fingerprint below changes (i.e. anything in agent-skills/).
+# Re-runs whenever the fingerprint below changes (i.e. anything in agent-skills/)
+# OR whenever this script's body changes (the scope arrays below live here, so
+# editing a bucket re-triggers the run_onchange hash).
 #
 # fingerprint: {{ output "bash" "-c" (printf "cd %q && { find agent-skills -type f -print0 2>/dev/null; find \"${DOTFILES_SECRET_DIR:-$HOME/.local/state/dotfiles/secrets}/agent-skills\" -type f -print0 2>/dev/null; } | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
 
@@ -31,11 +33,37 @@ if ! command -v rsync >/dev/null 2>&1; then
   fi
 fi
 
+# ---------------------------------------------------------------------------
+# Project-scoped skills: loaded ONLY inside a specific repo (Claude Code reads
+# <repo>/.claude/skills/), NOT globally. Keeping these out of ~/.claude/skills
+# shrinks the always-loaded context in every OTHER repo. Everything not listed
+# here stays global (shared: superpowers, g-commit, humanizer, research, design,
+# personal tools like reminders/use-spark/daily-brief, etc.).
+# ---------------------------------------------------------------------------
+# dygma is a *command* (dot_claude/commands), not a skill, so it is not scoped here.
+WORK_SKILLS=(babysit-prs pr-work g-pr g-pr-bump g-pr-fix-checks g-pr-respond g-pr-review g-github-issue g-datagrip)
+DOTFILES_SKILLS=(dotfiles-sync g-allow-add herdr-peek mac-cpu-triage)
+HOMELAB_SKILLS=(cast-audio excalidraw-slides)
+
+# Extra work-scoped skills whose NAMES are private (e.g. client names) and thus
+# cannot live in this public repo. One skill name per line; the file is restored
+# to the secrets dir from 1Password. Their bodies come from the private overlay.
+WORK_SCOPE_FILE="${DOTFILES_SECRET_DIR:-$HOME/.local/state/dotfiles/secrets}/work-scope-skills.txt"
+if [[ -f "$WORK_SCOPE_FILE" ]]; then
+  while IFS= read -r line; do
+    line="${line%%#*}"; line="${line// /}"
+    [[ -n "$line" ]] && WORK_SKILLS+=("$line")
+  done <"$WORK_SCOPE_FILE"
+fi
+
+SCOPED_ALL=("${WORK_SKILLS[@]}" "${DOTFILES_SKILLS[@]}" "${HOMELAB_SKILLS[@]}")
+
 # Private overlay: work-specific skills that must not live in the public repo.
 # Restored from 1Password by run_after_05; layered AFTER the public rsync so the
 # --delete pass above doesn't wipe them permanently (they're re-added each run).
 PRIVATE_SOURCE="${DOTFILES_SECRET_DIR:-$HOME/.local/state/dotfiles/secrets}/agent-skills"
 
+# --- 1) Global targets: copy everything, then prune the project-scoped ones. ---
 for target in "${HOME}/.cursor/skills" "${HOME}/.claude/skills"; do
   mkdir -p "$target"
   rsync -a --delete \
@@ -44,6 +72,52 @@ for target in "${HOME}/.cursor/skills" "${HOME}/.claude/skills"; do
   if [[ -d "$PRIVATE_SOURCE" ]]; then
     rsync -a --exclude '.DS_Store' "${PRIVATE_SOURCE}/" "${target}/"
   fi
+  # Remove project-scoped skills from the global load path.
+  for s in "${SCOPED_ALL[@]}"; do
+    rm -rf "${target:?}/${s}"
+  done
 done
 
-echo "agent-skills sync: $(ls -1d "${HOME}/.cursor/skills"/*/ 2>/dev/null | wc -l | tr -d ' ') skill(s) in each target."
+# --- 2) Place each scope's skills into its repo's project-level .claude/skills. ---
+# Per-skill rsync (never a dir-level --delete) so co-located TEAM skills that
+# already live in the repo (the work monorepo ships its own tracked skills) are
+# left untouched. Managed skills are git-excluded via .git/info/exclude so they
+# never pollute a tracked/team .gitignore or show up in the team's diff.
+place_scope() {
+  local repo="$1"; shift
+  local -a bucket=("$@")
+  [[ -d "$repo/.git" ]] || return 0        # repo absent (e.g. on the lab) → skip
+  local sk_dir="$repo/.claude/skills"
+  local exf="$repo/.git/info/exclude"
+  mkdir -p "$sk_dir"
+
+  # Place / refresh this bucket's skills. Resolve source from the public repo
+  # first, then the private overlay (work-only skills with private names live there).
+  for s in "${bucket[@]}"; do
+    local src="$SOURCE/$s"
+    [[ -d "$src" ]] || src="$PRIVATE_SOURCE/$s"
+    [[ -d "$src" ]] || continue
+    rsync -a --delete --exclude '.DS_Store' "$src/" "$sk_dir/$s/"
+    if [[ -f "$exf" ]] && ! grep -qxF "/.claude/skills/$s/" "$exf" 2>/dev/null; then
+      echo "/.claude/skills/$s/" >>"$exf"
+    fi
+  done
+
+  # Drop any MANAGED skill that got re-bucketed away from this repo. Only touches
+  # names in SCOPED_ALL (Greg's personal skills) — never team skills.
+  for s in "${SCOPED_ALL[@]}"; do
+    local keep=0
+    for b in "${bucket[@]}"; do
+      if [[ "$s" == "$b" ]]; then keep=1; fi
+    done
+    if [[ $keep -eq 0 && -d "$sk_dir/$s" ]]; then
+      rm -rf "${sk_dir:?}/${s}"
+    fi
+  done
+}
+
+place_scope "{{ index (index . "work" | default dict) "monorepoDir" | default "" }}" "${WORK_SKILLS[@]}"
+place_scope "${HOME}/Code/dotfiles" "${DOTFILES_SKILLS[@]}"
+place_scope "${HOME}/Code/home-lab" "${HOMELAB_SKILLS[@]}"
+
+echo "agent-skills sync: $(ls -1d "${HOME}/.claude/skills"/*/ 2>/dev/null | wc -l | tr -d ' ') global skill(s); scoped → work:${#WORK_SKILLS[@]} dotfiles:${#DOTFILES_SKILLS[@]} home-lab:${#HOMELAB_SKILLS[@]}."

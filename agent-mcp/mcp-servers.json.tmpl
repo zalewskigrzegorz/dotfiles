@@ -50,66 +50,9 @@
       "command": "npx",
       "args": ["-y", "@jetbrains/mcp-proxy"]
     },
-    {{ if eq .chezmoi.os "darwin" -}}
-    {{/* Work MCPs (grafana + cloudwatch) — Mac only. On the lab they only
-         spawned orphaned docker containers (grafana/mcp-grafana, mcp/cloudwatch)
-         with no use case there. */}}
-    "grafana": {
-      "command": "docker",
-      "args": [
-        "run",
-        "--rm",
-        "-i",
-        "-e",
-        "GRAFANA_URL",
-        "-e",
-        "GRAFANA_SERVICE_ACCOUNT_TOKEN",
-        "grafana/mcp-grafana",
-        "--enabled-tools",
-        "clickhouse,prometheus,datasource,loki,elasticsearch",
-        "-t",
-        "stdio"
-      ],
-      "env": {
-        "GRAFANA_URL": {{ (index (index . "work" | default dict) "grafanaUrl" | default "") | quote }},
-        "GRAFANA_SERVICE_ACCOUNT_TOKEN": {{ if lookPath "op" }}{{ onepasswordRead (printf "op://%s/GRAFANA_SERVICE_ACCOUNT_TOKEN/password" (index . "onePasswordVault" | default "Dotfiles")) | quote }}{{ else }}""{{ end }}
-      }
-    },
-    "grafana-dashboards": {
-      "command": "docker",
-      "args": [
-        "run",
-        "--rm",
-        "-i",
-        "-e",
-        "GRAFANA_URL",
-        "-e",
-        "GRAFANA_SERVICE_ACCOUNT_TOKEN",
-        "grafana/mcp-grafana",
-        "--enabled-tools",
-        "search,dashboard,navigation",
-        "-t",
-        "stdio"
-      ],
-      "env": {
-        "GRAFANA_URL": {{ (index (index . "work" | default dict) "grafanaUrl" | default "") | quote }},
-        "GRAFANA_SERVICE_ACCOUNT_TOKEN": {{ if lookPath "op" }}{{ onepasswordRead (printf "op://%s/GRAFANA_SERVICE_ACCOUNT_TOKEN/password" (index . "onePasswordVault" | default "Dotfiles")) | quote }}{{ else }}""{{ end }}
-      }
-    },
-    "awslabs-cloudwatch-mcp-server": {
-      "command": "docker",
-      "args": [
-        "run",
-        "--rm",
-        "--interactive",
-        "-v",
-        "{{ .chezmoi.homeDir }}/.aws:/app/.aws",
-        "-e",
-        {{ printf "AWS_PROFILE=%s" (index (index . "work" | default dict) "awsProfile" | default "") | quote }},
-        "mcp/cloudwatch-mcp-server:latest"
-      ]
-    },
-    {{- end }}
+    {{/* grafana + grafana-dashboards + cloudwatch are now project-scoped to the
+         work monorepo's own team-tracked .mcp.json, so they no longer load in
+         every repo via the global user scope. */}}
     "n8n-mcp": {
       "type": "http",
       "url": "http://n8n.lab/mcp-server/http",
