@@ -170,6 +170,11 @@ restore_document "WORK_CONTEXT_MD" "$secret_dir/work-context.md"
 restore_document "WORK_ENV" "$secret_dir/work.env"
 restore_document "DOTFILES_WORK_DATA" "{{ .chezmoi.sourceDir }}/.chezmoidata/private-work.toml"
 
+# Work-scoped skills whose NAMES are private (client/product names) — read by
+# run_onchange_after_30 to place them into the work monorepo's .claude/skills
+# only (never the public repo, never global).
+restore_document "WORK_SCOPE_SKILLS" "$secret_dir/work-scope-skills.txt"
+
 # Private skills/rules overlay: work-specific skills and rules that must not sit
 # in the public repo. One tar bundle (agent-skills/... + agent-rules/... inside),
 # extracted into the secrets dir; synced into ~/.claude + ~/.cursor by scripts
