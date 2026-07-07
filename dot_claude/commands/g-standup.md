@@ -11,10 +11,11 @@ personal Slack user token.
 
 > **All identifiers are private.** Read
 > `~/.local/state/dotfiles/secrets/work-context.md` → **§ "Slack — standup"** for
-> the bot user ID, bot DM channel, public standup channel, the fixed question
-> list, and the 1Password token path. Read `work.env`
-> (`source ~/.local/state/dotfiles/secrets/work.env`) for `$WORK_GITHUB_ORG`,
-> `$WORK_MAIN_REPO`, `$WORK_PROJECT_DIR`. Never hardcode any of these here.
+> the bot user ID, bot DM channel, public standup channel, and the fixed question
+> list. `source ~/.local/state/dotfiles/secrets/work.env` for `$WORK_GITHUB_ORG`,
+> `$WORK_MAIN_REPO`, `$WORK_PROJECT_DIR`, **and `$WORK_SLACK_STANDUP_TOKEN`** (the
+> footer-free user token — already in the env file, so **never `op read` at
+> runtime**; no vault prompt). Never hardcode any of these here.
 
 ## Hard rules (learned the hard way — do not relitigate)
 
@@ -23,7 +24,9 @@ personal Slack user token.
 - **Send via the user token + `chat.postMessage`, NOT the Slack MCP.** The
   claude.ai Slack MCP appends `*Sent using* @Claude` to every message — it shows
   publicly on the standup channel, on every line. The user token posts cleanly
-  as Greg. Reads may use the MCP (no footer on reads) or the token.
+  as Greg. **Reads go through the Slack MCP** (`slack_read_channel`, no footer on
+  reads) — the standup token is `chat:write` only and **cannot** read history, so
+  don't waste a call trying `conversations.history` with it.
 - **Blocker answer is `no`, never `-`.** Slack turns a leading `-` into an empty
   bullet (`•  `) on the public post. `no` / `none` render fine.
 - **Plain text only — no link markup.** The bot mangles Slack `<url|text>` links
@@ -38,7 +41,8 @@ personal Slack user token.
 
 ### 1. Check there's an active standup
 
-Read the bot DM (channel from work-context, newest ~6 messages). Confirm the bot
+Read the bot DM via the Slack MCP (`slack_read_channel`, channel from
+work-context, newest ~6 messages). Confirm the bot
 is currently prompting (a recent "It's time for today's stand up!" / an
 unanswered question). It only accepts answers while asking; if the last standup
 is finished ("Thank you! Have a nice day"), tell Greg there's nothing open and
