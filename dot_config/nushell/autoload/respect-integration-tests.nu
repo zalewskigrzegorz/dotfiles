@@ -13,7 +13,7 @@ def respect-cli-package [] {
 }
 
 def respect-reunite-env-key [] {
-  ((respect-cli-name) | str upcase) + "_ENVIRONMENT"
+  ((respect-cli-name) | str uppercase) + "_ENVIRONMENT"
 }
 
 def default-respect-debug-dir [] {

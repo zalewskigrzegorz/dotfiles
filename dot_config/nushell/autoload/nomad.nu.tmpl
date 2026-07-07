@@ -80,7 +80,7 @@ def nomad-resolve-token [] {
 
 # Login to Nomad (basti on localhost). Saves token for reuse; optional browser open.
 def nomad-login [] {
-    let open_ans = (input "Open Nomad token page in browser? [Y/n]: ") | str trim | str downcase
+    let open_ans = (input "Open Nomad token page in browser? [Y/n]: ") | str trim | str lowercase
     let open_browser = ($open_ans | is-empty) or $open_ans == "y" or $open_ans == "yes"
     if $open_browser {
         ^open http://localhost:4647/ui/settings/tokens
