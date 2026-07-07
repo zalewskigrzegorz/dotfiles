@@ -1,6 +1,4 @@
 ---
-name: research-add-items
-user-invocable: true
 description: Add items (research objects) to existing research outline.
 allowed-tools: Bash, Read, Write, Glob, WebSearch, Task, AskUserQuestion
 ---

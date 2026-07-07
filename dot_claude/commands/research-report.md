@@ -1,6 +1,4 @@
 ---
-name: research-report
-user-invocable: true
 description: Summarize deep research results into markdown report, cover all fields, skip uncertain values.
 allowed-tools: Read, Write, Glob, Bash, AskUserQuestion
 ---
