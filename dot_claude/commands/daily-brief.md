@@ -1,6 +1,5 @@
 ---
-name: daily-brief
-description: Multi-source personal briefing for Greg (Staff Engineer; org/team/roster in the private work-context file). Pulls his own GitHub PRs bucketed by state, PRs awaiting his review, in-progress issues, Spark mail action items extracted from Inbox+Archive bodies (last 7d) + Spark task flags (starred/pinned/Later/has:reminder), Drafts.app brain dumps from the last 7d, calendar + meeting transcripts, Slack DMs + mentions, Hindsight memory recall (incl. time-filtered "shipped" and "decision" queries), recent git activity across ~/Code/**, weather (anomaly-only) + USD + AQI band from wttr.in/NBP/Open-Meteo, home signals from Homey (pet trackers, waste schedule, pollen alarm via get_home_alarms on Pylenie device), a walk-window recommendation for the dogs scored at 17:00 preferred with workday/evening/morning fallbacks and a 26°C hard cap, and a Tina (announce-agent) recap from the last 24h filtered to chores/calendar/anomalies via http://lab:3001/api/events. On Monday and Wednesday additionally layers a team pre-sync rundown before the standup at 12:00. Outputs a 3-5 minute spoken Polish briefing in Rick-Sanchez-LITE tone as plain prose (NO audio tags) ready for ElevenLabs v2 TTS. Use whenever Greg says "brief", "daily brief", "morning brief", "co dziś", "co na dziś", "dzień dobry", "co przed standupem", "co przed syncem", invokes `/daily-brief`, or otherwise asks for an audio rundown of his day.
+description: Generate Greg's multi-source spoken Polish daily briefing — own PRs, review queue, mail/Slack action items, calendar + transcripts, git activity, weather/USD/AQI, home + dog walk-window, Mon/Wed team pre-sync. Explicit-invoke command (was the daily-brief skill).
 ---
 
 # daily-brief
@@ -126,7 +125,7 @@ cached aqi.json      3600  curl -s "https://air-quality-api.open-meteo.com/v1/ai
 cached tina.json      600  curl -s --max-time 5 "http://lab:3001/api/events?..."
 ```
 
-**MCP tool caching** — wrap the JSON-stringified result. Skill prompt uses pseudo-code:
+**MCP tool caching** — wrap the JSON-stringified result. This command uses pseudo-code:
 
 ```
 homey_alarms = read("homey-alarms.json", ttl=300) or mcp__Homey__get_home_alarms() & write("homey-alarms.json")
@@ -809,7 +808,7 @@ Greg, dziś masz wolne. Żadnych pull requestów do ogarnięcia, kalendarz pusty
 
 ## TTS playback (AUTOMATIC — fire-and-forget)
 
-**Auto-fire TTS through Rick immediately after producing the brief.** No confirmation prompt — Greg explicitly wants the skill to run end-to-end in the background while he's busy doing other things.
+**Auto-fire TTS through Rick immediately after producing the brief.** No confirmation prompt — Greg explicitly wants the command to run end-to-end in the background while he's busy doing other things.
 
 **Skip TTS only if** Greg explicitly says "bez audio", "no TTS", "tylko tekst", "skip audio" in the invocation, or if API key resolution fails (then say one line: "TTS skipped — brak ELEVENLABS_API_KEY w env" and stop). Otherwise auto-play.
 
@@ -1016,7 +1015,7 @@ Use `context` to attach **tags** (space-separated) drawn from this whitelist:
 
 ## Preferences (edit-in-place)
 
-To swap voice or model without touching the rest of the skill, edit these two lines in the TTS section above:
+To swap voice or model without touching the rest of the command, edit these two lines in the TTS section above:
 
 ```
 VOICE="wHaDY0iHb8cFQwoJek6Q"   # default: "Daily briefing, crazy doctor" (Voice Design custom)

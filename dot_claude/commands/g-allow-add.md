@@ -1,11 +1,10 @@
 ---
-name: g-allow-add
-description: Scans the current conversation, finds Bash/MCP commands that triggered a Claude Code permission prompt (or are clearly about to repeat), proposes the widest safe allow-list pattern for each with a one-line reason, asks Greg for confirmation via a multi-select AskUserQuestion popup, then edits `~/Code/dotfiles/dot_claude/settings.json.tmpl` and runs `chezmoi apply ~/.claude/settings.json` so the rule reaches the live session without restarting Claude. Use whenever Greg says things like "dodaj do allow", "dodaj do allow list", "stop pytać o X", "nie pytaj więcej o X", "pozwól na X bez pytania", "add to allowlist", "stop asking about X", "allow X", or any complaint about being interrupted by permission popups mid-task. This skill must trigger even if Greg doesn't name a specific command — analysing the recent transcript is part of its job.
+description: Scan the conversation for Bash/MCP calls that hit a permission prompt, propose the widest safe allowlist patterns, confirm via popup, then edit settings.json.tmpl and chezmoi apply so the rule takes effect live. Explicit-invoke command (was the g-allow-add skill).
 ---
 
 # g-allow-add
 
-Greg keeps getting interrupted by permission popups for safe read-only tools. This skill batches the additions in one quick round-trip instead of him hand-editing `settings.json.tmpl` each time.
+Greg keeps getting interrupted by permission popups for safe read-only tools. This command batches the additions in one quick round-trip instead of him hand-editing `settings.json.tmpl` each time.
 
 ## Where it goes
 
@@ -76,7 +75,7 @@ Use the `AskUserQuestion` tool with `multiSelect: true`. One option per candidat
 
 Question text: short and direct, e.g. `"Które wpisy dodać do allow list?"`. Header: `"Allow list"`.
 
-Cap the options at 4 (the tool's max). If you found more than 4 candidates, ship the 4 most useful ones (most frequently used, broadest impact); mention the leftover in your final confirm line ("plus zostały: X, Y — uruchom skill jeszcze raz jeśli chcesz").
+Cap the options at 4 (the tool's max). If you found more than 4 candidates, ship the 4 most useful ones (most frequently used, broadest impact); mention the leftover in your final confirm line ("plus zostały: X, Y — uruchom /g-allow-add jeszcze raz jeśli chcesz").
 
 If you found **zero** new candidates (all already present), don't ask — just say so in one line and stop. Don't fire an empty popup.
 
