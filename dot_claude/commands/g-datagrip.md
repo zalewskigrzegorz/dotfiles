@@ -1,5 +1,4 @@
 ---
-name: g-datagrip
 description: Two-way DataGrip workflow over the JetBrains MCP — write/replace SQL in the active console, read the currently open query, ask the user to run it, then pull the result rows back via clipboard so Claude can see them without DB credentials. Use whenever the user wants Claude to draft, edit, or inspect SQL inside DataGrip, or wants Claude to "see" what a query returned — phrases like "napisz query", "widzisz wynik?", "co zwraca to query", "sprawdź co zwróciło", "pokaż wynik", "popraw to query", "zobacz w DataGripie", "what did the query return", "can you see the result". Trigger even when the user doesn't explicitly name DataGrip — if SQL is involved and they're working in a JetBrains IDE, this is the right skill.
 ---
 

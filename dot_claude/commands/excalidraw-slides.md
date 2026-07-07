@@ -1,5 +1,4 @@
 ---
-name: excalidraw-slides
 description: Build animated slide decks in Excalidraw via the `mcp__draw__*` MCP, presented through the excalidraw-smart-presentation fork (e.g. Greg's draw.lab editor + draw-present.lab presenter). Use whenever the user asks to "make slides", "build a deck", "presentation", "prezentacja", "zrób slajdy w draw", references draw.lab / draw-present.lab, wants to animate elements between frames in Excalidraw, or wants to design 16:9 frames that morph one into the next. Covers the critical y-axis frame ordering rule, the same-name-elements animation contract, the MCP-cannot-create-frames quirk, and the auto-mode incompatibility — all of which silently bite first-time users.
 ---
 

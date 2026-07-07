@@ -1,5 +1,4 @@
 ---
-name: babysit-prs
 description: Autonomously keep Greg's open PRs green — no confirmations. Use when Greg says "babysit my PRs", "pilnuj prek", "ogarnij moje prki w tle", invokes /babysit-prs, or runs it under /loop. One pass per invocation - classifies every failing check (flaky e2e → retry, lint/type/unit → fix + commit + push), rebases conflicting PRs, and fires a macOS notification when reviewers left new comments. NOT for interactive single-PR work (that's pr-work / g-pr-fix-checks / g-pr-respond).
 ---
 

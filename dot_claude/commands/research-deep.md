@@ -1,6 +1,4 @@
 ---
-name: research-deep
-user-invocable: true
 description: Read research outline, launch independent agent for each item for deep research. Disable task output.
 allowed-tools: Bash, Read, Write, Glob, WebSearch, Task
 ---
@@ -53,7 +51,7 @@ Read {fields_path} to get all field definitions
 
 ## Validation
 After completing JSON output, run validation script to ensure complete field coverage:
-python ~/.claude/skills/research/validate_json.py -f {fields_path} -j {output_path}
+python ~/.claude/commands/research-assets/validate_json.py -f {fields_path} -j {output_path}
 Task is complete only after validation passes.
 """
 ```
@@ -79,7 +77,7 @@ Read {project_dir}/fields.yaml to get all field definitions
 
 ## Validation
 After completing JSON output, run validation script to ensure complete field coverage:
-python ~/.claude/skills/research/validate_json.py -f {project_dir}/fields.yaml -j {project_dir}/results/GitHub_Copilot.json
+python ~/.claude/commands/research-assets/validate_json.py -f {project_dir}/fields.yaml -j {project_dir}/results/GitHub_Copilot.json
 Task is complete only after validation passes.
 ```
 
