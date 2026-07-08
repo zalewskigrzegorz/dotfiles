@@ -41,20 +41,15 @@ fi
 # personal tools like reminders/use-spark/daily-brief, etc.).
 # ---------------------------------------------------------------------------
 # dygma is a *command* (dot_claude/commands), not a skill, so it is not scoped here.
-WORK_SKILLS=(babysit-prs pr-work g-pr g-pr-bump g-pr-fix-checks g-pr-respond g-pr-review g-github-issue g-datagrip)
+# WORK_SKILLS (public + private names) come from bin/place-work-skills --list — the
+# single source of truth shared with `work new`/`work pr` (work.nu), so a worktree
+# created LATER gets exactly the set this apply-time sync places. Without that
+# sharing, fresh worktrees start without g-pr-review & friends until the next apply.
+WORK_SKILLS=()
+while IFS= read -r s; do [[ -n "$s" ]] && WORK_SKILLS+=("$s"); done \
+  < <("{{ .chezmoi.sourceDir }}/bin/place-work-skills" --list)
 DOTFILES_SKILLS=(dotfiles-sync g-allow-add herdr-peek mac-cpu-triage)
 HOMELAB_SKILLS=(cast-audio excalidraw-slides)
-
-# Extra work-scoped skills whose NAMES are private (e.g. client names) and thus
-# cannot live in this public repo. One skill name per line; the file is restored
-# to the secrets dir from 1Password. Their bodies come from the private overlay.
-WORK_SCOPE_FILE="${DOTFILES_SECRET_DIR:-$HOME/.local/state/dotfiles/secrets}/work-scope-skills.txt"
-if [[ -f "$WORK_SCOPE_FILE" ]]; then
-  while IFS= read -r line; do
-    line="${line%%#*}"; line="${line// /}"
-    [[ -n "$line" ]] && WORK_SKILLS+=("$line")
-  done <"$WORK_SCOPE_FILE"
-fi
 
 SCOPED_ALL=("${WORK_SKILLS[@]}" "${DOTFILES_SKILLS[@]}" "${HOMELAB_SKILLS[@]}")
 

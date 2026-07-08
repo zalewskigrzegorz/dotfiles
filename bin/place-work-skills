@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# Place Greg's WORK-SCOPED skills (g-pr*, PR/issue helpers, …) into a work-monorepo
+# worktree's .claude/skills/ — the per-worktree half of the agent-skills sync.
+#
+# WHY THIS EXISTS: run_onchange_after_30-agent-skills-sync.sh only fires on
+# `chezmoi apply` and only knows about worktrees that exist AT apply time. A
+# worktree created later (via `work new`) starts with ZERO work skills until the
+# next apply — that's the recurring "g-review missing in a fresh worktree" bug.
+# `work new`/`work pr`/`work switch` (work.nu) call this so every worktree gets
+# g-pr-review & friends immediately.
+#
+# SINGLE SOURCE OF TRUTH for the work-skill NAME LIST lives here (WORK_SKILLS +
+# the private work-scope file). run_onchange_after_30 reads it via `--list` so the
+# apply-time sync and the on-demand placement can never drift apart.
+#
+# Usage:
+#   place-work-skills [<repo-or-worktree-path>]   # default: git repo of CWD
+#   place-work-skills --list                      # print skill names, one per line
+#
+# No-ops unless the target's parent repo is $WORK_MONOREPO_DIR, so it is safe to
+# call from `work new` in ANY repo (dotfiles, home-lab, …) or on the lab.
+set -euo pipefail
+
+SECRET_DIR="${DOTFILES_SECRET_DIR:-$HOME/.local/state/dotfiles/secrets}"
+
+# --- WORK_SKILLS: the one canonical list of public work-skill names. ---
+WORK_SKILLS=(
+  babysit-prs pr-work
+  g-pr g-pr-bump g-pr-fix-checks g-pr-respond g-pr-review
+  g-github-issue g-datagrip
+)
+# Private-name work skills (client/product names) — appended from the secret file.
+WORK_SCOPE_FILE="$SECRET_DIR/work-scope-skills.txt"
+if [[ -f "$WORK_SCOPE_FILE" ]]; then
+  while IFS= read -r line; do
+    line="${line%%#*}"; line="${line// /}"
+    [[ -n "$line" ]] && WORK_SKILLS+=("$line")
+  done <"$WORK_SCOPE_FILE"
+fi
+
+if [[ "${1:-}" == "--list" ]]; then
+  printf '%s\n' "${WORK_SKILLS[@]}"
+  exit 0
+fi
+
+# --- Resolve target to its git toplevel (accepts a subdir path or nothing). ---
+raw="${1:-.}"
+TARGET="$(git -C "$raw" rev-parse --show-toplevel 2>/dev/null || true)"
+[[ -n "$TARGET" ]] || { echo "place-work-skills: not a git repo: $raw" >&2; exit 0; }
+
+# --- Eligibility: only the work monorepo (or one of its worktrees). ---
+[[ -f "$SECRET_DIR/work.env" ]] && source "$SECRET_DIR/work.env"
+[[ -n "${WORK_MONOREPO_DIR:-}" ]] || exit 0   # no work monorepo configured (e.g. lab)
+
+common_dir="$(git -C "$TARGET" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+[[ -n "$common_dir" ]] || exit 0
+if [[ "$common_dir" == */.git ]]; then
+  parent_root="${common_dir%/.git}"
+else
+  parent_root="$(dirname "$common_dir")"
+fi
+norm() { (cd "$1" 2>/dev/null && pwd -P) || echo "$1"; }
+[[ "$(norm "$parent_root")" == "$(norm "$WORK_MONOREPO_DIR")" ]] || exit 0
+
+# --- Sources: public agent-skills + private overlay. ---
+DOTFILES_SRC="$(chezmoi source-path 2>/dev/null || true)"
+[[ -n "$DOTFILES_SRC" && -d "$DOTFILES_SRC/agent-skills" ]] || DOTFILES_SRC="$HOME/Code/dotfiles"
+SOURCE="$DOTFILES_SRC/agent-skills"
+PRIVATE_SOURCE="$SECRET_DIR/agent-skills"
+
+command -v rsync >/dev/null 2>&1 || { echo "place-work-skills: rsync missing" >&2; exit 0; }
+
+SK_DIR="$TARGET/.claude/skills"
+GITDIR="$(git -C "$TARGET" rev-parse --absolute-git-dir)"
+EXF="$GITDIR/info/exclude"
+mkdir -p "$SK_DIR" "$GITDIR/info"
+
+placed=0
+for s in "${WORK_SKILLS[@]}"; do
+  src="$SOURCE/$s"
+  [[ -d "$src" ]] || src="$PRIVATE_SOURCE/$s"
+  [[ -d "$src" ]] || continue
+  rsync -a --delete --exclude '.DS_Store' "$src/" "$SK_DIR/$s/"
+  grep -qxF "/.claude/skills/$s/" "$EXF" 2>/dev/null || echo "/.claude/skills/$s/" >>"$EXF"
+  placed=$((placed + 1))
+done
+echo "place-work-skills: $placed work skill(s) → $SK_DIR"

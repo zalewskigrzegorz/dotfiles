@@ -204,6 +204,12 @@ def "work _herdr-ws-for" [repo_root: path, wt_path: path]: nothing -> string {
 # Matches the old tmux layout (only claude auto-spawned; git/nvim stay on-demand
 # via `lazygit` / `baz` to spare CPU). Idempotent — skips if a claude tab exists.
 def "work _apply-layout" [workspace_id: string, cwd: path]: nothing -> nothing {
+    # Every worktree open/create funnels through here, so this is where we ensure
+    # the work-scoped skills (g-pr-review, …) exist in the worktree's .claude/skills.
+    # The script no-ops outside the work monorepo, so it's safe on any repo.
+    if (which place-work-skills | is-not-empty) {
+        do { ^place-work-skills $cwd } | complete | ignore
+    }
     if ($workspace_id | is-empty) { return }
     let tabs = (try { (do { ^herdr tab list --workspace $workspace_id } | complete).stdout | from json | get -o result.tabs | default [] } catch { [] })
     # Name the bare-numbered terminal tab with a nerd-font terminal icon (nf-fa-terminal).
