@@ -86,10 +86,14 @@ done
 place_scope() {
   local repo="$1"; shift
   local -a bucket=("$@")
-  [[ -d "$repo/.git" ]] || return 0        # repo absent (e.g. on the lab) → skip
+  # -e not -d: a linked worktree's .git is a FILE ("gitdir: ...") not a dir.
+  [[ -n "$repo" && -e "$repo/.git" ]] || return 0   # repo absent (e.g. on the lab) → skip
   local sk_dir="$repo/.claude/skills"
-  local exf="$repo/.git/info/exclude"
-  mkdir -p "$sk_dir"
+  # Resolve the REAL git dir so the exclude lands in the right place for both a
+  # normal checkout (.git/info/exclude) and a worktree (…/worktrees/<n>/info/exclude).
+  local gitdir; gitdir="$(git -C "$repo" rev-parse --absolute-git-dir 2>/dev/null)" || return 0
+  local exf="$gitdir/info/exclude"
+  mkdir -p "$sk_dir" "$gitdir/info"
 
   # Place / refresh this bucket's skills. Resolve source from the public repo
   # first, then the private overlay (work-only skills with private names live there).
@@ -98,7 +102,7 @@ place_scope() {
     [[ -d "$src" ]] || src="$PRIVATE_SOURCE/$s"
     [[ -d "$src" ]] || continue
     rsync -a --delete --exclude '.DS_Store' "$src/" "$sk_dir/$s/"
-    if [[ -f "$exf" ]] && ! grep -qxF "/.claude/skills/$s/" "$exf" 2>/dev/null; then
+    if ! grep -qxF "/.claude/skills/$s/" "$exf" 2>/dev/null; then
       echo "/.claude/skills/$s/" >>"$exf"
     fi
   done
@@ -116,7 +120,18 @@ place_scope() {
   done
 }
 
-place_scope "{{ index (index . "work" | default dict) "monorepoDir" | default "" }}" "${WORK_SKILLS[@]}"
+# Work skills go into the main monorepo checkout AND every linked worktree, so
+# PR/review skills are available wherever Greg is actually working. New worktrees
+# created later pick them up on the next `chezmoi apply` (or a manual bin/sync).
+WORK_MONOREPO="{{ index (index . "work" | default dict) "monorepoDir" | default "" }}"
+if [[ -n "$WORK_MONOREPO" && -e "$WORK_MONOREPO/.git" ]]; then
+  while IFS= read -r wt; do
+    [[ -n "$wt" ]] && place_scope "$wt" "${WORK_SKILLS[@]}"
+  done < <(git -C "$WORK_MONOREPO" worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2}')
+else
+  place_scope "$WORK_MONOREPO" "${WORK_SKILLS[@]}"
+fi
+
 place_scope "${HOME}/Code/dotfiles" "${DOTFILES_SKILLS[@]}"
 place_scope "${HOME}/Code/home-lab" "${HOMELAB_SKILLS[@]}"
 
