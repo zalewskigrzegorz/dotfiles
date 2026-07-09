@@ -48,7 +48,7 @@ fi
 WORK_SKILLS=()
 while IFS= read -r s; do [[ -n "$s" ]] && WORK_SKILLS+=("$s"); done \
   < <("{{ .chezmoi.sourceDir }}/bin/place-work-skills" --list)
-DOTFILES_SKILLS=(dotfiles-sync g-allow-add herdr-peek mac-cpu-triage)
+DOTFILES_SKILLS=(dotfiles-sync g-allow-add mac-cpu-triage)
 HOMELAB_SKILLS=(cast-audio excalidraw-slides)
 
 SCOPED_ALL=("${WORK_SKILLS[@]}" "${DOTFILES_SKILLS[@]}" "${HOMELAB_SKILLS[@]}")
