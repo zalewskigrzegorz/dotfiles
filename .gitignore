@@ -119,3 +119,6 @@ dot_config/streamdeck/ProfilesV3-snapshot*/
 
 # subagent-driven-development scratch ledger
 .superpowers/
+
+# mib2c (net-snmp) stray runrc dropped when mib2c runs in this dir
+.mib2c-updaterc
