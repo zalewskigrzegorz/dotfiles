@@ -25,7 +25,7 @@ SECRET_DIR="${DOTFILES_SECRET_DIR:-$HOME/.local/state/dotfiles/secrets}"
 
 # --- WORK_SKILLS: the one canonical list of public work-skill names. ---
 WORK_SKILLS=(
-  babysit-prs pr-work
+  babysit-prs
   g-pr g-pr-bump g-pr-fix-checks g-pr-respond g-pr-review
   g-github-issue g-datagrip
 )

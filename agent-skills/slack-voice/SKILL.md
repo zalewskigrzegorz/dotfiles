@@ -71,41 +71,83 @@ normalize. English tech terms inside Polish are natural (deploy, build, revert,
 CI, stage); keep them.
 
 **Close on status, not flourish.** End where it stands ("should be good now",
-"powinno już śmigać", "reverted, fixed", "czekam na CI"). An emoji is fine
-only if Greg already used one or it genuinely fits — never bolt one on as a
-signature. The style carries the message, not the emoji.
+"powinno już śmigać", "reverted, fixed", "czekam na CI"). Greg uses emoji and
+kaomoji freely and naturally — `:D`, `XD`, `:)`, `:pray:` on bumps — so keep
+them when they fit the mood; just don't bolt one on as a fixed signature. The
+style carries the message, the emoji rides along.
 
-## Length
+**Em dashes are fine — Greg actually uses them.** He writes "not a separate
+job", "still need approvals —" himself. Don't let the humanizer pass robotically
+strip every em dash to zero; keep the ones that read like his natural pause.
 
-Usually 1–3 sentences. Longer only when there are several independent things to
-report — then one short line each, still no padding.
+**Never inject typos to "sound like Greg."** His casual DMs are full of them
+("THANS", "waht", "DOne") because he doesn't proofread chat — that's speed, not
+voice. Outward text stays clean. Replicate the *casualness* (lowercase starts,
+short bursts, live verbs), never the misspellings.
 
-## One illustration
+## Register range
 
-This is a single example to show the transformation, not the mold. The same
-voice applies to any short message.
+Greg's real messages are bimodal, and the skill has to cover both ends:
 
-**Input** (too long, too formal):
+- **Most are tiny** — a 2-to-6-word acknowledgment or reaction: "Coool!",
+  "works for me", "yeh", "Sure no rush :)", "masz approve". When the input only
+  needs an ack, give an ack. Don't inflate it into a sentence.
+- **A few are structured deep-dives** — a point-first verdict, then a tight
+  bullet chain carrying exact paths, line numbers, and limits. Bullets are right
+  here, even at 2 parallel items ("Two fixes here: …").
 
-> Ok so Stage didn't crash at runtime, so there was nothing to chase on Nomad.
-> It broke earlier, in CI, during the Docker build for caddy-public. The
-> Deploy BH Stage run (28179414187) failed on
-> `nx run caddy-public:docker:build` at the xcaddy build step with exit code 1.
-> Here's why. PR #24334 bumped caddyserver/caddy/v2 from 2.11.1 to 2.11.4 in
-> packages/acme-auth/go.mod. But apps/caddy-public/Dockerfile builds on a
-> CVE-pinned, SHA-locked caddy:2.11.3-builder-alpine. So the acme-auth
-> plugin asks for caddy 2.11.4 while the builder only has 2.11.3. xcaddy
-> refuses to compile, no image comes out. I made revert and now should work.
+Default to 1–3 sentences in between. Longer only when there are several
+independent things to report — one short line each, still no padding.
 
-**Output** (Greg's voice):
+## Examples across registers
 
-> My bad — didn't catch that PR #24334 bumped `caddyserver/caddy/v2` to 2.11.4
-> in `acme-auth`, while the `caddy-public` Dockerfile is SHA-locked to the
-> 2.11.3 builder, so xcaddy blew up in CI and stage never got a fresh image.
-> Reverted it, should be good now.
+Drawn from Greg's actual Slack, genericized. They show the *range*, not a mold —
+don't pattern-match to any single one.
 
-The point led, the red herring and trivia went, the specifics stayed, "my bad"
-and "blew up" carried the casual energy, and it closed on plain status.
+**Ack — the most common case:**
+
+> Coool!
+
+> works for me
+
+> yeh Fridays are quite different :D
+
+**Owning a slip, casually:**
+
+> It works again after the demo XD
+
+> my bad, didn't catch that — reverted, should be good now
+
+**PR bump:**
+
+> quick bump :pray: still need approvals from @team-a and @team-b
+
+**Point-first question:**
+
+> Still debugging why the Raycast cache access isn't working. I think I'll add a
+> command to temporarily install the MCP in Claude — WDYT?
+
+**Structured technical answer** — verdict first, then the specifics in a tight
+chain:
+
+> Confirmed — the sandbox runs inside the portal task, not a separate job.
+>
+> - each project deploys as its own job from the runner definition
+> - the portal task runs the node server (docker driver)
+> - an MCP request spins up the WASM sandbox in a worker thread *in that same
+>   allocation* — no extra container
+>
+> So the model code runs in-process, isolated by the WASM VM and its limits
+> (10s / 64 MB / call caps), not by a job-level boundary.
+
+**Polish channel, full casual:**
+
+> Nasz cykl też idzie fajnie, ale oczywiście milion zmian mieliśmy dzisiaj na syncu
+
+> Zajebiście
+
+Across all of them: the point led, specifics stayed, the register matched the
+moment, and nothing got padded.
 
 ## Process
 
