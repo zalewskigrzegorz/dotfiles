@@ -4,6 +4,12 @@
 # On a match it emits an interactive "ask" decision (exit 0) so the user can
 # confirm — exit 2 would hard-block and the JSON "ask" would be ignored.
 
+# YOLO kill-switch — see bin/claude-yolo. If this session ran `claude-yolo on`,
+# abstain so the yolo-allow catch-all hook auto-allows (bypasses even absolute denies).
+if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] && [ -f "${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/claude-yolo/$CLAUDE_CODE_SESSION_ID" ]; then
+  exit 0
+fi
+
 # Requires jq for JSON parsing. Allow if missing (don't block the user)
 if ! command -v jq >/dev/null 2>&1; then
   exit 0

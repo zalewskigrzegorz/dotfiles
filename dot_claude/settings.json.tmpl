@@ -112,6 +112,7 @@
       "Bash(brew bundle list*)",
       "Bash(brew bundle check*)",
       "Bash(claude mcp list)",
+      "Bash(claude-yolo:*)",
       "Bash(sqlite3 *)",
       "Bash(xxd *)",
       "Bash(od *)",
@@ -290,6 +291,16 @@
   "model": "opus[1m]",
   "hooks": {
     "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/pre-tool-use/yolo-allow.sh",
+            "timeout": 5000
+          }
+        ]
+      },
       {
         "matcher": "Edit|Write",
         "hooks": [
