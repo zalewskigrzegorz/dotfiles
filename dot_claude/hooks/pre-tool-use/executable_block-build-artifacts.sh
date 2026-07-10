@@ -7,6 +7,12 @@
 # Emits an interactive "ask" decision (exit 0). NOTE: JSON permissionDecision is
 # only honored on exit 0; exit 2 hard-blocks and the JSON is ignored.
 
+# YOLO kill-switch — see bin/claude-yolo. If this session ran `claude-yolo on`,
+# abstain so the yolo-allow catch-all hook auto-allows (bypasses even absolute denies).
+if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] && [ -f "${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/claude-yolo/$CLAUDE_CODE_SESSION_ID" ]; then
+  exit 0
+fi
+
 PERMISSION_MODE=""
 
 # emit_guard "<reason>": ask a human in interactive default mode; hard-deny in any

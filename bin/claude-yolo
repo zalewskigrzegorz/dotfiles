@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Session-scoped "yolo" kill-switch for Claude Code permission guards.
+#
+#   claude-yolo on      → bypass EVERY permission guard for this session only
+#   claude-yolo off     → restore guards for this session
+#   claude-yolo status  → show current state (default)
+#
+# Writes/removes a marker keyed by $CLAUDE_CODE_SESSION_ID. While the marker
+# exists, the pre-tool-use guard hooks abstain and the yolo-allow catch-all hook
+# auto-allows every tool call — including the "absolute" denies (force-push,
+# rm -rf /, DROP TABLE, curl|sh, …). Scoped to one session, so parallel herdr
+# agents keep their guards. Markers auto-expire after 24h and are cleaned on
+# each run (session ids are UUIDs, never reused).
+set -uo pipefail
+
+DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/claude-yolo"
+mkdir -p "$DIR" 2>/dev/null || true
+find "$DIR" -type f -mtime +1 -delete 2>/dev/null || true
+
+SID="${CLAUDE_CODE_SESSION_ID:-}"
+if [ -z "$SID" ]; then
+  echo "claude-yolo: no \$CLAUDE_CODE_SESSION_ID — run this inside a Claude Code session." >&2
+  exit 1
+fi
+MARKER="$DIR/$SID"
+
+case "${1:-status}" in
+  on)
+    : > "$MARKER"
+    echo "🔥 YOLO ON — all permission guards bypassed for THIS session ($SID)."
+    echo "   Every tool call auto-approves, incl. absolute denies. 'claude-yolo off' to restore."
+    ;;
+  off)
+    rm -f "$MARKER"
+    echo "✅ YOLO OFF — permission guards restored for this session."
+    ;;
+  status)
+    if [ -f "$MARKER" ]; then echo "🔥 YOLO ON for this session."; else echo "guards active (yolo off)."; fi
+    ;;
+  *)
+    echo "usage: claude-yolo [on|off|status]" >&2
+    exit 2
+    ;;
+esac

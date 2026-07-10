@@ -12,6 +12,12 @@
 
 set -uo pipefail
 
+# YOLO kill-switch — see bin/claude-yolo. If this session ran `claude-yolo on`,
+# abstain so the yolo-allow catch-all hook auto-allows (bypasses even absolute denies).
+if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] && [ -f "${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/claude-yolo/$CLAUDE_CODE_SESSION_ID" ]; then
+  exit 0
+fi
+
 command -v jq >/dev/null 2>&1 || exit 0
 
 INPUT=$(cat)
