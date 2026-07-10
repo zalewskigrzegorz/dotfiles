@@ -229,7 +229,9 @@ fi
 
 # ── HTTP write requests → ask ────────────────────────────────────────────
 # curl/wget with an explicit write method or a data/form payload (default GET is allowed).
-if contains_icmd '(curl|wget)([[:space:]]).*(-X[[:space:]]*(POST|PUT|DELETE|PATCH)|--request[[:space:]]*(POST|PUT|DELETE|PATCH)|(^|[[:space:]])(--data|--data-raw|--data-binary|--data-urlencode|--json|--form|-F|-d)([[:space:]=]))'; then
+# Exception: Slack chat.postMessage (g-standup / g-pr-bump post as Greg via his own token) — allowed silently.
+if ! contains_cmd 'slack\.com/api/chat\.postMessage' && \
+   contains_icmd '(curl|wget)([[:space:]]).*(-X[[:space:]]*(POST|PUT|DELETE|PATCH)|--request[[:space:]]*(POST|PUT|DELETE|PATCH)|(^|[[:space:]])(--data|--data-raw|--data-binary|--data-urlencode|--json|--form|-F|-d)([[:space:]=]))'; then
   emit_guard "HTTP write request (POST/PUT/DELETE/PATCH or data/form payload)."
 fi
 # httpie / xh with a positional write method.
