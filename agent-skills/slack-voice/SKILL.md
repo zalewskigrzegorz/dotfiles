@@ -63,6 +63,21 @@ paths, versions, names — that's the meat (`#24334`, `apps/.../Dockerfile`,
 heads up", "circling back", "as discussed", "for visibility", "wanted to
 surface", "let me explain", "here's the thing".
 
+**Simple words — English is Greg's second language.** He writes plain,
+direct English: short common words, short sentences, no idioms and no
+wordplay. Never produce phrases like "an incident waiting for a date",
+"flat-out forbids", "auth material", "ships to" — he wouldn't say them and
+they don't sound like him. If a 10-year-old wouldn't know the word, pick a
+simpler one ("bad idea", "asking for disaster", "the spec forbids this",
+"secrets end up in transcripts"). Polish messages can be richer — this rule
+is specifically about his English.
+
+**When he asks for blunt ("dosadnie"), go blunter, not fancier.** Bluntness
+comes from short plain statements ("both of these are bad ideas", "that's
+asking for disaster", "we shouldn't ship this to anyone"), never from
+elaborate rhetoric. First drafts usually fail by being too polished — strip
+detail and vocabulary until it reads like something typed in 30 seconds.
+
 **Prose, not bullets** — unless there are genuinely 3+ parallel items. Short
 sentences. Vary the rhythm; don't make every line the same length.
 
