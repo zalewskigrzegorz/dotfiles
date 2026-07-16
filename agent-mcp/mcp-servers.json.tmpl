@@ -63,6 +63,15 @@
     "hindsight": {
       "type": "http",
       "url": "http://192.168.50.10:8888/mcp/greg/"
+    },
+    {{/* Agent-Native Plan connector — backs the visual-plan / visual-recap /
+         visualize-repo skills (BuilderIO/skills). Hosted mode: plan/recap MDX is
+         published to plan.agent-native.com. OAuth is per-client — authenticate
+         once via `/mcp` → plan → Authenticate (browser). Until then it shows
+         "Failed to connect". local-files mode needs no auth. */}}
+    "plan": {
+      "type": "http",
+      "url": "https://plan.agent-native.com/mcp"
     }
   }
 }
