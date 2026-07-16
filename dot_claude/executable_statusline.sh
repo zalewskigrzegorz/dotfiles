@@ -225,6 +225,32 @@ if [ -n "$cwd" ]; then
   proj_seg="${SEP}${PURPLE}${B}$(basename "$cwd")${N}"
 fi
 
+# Git segment — the "do I need to commit/push/pull?" answer the session line
+# counters can't give (those count Claude's edits, not repo state):
+#   ✚N — dirty files (modified + staged + untracked) → something to commit
+#   ↑N — commits ahead of upstream → something to push
+#   ↓N — commits behind upstream → something to pull (as of the last fetch;
+#        the statusline never fetches, so this can lag until fetch runs)
+# Clean & synced ⇒ omitted entirely.
+git_seg=""
+if [ -n "$cwd" ] && git -C "$cwd" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  dirty=$(git -C "$cwd" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+  ahead=$(git -C "$cwd" rev-list --count '@{u}..HEAD' 2>/dev/null || echo 0)
+  behind=$(git -C "$cwd" rev-list --count 'HEAD..@{u}' 2>/dev/null || echo 0)
+  # 󰊢 (nf-md-git) leads the segment · ✚ commit · ↑ push · ↓ pull
+  g=""
+  [ "${dirty:-0}" -gt 0 ] && g="${O}${B}✚${dirty}${N}"
+  if [ "${ahead:-0}" -gt 0 ]; then
+    [ -n "$g" ] && g="$g "
+    g="${g}${CYAN}${B}↑${ahead}${N}"
+  fi
+  if [ "${behind:-0}" -gt 0 ]; then
+    [ -n "$g" ] && g="$g "
+    g="${g}${R}${B}↓${behind}${N}"
+  fi
+  [ -n "$g" ] && git_seg="${SEP}${O}󰊢${N} ${g}"
+fi
+
 dur_seg="${SEP}${MINT}${dur_fmt}${N}"
 
 # Tool call counter (count tool_use events in transcript)
@@ -340,7 +366,7 @@ if [ -n "$transcript" ] && [ -f "$transcript" ]; then
   [ -n "$ai_title" ] && win_seg="${SEP}${sess_c}${B}󰖯 ${ai_title}${N}"
 fi
 
-printf '%s%s%s%s%s%s%s%s%s%s%s' \
-  "$model_seg" "$mode_seg" "$proj_seg" "$dur_seg" \
+printf '%s%s%s%s%s%s%s%s%s%s%s%s' \
+  "$model_seg" "$mode_seg" "$proj_seg" "$git_seg" "$dur_seg" \
   "$tool_seg" "$comp_seg" \
   "$wait_seg" "$ctx_seg" "$lines_seg" "$style_seg" "$win_seg"
