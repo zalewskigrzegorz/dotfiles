@@ -32,6 +32,8 @@ over200k=$(printf '%s' "$input" | jq -r '.exceeds_200k_tokens // false')
 style=$(printf '%s' "$input" | jq -r '.output_style.name // ""')
 transcript=$(printf '%s' "$input" | jq -r '.transcript_path // ""')
 cwd=$(printf '%s' "$input" | jq -r '.workspace.current_dir // .cwd // ""')
+sid=$(printf '%s' "$input" | jq -r '.session_id // ""')
+perm_mode=$(printf '%s' "$input" | jq -r '.permission_mode // ""')
 
 # Duration format scales with magnitude:
 #   < 1h   → "0m45s" / "37m12s"   (minute precision)
@@ -150,7 +152,73 @@ bar() {
 }
 
 # --- segments ---
+# Per-session identity colour — UNIQUE across concurrent sessions. Colours the
+# session-title segment. Allocation: first-free slot from an 8-colour pool,
+# claimed in ~/.local/state/dotfiles/claude-session-colors/<sid> (content =
+# slot index). A new session reaps claims of dead sessions first (pid liveness
+# via ~/.claude/sessions/*.json + kill -0), then takes the lowest free slot —
+# so up to 8 parallel sessions never share a colour. Pool exhausted → hash
+# fallback. Allocation runs ONCE per session (claim file persists); every
+# later render is a single cat. (Replaces the old tmux window auto-colour,
+# dropped in the herdr port — herdr has no tab-colour CLI.)
+sess_c="$PINK"
+if [ -n "$sid" ]; then
+  sess_palette=("$PINK" "$CYAN" "$MINT" "$GOLD" "$PURPLE" "$O" "$R" "$LABEL")
+  color_dir="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/claude-session-colors"
+  mkdir -p "$color_dir" 2>/dev/null
+  slot=""
+  [ -f "$color_dir/$sid" ] && slot=$(cat "$color_dir/$sid" 2>/dev/null)
+  if ! [[ "$slot" =~ ^[0-7]$ ]]; then
+    # Reap claims whose session no longer has a live process.
+    for claim in "$color_dir"/*; do
+      [ -f "$claim" ] || continue
+      csid=$(basename "$claim")
+      [ "$csid" = "$sid" ] && continue
+      alive=0
+      for sf in "$HOME/.claude/sessions"/*.json; do
+        [ -f "$sf" ] || continue
+        cpid=$(jq -r --arg s "$csid" 'select(.sessionId == $s) | .pid // 0' "$sf" 2>/dev/null)
+        if [ -n "$cpid" ] && [ "$cpid" != "0" ] && kill -0 "$cpid" 2>/dev/null; then
+          alive=1
+          break
+        fi
+      done
+      [ "$alive" -eq 0 ] && rm -f "$claim"
+    done
+    # Lowest free slot wins.
+    used=$(cat "$color_dir"/* 2>/dev/null)
+    for i in 0 1 2 3 4 5 6 7; do
+      if ! printf '%s\n' "$used" | grep -qx "$i"; then slot=$i; break; fi
+    done
+    if [ -n "$slot" ]; then
+      printf '%s' "$slot" > "$color_dir/$sid" 2>/dev/null
+    else
+      # >8 parallel sessions — deterministic hash fallback (may collide).
+      slot=$(( $(printf '%s' "$sid" | cksum | cut -d' ' -f1) % 8 ))
+    fi
+  fi
+  sess_c="${sess_palette[$slot]}"
+fi
+
 model_seg="${ACCENT}${B}${model}${N}"
+
+# Permission-mode / YOLO badge — Greg must always see how armed the session is.
+#   yolo marker file        → "󰈸 YOLO" (red, bold) — claude-yolo session bypass
+#   bypassPermissions       → "󰈸 bypass" (red)
+#   acceptEdits             → "󰏫 accept-edits" (peach)
+#   plan                    → "󰠡 plan" (cyan)
+#   default                 → omitted (quiet when guards are normal)
+mode_seg=""
+yolo_dir="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/claude-yolo"
+if [ -n "$sid" ] && [ -f "$yolo_dir/$sid" ]; then
+  mode_seg="${SEP}${R}${B}󰈸 YOLO${N}"
+elif [ "$perm_mode" = "bypassPermissions" ]; then
+  mode_seg="${SEP}${R}${B}󰈸 bypass${N}"
+elif [ "$perm_mode" = "acceptEdits" ]; then
+  mode_seg="${SEP}${O}󰏫 accept-edits${N}"
+elif [ "$perm_mode" = "plan" ]; then
+  mode_seg="${SEP}${CYAN}󰠡 plan${N}"
+fi
 
 proj_seg=""
 if [ -n "$cwd" ]; then
@@ -269,10 +337,10 @@ win_seg=""
 if [ -n "$transcript" ] && [ -f "$transcript" ]; then
   ai_title=$(grep '"type":"ai-title"' "$transcript" 2>/dev/null | tail -1 \
                | jq -r '.aiTitle // empty' 2>/dev/null)
-  [ -n "$ai_title" ] && win_seg="${SEP}${MINT}󰖯 ${ai_title}${N}"
+  [ -n "$ai_title" ] && win_seg="${SEP}${sess_c}${B}󰖯 ${ai_title}${N}"
 fi
 
-printf '%s%s%s%s%s%s%s%s%s%s' \
-  "$model_seg" "$proj_seg" "$dur_seg" \
+printf '%s%s%s%s%s%s%s%s%s%s%s' \
+  "$model_seg" "$mode_seg" "$proj_seg" "$dur_seg" \
   "$tool_seg" "$comp_seg" \
   "$wait_seg" "$ctx_seg" "$lines_seg" "$style_seg" "$win_seg"
