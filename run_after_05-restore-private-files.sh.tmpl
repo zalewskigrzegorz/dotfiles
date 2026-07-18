@@ -222,6 +222,18 @@ restore_env_pair() {
 
 restore_env_pair "TMUX_WEATHER_HOME" "$secret_dir/tmux-weather-home.env" "lat" "lon"
 
+# Jam SQL Studio MCP bearer token (1P item JAM_SQL, password field). The same
+# token is baked into the Claude user-scope MCP config by agent-mcp sync;
+# this env file is for scripts that talk to the Jam MCP directly.
+jam_token="$(run_op op read "op://$vault/JAM_SQL/password" 2>/dev/null || true)"
+if [[ -n "$jam_token" ]]; then
+  printf 'JAM_SQL_TOKEN=%s\n' "$jam_token" > "$secret_dir/jamsql.env"
+  chmod 600 "$secret_dir/jamsql.env"
+  echo "Restored JAM_SQL → $secret_dir/jamsql.env."
+else
+  echo "Skipping JAM_SQL: not found in 1Password vault '$vault'."
+fi
+
 mkdir -p "$secret_dir/statuses"
 chmod 700 "$secret_dir/statuses"
 
