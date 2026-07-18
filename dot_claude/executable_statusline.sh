@@ -185,10 +185,15 @@ if [ -n "$sid" ]; then
       done
       [ "$alive" -eq 0 ] && rm -f "$claim"
     done
-    # Lowest free slot wins.
-    used=$(cat "$color_dir"/* 2>/dev/null)
+    # Lowest free slot wins. Read claims one file at a time — claim files are
+    # single bytes with no trailing newline, so `cat dir/*` would glue them
+    # into one line and every slot would look free.
+    used=""
+    for cf in "$color_dir"/*; do
+      [ -f "$cf" ] && used+="$(cat "$cf" 2>/dev/null)"$'\n'
+    done
     for i in 0 1 2 3 4 5 6 7; do
-      if ! printf '%s\n' "$used" | grep -qx "$i"; then slot=$i; break; fi
+      if ! printf '%s' "$used" | grep -qx "$i"; then slot=$i; break; fi
     done
     if [ -n "$slot" ]; then
       printf '%s' "$slot" > "$color_dir/$sid" 2>/dev/null
