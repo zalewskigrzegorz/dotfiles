@@ -283,7 +283,8 @@
       "Read(**/*.pem)",
       "Read(**/*.key)",
       "Bash(sudo:*)"
-    ]
+    ],
+    "defaultMode": "default"
   },
   "model": "opus[1m]",
   "hooks": {
@@ -507,9 +508,17 @@
   "outputStyle": "pl-en-short",
   "theme": "custom:dracula-pro",
   "verbose": true,
+  "editorMode": "vim",
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
   "autoUpdatesChannel": "latest",
   "skipWorkflowUsageWarning": true,
+  "preferredNotifChannel": "ghostty",
+  "inputNeededNotifEnabled": true,
+  "remoteControlAtStartup": true,
+  "awaySummaryEnabled": false,
+  "worktree": {
+    "baseRef": "fresh"
+  },
   "model": "opus[1m]"
 }
