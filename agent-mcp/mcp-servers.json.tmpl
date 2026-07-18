@@ -60,6 +60,18 @@
         "Authorization": {{ if lookPath "op" }}{{ printf "Bearer %s" (onepasswordRead (printf "op://%s/N8N_API_KEY/password" (index . "onePasswordVault" | default "Dotfiles"))) | quote }}{{ else }}"Bearer "{{ end }}
       }
     },
+    {{/* Jam SQL Studio — AI-first DB client (macOS app, no brew cask; installed
+         from downloads.jamsql.com). Local MCP server: read-only, maxRows 1000,
+         query timeout 30s; port is persisted via preferredPort in the app's
+         mcp-server-config.json. Token lives in 1P (Dotfiles/JAM_SQL). Queries
+         run through the app so Greg sees them + results in the GUI. */}}
+    "jamsql": {
+      "type": "http",
+      "url": "http://127.0.0.1:14507/mcp",
+      "headers": {
+        "Authorization": {{ if lookPath "op" }}{{ printf "Bearer %s" (onepasswordRead (printf "op://%s/JAM_SQL/password" (index . "onePasswordVault" | default "Dotfiles"))) | quote }}{{ else }}"Bearer "{{ end }}
+      }
+    },
     "hindsight": {
       "type": "http",
       "url": "http://192.168.50.10:8888/mcp/greg/"
