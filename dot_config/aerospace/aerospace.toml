@@ -415,6 +415,10 @@ if.app-name-regex-substring = 'DataGrip'
 run = 'move-node-to-workspace code'
 
 [[on-window-detected]]
+if.app-name-regex-substring = 'JamSQLStudio'
+run = 'move-node-to-workspace code'
+
+[[on-window-detected]]
 if.app-name-regex-substring = 'Notion Calendar'
 run = 'move-node-to-workspace mail'
 

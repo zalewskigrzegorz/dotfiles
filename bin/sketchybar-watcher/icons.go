@@ -9,6 +9,7 @@ var appIcons = map[string]string{
 	"Visual Studio Code":      ":code:",
 	"Zed":                     ":zed:",
 	"DataGrip":                ":datagrip:",
+	"JamSQLStudio":            ":tableplus:",
 	"Insomnia":                ":insomnia:",
 	"RapidAPI":                ":code:",
 	"chipmunk":                ":code:",
