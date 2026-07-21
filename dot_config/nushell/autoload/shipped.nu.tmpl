@@ -1,0 +1,93 @@
+{{- $w := index . "work" | default dict -}}
+{{- $pkg := index $w "realmPackage" | default "" -}}
+{{- $changelog := index $w "realmChangelog" | default "" -}}
+{{- $org := index $w "org" | default "the work" -}}
+# {{ $org }} dev changelog: which commits are on main but not released yet.
+#
+# Answers "on which version can I test my feature?". Find your commit's row:
+#   channel = cooking  → on main, not in ANY release yet (nowhere to test)
+#   channel = next     → in the next pre-release, NOT in stable yet
+#   not listed at all  → already in stable
+#
+# The docs packages bump together, so the umbrella package alone represents
+# the release state of all of them.
+#
+# Why git+CHANGELOG and not npm: only `-next.N` versions get per-package git
+# tags; stable `latest` is never tagged. So next is anchored on its git tag and
+# stable via a pickaxe on the `## <version>` heading in the package CHANGELOG
+# (the commit that introduced it = the stable release boundary).
+#
+#   shipped                          # table: cooking + on-next commits
+#   shipped | where channel == cooking
+#   shipped | where subject =~ '(?i)mcp'
+#   shipped --offline                # skip the git fetch, use local refs
+#
+# Must run inside the {{ $org }} monorepo (needs its git history + CHANGELOG).
+
+def _shipped-commits [range: string, channel: string]: nothing -> table {
+    ^git log $range --format="%h %s"
+    | lines
+    | where ($it | str length) > 0
+    | each { |line|
+        let sha = ($line | split row " " | first)
+        let subj = ($line | str substring (($sha | str length) + 1)..)
+        let m = ($subj | parse --regex '#(?<pr>\d+)')
+        {
+            channel: $channel
+            sha: $sha
+            pr: (if ($m | is-empty) { "" } else { $"#($m.pr.0)" })
+            subject: $subj
+        }
+    }
+}
+
+# {{ $org }} dev changelog: commits on main not yet in stable/next.
+#
+# channel=cooking → nowhere yet · channel=next → next only · absent → in stable.
+# Filter with `where`, e.g. `shipped | where channel == cooking`.
+# Runs inside the {{ $org }} monorepo. --offline skips the git fetch.
+def shipped [--offline]: nothing -> table {
+    let root = (do -i { ^git rev-parse --show-toplevel } | str trim)
+    if ($root | is-empty) {
+        error make { msg: "shipped: not inside a git repo" }
+    }
+    let changelog = ($root | path join "{{ $changelog }}")
+    if not ($changelog | path exists) {
+        error make { msg: $"shipped: package CHANGELOG not found — run inside the {{ $org }} monorepo (looked in ($root))" }
+    }
+
+    if not $offline {
+        do -i { ^git fetch origin main --tags --quiet }
+    }
+
+    let stable = (
+        open --raw $changelog
+        | lines
+        | where ($it | str starts-with "## ")
+        | where not ($it | str contains "-")
+        | first
+        | str replace "## " ""
+        | str trim
+    )
+    let needle = $"## ($stable)(char newline)"
+    let boundary = (
+        ^git log origin/main --format="%H" -S $needle -- $changelog
+        | lines
+        | where ($it | str length) > 0
+        | first
+    )
+    let next_tag = (
+        ^git tag --list "{{ $pkg }}@*-next*"
+        | ^sort -V
+        | lines
+        | where ($it | str length) > 0
+        | last
+    )
+    let next_ver = ($next_tag | str replace "{{ $pkg }}@" "")
+
+    print $"stable ($stable)  ·  next ($next_ver)"
+
+    let cooking = (_shipped-commits $"($next_tag)..origin/main" "cooking")
+    let on_next = (_shipped-commits $"($boundary)..($next_tag)" "next")
+    $cooking | append $on_next
+}
