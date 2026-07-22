@@ -241,6 +241,38 @@ def "work _checkout-path" [repo_root: path, branch: string]: nothing -> string {
     $found
 }
 
+# Seed a fresh worktree with untracked env files + node_modules from the parent
+# checkout. git worktrees carry only tracked files, so a new tree has no `.env`
+# and no deps. We clone them via APFS clonefile (`cp -c`: instant, no extra disk,
+# preserves pnpm symlinks) at the same relative paths — handles monorepos (nested
+# node_modules / .env) automatically. Uses git's own ignore list so ONLY env +
+# node_modules are touched, nothing else. Best-effort: never fails the create.
+def "work _seed-untracked" [parent: path, wt_path: path]: nothing -> nothing {
+    let r = (do { ^git -C $parent ls-files --others --ignored --exclude-standard --directory } | complete)
+    if $r.exit_code != 0 { return }
+    let entries = (
+        $r.stdout | lines
+        | where { |e|
+            let base = ($e | str trim --right --char "/" | path basename)
+            $base == "node_modules" or $base == ".env" or ($base | str starts-with ".env.")
+        }
+    )
+    if ($entries | is-empty) { return }
+    mut copied = 0
+    for e in $entries {
+        let rel = ($e | str trim --right --char "/")
+        let src = ($parent | path join $rel)
+        let dst = ($wt_path | path join $rel)
+        if not ($src | path exists) { continue }
+        if ($dst | path exists) { continue }
+        mkdir ($dst | path dirname)
+        let c = (do { ^cp -cR $src $dst } | complete)
+        if $c.exit_code != 0 { do { ^cp -R $src $dst } | complete | ignore }
+        $copied += 1
+    }
+    if $copied > 0 { print -e $"🌱 seeded ($copied) untracked path\(s\) \(env + node_modules)" }
+}
+
 # Create a new worktree + herdr workspace, focus it.
 def "work new" [
     name: string@"work _complete-branches-no-wt" = ""
@@ -249,6 +281,7 @@ def "work new" [
     --pick-from
     --no-prefix
     --no-focus
+    --no-seed  # skip copying .env + node_modules from the parent checkout
 ]: nothing -> any {
     work deps-preflight
     let info = (work repo-info)
@@ -370,6 +403,7 @@ def "work new" [
     )
     if $r.exit_code != 0 { error make { msg: $"herdr worktree create failed: ($r.stderr)" } }
     let ws = (try { $r.stdout | from json | get -o result.workspace.workspace_id } catch { "" })
+    if not $no_seed { work _seed-untracked $parent $wt_path }
     work _apply-layout $ws $wt_path
 
     print -e $"✅ ($branch_name) → ($wt_path)"
@@ -380,6 +414,7 @@ def "work new" [
 def "work pr" [
     number?: int
     --no-focus
+    --no-seed  # skip copying .env + node_modules from the parent checkout
 ]: nothing -> any {
     work deps-preflight
     if (which gh | is-empty) { error make { msg: "gh CLI required: brew install gh" } }
@@ -436,6 +471,7 @@ def "work pr" [
         if $r.exit_code != 0 { error make { msg: $"herdr worktree create failed: ($r.stderr)" } }
     }
 
+    if not $no_seed { work _seed-untracked $parent $wt_path }
     work _apply-layout (work _herdr-ws-for $parent $wt_path) $wt_path
     print -e $"✅ PR #($pr_num) → ($head_branch)"
     { repo: $info.name, pr: $pr_num, branch: $head_branch, path: $wt_path, base: $base, created: true }
