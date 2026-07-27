@@ -36,16 +36,16 @@ var appIcons = map[string]string{
 	"Zen":                       ":zen_browser:",
 
 	// Communication & mail
-	"Discord":               ":discord:",
-	"Slack":                 ":slack:",
-	"Mail":                  ":mail:",
-	"Canary Mail":           ":mail:",
-	"Spark Mail":            ":spark:",
+	"Discord":                   ":discord:",
+	"Slack":                     ":slack:",
+	"Mail":                      ":mail:",
+	"Canary Mail":               ":mail:",
+	"Spark Mail":                ":spark:",
 	"ChatMate for WhatsApp":     ":whats_app:",
 	"ChatMate Pro for WhatsApp": ":whats_app:", // aerospace reports this variant
 	"WhatsApp":                  ":whats_app:",
-	"Messages":              ":messages:",
-	"FaceTime":              ":face_time:",
+	"Messages":                  ":messages:",
+	"FaceTime":                  ":face_time:",
 
 	// Notes, knowledge, productivity
 	"Notes":                ":notes:",
