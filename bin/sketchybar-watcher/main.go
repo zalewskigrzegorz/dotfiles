@@ -42,16 +42,15 @@ const (
 	socketPath       = "/tmp/sketchybar-watcher.sock"
 	workspaceCount   = 10
 	kindavimEnvFile  = "Library/Application Support/kindaVim/environment.json"
-	debounceMs       = 50         // A1: coalesce rapid focus/workspace events
-	kindavimPollMs   = 300        // A4: mtime-gated, full read is now rare
-	kindavimIdleMs   = 2000       // poll less often when kindaVim not running
-	windowCacheTTLMs = 150        // A3: TTL for `aerospace list-windows`
-	retryDelayMs     = 500        // B3: base backoff
-	retryMaxAttempts = 3          // B3: bounded retry
-	readinessMaxMs   = 15000      // B2: max wait for sketchybar items to exist (cold boot needs more headroom)
-	readinessStepMs  = 50         // B2: initial probe interval
-	recentLRUSize    = 3          // E3: recent-workspace LRU
-	pulseDurationMs  = 600        // E4: app-launch pulse
+	debounceMs       = 50    // A1: coalesce rapid focus/workspace events
+	kindavimPollMs   = 300   // A4: mtime-gated, full read is now rare
+	kindavimIdleMs   = 2000  // poll less often when kindaVim not running
+	windowCacheTTLMs = 150   // A3: TTL for `aerospace list-windows`
+	retryDelayMs     = 500   // B3: base backoff
+	retryMaxAttempts = 3     // B3: bounded retry
+	readinessMaxMs   = 15000 // B2: max wait for sketchybar items to exist (cold boot needs more headroom)
+	readinessStepMs  = 50    // B2: initial probe interval
+	recentLRUSize    = 3     // E3: recent-workspace LRU
 )
 
 var (
@@ -85,7 +84,6 @@ var workspaceColors = map[string]string{
 // primary border accent used in chips and aerospace/borders.
 const (
 	colorMauve       = "0xffb347ff" // electric purple — primary Mocha Neon accent
-	colorPurple      = "0xff9580ff" // lavender
 	colorMagenta     = "0xffff80bf" // pink bumped
 	colorYellow      = "0xffffd700" // gold bumped (was Dracula 0xffffff80)
 	colorRed         = "0xffff6b9d" // red bumped (was Dracula 0xffff9580)
@@ -111,12 +109,6 @@ func (s *state) setFocusedDisplay(d int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.focusedDisplay = d
-}
-
-func (s *state) getFocusedDisplay() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.focusedDisplay
 }
 
 func (s *state) snapshot() (focused string, recent []string, svc bool, vim string) {
@@ -160,12 +152,6 @@ func (s *state) setVimMode(v string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.vimMode = v
-}
-
-func (s *state) getVimMode() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.vimMode
 }
 
 // E4: diff previous per-app Dock badges vs new ones. Return list of workspaces
