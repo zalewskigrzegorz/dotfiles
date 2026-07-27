@@ -29,12 +29,11 @@ PLUGINS=(
   astkaasa/herdr-tokscale-dashboard   # token-usage + cost dashboard (prefix+m) — needs tokscale via TOKSCALE_CMD
 )
 
-# NOTE: dcolinmorgan/herdr-push was removed. The Mac feeds the relay via the
-# bun worker (com.greg.herdr-worker, run_onchange_after_46) which connects
-# OUTBOUND over WebSocket and pushes full host snapshots + serves read/respond
-# locally. Kandji reverts macOS Remote Login, so inbound SSH-poll of the Mac is
-# unstable; the worker is the Kandji-proof replacement. The lab is polled locally
-# by the relay (host="minis"). See docs/herdr.md.
+# NOTE: dcolinmorgan/herdr-push was removed. The whole remote-respond stack
+# (lab herdr-relay + herdr-pwa containers, Mac com.greg.herdr-worker LaunchAgent,
+# run_onchange_after_46) was removed 2026-07-23 — Claude Code's native Remote
+# Connection covers the phone use case. herdr itself stays on BOTH machines
+# (Mac + lab multiplexer); only the relay/PWA/worker service is gone.
 
 installed="$(herdr plugin list 2>/dev/null || true)"
 for p in "${PLUGINS[@]}"; do
