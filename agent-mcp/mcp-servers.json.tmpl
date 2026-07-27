@@ -25,11 +25,7 @@
       "command": "node",
       "args": ["{{ .chezmoi.homeDir }}/.wallaby/mcp/"]
     },
-    {{/* Disabled while testing agent-browser as the browser skill. Re-enable by removing the surrounding chezmoi comment. Kept around because agent-browser is great for navigation/scraping but writing real Playwright specs may want this back.
-    "playwright": {
-      "command": "npx",
-      "args": ["@playwright/mcp@latest"]
-    },
+    {{/* playwright MCP REMOVED 2026-07-27 (was commented out since 2026-05-24). agent-browser covered every automation case, so the block went away along with the global @playwright/cli. This says nothing about Playwright as a test framework — the work repo's e2e suite and the `pwt` nushell helper are untouched. To bring the MCP back: "playwright": { "command": "npx", "args": ["@playwright/mcp@latest"] }.
     */}}
     {{/* Docker MCP Toolkit gateway DROPPED 2026-05-24. Hypothesis "Docker = less context" turned out false (the gateway loads all 48 tools into Claude's tool registry the same as N separate MCPs would). Browser automation goes through the agent-browser skill instead. To re-enable: uncomment and `docker mcp gateway run` (Docker Desktop must be on).
     "MCP_DOCKER": {

@@ -97,4 +97,5 @@ agent-browser chat "open google.com and search for cats"
 - Snapshot output is ~200-400 tokens vs. raw HTML — prefer `snapshot -i` over `get html`.
 - Default engine is Chrome. `AGENT_BROWSER_ENGINE=lightpanda` for headless light engine.
 - For credentials use `agent-browser auth save/login` instead of shell history.
-- If you ever need to write actual Playwright `.spec.ts` files (test authoring vs ad-hoc automation), re-enable the `playwright` block in `agent-mcp/mcp-servers.json.tmpl` and reinstall the playwright-cli skill from a marketplace. Both were removed 2026-05-24 because agent-browser covered every automation case we hit.
+- Writing actual Playwright `.spec.ts` files in the work repo is a different job — run them with the `pwt` nushell helper (`test e2e`), which uses the repo's local Playwright. That path is alive and unaffected.
+- What is gone: the playwright MCP block and the global `@playwright/cli`, deleted 2026-07-27 (commented out since 2026-05-24) because agent-browser covered every ad-hoc automation case. The recipe to bring the MCP back is in the comment at that spot in `agent-mcp/mcp-servers.json.tmpl`.
