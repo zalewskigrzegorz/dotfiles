@@ -9,6 +9,12 @@
 # lease alive. A race between two sessions can spawn a short-lived extra
 # caffeinate — harmless, it self-expires via -t.
 #
+# Attribution: on each fresh spawn we drop a lease file at
+# ~/.local/state/caffeine-manager/agents/<pid>.json (same schema + dir the
+# Caffeine Manager app reads) so the app shows "Claude Code · <repo>"
+# instead of "unknown / external". No MCP needed — the app reads that dir
+# directly. Best-effort; a failure here never blocks the tool call.
+#
 # Never blocks a tool call: any failure exits 0.
 
 [ "$(uname)" = "Darwin" ] || exit 0
@@ -21,6 +27,9 @@ state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/claude"
 pidfile="$state_dir/caffeinate.lease"
 mkdir -p "$state_dir" 2>/dev/null || exit 0
 
+# Shared attribution dir the Caffeine Manager app reads.
+agents_dir="${XDG_STATE_HOME:-$HOME/.local/state}/caffeine-manager/agents"
+
 now=$(date +%s)
 
 if [ -f "$pidfile" ]; then
@@ -29,10 +38,25 @@ if [ -f "$pidfile" ]; then
   if [ "${pid:-0}" -gt 0 ] && kill -0 "$pid" 2>/dev/null && [ $((now - ts)) -lt "$REFRESH_AGE" ]; then
     exit 0  # lease still fresh
   fi
-  [ "${pid:-0}" -gt 0 ] && kill "$pid" 2>/dev/null
+  if [ "${pid:-0}" -gt 0 ]; then
+    kill "$pid" 2>/dev/null
+    rm -f "$agents_dir/$pid.json" 2>/dev/null  # drop stale attribution
+  fi
 fi
 
 nohup caffeinate -is -t "$LEASE_SECS" >/dev/null 2>&1 &
-echo "$! $now" >"$pidfile" 2>/dev/null
+new_pid=$!
+echo "$new_pid $now" >"$pidfile" 2>/dev/null
+
+# Attribution (best-effort). Repo basename from the session's project dir;
+# strip characters that would break the JSON string.
+repo=$(basename "${CLAUDE_PROJECT_DIR:-$PWD}" 2>/dev/null | tr -d '"\\')
+[ -n "$repo" ] || repo="unknown-repo"
+if mkdir -p "$agents_dir" 2>/dev/null; then
+  tmp="$agents_dir/$new_pid.json.$$.tmp"
+  printf '{"pid":%s,"label":"Claude Code · %s","via":"hook","reason":null,"startedAt":%s,"expiresAt":%s}\n' \
+    "$new_pid" "$repo" "$((now * 1000))" "$(((now + LEASE_SECS) * 1000))" \
+    >"$tmp" 2>/dev/null && mv "$tmp" "$agents_dir/$new_pid.json" 2>/dev/null
+fi
 
 exit 0
