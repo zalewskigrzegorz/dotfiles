@@ -116,8 +116,9 @@ brew "mysql-client"
 cask "1password"
 cask "1password-cli"
 cask "aerospace"
-cask "alt-tab"
-cask "bitwarden"
+# bitwarden: NOT brew-managed. Iru/Kandji (MDM) installs it into /Applications as
+# root:wheel, so `brew upgrade` can only chown-fail against it and brew's own copy
+# rotted at 2022.9.1 since Mar 2024. Updates come from MDM. Same story for slack.
 cask "chipmunk"
 # claude-code: installed via native installer (`claude install latest`) — auto-updates,
 # brew cask lags 2+ weeks behind. See run_once_after_25-install-claude.sh.tmpl.
@@ -147,7 +148,7 @@ cask "rapidapi"
 cask "raycast"
 cask "remarkable"
 cask "sf-symbols"
-cask "slack"
+# slack: MDM-installed (root:admin), see the bitwarden note above.
 cask "spotify"
 cask "superwhisper"
 cask "vlc"
