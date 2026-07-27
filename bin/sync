@@ -45,14 +45,22 @@ if ! command -v chezmoi >/dev/null 2>&1; then
 fi
 
 # Dispatch
+#
+# --force on apply/update: chezmoi refuses to overwrite a target that changed
+# since it last wrote it and falls back to a TTY prompt — which fails outright
+# in hooks/cron/Raycast. Claude Code rewrites ~/.claude/settings.json on every
+# /config, model switch or plugin toggle, so without --force that file (and
+# anything else an app owns) stays permanently drifted. The repo is the source
+# of truth; the settings-drift-check SessionStart hook warns before a live edit
+# gets discarded. Use bare `chezmoi apply` when you want the prompts.
 case "${1:-apply}" in
   update)
     shift
-    exec chezmoi update "$@"
+    exec chezmoi update --force "$@"
     ;;
   apply)
     shift 2>/dev/null || true
-    exec chezmoi apply "$@"
+    exec chezmoi apply --force "$@"
     ;;
   *)
     exec chezmoi "$@"
