@@ -21,6 +21,14 @@ agent-skills/**
 agent-rules/**
 agent-mcp/**
 
+# sketchybar-watcher is built and run straight out of the source dir
+# (~/Code/dotfiles/bin/sketchybar-watcher/) by run_onchange_after_36 — sketchybar
+# init.lua and aerospace's after-startup-command both exec that path. Copying the
+# 4 MB binary + its .go sources to ~/bin/ serves nobody, and since the rebuild
+# stamps -X main.buildTime the copy is stale the moment it lands, so `chezmoi
+# diff` could never be clean.
+bin/sketchybar-watcher/**
+
 # Generated application state and secrets.
 .config/cursor/chats/**
 .config/cursor/cli-config.json
