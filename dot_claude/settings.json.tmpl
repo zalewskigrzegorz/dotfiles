@@ -286,7 +286,6 @@
     ],
     "defaultMode": "default"
   },
-  "model": "opus[1m]",
   "hooks": {
     "PreToolUse": [
       {
@@ -402,6 +401,16 @@
             "command": "{{ .chezmoi.homeDir }}/.local/bin/claude update >/dev/null 2>&1 || true",
             "async": true,
             "timeout": 300
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/settings-drift-check.sh",
+            "async": true,
+            "timeout": 30
           }
         ]
       }
