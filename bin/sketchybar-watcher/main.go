@@ -47,7 +47,8 @@ const (
 	kindavimIdleMs   = 2000  // poll less often when kindaVim not running
 	windowCacheTTLMs = 150   // A3: TTL for `aerospace list-windows`
 	retryDelayMs     = 500   // B3: base backoff
-	retryMaxAttempts = 3     // B3: bounded retry
+	retryMaxAttempts = 3     // B3: attempts on the fast exponential backoff
+	retryIdleMs      = 5000  // B3: slow poll once the fast retries are spent — never stop trying
 	readinessMaxMs   = 15000 // B2: max wait for sketchybar items to exist (cold boot needs more headroom)
 	readinessStepMs  = 50    // B2: initial probe interval
 	recentLRUSize    = 3     // E3: recent-workspace LRU
@@ -101,6 +102,7 @@ type state struct {
 	serviceMode      bool
 	vimMode          string // N, I, V, C, R or ""
 	debounceTimer    *time.Timer
+	retryTimer       *time.Timer       // B3: at most one pending retry, no matter how many events land mid-outage
 	retryAttempt     int               // B3
 	prevBadges       map[string]string // E4: previous per-app Dock badges for notification-arrival diff
 }
@@ -488,17 +490,35 @@ func refresh(st *state) {
 		st.mu.Lock()
 		st.retryAttempt++
 		attempt := st.retryAttempt
-		st.mu.Unlock()
+		// The fast exponential backoff absorbs a transient sketchybar hiccup.
+		// Past that we drop to a slow poll instead of stopping: a cold boot can
+		// race aerospace and leave spaces.lua half-applied (item.9, item.10 and
+		// apple never created), and every push then fails against items that do
+		// not exist yet. Giving up left the bar dead until a manual restart —
+		// burned on the 2026-07-27 reboot. A single timer, replaced each time,
+		// keeps this to one pending retry however many events arrive mid-outage.
+		delay := time.Duration(retryIdleMs) * time.Millisecond
 		if attempt <= retryMaxAttempts {
-			backoff := time.Duration(retryDelayMs*(1<<(attempt-1))) * time.Millisecond
-			time.AfterFunc(backoff, func() { refresh(st) })
-		} else {
-			log.Printf("pushToSketchybar: giving up after %d attempts", attempt-1)
+			delay = time.Duration(retryDelayMs*(1<<(attempt-1))) * time.Millisecond
+		} else if attempt == retryMaxAttempts+1 {
+			log.Printf("pushToSketchybar: fast retries spent, polling every %dms until it lands", retryIdleMs)
 		}
+		if st.retryTimer != nil {
+			st.retryTimer.Stop()
+		}
+		st.retryTimer = time.AfterFunc(delay, func() { refresh(st) })
+		st.mu.Unlock()
 		return
 	}
 	st.mu.Lock()
+	if st.retryAttempt > retryMaxAttempts {
+		log.Printf("pushToSketchybar: recovered after %d attempts", st.retryAttempt)
+	}
 	st.retryAttempt = 0
+	if st.retryTimer != nil {
+		st.retryTimer.Stop()
+		st.retryTimer = nil
+	}
 	st.mu.Unlock()
 	// E4: pulse workspaces whose app gained/changed a Dock badge. Uses
 	// sketchybar's `--animate sin` to ease background + border to cyan,
@@ -610,9 +630,12 @@ func handleEvent(st *state, event string, env map[string]string) {
 			go animatePulse([]string{ws}, st)
 		}
 	case "sketchybar_ready": // Lua signals sketchybar config finished loading
-		// Reset retry counter so failures during pre-ready window don't
-		// carry over and immediately trip the give-up cap after reload.
+		// Reset retry counter so failures during the pre-ready window don't
+		// carry over and push us straight onto the slow poll after a reload.
+		// Under the mutex — every other reader of retryAttempt holds it.
+		st.mu.Lock()
 		st.retryAttempt = 0
+		st.mu.Unlock()
 		// Re-push workspace items (item.1..10) and apple icon, which
 		// sketchybar wipes on every reload. Without this, widgets go
 		// blank until the next aerospace focus/window event.
@@ -784,6 +807,9 @@ func main() {
 			st.mu.Lock()
 			if st.debounceTimer != nil {
 				st.debounceTimer.Stop()
+			}
+			if st.retryTimer != nil {
+				st.retryTimer.Stop()
 			}
 			st.mu.Unlock()
 			_ = listener.Close()
