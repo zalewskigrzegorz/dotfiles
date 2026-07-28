@@ -43,11 +43,12 @@ printf "${MAUVE}health probe:${N}\n"
 
 EXPECTED=(
   # core / static
-  apple front_app notif_preview
-  # widgets
+  apple front_app
+  # widgets. notif_preview and widgets.claude_sessions were deleted in f3fae4c
+  # — leaving them here made the probe report "2/22 missing" on every single
+  # restart, which trains you to ignore the probe entirely.
   widgets.battery widgets.cpu widgets.wifi1 widgets.wifi2
   widgets.volume1 widgets.volume2 widgets.mic1 widgets.mic2
-  widgets.claude_sessions
   # workspaces (item.1..10 — set up by spaces.lua)
   item.1 item.2 item.3 item.4 item.5 item.6 item.7 item.8 item.9 item.10
 )
