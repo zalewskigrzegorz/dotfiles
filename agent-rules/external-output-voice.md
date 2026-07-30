@@ -1,14 +1,13 @@
 ---
-description: Always humanize + voice outward-facing text (PRs, reviews, issues, Slack)
+description: Always run outward-facing text (PRs, reviews, issues, Slack) through greg-voice
 alwaysApply: true
 ---
 
-# Outward-Facing Text — Always Humanize + Voice
+# Outward-Facing Text — Always Voice It
 
 Any text that leaves Greg's machine for other people to read MUST be passed
-through the **`humanizer`** skill and then the **`slack-voice`** skill before it
-is posted, created, or sent. This is automatic — Greg should never have to ask
-for it.
+through the **`greg-voice`** skill before it is posted, created, or sent. This is
+automatic — Greg should never have to ask for it.
 
 ## When this applies
 
@@ -27,18 +26,25 @@ scratch/AI artifacts.
 
 ## How to apply
 
-1. **`humanizer` always, on the whole text** — strip the AI tells (inflated
-   symbolism, rule-of-three, em-dash overuse, "it's not just X, it's Y", filler,
-   etc.) from everything that goes out.
-2. **`slack-voice` on the free prose** — give it Greg's tone (casual, point-first,
-   just the meat) for: PR descriptions, review comments, replies, issue bodies,
-   Slack messages.
-3. **Leave structured template parts untouched** — do NOT let the voice layer
+1. **One pass, `greg-voice`.** It strips the AI tells and puts Greg's tone in as
+   a single edit. **Do not run `humanizer` before or after it** — that was the
+   old two-step flow and it forced a second trip: humanizer flattens the live
+   verbs, em dashes and uneven rhythm that the voice then has to rebuild.
+   **One register everywhere, code review included.** A PR review comment or a
+   reply to a reviewer gets the same casual, point-first voice as a Slack
+   message — that is the point, not an exception. Casual does not mean vague or
+   longer: exact paths, line numbers and versions stay, the stiff wrapper around
+   them goes, and a terse nit stays terse.
+2. **Leave structured template parts untouched** — do NOT let the voice layer
    rewrite changesets, `Reference` / `Fixes #` / `Closes #` links, checklists,
    templated headings, tables, or code blocks. Voice the prose around them; keep
    the scaffolding intact.
+3. If a skill's own flow (e.g. `g-pr-review`) already drafts the text, run
+   `greg-voice` over that draft before it leaves the machine.
 
-## Order
+## When `humanizer` is still the right skill
 
-humanizer → slack-voice → post. If a skill's own flow (e.g. `g-pr-review`) already
-drafts the text, run both passes on that draft before it leaves the machine.
+`humanizer` remains a standalone tool for text that is **not** in Greg's voice —
+docs, a README, someone else's draft he is cleaning up, anything where the goal
+is "sounds less like AI" rather than "sounds like Greg". Outward-facing text in
+his own name goes through `greg-voice` instead.

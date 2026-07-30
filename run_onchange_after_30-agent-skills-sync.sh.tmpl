@@ -48,10 +48,50 @@ fi
 WORK_SKILLS=()
 while IFS= read -r s; do [[ -n "$s" ]] && WORK_SKILLS+=("$s"); done \
   < <("{{ .chezmoi.sourceDir }}/bin/place-work-skills" --list)
-DOTFILES_SKILLS=(dotfiles-sync g-allow-add mac-cpu-triage)
-HOMELAB_SKILLS=(cast-audio excalidraw-slides)
+DOTFILES_SKILLS=(mac-cpu-triage)
+HOMELAB_SKILLS=(cast-audio)
+
+# RETIRED: skills deliberately removed from agent-skills/. The global targets are
+# rsync'd with --delete so they self-heal, but a REPO-SCOPED copy already placed
+# into some repo's .claude/skills/ is only ever pruned by the loop in place_scope,
+# which iterates SCOPED_ALL. A retired name is in no bucket, so without this list
+# it would linger forever on every machine that ever placed it — including the lab,
+# where nobody is around to `rm` it by hand. Names stay here permanently; the loop
+# is idempotent and cheap. Only ever add names Greg's OWN skills used to have —
+# never a team skill name, or this would delete the work monorepo's tracked skills.
+# Add a name here in the SAME commit that deletes its agent-skills/ dir, never
+# ahead of it. The guard below makes a premature entry harmless, but a name listed
+# early would still be silently ignored, which reads as "cleanup is broken".
+RETIRED=(
+  quokka wallaby banner-design slides
+  design brand design-system
+  slack-voice g-datagrip dotfiles-sync
+  g-allow-add excalidraw-slides
+)
+
+# Guard: a name only counts as retired once its source is actually gone. Without
+# this, listing a name before deleting its dir would delete the placed copies of a
+# skill that is still live and still being placed — the two loops would fight and
+# the repo-scoped copy would flicker in and out on every apply.
+# "Source exists" means it still holds at least one FILE — `git rm` leaves the
+# directory behind (git tracks files, not dirs), and an empty leftover dir would
+# otherwise read as a live skill and block its own retirement.
+_has_files() { [[ -n "$(find "$1" -type f -print -quit 2>/dev/null)" ]]; }
+_retired_checked=()
+for r in "${RETIRED[@]}"; do
+  if _has_files "$SOURCE/$r" || _has_files "${DOTFILES_SECRET_DIR:-$HOME/.local/state/dotfiles/secrets}/agent-skills/$r"; then
+    echo "agent-skills sync: WARNING '$r' is in RETIRED but its source still exists — ignoring." >&2
+  else
+    _retired_checked+=("$r")
+  fi
+done
+RETIRED=("${_retired_checked[@]}")
 
 SCOPED_ALL=("${WORK_SKILLS[@]}" "${DOTFILES_SKILLS[@]}" "${HOMELAB_SKILLS[@]}")
+# Everything place_scope is allowed to delete from a repo: currently-bucketed
+# names (so a re-bucketed skill moves cleanly) plus retired ones (so a deleted
+# skill disappears everywhere).
+PRUNABLE_ALL=("${SCOPED_ALL[@]}" "${RETIRED[@]}")
 
 # Private overlay: work-specific skills that must not live in the public repo.
 # Restored from 1Password by run_after_05; layered AFTER the public rsync so the
@@ -93,6 +133,12 @@ place_scope() {
   # Place / refresh this bucket's skills. Resolve source from the public repo
   # first, then the private overlay (work-only skills with private names live there).
   for s in "${bucket[@]}"; do
+    # RETIRED wins over bucket membership: a name left in a bucket by mistake must
+    # never be re-placed, or the prune loop below would fight the placement loop
+    # on every apply.
+    local retired=0
+    for r in "${RETIRED[@]}"; do [[ "$s" == "$r" ]] && retired=1; done
+    [[ $retired -eq 1 ]] && continue
     local src="$SOURCE/$s"
     [[ -d "$src" ]] || src="$PRIVATE_SOURCE/$s"
     [[ -d "$src" ]] || continue
@@ -102,17 +148,39 @@ place_scope() {
     fi
   done
 
-  # Drop any MANAGED skill that got re-bucketed away from this repo. Only touches
-  # names in SCOPED_ALL (Greg's personal skills) — never team skills.
-  for s in "${SCOPED_ALL[@]}"; do
+  # Drop any MANAGED skill that got re-bucketed away from this repo, plus every
+  # RETIRED skill. Only touches names in PRUNABLE_ALL (Greg's own) — never team
+  # skills. Also strips the matching info/exclude line, so a retired skill leaves
+  # no trace in the repo's git config.
+  for s in "${PRUNABLE_ALL[@]}"; do
     local keep=0
     for b in "${bucket[@]}"; do
       if [[ "$s" == "$b" ]]; then keep=1; fi
     done
+    for r in "${RETIRED[@]}"; do [[ "$s" == "$r" ]] && keep=0; done
     if [[ $keep -eq 0 && -d "$sk_dir/$s" ]]; then
       rm -rf "${sk_dir:?}/${s}"
     fi
   done
+
+  # Sweep dead info/exclude lines: any /.claude/skills/<n>/ entry whose directory
+  # no longer exists is garbage regardless of who wrote it. This is what catches
+  # names that were re-bucketed long ago (their dir went, the line stayed) without
+  # having to guess whether a line is ours or the team's.
+  if [[ -f "$exf" ]]; then
+    local tmp="$exf.chezmoi-sweep"
+    : >"$tmp"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      if [[ "$line" =~ ^/\.claude/skills/(.+)/$ ]] && [[ ! -d "$repo/.claude/skills/${BASH_REMATCH[1]}" ]]; then
+        continue
+      fi
+      printf '%s\n' "$line" >>"$tmp"
+    done <"$exf"
+    if ! cmp -s "$exf" "$tmp"; then mv "$tmp" "$exf"; else rm -f "$tmp"; fi
+  fi
+
+  # Leave no empty .claude/skills/ behind in a repo that now has none of ours.
+  rmdir "$sk_dir" 2>/dev/null || true
 }
 
 # Work skills go into the main monorepo checkout AND every linked worktree, so

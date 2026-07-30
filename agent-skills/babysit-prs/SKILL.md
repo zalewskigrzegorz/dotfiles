@@ -104,7 +104,7 @@ Nudge pending reviewers on Slack for a PR that's *ready* but sitting. **Trigger 
 
 1. **Do NOT ask for confirmation** — this skill's authorization overrides g-pr-bump's "confirm before posting" gate.
 2. **Ping only** the still-pending `requested_reviewers` / `requested_teams` from GitHub. Never anyone not explicitly requested; never a fresh top-level channel message; reply in the PR Review Bot's thread only.
-3. **Compose the bump text through the `slack-voice` skill** (humanizer → slack-voice, per global rules) so it reads like Greg, not a bot. One short sentence.
+3. **Compose the bump text through the `greg-voice` skill** (single pass, per global rules) so it reads like Greg, not a bot. One short sentence.
 
 After a successful send, set `slack_bump[<target>] = <today's ISO date>` for each pinged target. If every pending target was already bumped today → skip silently. If g-pr-bump can't locate the PR's Slack thread → skip and note it in the summary (do **not** fall back to a new top-level post).
 
@@ -120,5 +120,5 @@ End every pass with a short per-PR line: what was done (retried e2e 1/2, fixed l
 - Never resolve rebase conflicts autonomously — abort + notify.
 - Max 2 e2e retries and 1 fix attempt per check per head SHA. Budget exhausted → notify, skip, let the user decide.
 - Never touch drafts (except counting their comments).
-- Slack: max **1 review-nudge bump per PR per target per 24h**; only still-pending requested reviewers/teams; reply in the PR Review Bot's thread only (never a new top-level message, DM, or `@here`); text through `slack-voice`. Never bump a PR that's red or has PENDING checks.
+- Slack: max **1 review-nudge bump per PR per target per 24h**; only still-pending requested reviewers/teams; reply in the PR Review Bot's thread only (never a new top-level message, DM, or `@here`); text through `greg-voice`. Never bump a PR that's red or has PENDING checks.
 - Leave the user's original branch/worktree exactly as found.

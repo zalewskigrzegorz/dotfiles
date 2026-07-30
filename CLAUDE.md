@@ -77,7 +77,42 @@ bin/sync                           # wrapper: ensures PATH then `chezmoi apply`
 bin/gitleaks-dotfiles              # scan repo for leaked secrets
 ```
 
-For drift audits and add-app flows use the **`dotfiles-sync` skill** (`agent-skills/dotfiles-sync/SKILL.md`).
+## Drift audit & adding apps
+
+Run **`bin/audit-drift`** first — it prints a classified view of `chezmoi diff` as `PATH | KIND | SUGGESTED_ACTION` without loading any file content:
+
+- `FILE_DRIFT` — plain file, `chezmoi re-add` captures it
+- `TEMPLATE_DRIFT` — source is `.tmpl`; `re-add` may no-op even when live differs, because the template still renders to live. Needs the manual rewrite below.
+- `BINARY_DRIFT` — as FILE_DRIFT, but watch the exec bit (`re-add` can drop it if the source lacks the `executable_` prefix)
+- `FAKE_SCRIPT` — a `run_*` script that always shows in `chezmoi diff` because it executes every apply. Not real drift.
+
+When `bin/audit-drift` isn't enough, compare each live source against the repo:
+
+| Check | Live | Repo |
+|---|---|---|
+| brew formulae / casks / taps | `brew leaves`, `brew list --cask`, `brew tap` | `dot_Brewfile.tmpl` |
+| Claude plugins | `claude plugin list` | `agent-plugins/plugins.json.tmpl` |
+| Claude MCP servers | `claude mcp list` | `agent-mcp/mcp-servers.json.tmpl`, `nushell-mcp.json.tmpl` |
+| Claude skills | `ls ~/.claude/skills/` | `ls agent-skills/` |
+| Claude hooks / output-styles | `ls ~/.claude/{hooks,output-styles}/` | `dot_claude/{hooks,output-styles}/` |
+
+Classify each row `LIVE_ONLY` (add to repo), `REPO_ONLY` (`chezmoi apply`, or an intentional removal), or `MODIFIED` (`chezmoi re-add` for live→repo, `chezmoi apply` for repo→live). Apply in order: edit `.tmpl` files, then `re-add`, then `bin/sync` last. Verify with an empty `chezmoi diff`.
+
+The Brewfile is templated, so a raw grep misses entries behind `{{ if }}` — render first with `chezmoi execute-template < dot_Brewfile.tmpl`. Check `.chezmoiignore` before flagging "missing in repo".
+
+**Adding one app:**
+
+1. brew formula/cask (`brew info <X>` confirms) → append to the matching section of `dot_Brewfile.tmpl`, alphabetical within section. If it has config, `chezmoi add ~/.config/<X>`.
+2. Claude plugin → `agent-plugins/plugins.json.tmpl`
+3. MCP server → `agent-mcp/mcp-servers.json.tmpl` (or `nushell-mcp.json.tmpl`)
+4. Claude skill → `cp -r ~/.claude/skills/<X> agent-skills/<X>` (never `chezmoi add` — see hard rule 5)
+5. Any other dotfile → `chezmoi add <path>`, then check the source name got the right prefix
+
+Finish with `chezmoi diff` to confirm the change was captured. Don't commit until asked.
+
+**Template-aware re-sync (live → `.tmpl`).** When the source is a `.tmpl`, live drifted, and live is the truth: `chezmoi re-add` is a no-op, so rewrite by hand. Inventory every `{{ ... }}` token in the existing template first — `.chezmoi.*`, `if eq .chezmoi.os` branches, `includeTemplate`, secret functions — copy live in verbatim, then put each token back. Verify byte-identity with `bin/render-and-diff <source.tmpl>` (exit 0 = match, 1 = diff, 2 = bad invocation). Mentally render the *other* OS branch before committing; nothing checks it automatically. Decide once whether live or the template is canonical and stop oscillating.
+
+Live drift in `~/.claude/skills/<name>/` is **overwritten** on the next apply unless persisted back into `agent-skills/`.
 
 ## Claude-specific
 

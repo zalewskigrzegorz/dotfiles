@@ -1,6 +1,6 @@
 ---
 name: console-ninja
-description: Use when debugging a runtime bug in a running app — a 500 from a dev server, an exception, a blank page, "check the logs", a stack trace, a frontend error in the browser — instead of asking the user to paste terminal output, adding `console.log` to source code, or tailing files. Console Ninja captures the app's logs + runtime errors and exposes them via `mcp__console-ninja__*`. Also use when the MCP suddenly returns nothing after the user switched branches or rebuilt — that means the Console Ninja runtime hook detached and the dev server must be relaunched via the `console-ninja` CLI wrapper.
+description: Use when debugging a runtime bug in a running app — a 500 from a dev server, an exception, a blank page, "check the logs", a stack trace, a frontend error in the browser — instead of asking the user to paste terminal output, adding `console.log` to source code, or tailing files. Console Ninja captures the app's logs + runtime errors and exposes them via `mcp__console-ninja__*`. Also use when the MCP suddenly returns nothing after the user switched branches or rebuilt — that means the Console Ninja runtime hook detached and the dev server must be relaunched via the `console-ninja` CLI wrapper. Scope is a RUNNING app's own logs and runtime errors — not test-runner output and not isolated snippet evaluation.
 ---
 
 # console-ninja
@@ -124,6 +124,6 @@ If step 1 returns empty, run the diagnosis flow (Cause A / B / C above) before d
 
 ## Out of scope
 
-- Test runtime values / failing tests → `wallaby` skill.
-- Throwaway snippet prototyping → `quokka` skill.
+- Test runtime values / failing tests → the `mcp__wallaby__*` tools directly (the `wallaby` skill wrapper was dropped 2026-07-30).
+- Throwaway snippet prototyping — run it yourself; there is no skill for this since `quokka` was dropped 2026-07-30.
 - E2E browser automation logs (Playwright/Cypress) — CN doesn't sit inside those drivers.
