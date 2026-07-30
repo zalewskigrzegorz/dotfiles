@@ -99,6 +99,12 @@ Plugins / MCP / skills sources of truth:
 
 Anything installed via `/plugin install`, `claude mcp add`, or `~/.claude/skills/<new>` on a machine **must** be reflected in the matching source above before the next `chezmoi apply`.
 
+### Skille z skills.sh (ephemeral)
+
+Jednorazowa wiedza domenowa idzie przez **`skill-scout`** → `npx skills use <owner/repo@skill>`, który wypisuje SKILL.md na stdout i **niczego nie instaluje**. `npx skills add` jest zakazany — pisze do `~/.claude/skills/`, które `run_onchange_after_30` czyści przez `rsync --delete`, więc skill i tak zniknie, a do tego czasu obciąża kontekst każdej sesji.
+
+Żeby obcy skill został na stałe: `cp -r <temp-dir>/<skill> agent-skills/<skill>` + commit. `agent-skills/` jest jedynym źródłem prawdy.
+
 ## Secrets & private data
 
 - `private/` — gitignored staging area, restored to `~/` by `run_after_05`
