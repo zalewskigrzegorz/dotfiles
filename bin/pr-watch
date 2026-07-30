@@ -70,7 +70,9 @@ def outstanding-comments [num: int]: nothing -> any {
     let parts = ((work-repo) | split row "/")
     let q = 'query($owner:String!,$name:String!,$num:Int!){repository(owner:$owner,name:$name){pullRequest(number:$num){reviewThreads(first:100){nodes{isResolved comments(last:1){nodes{author{login __typename}}}}} comments(last:30){nodes{createdAt author{login __typename}}}}}}'
     let r = (do {
-        ^gh api graphql -f $"query=($q)" -F $"owner=($parts.0)" -F $"name=($parts.1)" -F $"num=($num)"
+        # -f, not -F, for the String! variables: -F type-coerces, so an all-digit
+        # owner or repo name would go out as an Int and GraphQL would reject it.
+        ^gh api graphql -f $"query=($q)" -f $"owner=($parts.0)" -f $"name=($parts.1)" -F $"num=($num)"
     } | complete)
     if $r.exit_code != 0 { return null }
     let pr = ($r.stdout | from json | get -o data.repository.pullRequest | default {})
