@@ -72,6 +72,20 @@ gh pr create --draft --title "<type>(<scope>): <subject>" --body-file /tmp/pr-bo
 
 Add `--label "no-changeset-needed"` when applicable (skip if label missing in repo).
 
+3a. **Trim auto-requested reviewers.** Right after `gh pr create`, CODEOWNERS auto-requests a team for EVERY matched path — incidental files (copy strings, generated files, feature-flag registries) pull in teams that have no business reviewing the PR (Technical Writers for a copy tweak, etc.). Check what got requested:
+
+```bash
+gh pr view <number> --json reviewRequests --jq '[.reviewRequests[] | .name // .login]'
+```
+
+If more than the obviously-relevant team(s) got requested, list them to Greg with the likely triggering paths and ask which to drop, then remove with:
+
+```bash
+gh api -X DELETE repos/<owner>/<repo>/pulls/<number>/requested_reviewers -f 'team_reviewers[]=<Team>'
+```
+
+Caveat: removing a request does NOT waive a ruleset `require_code_owner_review` on `main`-based PRs — a required team still has to approve to merge. Removal only cleans up noise for teams that are not hard-required.
+
 4. **If PR exists:** refresh title/body from the template and current understanding of the diff:
 
 ```bash
