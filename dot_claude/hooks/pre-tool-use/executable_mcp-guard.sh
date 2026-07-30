@@ -39,7 +39,7 @@ case "$TOOL_NAME" in
   mcp__draw__*) exit 0 ;;
   mcp__claude-in-chrome__*) exit 0 ;;
   # Homey get_*/list_* — read-only; MUT regex false-positives on "schedule" noun.
-  mcp__Homey__get_*|mcp__Homey__list_*) exit 0 ;;
+  mcp__Homey__get_*|mcp__Homey__list_*|mcp__Homey__device_state|mcp__Homey__home_report) exit 0 ;;
   # Hindsight memory layer — the whole memory conversation (recall/reflect/retain/
   # list/get/mental-model ops) is intended use and MUST work in auto mode. Only the
   # destructive wipes fall through to verb classification below:

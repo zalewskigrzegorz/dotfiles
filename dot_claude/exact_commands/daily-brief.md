@@ -128,7 +128,7 @@ cached tina.json      600  curl -s --max-time 5 "http://lab:3001/api/events?..."
 **MCP tool caching** — wrap the JSON-stringified result. This command uses pseudo-code:
 
 ```
-homey_alarms = read("homey-alarms.json", ttl=300) or mcp__Homey__get_home_alarms() & write("homey-alarms.json")
+homey_alarms = read("homey-alarms.json", ttl=300) or mcp__Homey__home_report(kind="alarms") & write("homey-alarms.json")
 ```
 
 **Restart-safe final step:**
@@ -324,10 +324,10 @@ curl -s "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=50.4196&
 Fire in parallel:
 
 ```
-mcp__Homey__get_home_alarms                   # aggregates ALL active alarms — pollen (Pylenie/plesnie), low battery, contact, connectivity, waste-soon, litter-full
-mcp__Homey__get_waste_collection_schedule     # next_collection_date + days_until + types
-mcp__Homey__list_pet_trackers                 # per pet: in_geofence (bool), in_geofence.lastUpdated (ms epoch), battery_state, tracker_state — LLM derives walk history
-mcp__Homey__list_litter_boxes                 # litter-full level if Greg has pet litter boxes
+mcp__Homey__home_report(kind="alarms")        # aggregates ALL active alarms — pollen (Pylenie/plesnie), low battery, contact, connectivity, waste-soon, litter-full
+mcp__Homey__home_report(kind="waste")         # next_collection_date + days_until + types
+mcp__Homey__home_report(kind="pets")          # per pet: in_geofence (bool), in_geofence.lastUpdated (ms epoch), battery_state, tracker_state — LLM derives walk history
+mcp__Homey__list_devices(type="litter_box")   # litter-full level — potem device_state na znalezionym id jeśli trzeba szczegółów
 ```
 
 **Pollen** is surfaced via `get_home_alarms` alarm with `capabilityId = "alarm_generic.plesnie"` on the "Pylenie" device — boolean: alarm active = take antihistamine. No species-level granularity in v2 (Greg's Pylenie device exposes per-species text levels too — `measure_generic.alternaria` / `cladosporium` etc. — but they're not on a dedicated MCP tool yet; the alarm boolean is enough for the tablet decision).
