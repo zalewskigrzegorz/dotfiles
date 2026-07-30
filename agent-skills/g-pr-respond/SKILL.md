@@ -23,79 +23,14 @@ Conversation can be in any language. **Anything posted to GitHub (thread replies
 
 # Shared primitives
 
-## P0. Local-first PR resolution (optimization, run first)
+Read `../g-pr-common/PRIMITIVES.md` now. It carries P0 (local-first
+resolution + identity cache), P1 (target resolution), P3 (`AskUserQuestion`
+conventions), P4 (duplicate clustering), P5 and P5.5 (comment rules and the
+mandatory voice gate), P6 (blob links), P7 (scripts location) and P8 (rate
+limits). Everything below assumes it.
 
-Goal: skip GitHub API calls we don't need. Comments/threads always go through `gh` (no local mirror exists), but diff + identity can come from the local git checkout when state matches remote.
-
-### P0a. Detect working state
-
-```bash
-BRANCH="$(git branch --show-current 2>/dev/null || echo)"
-DIRTY="$(git status --porcelain 2>/dev/null | head -1)"
-
-if [[ -n "$BRANCH" ]]; then
-  git fetch origin "$BRANCH" --quiet 2>/dev/null || true
-  LOCAL_SHA="$(git rev-parse HEAD 2>/dev/null || echo)"
-  REMOTE_SHA="$(git rev-parse "origin/$BRANCH" 2>/dev/null || echo)"
-  if [[ -n "$REMOTE_SHA" && "$LOCAL_SHA" == "$REMOTE_SHA" ]]; then
-    USE_LOCAL=true
-  else
-    USE_LOCAL=false
-  fi
-else
-  USE_LOCAL=false  # no branch (PR by number/URL, not checked out)
-fi
-```
-
-| Signal | Meaning | Action |
-|--------|---------|--------|
-| `USE_LOCAL=true`, `DIRTY` empty | Branch up-to-date with remote, clean worktree | **Use local git for diff/identity.** |
-| `USE_LOCAL=true`, `DIRTY` non-empty | Up-to-date but uncommitted changes | Warn: "Worktree has uncommitted changes — replies/fixes assume the committed state. Continue?" Then proceed with local. |
-| `USE_LOCAL=false`, branch exists, SHA mismatch | Remote moved (someone pushed) OR local moved (unpushed commits) | Warn explicitly: "Local HEAD `<short>` differs from `origin/<branch>` `<short>` — falling back to `gh` API so line links reflect what reviewers see on GitHub." |
-| `USE_LOCAL=false`, no branch | User passed PR number/URL, not checked out | Silent fallback. |
-
-State `USE_LOCAL=<true|false>` in one line in chat. The user can override ("trust local").
-
-### P0b. Cache identity for the session
-
-```bash
-ME="${G_PR_ME:-$(gh api user --jq .login)}"
-export G_PR_ME="$ME"
-```
-
-After first call in a session, subsequent runs read from env — saves one API hit per re-invocation.
-
----
-
-## P1. Resolve the target
-
-Capture `OWNER`, `REPO`, `NUMBER`, `SHA` (`headRefOid`), and the PR URL. Pass `-R "$OWNER/$REPO"` on every `gh` call when working from a PR URL or across forks.
-
-**When `USE_LOCAL=true`**, derive locally and only call `gh pr view` for PR-side fields:
-
-```bash
-REPO_URL="$(git config --get remote.origin.url)"   # parse OWNER/REPO (git@ or https://)
-SHA="$(git rev-parse HEAD)"
-gh pr view --json number,url,author,baseRefName     # PR metadata not in local git
-```
-
-**Otherwise** (no checkout, or stale branch):
-
-```bash
-gh pr view --json number,url,title,baseRefName,headRefName,headRepositoryOwner,headRepository,headRefOid,author
-gh pr view <n> --json number,url,title,baseRefName,headRefName,headRepositoryOwner,headRepository,headRefOid,author
-# By URL: parse owner/repo/number from the URL, then -R owner/repo on every gh call
-```
-
-Cache for the session:
-
-```bash
-export G_PR_NUMBER="$NUMBER"
-export G_PR_OWNER="$OWNER"
-export G_PR_REPO="$REPO"
-```
-
-If no PR exists for HEAD and the user gave no number/URL → stop and ask for one.
+P2 is NOT in that file — the ownership guard differs per flow, so it stays
+here:
 
 ## P2. Confirm it's your PR (guard)
 
@@ -112,73 +47,6 @@ echo "MINE=$MINE"
 * `MINE` empty / exit 2 → no PR resolved; go back to P1.
 
 State `MINE=true` in one line before proceeding.
-
-## P3. `AskUserQuestion` conventions
-
-* **Batch up to 4 questions per call.** One question per thread, all four in the same `AskUserQuestion`. Never loop one-by-one when 2+ items are pending — that's the doubled-up feel to avoid.
-* **Recommended option first**, with ` (Recommended)` appended to its label. Claude Code defaults to option 1.
-* Each option's `description` carries the **why** and (where applicable) the exact reply body, so the user decides from the question alone — no code dumped in chat.
-* Severity order: CRITICAL → HIGH → MEDIUM → LOW.
-
-## P4. Cluster duplicates
-
-Near-duplicate threads (same reviewer, same theme, same nit class — e.g. CodeRabbit firing five identical "missing `readonly`" hits) → cluster into **one** question with one shared reply, list the per-file links inside.
-
-## P5. Comment writing rules
-
-Write like a senior engineer leaving a quick reply, not like an AI assistant.
-
-* **Lead with the point.** State the answer directly. No "Great catch!", "Good point", "I noticed that…", "It seems like…" preambles.
-* **Concrete, not abstract.** Name the exact symbol/line/behavior. "Fixed — `user` was null on the empty-cart path, added a guard" beats "I have addressed the potential issue."
-* **Show, don't describe.** If a change fits in a line or two, point at it or give the diff, not prose about it.
-* **One issue per reply.** Don't bundle unrelated points.
-* **Say why only when it's not obvious.** Skip rationale for trivial stuff. For real decisions, one short clause is enough.
-* **No hedging, no filler.** Cut "I think", "maybe", "just", "simply", "in order to", "it's worth noting". No closing pleasantries ("Hope this helps!", "Let me know!").
-* **Match length to weight.** Nit = one line. Real fix = 1–3 lines max.
-* **No semicolons in prose.** New sentences, commas, or em dashes. Literal code may use `;`.
-* Plain technical English. No emoji unless mirroring the reviewer's own.
-
-## P5.5. Humanizer gate (mandatory)
-
-P5 is how you write the first draft. The `humanizer` skill is the net that catches what still slips through — it's the dedicated AI-pattern remover, and replies here keep reading as machine-generated even after P5. So **every body bound for GitHub passes through the `humanizer` skill before the user sees it for confirmation**: thread replies, issue-comment bodies.
-
-How to run it without burning the whole turn:
-
-* **Load the `humanizer` skill once per run** (Skill tool), the first time you draft any GitHub-bound text. It stays loaded for the rest of the flow — don't re-invoke per comment.
-* **Humanize per batch, not per comment.** Once you've drafted the ≤4 bodies for an `AskUserQuestion` batch, run all of them through the humanizer together, then put the *humanized* versions into the question. The user should only ever see post-humanizer text.
-* **Technical mode — no soul injection.** Replies are reference/technical writing, so apply the humanizer's CONTENT PATTERNS (AI vocabulary, em-dash overuse, rule of three, vague attributions, filler, negative parallelisms, hedging) but **not** its PERSONALITY AND SOUL section. Don't add first person, opinions, jokes, or an "I genuinely…" voice — a clean, plain, senior-engineer note is the correct human voice here.
-* **Don't re-humanize `Modify` text.** When Greg pastes a reply himself (A8b), it's already human — post it verbatim.
-
-Why batch + technical mode: a per-comment full-skill pass on a 20-thread PR is slow, and it tempts the model to inflate a terse nit into a chatty paragraph — the opposite of what we want. A one-line reply that's already clean should come back as the same one line.
-
-## P6. GitHub blob links
-
-Every file reference uses a clickable blob link pinned to `SHA`:
-
-```
-[<path> (L<line>)](https://github.com/<OWNER>/<REPO>/blob/<SHA>/<path>#L<line>)
-```
-
-For a range, append `-L<endLine>`. When a comment is anchored to a GraphQL thread, also show the thread URL on its own line.
-
-## P7. Scripts location
-
-Bundled scripts live next to this skill:
-
-```bash
-SCRIPTS="${G_PR_RESPOND_SCRIPTS:-$HOME/.claude/skills/g-pr-respond/scripts}"
-[[ -d "$SCRIPTS" ]] || SCRIPTS="$HOME/.cursor/skills/g-pr-respond/scripts"
-```
-
-* `fetch-comments.sh OWNER REPO NUMBER` — unresolved inline threads (GraphQL, paginated), enriched with `pr_author`, `last_comment_author`, `last_comment_at`, `author_replied_last`, `reviewer_followed_up`.
-* `fetch-reviews.sh OWNER REPO NUMBER` — PR-level review bodies + merged top-level inline comments (humans + bots like CodeRabbit, Gemini, Copilot).
-* `is-pr-mine.sh [NUMBER|URL]` — prints `true`/`false` for "am I the PR author" (context on stderr, exit 0 mine / 1 not / 2 no PR). No arg → current branch. Authoritative author check for P2.
-
-## P8. Rate limits
-
-`gh api` can hit secondary rate limits on large PRs with many bot reviews. On `403` with `secondary rate limit` in the body: wait ~30s, retry **once**. On second failure, surface the error and ask the user.
-
----
 
 # The flow — answer reviewers on my PR
 
@@ -258,7 +126,7 @@ Recommendation per thread (P3-default first):
 
 ## A5. After answers, emit plan + reply per thread
 
-Draft each reply per P5, then run the batch through the humanizer (P5.5) before emitting. The reply shown here and posted in A8 is the humanized version.
+Draft each reply per P5, then run the batch through greg-voice (P5.5) before emitting. The reply shown here and posted in A8 is the humanized version.
 
 For each answered thread, emit this block (drop sections that don't apply):
 
@@ -380,7 +248,7 @@ Remind: **resolve threads on GitHub manually** — API replies don't auto-resolv
 # Things to avoid
 
 * Never post a reply or comment without explicit Yes (batched or single).
-* Never surface or post a GitHub-bound body that hasn't passed the humanizer (P5.5) — except `Modify` text Greg typed himself.
+* Never surface or post a GitHub-bound body that has not passed greg-voice (P5.5) — except `Modify` text Greg typed himself.
 * Never commit before user confirms diff (A7).
 * Never push — push is always the user's job.
 * Never post anything in a language other than English on GitHub.
@@ -418,7 +286,7 @@ Remind: **resolve threads on GitHub manually** — API replies don't auto-resolv
 * [ ] P2: `MINE=true` confirmed and stated; redirected to `g-pr-review` if false
 * [ ] P3 batching applied (≤4 per `AskUserQuestion`, `(Recommended)` on default)
 * [ ] P5 comment-writing rules followed; English only on GitHub
-* [ ] P5.5 humanizer gate: every GitHub-bound body humanized (technical mode, batched); `Modify` text exempt
+* [ ] P5.5 greg-voice gate: every GitHub-bound body voiced (full voice, batched); `Modify` text exempt
 * [ ] P6 blob links pinned to `SHA`
 * [ ] `fetch-comments.sh` + `fetch-reviews.sh` run
 * [ ] Already-replied threads filtered; skipped count surfaced

@@ -13,7 +13,7 @@ User wants to create a PR, update PR description, or align with the project PR t
 
 All **generated** PR title and body content must be **English**, even if the conversation is in another language.
 
-Always run the **generated PR body through the `humanizer` skill** before creating/updating the PR — strip AI tells (em dashes, significance-inflation, rule-of-three, promotional filler). Keep the template headers and every checkbox exactly; humanize only the prose in `What/Why/How?`, `Reference`, and `Testing`.
+Always run the **generated PR body through the `greg-voice` skill** (voice mode — it is Greg's own PR) before creating/updating the PR — strip AI tells (em dashes, significance-inflation, rule-of-three, promotional filler). Keep the template headers and every checkbox exactly; voice only the prose in `What/Why/How?`, `Reference`, and `Testing`.
 
 ## Constraints
 

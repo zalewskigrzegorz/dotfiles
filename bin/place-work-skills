@@ -27,7 +27,7 @@ SECRET_DIR="${DOTFILES_SECRET_DIR:-$HOME/.local/state/dotfiles/secrets}"
 WORK_SKILLS=(
   babysit-prs
   g-pr g-pr-bump g-pr-fix-checks g-pr-respond g-pr-review
-  g-github-issue g-datagrip
+  g-github-issue g-pr-common
 )
 # Private-name work skills (client/product names) — appended from the secret file.
 WORK_SCOPE_FILE="$SECRET_DIR/work-scope-skills.txt"
