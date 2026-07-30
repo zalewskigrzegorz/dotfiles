@@ -107,6 +107,12 @@ keybindings:
       # (gh-dash runs inside a herdr pane, so the socket call lands on the server).
       command: >
         nu -c 'cd {{ `{{.RepoPath}}` }}; source ~/.config/nushell/autoload/work.nu; work pr {{ `{{.PrNumber}}` }}'
+    - key: z
+      name: pr actions
+      # fzf picker: resolve every open conversation + toggle the CI labels.
+      # --repo/--pr explicitly, so it also works for repos absent from repoPaths.
+      # --pause holds the output; gh-dash repaints the moment the child exits.
+      command: pr-menu --repo {{ `{{.RepoName}}` }} --pr {{ `{{.PrNumber}}` }} --pause
   branches: []
 repoPaths:
   "zalewskigrzegorz/dotfiles": "/Users/greg/Code/dotfiles"

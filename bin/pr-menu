@@ -1,0 +1,227 @@
+#!/usr/bin/env nu
+
+# pr-menu — one-key PR chores: resolve every open review conversation, toggle the
+# CI labels. Opens an fzf picker with current state shown, applies the selection,
+# exits. Works from nu and from a gh-dash keybinding (gh-dash runs custom commands
+# through tea.ExecProcess, so the child gets a real TTY and fzf can draw).
+#
+# Passing `action` skips the picker, which is the TTY-free path agents use.
+#
+# Only dependency is an authenticated `gh`. Resolving is GraphQL-only —
+# `gh pr view --json` has no reviewThreads field.
+
+# Shorthands only. Anything not listed is used verbatim as a label name, so the
+# script is not welded to these three.
+const LABEL_ALIASES = {
+    nc: "no-changeset-needed"
+    e2e: "run_e2e"
+    skip: "skip_e2e"
+}
+
+def hold [] {
+    print ""
+    # No TTY means nothing is about to reclaim the screen, so a failed read is fine.
+    try { input "press enter to continue" | ignore }
+}
+
+# gh-dash repaints the dashboard the moment the child exits, so an error message
+# needs the same hold as a success message. PR_MENU_PAUSE is set by main.
+def die [msg: string] {
+    print -e $msg
+    if ($env.PR_MENU_PAUSE? | default "0") == "1" { hold }
+    exit 1
+}
+
+def cwd-repo []: nothing -> string {
+    let r = (do { ^gh repo view --json nameWithOwner } | complete)
+    if $r.exit_code != 0 { die ($r.stderr | str trim) }
+    $r.stdout | from json | get nameWithOwner
+}
+
+def branch-pr []: nothing -> int {
+    # No --repo on purpose: `gh pr view` rejects --repo without a PR argument, and
+    # it is cwd detection that turns the current branch into a PR number.
+    let r = (do { ^gh pr view --json number } | complete)
+    if $r.exit_code != 0 { die ($r.stderr | str trim) }
+    $r.stdout | from json | get number
+}
+
+# GraphQL wants owner and name as separate variables, so an empty --repo cannot
+# just be omitted the way it can for `gh pr view` — resolve once, reuse everywhere.
+#
+# --repo for a foreign repo cannot be paired with branch detection: the branch only
+# names a PR in the repo we are standing in, so mixing the two would apply a local
+# PR number to somebody else's repository.
+def resolve-target [repo_flag: string, pr_flag: int]: nothing -> record {
+    if $repo_flag == "" {
+        return {repo: (cwd-repo), num: (if $pr_flag != 0 { $pr_flag } else { branch-pr })}
+    }
+    if $pr_flag != 0 { return {repo: $repo_flag, num: $pr_flag} }
+    let here = (cwd-repo)
+    if $here != $repo_flag {
+        die $"--repo ($repo_flag) needs an explicit --pr — branch detection only speaks for ($here)"
+    }
+    {repo: $repo_flag, num: (branch-pr)}
+}
+
+# reviewThreads is GraphQL-only — `gh pr view --json` has no such field.
+def review-threads [owner: string, name: string, num: int]: nothing -> record {
+    let q = 'query($owner:String!,$name:String!,$num:Int!){repository(owner:$owner,name:$name){pullRequest(number:$num){reviewThreads(first:100){nodes{id isResolved} pageInfo{hasNextPage}}}}}'
+    # -f, not -F, for the String! variables: -F type-coerces, so an all-digit owner
+    # or repo name (owner/2048) would go out as an Int and be rejected.
+    let r = (do {
+        ^gh api graphql -f $"query=($q)" -f $"owner=($owner)" -f $"name=($name)" -F $"num=($num)"
+    } | complete)
+    if $r.exit_code != 0 { die $"failed to read review threads: ($r.stderr | str trim)" }
+    let t = ($r.stdout | from json | get -o data.repository.pullRequest.reviewThreads)
+    {
+        # Missing isResolved counts as resolved — never mutate a thread we cannot read.
+        unresolved: ($t | get -o nodes | default [] | where {|n| not ($n | get -o isResolved | default true)}),
+        truncated: ($t | get -o pageInfo.hasNextPage | default false),
+    }
+}
+
+def pr-labels [repo: string, num: int]: nothing -> list<string> {
+    let r = (do { ^gh pr view $num --repo $repo --json labels } | complete)
+    if $r.exit_code != 0 { die ($r.stderr | str trim) }
+    $r.stdout | from json | get -o labels | default [] | each {|l| $l | get -o name | default "" }
+}
+
+# `gh pr edit --add-label` fails with an opaque message on an unknown label, so
+# validate against the repo's own list and say what is actually wrong. --limit 1000
+# because 200 cuts off label-heavy repos (vscode has 710) and a real label would
+# then be reported as missing. Empty stdout is gh's no-results path, hence default [].
+def repo-labels [repo: string]: nothing -> list<string> {
+    let r = (do { ^gh label list --repo $repo --json name --limit 1000 } | complete)
+    if $r.exit_code != 0 { die ($r.stderr | str trim) }
+    $r.stdout | from json | default [] | each {|l| $l | get -o name | default "" }
+}
+
+# Returns how many threads failed — one bad thread must not abort the rest.
+def resolve-all [threads: record]: nothing -> int {
+    # Warn before the empty check: a PR whose first 100 threads are all resolved
+    # still has an unresolved tail, and re-running cannot reach it (first:100 with
+    # no cursor refetches the same page), so never report that as clean.
+    if $threads.truncated {
+        print -e "more than 100 review threads here — only the first 100 were handled; resolve the tail in the web UI"
+    }
+    if ($threads.unresolved | is-empty) {
+        print "nothing to resolve"
+        return 0
+    }
+    let m = 'mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}'
+    mut failed = []
+    for t in $threads.unresolved {
+        let r = (do { ^gh api graphql -f $"query=($m)" -f $"id=($t.id)" } | complete)
+        # gh exits non-zero on GraphQL errors, but a 200-with-errors body would
+        # slip past the exit code alone.
+        let errs = (try { $r.stdout | from json | get -o errors | default [] } catch { [] })
+        if ($r.exit_code != 0) or ($errs | is-not-empty) {
+            let why = if ($errs | is-not-empty) {
+                $errs | each {|e| $e | get -o message | default "?" } | str join "; "
+            } else {
+                $r.stderr | str trim
+            }
+            $failed = ($failed | append {id: $t.id, why: $why})
+        }
+    }
+    let total = ($threads.unresolved | length)
+    print $"resolved (($total) - ($failed | length))/($total) conversations"
+    for f in $failed { print -e $"failed ($f.id): ($f.why)" }
+    $failed | length
+}
+
+def toggle-label [repo: string, num: int, label: string, current: list<string>]: nothing -> int {
+    let on = ($label in $current)
+    let flag = if $on { "--remove-label" } else { "--add-label" }
+    let r = (do { ^gh pr edit $num --repo $repo $flag $label } | complete)
+    if $r.exit_code != 0 {
+        print -e $"($flag) ($label) failed: ($r.stderr | str trim)"
+        return 1
+    }
+    print (if $on { $"- ($label)" } else { $"+ ($label)" })
+    0
+}
+
+# Machine key in a hidden first field, so display text can change freely without
+# breaking the parse. fzf, not Television — tv's filter quality is too weak.
+def pick [repo: string, num: int, threads: record, current: list<string>]: nothing -> list<string> {
+    if (which fzf | is-empty) { die "fzf not found on PATH — pass an action instead" }
+    let head = ("resolve all conversations" | fill -w 32)
+    # `+` says the count itself is capped at the first 100 threads.
+    let more = if $threads.truncated { "+" } else { "" }
+    let resolve_row = $"resolve\t✅  ($head) \(($threads.unresolved | length)($more) unresolved\)"
+    let label_rows = ($LABEL_ALIASES | values | each {|l|
+        let state = if ($l in $current) { "on" } else { "off" }
+        $"($l)\t🏷  ($l | fill -w 32) [($state)]"
+    })
+    let header = $"($repo) #($num) — TAB for multiple"
+    let r = (do {
+        [$resolve_row] | append $label_rows | str join "\n" | ^fzf --multi --delimiter "\t" --with-nth "2.." --reverse --prompt "pr chore> " --header $header
+    } | complete)
+    # 130 = Esc/Ctrl-C, 1 = no match; both mean "nothing selected". Anything else is
+    # a broken picker, which must not be mistaken for a cancel.
+    if $r.exit_code in [1 130] { return [] }
+    if $r.exit_code != 0 { die $"fzf failed \(($r.exit_code)\): ($r.stderr | str trim)" }
+    $r.stdout | lines | where {|l| ($l | str trim) != ""} | each {|l| $l | split row "\t" | first }
+}
+
+def main [
+    action?: string          # resolve | label shorthand | literal label name
+    --repo: string = ""      # owner/name; defaults to gh's cwd detection
+    --pr: int = 0            # defaults to the PR of the current branch
+    --pause                  # hold output; gh-dash reclaims the screen the moment we exit
+] {
+    $env.PR_MENU_PAUSE = (if $pause { "1" } else { "0" })
+    # `complete` cannot catch a missing binary — nushell raises before it runs.
+    if (which gh | is-empty) { die "gh not found on PATH" }
+    if ($action | is-empty) and (not (is-terminal --stdin)) {
+        die "pr-menu needs a TTY for the picker; pass an action instead"
+    }
+
+    let target = (resolve-target $repo $pr)
+    let parts = ($target.repo | split row "/")
+    if ($parts | length) != 2 { die $"--repo must be owner/name, got '($target.repo)'" }
+    let num = $target.num
+
+    # Skip the reads each path does not need: `pr-menu resolve` never looks at
+    # labels, and a pure label action never touches GraphQL.
+    let current = if $action == "resolve" { [] } else { pr-labels $target.repo $num }
+    # One GraphQL round trip shared by the menu count and the resolve run, so the
+    # number Greg read cannot disagree with the set that gets mutated.
+    let threads = if ($action | is-empty) or ($action == "resolve") {
+        review-threads $parts.0 $parts.1 $num
+    } else {
+        null
+    }
+
+    let actions = if ($action | is-not-empty) {
+        [($LABEL_ALIASES | get -o $action | default $action)]
+    } else {
+        pick $target.repo $num $threads $current
+    }
+    if ($actions | is-empty) { exit 0 }
+
+    # Validate every label before the first write: a bad key in a TAB multi-select
+    # would otherwise half-apply the batch. One `gh label list` for the whole run.
+    let wanted = ($actions | where {|a| $a != "resolve"})
+    if ($wanted | is-not-empty) {
+        let known = (repo-labels $target.repo)
+        let missing = ($wanted | where {|n| not ($n in $known)})
+        if ($missing | is-not-empty) {
+            die ($missing | each {|n| $"label '($n)' does not exist in ($target.repo)" } | str join (char newline))
+        }
+    }
+
+    mut failures = 0
+    for a in $actions {
+        $failures += (if $a == "resolve" {
+            resolve-all $threads
+        } else {
+            toggle-label $target.repo $num $a $current
+        })
+    }
+
+    if $pause { hold }
+    if $failures > 0 { exit 1 }
+}
