@@ -210,6 +210,12 @@ def "work _apply-layout" [workspace_id: string, cwd: path]: nothing -> nothing {
     if (which place-work-skills | is-not-empty) {
         do { ^place-work-skills $cwd } | complete | ignore
     }
+    # Claude reads disabledMcpServers only from projects[<cwd>] in ~/.claude.json —
+    # no global scope — so a fresh worktree re-shows the whole claude.ai connector
+    # catalog. Seed it here, before the claude tab below starts a session at $cwd.
+    if (which claude-mcp-defaults | is-not-empty) {
+        do { ^claude-mcp-defaults $cwd } | complete | ignore
+    }
     if ($workspace_id | is-empty) { return }
     let tabs = (try { (do { ^herdr tab list --workspace $workspace_id } | complete).stdout | from json | get -o result.tabs | default [] } catch { [] })
     # Name the bare-numbered terminal tab with a nerd-font terminal icon (nf-fa-terminal).
@@ -247,6 +253,23 @@ def "work _checkout-path" [repo_root: path, branch: string]: nothing -> string {
 # preserves pnpm symlinks) at the same relative paths — handles monorepos (nested
 # node_modules / .env) automatically. Uses git's own ignore list so ONLY env +
 # node_modules are touched, nothing else. Best-effort: never fails the create.
+# Ask what to do when opening someone else's branch/PR. Enter = full worktree,
+# so the common case stays zero-friction. Returns "full" | "light" | "diff".
+def "work _pick-mode" [what: string]: nothing -> string {
+    print $"\n($what) — what do you want?"
+    print "  [1] 🌱 full worktree     seed .env + node_modules, ready to run   (default, Enter)"
+    print "  [2] 👀 light worktree    no seed — just read the code / diff"
+    print "  [3] 📄 diff only         no worktree at all, straight to the pager"
+    print "  [a] abort"
+    let choice = (input "Choice [1/2/3/a]: " | str trim)
+    match $choice {
+        "" | "1" => "full"
+        "2" => "light"
+        "3" => "diff"
+        _ => { error make { msg: "Aborted." } }
+    }
+}
+
 def "work _seed-untracked" [parent: path, wt_path: path]: nothing -> nothing {
     let r = (do { ^git -C $parent ls-files --others --ignored --exclude-standard --directory } | complete)
     if $r.exit_code != 0 { return }
@@ -377,12 +400,21 @@ def "work new" [
     let exists_local = ((do { ^git -C $parent rev-parse --verify --quiet $"refs/heads/($branch_name)" } | complete | get exit_code) == 0)
     let exists_remote = ((do { ^git -C $parent rev-parse --verify --quiet $"refs/remotes/origin/($branch_name)" } | complete | get exit_code) == 0)
     mut checkout_existing = false
+    mut mode = "full"
     if ($exists_local or $exists_remote) {
         print $"\n⚠️  Branch '($branch_name)' already exists — local=($exists_local) remote=($exists_remote)."
         print "  [c] checkout existing into worktree   [n] new name   [a] abort"
         let choice = (input "Choice [c/n/a]: ")
         match $choice {
-            "c" => { $checkout_existing = true }
+            "c" => {
+                $checkout_existing = true
+                $mode = (if $no_seed { "light" } else { work _pick-mode $"Branch ($branch_name)" })
+                if $mode == "diff" {
+                    let ref = (if $exists_local { $branch_name } else { $"origin/($branch_name)" })
+                    ^git -C $parent diff $"($base_ref)...($ref)"
+                    return
+                }
+            }
             "n" => {
                 let nn = (input "New branch name: ")
                 if ($nn | is-empty) { error make { msg: "Aborted." } }
@@ -403,7 +435,7 @@ def "work new" [
     )
     if $r.exit_code != 0 { error make { msg: $"herdr worktree create failed: ($r.stderr)" } }
     let ws = (try { $r.stdout | from json | get -o result.workspace.workspace_id } catch { "" })
-    if not $no_seed { work _seed-untracked $parent $wt_path }
+    if $mode == "full" and not $no_seed { work _seed-untracked $parent $wt_path }
     work _apply-layout $ws $wt_path
 
     print -e $"✅ ($branch_name) → ($wt_path)"
@@ -415,6 +447,7 @@ def "work pr" [
     number?: int
     --no-focus
     --no-seed  # skip copying .env + node_modules from the parent checkout
+    --full     # skip the mode selector, go straight to a seeded worktree
 ]: nothing -> any {
     work deps-preflight
     if (which gh | is-empty) { error make { msg: "gh CLI required: brew install gh" } }
@@ -432,6 +465,11 @@ def "work pr" [
             ($picked | split row "\t" | first | into int)
         }
     )
+
+    let mode = (
+        if $full { "full" } else if $no_seed { "light" } else { work _pick-mode $"PR #($pr_num)" }
+    )
+    if $mode == "diff" { ^gh pr diff $pr_num; return }
 
     let pr_meta_r = (do { ^gh pr view $pr_num --json headRefName,baseRefName,isCrossRepository } | complete)
     if $pr_meta_r.exit_code != 0 { error make { msg: $"Cannot resolve PR #($pr_num): ($pr_meta_r.stderr)" } }
@@ -471,7 +509,7 @@ def "work pr" [
         if $r.exit_code != 0 { error make { msg: $"herdr worktree create failed: ($r.stderr)" } }
     }
 
-    if not $no_seed { work _seed-untracked $parent $wt_path }
+    if $mode == "full" { work _seed-untracked $parent $wt_path }
     work _apply-layout (work _herdr-ws-for $parent $wt_path) $wt_path
     print -e $"✅ PR #($pr_num) → ($head_branch)"
     { repo: $info.name, pr: $pr_num, branch: $head_branch, path: $wt_path, base: $base, created: true }
@@ -620,7 +658,7 @@ def "work help" []: nothing -> nothing {
     print ""
     print "KOMENDY"
     print "  work new [name]    worktree + workspace (picker / <name> / --from / --type / --no-prefix)"
-    print "  work pr [number]   otwórz PR w worktree (gh pr checkout)"
+    print "  work pr [number]   otwórz PR → selektor: full worktree / lekki (bez seeda) / tylko diff"
     print "  work ls            lista worktree (nu data; `| to json`)"
     print "  work switch (sw)   picker → focus workspace"
     print "  work rm [branch]   usuń worktree + workspace + branch (--force / --keep-branch)"
