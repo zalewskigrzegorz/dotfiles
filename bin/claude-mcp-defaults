@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# Seed `disabledMcpServers` for a project path in ~/.claude.json.
+#
+# Claude Code reads that key ONLY from projects[<cwd>] — there is no user/global
+# scope (verified in the CLI bundle: `Rd()` returns `t.projects[fbe()] ?? {}`).
+# So every fresh worktree starts with nothing disabled and the claude.ai
+# connector catalog reappears. This script writes the defaults for a given path.
+#
+# The 13 names below are catalog entries Greg never authenticates. They cannot be
+# removed at claude.ai — the UI offers only "Connect" — so suppressing them
+# per-path is the only lever.
+#
+# Usage:
+#   claude-mcp-defaults [PATH...]   # default: $PWD
+#   claude-mcp-defaults --all       # backfill every existing project entry
+#   claude-mcp-defaults --list      # print the default list and exit
+
+set -euo pipefail
+
+CONFIG="${HOME}/.claude.json"
+
+DEFAULT_DISABLED=(
+  "claude.ai Asana"
+  "claude.ai Atlassian"
+  "claude.ai Box"
+  "claude.ai Canva"
+  "claude.ai Context7"
+  "claude.ai Front MCP"
+  "claude.ai Google Calendar"
+  "claude.ai HubSpot"
+  "claude.ai Intercom"
+  "claude.ai Linear"
+  "claude.ai Notion"
+  "claude.ai Sentry"
+  "claude.ai monday.com"
+)
+
+if [[ "${1:-}" == "--list" ]]; then
+  printf '%s\n' "${DEFAULT_DISABLED[@]}"
+  exit 0
+fi
+
+[[ -f "$CONFIG" ]] || { echo "claude-mcp-defaults: $CONFIG missing — nothing to do." >&2; exit 0; }
+
+mode="paths"
+targets=()
+if [[ "${1:-}" == "--all" ]]; then
+  mode="all"
+else
+  targets=("$@")
+  [[ ${#targets[@]} -gt 0 ]] || targets=("$PWD")
+fi
+
+# ~/.claude.json is also written by every running Claude Code session, so guard
+# the read-modify-write with a lock and swap it in atomically. Clobbering this
+# file loses history, allowlists and onboarding state for every project.
+exec 9>"${CONFIG}.lock"
+if ! flock -w 10 9; then
+  echo "claude-mcp-defaults: could not lock $CONFIG after 10s — skipping." >&2
+  exit 0
+fi
+
+MODE="$mode" python3 - "$CONFIG" "${targets[@]+"${targets[@]}"}" <<'PY'
+import json
+import os
+import sys
+import tempfile
+
+config = sys.argv[1]
+targets = sys.argv[2:]
+mode = os.environ["MODE"]
+
+wanted = [
+    "claude.ai Asana",
+    "claude.ai Atlassian",
+    "claude.ai Box",
+    "claude.ai Canva",
+    "claude.ai Context7",
+    "claude.ai Front MCP",
+    "claude.ai Google Calendar",
+    "claude.ai HubSpot",
+    "claude.ai Intercom",
+    "claude.ai Linear",
+    "claude.ai Notion",
+    "claude.ai Sentry",
+    "claude.ai monday.com",
+]
+
+with open(config, encoding="utf-8") as fh:
+    data = json.load(fh)
+
+projects = data.setdefault("projects", {})
+if mode == "all":
+    targets = list(projects.keys())
+
+changed = []
+for path in targets:
+    entry = projects.setdefault(path, {})
+    current = entry.get("disabledMcpServers")
+    current = current if isinstance(current, list) else []
+    # Union, not replace — a manual disable in this repo must survive.
+    merged = sorted(set(current) | set(wanted))
+    if merged != sorted(current):
+        entry["disabledMcpServers"] = merged
+        changed.append((path, len(merged) - len(set(current))))
+
+if not changed:
+    print("claude-mcp-defaults: already current, no write needed.")
+    sys.exit(0)
+
+# Atomic swap on the same filesystem so a crash mid-write cannot truncate it.
+directory = os.path.dirname(config)
+with tempfile.NamedTemporaryFile("w", dir=directory, delete=False, encoding="utf-8") as tmp:
+    json.dump(data, tmp, indent=2)
+    tmp.write("\n")
+    tmp_path = tmp.name
+os.replace(tmp_path, config)
+
+for path, added in changed:
+    print(f"claude-mcp-defaults: +{added} disabled → {path}")
+PY
