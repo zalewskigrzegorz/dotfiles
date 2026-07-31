@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Serialize MemPalace session-archive hooks.
+#
+# Why: ~5 parallel `mempalace-mcp` / hook processes (one per herdr agent) were
+# writing concurrently into a single 3.3GB chromadb sqlite. That produced 12
+# recovery snapshots between 2026-05-22 and 2026-07-30 (2 hard corruptions,
+# 10 drifts) — on 2026-07-31 the FTS5 inverted index was malformed and the HNSW
+# index held ~0.1% of the 101,464 drawers. chromadb's sqlite layer does not
+# survive that access pattern, so writers have to queue.
+#
+# Two deliberate choices:
+#   - Losing one checkpoint beats corrupting the palace, so we give up after the
+#     timeout instead of writing anyway.
+#   - We always exit 0. A memory-archive hook must never fail a Claude session.
+#
+# Usage: mempalace-hook <session-start|stop|precompact>   (hook JSON on stdin)
+
+set -uo pipefail
+
+HOOK="${1:-}"
+[[ -n "$HOOK" ]] || { echo "mempalace-hook: missing hook name" >&2; exit 0; }
+
+LOCK="${TMPDIR:-/tmp}/mempalace-hook.lock"
+WAIT_SECONDS="${MEMPALACE_HOOK_WAIT:-90}"
+
+command -v mempalace >/dev/null 2>&1 || exit 0
+command -v flock >/dev/null 2>&1 || {
+  # No flock (fresh machine before `brew bundle`): run unserialized rather than
+  # silently dropping every checkpoint. Single-agent use is the safe case.
+  exec mempalace hook run --hook "$HOOK" --harness claude-code
+}
+
+# Buffer stdin before blocking on the lock — the writing process may close the
+# pipe while we wait, and the hook payload must survive the queue.
+PAYLOAD="$(cat)"
+
+exec 9>"$LOCK"
+if ! flock -w "$WAIT_SECONDS" 9; then
+  echo "mempalace-hook: palace busy >${WAIT_SECONDS}s — skipped $HOOK to avoid a concurrent write." >&2
+  exit 0
+fi
+
+printf '%s' "$PAYLOAD" | mempalace hook run --hook "$HOOK" --harness claude-code || {
+  echo "mempalace-hook: $HOOK failed (exit $?) — not failing the session." >&2
+  exit 0
+}
