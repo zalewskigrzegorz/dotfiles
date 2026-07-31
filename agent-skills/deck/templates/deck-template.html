@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TITLE — change me</title>
+<style>
+:root{
+  /* Mocha Neon — hexes from ~/.config/mocha-neon/palette.sh */
+  --crust:#11111B;--mantle:#181825;--base:#1E1E2E;
+  --s0:#313244;--s1:#45475A;--s2:#585B70;
+  --mauve:#B347FF;--lavender:#9580FF;--pink:#FF80BF;--red:#FF6B9D;
+  --peach:#FF8C42;--yellow:#FFD700;--green:#50FA7B;--sky:#8BE9FD;--blue:#8AB4F8;
+
+  /* --surface sits between mantle and surface0 so panels read as raised above the aurora */
+  --bg:var(--mantle);--surface:#232332;--surface-2:var(--s0);
+  --lift:0 10px 30px -12px rgba(0,0,0,.85),0 2px 6px -2px rgba(0,0,0,.6);
+  --line:rgba(69,71,90,.85);
+  --fg:#F0F0FF;--muted:#A6ADC8;
+  --primary:var(--mauve);--primary-soft:rgba(179,71,255,.15);
+  --good:var(--green);--good-soft:rgba(80,250,123,.12);
+  --bad:var(--red);--bad-soft:rgba(255,107,157,.12);
+  --warn:var(--yellow);
+  --font-h:ui-sans-serif,-apple-system,'SF Pro Display','Helvetica Neue','Segoe UI',sans-serif;
+  --font-b:ui-sans-serif,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+  --font-m:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:#000;color:var(--fg);font-family:var(--font-b);overflow:hidden;-webkit-font-smoothing:antialiased}
+.progress-bar{position:fixed;top:0;left:0;height:3px;z-index:1000;transition:width .3s;
+  background:linear-gradient(90deg,var(--mauve),var(--pink),var(--sky),var(--lavender),var(--mauve));
+  background-size:300% 100%;animation:flow 9s linear infinite;
+  box-shadow:0 0 10px rgba(179,71,255,.9),0 0 26px rgba(255,128,191,.5)}
+.slide-deck{position:absolute;inset:0;margin:auto;overflow:hidden;background:var(--bg);isolation:isolate}
+
+/* ambient aurora — three neon blobs swimming behind everything */
+.aurora{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.aurora i{position:absolute;display:block;border-radius:50%;filter:blur(80px);
+  will-change:transform,opacity;mix-blend-mode:screen}
+.aurora i:nth-child(1){width:64vmax;height:64vmax;top:-22vmax;left:-16vmax;opacity:.42;
+  background:radial-gradient(circle,var(--mauve) 0%,transparent 64%);animation:drift1 13s ease-in-out infinite}
+.aurora i:nth-child(2){width:60vmax;height:60vmax;bottom:-24vmax;right:-18vmax;opacity:.38;
+  background:radial-gradient(circle,var(--sky) 0%,transparent 64%);animation:drift2 16s ease-in-out infinite}
+.aurora i:nth-child(3){width:46vmax;height:46vmax;top:24%;right:16%;opacity:.30;
+  background:radial-gradient(circle,var(--pink) 0%,transparent 62%);animation:drift3 20s ease-in-out infinite}
+@keyframes drift1{
+  0%,100%{transform:translate3d(0,0,0) scale(1)}
+  25%{transform:translate3d(26vmax,10vmax,0) scale(1.32)}
+  50%{transform:translate3d(38vmax,26vmax,0) scale(.82)}
+  75%{transform:translate3d(10vmax,32vmax,0) scale(1.18)}}
+@keyframes drift2{
+  0%,100%{transform:translate3d(0,0,0) scale(1)}
+  30%{transform:translate3d(-32vmax,-14vmax,0) scale(1.36)}
+  55%{transform:translate3d(-42vmax,-30vmax,0) scale(.84)}
+  80%{transform:translate3d(-12vmax,-36vmax,0) scale(1.2)}}
+@keyframes drift3{
+  0%,100%{transform:translate3d(0,0,0) scale(1);opacity:.30}
+  33%{transform:translate3d(-26vmax,20vmax,0) scale(1.45);opacity:.44}
+  66%{transform:translate3d(20vmax,-24vmax,0) scale(.78);opacity:.20}}
+@keyframes flow{to{background-position:300% 0}}
+@keyframes sweep{0%{transform:translateX(-120%)}100%{transform:translateX(220%)}}
+@keyframes neonPulse{0%,100%{filter:drop-shadow(0 0 14px rgba(179,71,255,.45))}50%{filter:drop-shadow(0 0 26px rgba(255,128,191,.6))}}
+@keyframes edgePulse{0%,100%{opacity:.55}50%{opacity:1}}
+@media (min-width:769px){.slide-deck{max-width:calc(100vh * 16 / 9);max-height:calc(100vw * 9 / 16)}}
+.slide{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:clamp(22px,3.2vw,52px) clamp(26px,4.2vw,68px);opacity:0;visibility:hidden;transition:opacity .35s ease;background:transparent;overflow:hidden;z-index:1}
+.slide.active{opacity:1;visibility:visible}
+/* contrast scrim: darkens the aurora directly behind the content so panels never wash out */
+.slide::before{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(ellipse 72% 60% at 50% 50%,rgba(17,17,27,.50) 0%,rgba(17,17,27,.38) 45%,rgba(17,17,27,.14) 75%,rgba(17,17,27,0) 100%)}
+.slide-content{width:100%;max-width:1180px;max-height:100%;display:flex;flex-direction:column;gap:clamp(9px,1.3vh,18px)}
+.slide.center .slide-content{align-items:center;text-align:center}
+
+h1{font-family:var(--font-h);font-size:clamp(24px,3.95vw,49px);line-height:1.06;letter-spacing:-.03em;font-weight:700}
+h2{font-family:var(--font-h);font-size:clamp(19px,2.75vw,38px);line-height:1.12;letter-spacing:-.022em;font-weight:650}
+h3{font-family:var(--font-h);font-size:clamp(12.5px,1.2vw,16.5px);font-weight:600;letter-spacing:-.01em}
+p,li{font-size:clamp(11.5px,1.1vw,16px);line-height:1.5;color:var(--muted)}
+b,strong{color:var(--fg);font-weight:600}
+code{font-family:var(--font-m);font-size:.88em;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;color:var(--sky)}
+.grad,.grad-r{-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  background-size:300% 100%;animation:flow 8s linear infinite,neonPulse 6s ease-in-out infinite}
+.grad{background-image:linear-gradient(100deg,var(--mauve),var(--pink),var(--sky),var(--green),var(--lavender),var(--mauve))}
+.grad-r{background-image:linear-gradient(100deg,var(--yellow),var(--peach),var(--red),var(--pink),var(--yellow))}
+.eyebrow{font-family:var(--font-m);font-size:clamp(9.5px,.82vw,11.5px);letter-spacing:.16em;text-transform:uppercase;color:var(--primary)}
+.eyebrow.r{color:var(--bad)}
+.lead{font-size:clamp(12.5px,1.3vw,19px);color:var(--muted);max-width:72ch}
+.rule{height:1px;background:var(--line);width:100%}
+.foot{font-size:clamp(9.5px,.86vw,12.5px);opacity:.72;line-height:1.45}
+
+.grid{display:grid;gap:clamp(7px,.95vw,13px)}
+.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:clamp(10px,1.05vw,16px);display:flex;flex-direction:column;gap:4px;position:relative;overflow:hidden;box-shadow:var(--lift)}
+.card p{font-size:clamp(10.5px,.97vw,13.5px);line-height:1.42}
+/* animated neon edge instead of a flat border-left */
+.card.good,.card.bad,.card.warn,.card.pri{padding-left:calc(clamp(10px,1.05vw,16px) + 4px)}
+.card.good::before,.card.bad::before,.card.warn::before,.card.pri::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:2px;
+  animation:edgePulse 3.4s ease-in-out infinite}
+.card.good::before{background:var(--good);box-shadow:0 0 10px var(--good)}
+.card.bad::before{background:var(--bad);box-shadow:0 0 10px var(--bad)}
+.card.warn::before{background:var(--warn);box-shadow:0 0 10px var(--warn)}
+.card.pri::before{background:var(--primary);box-shadow:0 0 10px var(--primary)}
+.card.good::before{animation-delay:0s}.card.bad::before{animation-delay:.5s}
+.card.warn::before{animation-delay:1s}.card.pri::before{animation-delay:1.5s}
+.card h3{text-shadow:0 0 18px rgba(240,240,255,.18)}
+.tick{color:var(--good);font-family:var(--font-m)}
+.cross{color:var(--bad);font-family:var(--font-m)}
+.pill{display:inline-block;font-family:var(--font-m);font-size:clamp(9px,.78vw,11px);padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--surface-2)}
+.pill.p{color:var(--mauve);border-color:rgba(179,71,255,.45);background:var(--primary-soft);box-shadow:0 0 14px rgba(179,71,255,.22) inset}
+.pill.r{color:var(--red);border-color:rgba(255,107,157,.45);background:var(--bad-soft);box-shadow:0 0 14px rgba(255,107,157,.2) inset}
+.pill.g{color:var(--green);border-color:rgba(80,250,123,.45);background:var(--good-soft);box-shadow:0 0 14px rgba(80,250,123,.2) inset}
+
+.metrics{display:grid;gap:clamp(9px,1.1vw,16px);width:100%}
+.metric{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:clamp(10px,1.25vw,18px);text-align:center;box-shadow:var(--lift)}
+.metric .n{font-family:var(--font-h);font-size:clamp(24px,3.6vw,48px);font-weight:700;line-height:1;letter-spacing:-.035em;
+  animation:neonPulse 5s ease-in-out infinite}
+.metric .l{font-size:clamp(9.5px,.9vw,12.5px);color:var(--muted);margin-top:5px;line-height:1.35}
+.metric.bad-n .n{color:var(--bad);text-shadow:0 0 22px rgba(255,107,157,.55)}
+.metric.warn-n .n{color:var(--warn);text-shadow:0 0 22px rgba(255,215,0,.5)}
+.metric:nth-child(2) .n{animation-delay:.6s}
+.metric:nth-child(3) .n{animation-delay:1.2s}
+.metric:nth-child(4) .n{animation-delay:1.8s}
+
+.stack{display:flex;flex-direction:column;gap:6px;width:100%;font-family:var(--font-m)}
+.stack .node{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid rgba(88,91,112,.9);border-radius:9px;padding:clamp(6px,.75vw,11px) clamp(9px,1vw,15px);font-size:clamp(9.5px,.9vw,13px);
+  box-shadow:var(--lift)}
+.stack .node .br{color:var(--lavender);min-width:15ch;text-shadow:0 0 12px rgba(149,128,255,.5)}
+.stack .node:not(.base){box-shadow:var(--lift),0 0 0 1px rgba(179,71,255,.35),0 0 26px -8px rgba(179,71,255,.55)}
+.stack .node.base{box-shadow:var(--lift)}
+.stack .arrow{text-shadow:0 0 10px var(--mauve)}
+.stack .node .desc{color:var(--muted);font-family:var(--font-b);font-size:clamp(9.5px,.88vw,12.5px)}
+.stack .node.base{border-style:dashed;opacity:.7}
+.stack .arrow{color:var(--primary);text-align:center;font-size:10px;line-height:1;opacity:.55}
+
+.bars{display:flex;flex-direction:column;gap:7px;width:100%}
+.bar-row{display:grid;grid-template-columns:6ch 1fr 8ch;align-items:center;gap:11px;font-family:var(--font-m);font-size:clamp(9.5px,.88vw,12.5px)}
+.bar-track{height:clamp(13px,1.5vh,20px);background:var(--surface-2);border-radius:5px;overflow:hidden;border:1px solid var(--line)}
+.bar-fill{height:100%;border-radius:4px;background-size:300% 100%;animation:flow 7s linear infinite;
+  background-image:linear-gradient(90deg,var(--lavender),var(--mauve),var(--blue),var(--lavender));
+  box-shadow:0 0 12px rgba(179,71,255,.5)}
+.bar-fill.hot{background-image:linear-gradient(90deg,var(--mauve),var(--pink),var(--red),var(--peach),var(--mauve));
+  box-shadow:0 0 14px rgba(255,128,191,.6)}
+.bar-val{color:var(--muted);text-align:right}
+
+blockquote{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:11px;padding:clamp(13px,1.5vw,24px);display:flex;flex-direction:column;gap:9px;
+  box-shadow:-6px 0 30px rgba(255,215,0,.16)}
+blockquote p{font-size:clamp(12.5px,1.32vw,19px);line-height:1.5;color:var(--fg);font-style:italic}
+blockquote .attr{font-family:var(--font-m);font-size:clamp(9.5px,.85vw,12px);color:var(--muted);font-style:normal}
+
+.embed{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:clamp(9px,1.05vw,15px);overflow:hidden}
+.embed-head{display:flex;align-items:center;gap:7px;font-family:var(--font-m);font-size:clamp(8.5px,.78vw,11px);color:var(--muted);margin-bottom:8px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--bad)}
+.dot:nth-child(2){background:var(--warn)}.dot:nth-child(3){background:var(--good)}
+.diagram-wrap{display:grid;grid-template-columns:1fr 1fr;gap:11px;align-items:start;font-size:clamp(8.5px,.8vw,11.5px)}
+.diagram-panel{display:flex;flex-direction:column;gap:5px;padding:9px;background:var(--surface-2);border:1px solid var(--line);border-radius:9px}
+.diagram-head{font-family:var(--font-h);font-weight:600;font-size:clamp(9.5px,.88vw,12.5px);color:var(--fg)}
+.diagram-row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.diagram-node,.diagram-box{display:flex;flex-direction:column;gap:2px;padding:5px 7px;border-radius:7px;background:var(--bg);border:1px solid var(--line);color:var(--fg);line-height:1.3}
+.diagram-box{border-style:dashed}
+.diagram-muted{font-size:.86em;color:var(--muted)}
+.panel-before .diagram-head{color:var(--bad)}
+.panel-after .diagram-head{color:var(--good)}
+
+.diff{display:grid;grid-template-columns:1fr 1fr;font-family:var(--font-m);font-size:clamp(7.5px,.74vw,11px);border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.diff-side{background:var(--bg)}
+.diff-side + .diff-side{border-left:1px solid var(--line)}
+.diff-side-head{padding:4px 8px;background:var(--surface-2);color:var(--muted);border-bottom:1px solid var(--line);font-size:clamp(7.5px,.7vw,10px)}
+.diff-line{padding:1px 8px;white-space:pre;overflow:hidden;text-overflow:ellipsis;color:#C9C9D8;line-height:1.42}
+.diff-line.add{background:rgba(80,250,123,.11);border-left:2px solid var(--good);box-shadow:inset 6px 0 12px -6px var(--good)}
+.diff-line.del{background:rgba(255,107,157,.1);border-left:2px solid var(--bad);box-shadow:inset 6px 0 12px -6px var(--bad)}
+.diff-line.ctx{opacity:.5}
+.annot{margin-top:7px;display:flex;flex-direction:column;gap:4px}
+.annot-item{display:flex;gap:7px;align-items:flex-start;background:var(--primary-soft);border:1px solid rgba(179,71,255,.32);border-radius:8px;padding:5px 8px}
+.annot-item .lbl{font-family:var(--font-m);font-size:clamp(7.5px,.72vw,10.5px);color:var(--mauve);white-space:nowrap;padding-top:1px}
+.annot-item .txt{font-size:clamp(8.5px,.8vw,11.5px);color:var(--muted);line-height:1.4}
+
+.tree{font-family:var(--font-m);font-size:clamp(8.5px,.8vw,11.5px);display:flex;flex-direction:column;gap:2px}
+.tree-row{display:grid;grid-template-columns:8ch 1fr;gap:9px;align-items:baseline;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.tree-tag.m{color:var(--warn)}.tree-tag.a{color:var(--good)}
+.tree-path{color:#C9C9D8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.split{display:grid;grid-template-columns:1fr 1fr;gap:clamp(12px,1.6vw,26px);align-items:start}
+.col-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.tag{font-family:var(--font-m);font-size:clamp(8.5px,.78vw,11px);padding:2px 8px;border-radius:999px}
+.tag.yes{color:var(--good);background:var(--good-soft);border:1px solid rgba(80,250,123,.35);box-shadow:0 0 14px rgba(80,250,123,.25)}
+.tag.no{color:var(--bad);background:var(--bad-soft);border:1px solid rgba(255,107,157,.35);box-shadow:0 0 14px rgba(255,107,157,.25)}
+.list{display:flex;flex-direction:column;gap:5px;list-style:none}
+.list li{display:flex;gap:7px;font-size:clamp(10.5px,.97vw,14px);line-height:1.4}
+.list li::before{content:'▸';color:var(--primary);flex-shrink:0}
+.list.r li::before{color:var(--bad)}
+
+.nav-controls{position:fixed;bottom:clamp(10px,1.8vh,24px);left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:15px;z-index:1000}
+.nav-btn{background:rgba(255,255,255,.07);border:1px solid var(--line);color:var(--fg);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;line-height:1}
+.nav-btn:hover{background:rgba(255,255,255,.16)}
+.slide-counter{color:rgba(255,255,255,.45);font-family:var(--font-m);font-size:11.5px}
+.slide-tag{position:fixed;top:14px;right:18px;font-family:var(--font-m);font-size:10.5px;color:rgba(255,255,255,.3);z-index:1000}
+
+@media (max-width:768px){
+  .g2,.g3,.g4,.diagram-wrap,.diff,.split{grid-template-columns:1fr}
+  .diff-side + .diff-side{border-left:none;border-top:1px solid var(--line)}
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.slide.active .slide-content > *{animation:fadeUp .42s ease-out backwards}
+.slide.active .slide-content > *:nth-child(1){animation-delay:.02s}
+.slide.active .slide-content > *:nth-child(2){animation-delay:.07s}
+.slide.active .slide-content > *:nth-child(3){animation-delay:.12s}
+.slide.active .slide-content > *:nth-child(4){animation-delay:.17s}
+.slide.active .slide-content > *:nth-child(5){animation-delay:.22s}
+
+/* neon accents on the remaining inline hexes */
+.slide-tag{text-shadow:0 0 10px rgba(179,71,255,.5)}
+.nav-btn{box-shadow:0 0 14px -4px rgba(179,71,255,.5)}
+.diff-side-head,.embed-head{color:var(--muted)}
+.tree-path{color:#C9C9D8}
+.embed{box-shadow:var(--lift),0 0 40px -18px rgba(179,71,255,.4);position:relative}
+/* light sweeping across each embed, like a scanner pass */
+.embed::after{content:'';position:absolute;top:0;bottom:0;left:0;width:35%;pointer-events:none;
+  background:linear-gradient(100deg,transparent,rgba(179,71,255,.10),rgba(139,233,253,.13),transparent);
+  animation:sweep 7s ease-in-out infinite}
+.wf-frame{box-shadow:0 0 26px -10px rgba(139,233,253,.35)}
+/* GitHub source block */
+.gh-row{display:flex;align-items:center;gap:11px;margin-bottom:8px}
+.gh-mark{width:clamp(22px,2.4vw,34px);height:clamp(22px,2.4vw,34px);flex-shrink:0;fill:var(--fg);
+  filter:drop-shadow(0 0 12px rgba(240,240,255,.35))}
+.gh-repo{font-family:var(--font-h);font-weight:650;font-size:clamp(12px,1.25vw,18px);letter-spacing:-.015em;
+  color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmd{font-family:var(--font-m);font-size:clamp(8px,.78vw,11px);color:var(--sky);background:var(--bg);
+  border:1px solid var(--line);border-radius:7px;padding:5px 8px;margin-top:4px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* horizontal loop diagram */
+.loop{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap}
+.loop-step{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:2px;justify-content:center;
+  background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px;
+  font-family:var(--font-m);font-size:clamp(8.5px,.8vw,11.5px);color:var(--fg);line-height:1.25}
+.loop-step i{font-style:normal;font-family:var(--font-b);font-size:.88em;color:var(--muted)}
+.loop-step.hot{border-color:rgba(255,107,157,.55);box-shadow:0 0 18px -8px var(--bad)}
+.loop-arrow{display:flex;align-items:center;color:var(--mauve);font-size:clamp(11px,1vw,14px);
+  text-shadow:0 0 10px var(--mauve);animation:edgePulse 2.2s ease-in-out infinite}
+.loop-arrow:nth-of-type(2){animation-delay:.2s}
+.loop-arrow:nth-of-type(3){animation-delay:.4s}
+.loop-arrow:nth-of-type(4){animation-delay:.6s}
+.loop-arrow.back{font-family:var(--font-m);font-size:clamp(8px,.75vw,10.5px);color:var(--yellow);
+  text-shadow:0 0 10px rgba(255,215,0,.6);flex-basis:100%;justify-content:flex-end;padding-top:2px}
+body.calm .loop-arrow{animation:none}
+
+/* stack chain: a pulse travelling up the arrows (never the text nodes) */
+.stack .arrow{animation:edgePulse 1.8s ease-in-out infinite}
+.stack .arrow:nth-of-type(2){animation-delay:.3s}
+.stack .arrow:nth-of-type(3){animation-delay:.6s}
+body.calm .aurora i,body.calm .embed::after,body.calm .stack .node,
+body.calm .stack .arrow{animation:none}
+
+/* NOTE: deliberately no prefers-reduced-motion blanket rule — this machine has
+   macOS Reduce Motion on, which silently killed every animation. Press C for calm. */
+body.calm .slide-deck::before,body.calm .slide-deck::after{animation:none;opacity:.12}
+body.calm .grad,body.calm .grad-r,body.calm .bar-fill,body.calm .progress-bar,
+body.calm .metric .n,body.calm .card::before{animation:none}
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+<div class="slide-tag" id="slideTag"></div>
+<div class="slide-deck">
+<div class="aurora"><i></i><i></i><i></i></div>
+<!-- ============================================================
+     SLIDES. One <div class="slide"> per slide. data-tag shows in
+     the top-right corner and in the remote — keep it short.
+     Add .center for a centred/hero slide.
+     Content ALWAYS goes inside .slide-content (it is what the
+     overflow check measures).
+     ============================================================ -->
+
+<!-- hero / title -->
+<div class="slide center active" data-tag="intro">
+  <div class="slide-content">
+    <span class="eyebrow">Context · date</span>
+    <h1>Headline<br><span class="grad">with a gradient half</span></h1>
+    <p class="lead">One sentence saying what this talk is and is not.</p>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;justify-content:center">
+      <span class="pill r">part 1 · the cost</span>
+      <span class="pill g">part 2 · the upside</span>
+    </div>
+  </div>
+</div>
+
+<!-- numbers: .metrics + .g2/.g3/.g4 -->
+<div class="slide" data-tag="numbers">
+  <div class="slide-content">
+    <span class="eyebrow r">Cost 1 — name it</span>
+    <h2>Claim the numbers support</h2>
+    <div class="metrics g3">
+      <div class="metric bad-n"><div class="n">9</div><div class="l">what it counts, second line</div></div>
+      <div class="metric warn-n"><div class="n">20</div><div class="l">what it counts</div></div>
+      <div class="metric"><div class="n grad">44%</div><div class="l">what it counts</div></div>
+    </div>
+    <div class="grid g3">
+      <div class="card bad"><h3>Card title</h3><p>Card body, one or two sentences.</p></div>
+      <div class="card warn"><h3>Card title</h3><p>Card body.</p></div>
+      <div class="card good"><h3>Card title</h3><p>Card body.</p></div>
+    </div>
+    <p class="foot">Small print / source / caveat.</p>
+  </div>
+</div>
+
+<!-- a quote carries more weight than a bullet: use a real one -->
+<div class="slide center" data-tag="quote">
+  <div class="slide-content">
+    <span class="eyebrow r">Where it came from · date</span>
+    <blockquote style="max-width:960px;text-align:left">
+      <p>"Verbatim quote from a meeting, a PR comment, a transcript. Do not paraphrase — the exact words are the evidence."</p>
+      <span class="attr">— who said it, and when</span>
+    </blockquote>
+    <p class="lead">One sentence naming the phrase in the quote that matters, and why.</p>
+  </div>
+</div>
+
+<!-- before/after mechanism: .embed > .diagram-wrap -->
+<div class="slide" data-tag="mechanism">
+  <div class="slide-content">
+    <span class="eyebrow r">Cost 2 — the mechanism</span>
+    <h2>What actually happens, in two panels</h2>
+    <div class="embed">
+      <div class="embed-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span>caption for the diagram</span></div>
+      <div class="diagram-wrap">
+        <div class="diagram-panel panel-before">
+          <div class="diagram-head">Before</div>
+          <div class="diagram-box">step<span class="diagram-muted">detail</span></div>
+          <div class="diagram-row">
+            <div class="diagram-node">branch a<span class="diagram-muted">detail</span></div>
+            <div class="diagram-node">branch b<span class="diagram-muted">detail</span></div>
+          </div>
+          <div class="diagram-box">outcome<span class="diagram-muted">why it is bad</span></div>
+        </div>
+        <div class="diagram-panel panel-after">
+          <div class="diagram-head">After</div>
+          <div class="diagram-box">step<span class="diagram-muted">detail</span></div>
+          <div class="diagram-node">fix<span class="diagram-muted">detail</span></div>
+          <div class="diagram-box">outcome<span class="diagram-muted">why it is better</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="foot">The line that tells them what to take away.</p>
+  </div>
+</div>
+
+<!-- a causal chain reads better horizontally: .loop -->
+<div class="slide" data-tag="loop">
+  <div class="slide-content">
+    <span class="eyebrow">How one thing causes the next</span>
+    <h2>Chain, not a bullet list</h2>
+    <div class="embed" style="padding:9px 12px">
+      <div class="embed-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span>one input in, two outputs out</span></div>
+      <div class="loop">
+        <span class="loop-step">trigger<i>where it starts</i></span>
+        <span class="loop-arrow">→</span>
+        <span class="loop-step">consequence<i>what it forces</i></span>
+        <span class="loop-arrow">→</span>
+        <span class="loop-step hot">the expensive bit<i>why it hurts</i></span>
+        <span class="loop-arrow back">↺ repeat per occurrence</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- vertical chain / layers: .stack -->
+<div class="slide" data-tag="layers">
+  <div class="slide-content">
+    <span class="eyebrow">Structure</span>
+    <h2>Layers, bottom to top</h2>
+    <div class="stack">
+      <div class="node base"><span class="br">base</span><span class="desc">the thing everything sits on</span></div>
+      <div class="arrow">▲</div>
+      <div class="node"><span class="br">layer-1</span><span class="desc">what it is · size</span><span class="pill" style="margin-left:auto">detail</span></div>
+      <div class="arrow">▲</div>
+      <div class="node"><span class="br">layer-2</span><span class="desc">what it is · size</span><span class="pill r" style="margin-left:auto">status</span></div>
+    </div>
+    <p class="foot">What the shape tells you.</p>
+  </div>
+</div>
+
+<!-- two-sided call: .split + .list -->
+<div class="slide" data-tag="the call">
+  <div class="slide-content">
+    <span class="eyebrow">The call</span>
+    <h2>When yes, when no</h2>
+    <div class="split">
+      <div>
+        <div class="col-head"><span class="tag yes">do it</span></div>
+        <ul class="list">
+          <li>Condition where this pays off.</li>
+          <li>Another condition.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="col-head"><span class="tag no">don't</span></div>
+        <ul class="list r">
+          <li>Condition where it costs more than it gives.</li>
+          <li>Another.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="rule"></div>
+    <p><b>Rule of thumb:</b> the one sentence you want them to repeat to someone else.</p>
+  </div>
+</div>
+
+<!-- source / install block with the GitHub mark -->
+<div class="slide" data-tag="source">
+  <div class="slide-content">
+    <span class="eyebrow">Where to get it</span>
+    <h2>Give them something to copy</h2>
+    <div class="embed" style="padding:9px 12px">
+      <div class="gh-row">
+        <svg class="gh-mark" viewBox="0 0 16 16" aria-label="GitHub" role="img"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.07-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A7.995 7.995 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        <div style="min-width:0">
+          <div class="gh-repo">owner / repo</div>
+          <div class="foot">public repo · ★ count · licence · where the thing actually lives</div>
+        </div>
+      </div>
+      <div class="cmd">the exact command they should copy</div>
+    </div>
+  </div>
+</div>
+
+<!-- closing verdicts -->
+<div class="slide center" data-tag="the balance">
+  <div class="slide-content">
+    <span class="eyebrow">Where we land</span>
+    <h1 style="font-size:clamp(24px,3.9vw,48px)">Verdict in <span class="grad">three words</span></h1>
+    <div class="grid g3" style="max-width:1000px;text-align:left">
+      <div class="card bad"><h3>Thing one</h3><p><b>Verdict:</b> plain recommendation.</p></div>
+      <div class="card good"><h3>Thing two</h3><p><b>Verdict:</b> plain recommendation.</p></div>
+      <div class="card good"><h3>Thing three</h3><p><b>Verdict:</b> plain recommendation.</p></div>
+    </div>
+    <div class="rule" style="max-width:1000px"></div>
+    <p class="lead">The single takeaway, stated once, at the end.</p>
+  </div>
+</div>
+</div>
+
+<div class="nav-controls">
+  <button class="nav-btn" onclick="prevSlide()">←</button>
+  <span class="slide-counter"><span id="current">1</span> / <span id="total">1</span></span>
+  <button class="nav-btn" onclick="nextSlide()">→</button>
+</div>
+
+<script>
+let current=1;
+const slides=document.querySelectorAll('.slide');
+const total=slides.length;
+document.getElementById('total').textContent=total;
+function showSlide(n){
+  if(n<1)n=1; if(n>total)n=total;
+  current=n;
+  slides.forEach((s,i)=>s.classList.toggle('active',i===n-1));
+  document.getElementById('current').textContent=n;
+  document.getElementById('progressBar').style.width=(n/total*100)+'%';
+  document.getElementById('slideTag').textContent=slides[n-1].dataset.tag||'';
+}
+function nextSlide(){showSlide(current+1)}
+function prevSlide(){showSlide(current-1)}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();nextSlide()}
+  if(e.key==='ArrowLeft'){e.preventDefault();prevSlide()}
+  if(e.key==='Home')showSlide(1);
+  if(e.key==='End')showSlide(total);
+  if(e.key==='c'||e.key==='C')document.body.classList.toggle('calm'); // kill the motion
+});
+document.addEventListener('click',e=>{if(!e.target.closest('.nav-controls'))nextSlide()});
+showSlide(1);
+
+// Remote control — only when served over http (deck-serve). Silent no-op on file://.
+(function remote(){
+  if(!location.protocol.startsWith('http')) return;
+  const push=()=>fetch('/state',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({current,total,tag:slides[current-1].dataset.tag||''})}).catch(()=>{});
+  const origShow=showSlide;
+  showSlide=function(n){origShow(n);push()};
+  let es,retry;
+  const connect=()=>{
+    es=new EventSource('/events');
+    es.onopen=()=>{clearTimeout(retry);push()};
+    es.onmessage=ev=>{
+      let m; try{m=JSON.parse(ev.data)}catch(e){return}
+      if(m.cmd==='next')nextSlide();
+      else if(m.cmd==='prev')prevSlide();
+      else if(m.cmd==='first')showSlide(1);
+      else if(m.cmd==='last')showSlide(total);
+      else if(m.cmd==='goto')showSlide(m.n);
+      else if(m.cmd==='calm')document.body.classList.toggle('calm');
+    };
+    es.onerror=()=>{es.close();retry=setTimeout(connect,1500)};
+  };
+  connect();
+})();
+</script>
+</body>
+</html>

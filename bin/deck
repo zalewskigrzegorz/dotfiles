@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# deck — talk to deck.lab from the Mac.
+#
+#   deck push <deck.html> [notes.md] [slug]   upload (slug defaults to the filename)
+#   deck ls                                   list what's hosted
+#   deck open <slug>                          open the deck in the browser
+#   deck remote <slug>                        open the phone remote here
+#   deck rm <slug>                            delete
+#   deck next|prev|first|last|calm <slug>     drive it from the shell
+#
+# DECK_HOST overrides the target (default http://deck.lab).
+
+set -euo pipefail
+
+HOST="${DECK_HOST:-http://deck.lab}"
+
+die() { printf '%s\n' "$*" >&2; exit 1; }
+
+slugify() {
+  basename "$1" \
+    | sed -E 's/\.html?$//' \
+    | tr '[:upper:]' '[:lower:]' \
+    | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g'
+}
+
+cmd="${1:-}"; shift || true
+
+case "$cmd" in
+  push)
+    html="${1:-}"; [ -f "${html:-}" ] || die "usage: deck push <deck.html> [notes.md] [slug]"
+    notes=""; slug=""
+    for arg in "${@:2}"; do
+      case "$arg" in
+        *.md) notes="$arg" ;;
+        *)    slug="$arg" ;;
+      esac
+    done
+    [ -n "$slug" ] || slug="$(slugify "$html")"
+
+    args=(-sS -X POST "$HOST/api/decks/$slug" -F "html=@$html;type=text/html")
+    [ -n "$notes" ] && { [ -f "$notes" ] || die "no such notes file: $notes"; args+=(-F "notes=@$notes;type=text/markdown"); }
+
+    curl "${args[@]}" >/dev/null || die "upload failed — is $HOST reachable?"
+    printf 'pushed  %s\n' "$slug"
+    printf 'deck    %s/d/%s\n' "$HOST" "$slug"
+    printf 'remote  %s/r/%s\n' "$HOST" "$slug"
+    ;;
+
+  ls)
+    curl -sS "$HOST/api/decks" \
+      | python3 -c '
+import json, sys, datetime
+for d in json.load(sys.stdin):
+    when = datetime.datetime.fromtimestamp(d["updated"]).strftime("%Y-%m-%d %H:%M")
+    notes = "notes" if d["has_notes"] else "  -  "
+    slug, slides = d["slug"], d["slides"]
+    print("%-34s %3d slides  %s  %s" % (slug, slides, notes, when))
+' || die "cannot reach $HOST"
+    ;;
+
+  open)   [ -n "${1:-}" ] || die "usage: deck open <slug>";   open "$HOST/d/$1" ;;
+  remote) [ -n "${1:-}" ] || die "usage: deck remote <slug>"; open "$HOST/r/$1" ;;
+
+  rm)
+    [ -n "${1:-}" ] || die "usage: deck rm <slug>"
+    curl -sS -X DELETE "$HOST/api/decks/$1" >/dev/null && echo "deleted $1"
+    ;;
+
+  next|prev|first|last|calm)
+    [ -n "${1:-}" ] || die "usage: deck $cmd <slug>"
+    curl -sS -X POST "$HOST/api/decks/$1/cmd/$cmd" >/dev/null
+    ;;
+
+  goto)
+    [ -n "${2:-}" ] || die "usage: deck goto <slug> <n>"
+    curl -sS -X POST "$HOST/api/decks/$1/cmd/goto?n=$2" >/dev/null
+    ;;
+
+  ""|-h|--help|help)
+    sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+    ;;
+
+  *) die "unknown command: $cmd (try: deck help)" ;;
+esac
