@@ -2,6 +2,7 @@
 .gitignore
 LICENSE
 README.md
+CLAUDE.md
 brew/**
 docs/**
 legacy/**
