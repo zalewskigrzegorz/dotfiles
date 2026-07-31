@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# Merge managed Claude settings into the live ~/.claude/settings.json.
+#
+# Why a modify_ script instead of a plain template: Claude Code rewrites this file
+# itself (every /model switch, every settings toggle in the UI) and serializes it
+# with its OWN key order. A byte-compared template therefore reported drift after
+# every single UI interaction — reordered `async`/`timeout` pairs, a moved
+# `matcher`, a changed `model` — and `chezmoi re-add` vs `apply` never converged.
+#
+# chezmoi hands this script the live file on stdin and treats our stdout as the
+# desired state, so we can merge instead of overwrite:
+#   - managed keys (.chezmoitemplates/claude-settings.json) always win
+#   - keys Claude Code added on its own are preserved, not deleted
+#   - LIVE_OWNED keys keep the live value — they are the user's per-machine choice
+#   - live key ORDER is preserved, which is what actually stops the drift
+#
+# Edit the settings themselves in .chezmoitemplates/claude-settings.json.
+
+set -euo pipefail
+
+DESIRED_FILE="$(mktemp "${TMPDIR:-/tmp}/chezmoi-claude-settings.XXXXXX")"
+LIVE_FILE="$(mktemp "${TMPDIR:-/tmp}/chezmoi-claude-live.XXXXXX")"
+trap 'rm -f "$DESIRED_FILE" "$LIVE_FILE"' EXIT
+
+# Spool stdin to a file rather than `$(cat)` — command substitution strips
+# trailing newlines, which made the trailing-newline match below always fail.
+cat >"$LIVE_FILE"
+
+cat >"$DESIRED_FILE" <<'CHEZMOI_DESIRED_EOF'
+{{ includeTemplate "claude-settings.json" . }}
+CHEZMOI_DESIRED_EOF
+
+python3 - "$DESIRED_FILE" "$LIVE_FILE" <<'PY'
+import json
+import sys
+
+# Keys Claude Code owns at runtime. Managed value seeds a fresh machine, then the
+# live value wins forever after — otherwise every /model switch reopens the drift.
+LIVE_OWNED = {"model"}
+
+with open(sys.argv[1], encoding="utf-8") as fh:
+    desired = json.load(fh)
+
+with open(sys.argv[2], encoding="utf-8") as fh:
+    raw = fh.read()
+try:
+    live = json.loads(raw) if raw.strip() else {}
+except json.JSONDecodeError:
+    # Live file is absent or corrupt — fall back to the managed state verbatim.
+    live = {}
+
+if not isinstance(live, dict):
+    live = {}
+
+
+def merge(base, over, path=()):
+    """Overlay `over` onto `base`, keeping base's key order and extra keys."""
+    result = dict(base)
+    for key, value in over.items():
+        if path == () and key in LIVE_OWNED and key in base:
+            continue
+        if isinstance(value, dict) and isinstance(result.get(key), dict):
+            result[key] = merge(result[key], value, path + (key,))
+        else:
+            # Lists (hooks, permissions) are replaced wholesale: the repo is the
+            # source of truth for them, and element-wise merging would duplicate
+            # entries on every apply.
+            result[key] = value
+    return result
+
+
+json.dump(merge(live, desired), sys.stdout, indent=2)
+# Match the live file's trailing-newline convention. Claude Code's serializer
+# omits it; emitting one unconditionally left a permanent one-byte diff.
+if raw.endswith("\n") or not raw.strip():
+    sys.stdout.write("\n")
+PY
