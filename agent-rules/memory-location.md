@@ -92,17 +92,28 @@ MemPalace **zostaje running** jako passive session log archive. Session hook
 auto-checkpointuje sesje do MP — bez ingerencji Claude/user. NIE jest to
 "deprecated" — to po prostu inny use case niż Hindsight.
 
-| System | Tryb | Co tam siedzi |
-|---|---|---|
-| Hindsight | Active (`retain` przez ciebie/user) | Curated atomic facts, queryable, KG-aware |
-| MemPalace | Passive (auto session hook) | Raw session log chunks, audit trail, rzadko odpytywane |
+| System | Tryb zapisu | Co tam siedzi | Czego NIE ma |
+|---|---|---|---|
+| Hindsight | Active (`retain`) | Atomowe fakty, KG-aware | narracji — nie wie *co robiliście* |
+| MemPalace | Passive (session hook) | Pełny przebieg sesji, decyzje w kontekście | uogólnionych faktów |
 
 **Dla NEW atomic facts:** preferuj `mcp__hindsight__retain`. MP nie potrzebuje
 twoich manualnych write'ów — auto-archive załatwia sprawę.
 
-**Dla query existing knowledge:** Hindsight jako primary (`recall`/`reflect`).
-MP jako fallback gdy szukasz raw session fragment ("co dokładnie napisałem 3
-tygodnie temu o X").
+**Dla query existing knowledge — oba są aktywne, nie jeden fallbackiem drugiego.**
+Hindsight odpowiada „co jest prawdą", MP odpowiada „co się wtedy działo". Fakt bez
+przebiegu zwykle nie wystarcza, żeby podjąć pracę.
+
+**Odpytaj MP (`mempalace_search`) ZAMIAST mówić, że nie masz kontekstu**, gdy:
+
+- Greg odwołuje się do wcześniejszej roboty, której nie masz w oknie — „wróćmy do",
+  „co ustaliliśmy", „kontynuuj", „jak to wtedy zrobiliśmy", „czemu tak zdecydowaliśmy".
+- Wchodzisz w zadanie w repo, w którym widać świeżą historię sesji, a `recall`
+  zwrócił same fakty bez przebiegu.
+- Masz powiedzieć „nie wiem" / „nie mam kontekstu" o czymś, co Greg traktuje jak
+  ustalone. Najpierw `mempalace_search`, dopiero potem przyznaj się do luki.
+
+CLI fallback, gdy MCP nie wstał: `mempalace search "<query>"`.
 
 `~/.claude/projects/-Users-greg-Code-home-lab/memory.legacy-2026-06-03/` —
 archived old auto-memory (z czasu przed Hindsightem). Read-only audit trail,
