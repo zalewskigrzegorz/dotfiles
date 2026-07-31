@@ -1,0 +1,276 @@
+#!/usr/bin/env python3
+"""karakeep-raycast-patch — make the Raycast Karakeep extension search the
+server as you type, instead of filtering only the handful of bookmarks it has
+already loaded.
+
+Why this exists: upstream's bookmark list filters client-side over whatever is
+in memory, and its auto-prefetch stops after `maxPrefetches: 3` (~40 bookmarks
+of ~260). Anything older than that simply never matched, so a query would show
+"(0)" while the bookmarks sat happily in the index. Server-side search was
+reachable only by pressing Enter on the "Online search: …" item, which pushes a
+whole separate view. There is no preference for this — hence the patch.
+
+What it changes, per bundle (bookmarks / lists / tags / notes):
+  1. search hook   — `execute:!0` becomes `execute:!!(q && q.trim())`, so an
+                     empty query no longer fires a request
+  2. bookmark list — while the query is non-empty, render the server's results;
+                     fall back to the local filter when the server returns
+                     nothing or errors
+  3. List props    — `throttle:!0`, so it is one request per typing pause
+                     rather than one per keystroke
+  4. List props    — spinner while the server search is in flight
+
+Both the search hook and the local filter are called unconditionally, so React's
+hook order is preserved. That was the only real trap here.
+
+Anchors are matched by shape, not by minified identifier, so this survives most
+rebuilds. If upstream restructures enough that an anchor stops matching exactly
+once, the file is refused rather than half-patched — check the output.
+
+Usage:
+  karakeep-raycast-patch            # patch (idempotent, safe to re-run)
+  karakeep-raycast-patch --check    # report status only, change nothing
+  karakeep-raycast-patch --revert   # restore the pre-patch backups
+
+Re-run after every Karakeep extension update; Raycast overwrites the bundles.
+"""
+
+import json
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+MARKER = "/*karakeep-serversearch-patch-v1*/"
+BACKUP_SUFFIX = ".bak-pre-serversearch"
+
+EXT_ROOTS = [
+    Path.home() / ".config/raycast-x/extensions",
+    Path.home() / ".config/raycast/extensions",
+]
+
+# `},[q],{execute:!0,onError:xx("search")}` — the bookmark search hook's deps +
+# options. Group 2 is the search-text variable.
+RE_EXEC = re.compile(r'(\},\[)(\w+)(\],\{execute:)!0(,onError:\w+\("search"\)\})')
+
+# `dest=filterFn(arr||[],q),` — the local scored filter inside the list component.
+RE_FILTER = re.compile(r"([\w$]+)=([\w$]+)\(([\w$]+)\|\|\[\],([\w$]+)\),")
+
+# `searchText:q,onSearchTextChange:cb,` — the List's search wiring.
+RE_LIST_SEARCH = re.compile(r"(searchText:[\w$]+,onSearchTextChange:[\w$]+,)")
+
+# `(0,x.jsxs)(y.List,{isLoading:v,isShowingDetail:` — the List opening props.
+RE_SPINNER = re.compile(
+    r"(\(0,[\w$]+\.jsxs\)\([\w$]+\.List,\{isLoading:)([\w$]+)(,isShowingDetail:)"
+)
+
+# Fresh names for the two locals we introduce. Deliberately un-minifier-like.
+V_SEARCH, V_LOCAL = "Zq1", "Zq2"
+
+
+class Refused(Exception):
+    """The file does not look like what we expect — leave it alone."""
+
+
+def find_extension_dirs():
+    found = []
+    for root in EXT_ROOTS:
+        if not root.is_dir():
+            continue
+        for pkg in root.glob("*/package.json"):
+            try:
+                if json.loads(pkg.read_text()).get("name") == "karakeep":
+                    found.append(pkg.parent)
+            except (json.JSONDecodeError, OSError):
+                continue
+    return found
+
+
+def enclosing_function_name(src, pos):
+    """Name of the function declaration immediately containing `pos`."""
+    start = src.rfind("function ", 0, pos)
+    if start < 0:
+        raise Refused("no enclosing function for the search hook")
+    m = re.match(r"function (\w+)\(", src[start:])
+    if not m:
+        raise Refused("could not read the search hook's name")
+    return m.group(1)
+
+
+def is_bookmark_scorer(src, name):
+    """The local filter we want scores bookmarks; anything else is not ours."""
+    i = src.find(f"function {name}(")
+    if i < 0:
+        return False
+    body = src[i : i + 1200]
+    return 'case"link"' in body and ".tags?.some" in body
+
+
+def plan_edits(src):
+    """Return a list of (start, end, replacement). Raises Refused on surprises."""
+    edits = []
+
+    # 1. search hook: don't fire on an empty query.
+    execs = list(RE_EXEC.finditer(src))
+    if len(execs) != 1:
+        raise Refused(f"expected 1 search-hook anchor, found {len(execs)}")
+    ex = execs[0]
+    query_var = ex.group(2)
+    hook = enclosing_function_name(src, ex.start())
+    edits.append(
+        (
+            ex.start(),
+            ex.end(),
+            f"{ex.group(1)}{query_var}{ex.group(3)}"
+            f"!!({query_var}&&{query_var}.trim()){ex.group(4)}",
+        )
+    )
+
+    # 2. bookmark list: prefer server results while the query is non-empty.
+    candidates = [
+        m
+        for m in RE_FILTER.finditer(src)
+        if "filterResultsLabel" in src[m.end() : m.end() + 400]
+    ]
+    if len(candidates) != 1:
+        raise Refused(f"expected 1 local-filter anchor, found {len(candidates)}")
+    f = candidates[0]
+    dest, filter_fn, arr, q = f.groups()
+    if not is_bookmark_scorer(src, filter_fn):
+        raise Refused(f"{filter_fn}() does not look like the bookmark filter")
+    edits.append(
+        (
+            f.start(),
+            f.end(),
+            f"{V_SEARCH}={hook}({q}),"
+            f"{V_LOCAL}={filter_fn}({arr}||[],{q}),"
+            f"{dest}={q}.trim()&&{V_SEARCH}.bookmarks.length"
+            f"?{V_SEARCH}.bookmarks:{V_LOCAL},",
+        )
+    )
+
+    # 3. throttle keystrokes.
+    lists = list(RE_LIST_SEARCH.finditer(src))
+    if len(lists) != 1:
+        raise Refused(f"expected 1 List search anchor, found {len(lists)}")
+    ls = lists[0]
+    edits.append((ls.start(), ls.end(), f"{ls.group(1)}throttle:!0,"))
+
+    # 4. spinner during the server search. Must live in the same component as
+    #    edit 2, otherwise Zq1 would be out of scope.
+    spins = list(RE_SPINNER.finditer(src))
+    if len(spins) != 1:
+        raise Refused(f"expected 1 List isLoading anchor, found {len(spins)}")
+    sp = spins[0]
+    if not (f.start() < sp.start() < f.start() + 6000):
+        raise Refused("List isLoading anchor is not in the patched component")
+    edits.append(
+        (
+            sp.start(),
+            sp.end(),
+            f"{sp.group(1)}{sp.group(2)}||{V_SEARCH}.isLoading{sp.group(3)}",
+        )
+    )
+
+    return edits
+
+
+def patch_file(path, dry_run=False):
+    """Returns one of: 'already', 'patched', 'would-patch', or raises Refused."""
+    src = path.read_text()
+    if MARKER in src:
+        return "already"
+    if V_SEARCH in src:
+        raise Refused(f"{V_SEARCH} already present but no marker — patched by hand?")
+
+    edits = plan_edits(src)
+    if dry_run:
+        return "would-patch"
+
+    out = src
+    for start, end, replacement in sorted(edits, reverse=True):
+        out = out[:start] + replacement + out[end:]
+    out += f"\n{MARKER}\n"
+
+    backup = path.with_name(path.name + BACKUP_SUFFIX)
+    shutil.copy2(path, backup)
+    path.write_text(out)
+
+    check = subprocess.run(
+        ["node", "--check", str(path)], capture_output=True, text=True
+    )
+    if check.returncode != 0:
+        shutil.copy2(backup, path)
+        raise Refused(f"node --check failed, reverted:\n{check.stderr.strip()}")
+
+    return "patched"
+
+
+def revert_file(path):
+    backup = path.with_name(path.name + BACKUP_SUFFIX)
+    if not backup.is_file():
+        return "no-backup"
+    shutil.copy2(backup, path)
+    return "reverted"
+
+
+def main():
+    args = sys.argv[1:]
+    mode = "patch"
+    if args:
+        if args[0] in ("--check", "--revert"):
+            mode = args[0].lstrip("-")
+        elif args[0] in ("-h", "--help"):
+            print(__doc__.strip())
+            return 0
+        else:
+            print(f"unknown argument: {args[0]}  (try --help)", file=sys.stderr)
+            return 2
+
+    ext_dirs = find_extension_dirs()
+    if not ext_dirs:
+        print("Karakeep Raycast extension not found under:", file=sys.stderr)
+        for root in EXT_ROOTS:
+            print(f"  {root}", file=sys.stderr)
+        return 1
+
+    failures = 0
+    for ext in ext_dirs:
+        print(f"{ext}")
+        bundles = sorted(
+            p
+            for p in ext.glob("*.js")
+            if p.name in ("bookmarks.js", "lists.js", "tags.js", "notes.js")
+        )
+        if not bundles:
+            print("  no bookmark-list bundles found", file=sys.stderr)
+            failures += 1
+            continue
+
+        for path in bundles:
+            try:
+                if mode == "revert":
+                    result = revert_file(path)
+                else:
+                    result = patch_file(path, dry_run=(mode == "check"))
+            except Refused as exc:
+                print(f"  {path.name:14} REFUSED — {exc}", file=sys.stderr)
+                failures += 1
+                continue
+            except OSError as exc:
+                print(f"  {path.name:14} ERROR — {exc}", file=sys.stderr)
+                failures += 1
+                continue
+            print(f"  {path.name:14} {result}")
+
+    if mode == "patch" and not failures:
+        print("\nRaycast reloads the bundle on the next run of the command.")
+    if mode == "revert":
+        print("\nBackups left in place; re-run without --revert to patch again.")
+
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
