@@ -8,6 +8,7 @@
     "NODE_EXTRA_CA_CERTS": "{{ .chezmoi.homeDir }}/.claude/lab-ca.pem"
   },
   "includeCoAuthoredBy": false,
+  "disableWorkflows": true,
   "permissions": {
     "allow": [
       "Read(/{{ .chezmoi.homeDir }}/**)",
