@@ -24,13 +24,16 @@ emit() {
   exit 0
 }
 emit_guard() {
-  # Interactive ask only when a human is at the keyboard (permission_mode=default);
-  # otherwise hard-deny so autonomous runs / subagents can't silently write here.
-  if [ "$PERMISSION_MODE" = "default" ]; then
-    emit ask "$1"
-  else
-    emit deny "$1 [BLOCKED by auto-mode policy. STOP — do not retry, rephrase, or look for workarounds. Tell Greg to switch to default mode (Shift+Tab) and rerun.]"
-  fi
+  # Ask in every mode with a human at the keyboard (verified 2026-07-31: hook
+  # "ask" prompts fine in acceptEdits/auto). These files are the security
+  # boundary, so they keep asking even in auto modes. Deny only where nobody
+  # can answer: dontAsk, bypassPermissions, or an unrecognized mode.
+  case "$PERMISSION_MODE" in
+    default|acceptEdits|auto|plan)
+      emit ask "$1" ;;
+    *)
+      emit deny "$1 [Blocked: no human available to approve in mode '${PERMISSION_MODE:-unknown}'. Do not retry or work around — report this to Greg.]" ;;
+  esac
 }
 
 if ! command -v jq >/dev/null 2>&1; then

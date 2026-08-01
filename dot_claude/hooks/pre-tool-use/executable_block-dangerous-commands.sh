@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # Guards dangerous shell commands per Greg's permission policy. PreToolUse hook for Bash.
 #
-# Two decision tiers:
-#   emit_deny  → ALWAYS hard-block, in every mode and for subagents (push/commit to
-#                a protected branch, PR merge, publish, sudo, destructive SQL,
-#                curl|sh, raw-device writes, mkfs/dd). "deny" is absolute.
-#   emit_guard → ask a human ONLY in interactive `default` mode; in any autonomous
-#                mode (auto/acceptEdits/plan/dontAsk/bypassPermissions, a subagent,
-#                or headless) it hard-denies — a hook "ask" there has no human to
-#                answer and would be auto-resolved to allow.
+# Two decision tiers (redesigned 2026-07-31, spec: bazgroly/dotfiles/specs/
+# 2026-07-31-permissions-auto-yolo-design.md):
+#   emit_deny  → hard-block in every mode (catastrophic rm, curl|sh, raw-device
+#                writes, mkfs/dd). Reserved for the irreversible.
+#   emit_guard → interactive "ask" popup in ANY mode with a human at the keyboard
+#                (default/acceptEdits/auto/plan) — verified empirically 2026-07-31
+#                that hook "ask" prompts in acceptEdits and auto, it is NOT
+#                auto-resolved. Hard-deny only in dontAsk/bypassPermissions or an
+#                unknown mode (headless/subagent — nobody to answer the prompt).
 #
 # JSON permissionDecision is honored only on exit 0; exit 2 hard-blocks and the
 # JSON is ignored.
@@ -36,13 +37,15 @@ emit() {
 }
 emit_deny() { emit deny "$1"; }
 emit_guard() {
-  # Interactive ask only when a human is at the keyboard (permission_mode=default);
-  # otherwise hard-deny so autonomous runs / subagents can't silently proceed.
-  if [ "$PERMISSION_MODE" = "default" ]; then
-    emit ask "$1"
-  else
-    emit deny "$1 [BLOCKED by auto-mode policy. STOP — do not retry, rephrase, or look for workarounds. Tell Greg to switch to default mode (Shift+Tab) and rerun.]"
-  fi
+  # Interactive ask in every mode with a human at the keyboard. Hook "ask"
+  # prompts fine in acceptEdits/auto (verified 2026-07-31). Deny only where
+  # nobody can answer: dontAsk, bypassPermissions, or an unrecognized mode.
+  case "$PERMISSION_MODE" in
+    default|acceptEdits|auto|plan)
+      emit ask "$1" ;;
+    *)
+      emit deny "$1 [Blocked: no human available to approve in mode '${PERMISSION_MODE:-unknown}'. Do not retry or work around — report this to Greg.]" ;;
+  esac
 }
 
 if ! command -v jq >/dev/null 2>&1; then
@@ -104,9 +107,9 @@ path_in_list() {
   return 1
 }
 
-# ── sudo: always blocked ─────────────────────────────────────────────────
+# ── sudo: ask (was deny until 2026-07-31) ────────────────────────────────
 if contains_cmd '(^|[;&|(]|[[:space:]])sudo([[:space:]]|$)'; then
-  emit_deny "sudo (elevated privileges) is blocked. Run it yourself if it is truly required."
+  emit_guard "sudo — elevated privileges."
 fi
 
 # ── Protected branch list ────────────────────────────────────────────────
@@ -130,7 +133,7 @@ if contains_git '(^|[;&|()]+[[:space:]]*)git[[:space:]]+push'; then
   if [ -n "$PUSH_REPO_ROOT" ] && path_in_list "$PUSH_REPO_ROOT" "$PUSH_ALLOWLIST"; then
     :  # push allowed in this repo — fall through (e.g. bazgroly autopush)
   elif [ -n "$PUSH_REPO_ROOT" ] && path_in_list "$PUSH_REPO_ROOT" "$MANUAL_PUSH_REPOS"; then
-    emit_deny "Greg pushes this repo manually after review. Commit only — no push from Claude here."
+    emit_guard "Push in a manual-push repo (Greg normally pushes these himself)."
   else
     PROT=0
     contains_git "git[[:space:]]+push[[:space:]]+[^[:space:]]+[[:space:]]+([^[:space:]]*:)?($BR_REGEX)(\$|[[:space:]])" && PROT=1
@@ -140,7 +143,7 @@ if contains_git '(^|[;&|()]+[[:space:]]*)git[[:space:]]+push'; then
       { [ -n "$CURRENT" ] && printf '%s' ",$PROTECTED_BRANCHES," | grep -q ",$CURRENT,"; } && PROT=1
     fi
     if [ "$PROT" -eq 1 ]; then
-      emit_deny "Pushing to a protected branch isn't allowed. Greg pushes main/master manually; open a PR instead."
+      emit_guard "Push to protected branch ($PROTECTED_BRANCHES)."
     else
       # Feature-branch push allowed silently in all modes (Greg, 2026-06-13).
       # Protected-branch push (above), manual-push repos (above), and force
@@ -165,7 +168,7 @@ if contains_git '(^|[;&|()]+[[:space:]]*)git[[:space:]]+commit'; then
     COMMIT_BRANCH=$(git -C "$COMMIT_REPO_ROOT" branch --show-current 2>/dev/null || true)
     if [ -n "$COMMIT_BRANCH" ] && printf '%s' ",$PROTECTED_BRANCHES," | grep -q ",$COMMIT_BRANCH,"; then
       if ! path_in_list "$COMMIT_REPO_ROOT" "$COMMIT_ALLOWLIST"; then
-        emit_deny "Committing to protected branch '$COMMIT_BRANCH' isn't allowed here. Create a feature branch first (\`git checkout -b <branch>\`)."
+        emit_guard "Commit on protected branch '$COMMIT_BRANCH' — usually a feature branch is wanted (\`git checkout -b <branch>\`)."
       fi
     fi
   fi
@@ -173,17 +176,14 @@ if contains_git '(^|[;&|()]+[[:space:]]*)git[[:space:]]+commit'; then
   # `git commit` is intentionally NOT in settings.json allow, so EVERY commit
   # stops here. This is a deliberate signal, not friction: the prompt is your
   # cue to review the diff (herdr reviewr, prefix+r) BEFORE the commit lands.
-  # Approving = "I've reviewed the diff." Default mode → ASK (prompt below).
-  # Any autonomous mode → DENY, since there's no human at the keyboard to review.
+  # Approving = "I've reviewed the diff." Asks in every interactive mode.
   emit_guard "📋 Review gate — przejrzyj diff (reviewr: prefix+r) ZANIM zatwierdzisz. Approve = diff przejrzany."
 fi
 
 # ── GitHub PR ops ────────────────────────────────────────────────────────
+# gh pr create/edit/ready/close/reopen: allowed silently (Greg, 2026-07-31).
 if contains_cmd '(^|[;&|(]|[[:space:]])gh[[:space:]]+pr[[:space:]]+merge'; then
-  emit_deny "Merging PRs is manual — Greg merges."
-fi
-if contains_cmd '(^|[;&|(]|[[:space:]])gh[[:space:]]+pr[[:space:]]+(create|edit|ready|close|reopen)'; then
-  emit_guard "Creating or updating a pull request."
+  emit_guard "Merging a PR (Greg normally merges himself)."
 fi
 
 # ── Destructive filesystem operations ────────────────────────────────────
@@ -198,9 +198,9 @@ fi
 # Plain rm allowed silently in all modes (Greg, 2026-06-13). The catastrophic
 # rm -rf targets above (/, ~, $HOME, unresolved $VAR, system dirs) stay denied.
 
-# ── Dangerous database operations → always deny ──────────────────────────
+# ── Dangerous database operations → ask (was deny until 2026-07-31) ──────
 if contains_icmd 'DROP[[:space:]]+(TABLE|DATABASE|SCHEMA)[[:space:]]+'; then
-  emit_deny "DROP TABLE/DATABASE/SCHEMA detected. Run it manually if intended."
+  emit_guard "DROP TABLE/DATABASE/SCHEMA detected."
 fi
 if printf '%s\n' "$COMMAND" | awk '
   BEGIN { IGNORECASE=1; RS=";" }
@@ -208,17 +208,13 @@ if printf '%s\n' "$COMMAND" | awk '
     if ($0 !~ /WHERE/) { print "BAD"; exit }
   }
 ' | grep -q BAD; then
-  emit_deny "DELETE FROM without a WHERE clause. Add a WHERE or run it manually."
+  emit_guard "DELETE FROM without a WHERE clause."
 fi
 if contains_icmd 'TRUNCATE[[:space:]]+TABLE'; then
-  emit_deny "TRUNCATE TABLE detected. Run it manually if intended."
+  emit_guard "TRUNCATE TABLE detected."
 fi
 
-# ── chmod 777 / a+rwx → ask ──────────────────────────────────────────────
-if contains_cmd 'chmod([[:space:]]+-[a-zA-Z]+)*[[:space:]]+0?777([[:space:]]|$)' \
-  || contains_cmd 'chmod([[:space:]]+-[a-zA-Z]+)*[[:space:]]+a\+rwx([[:space:]]|$)'; then
-  emit_guard "chmod 777 / a+rwx grants everyone full access."
-fi
+# ── chmod 777 / a+rwx: allowed silently (Greg, 2026-07-31) ───────────────
 
 # ── curl|sh, raw-device writes, mkfs/dd → always deny ────────────────────
 if contains_cmd '(curl|wget)[[:space:]].*\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh|zsh|ksh|fish|dash|csh)([[:space:]]|$)'; then
@@ -233,17 +229,8 @@ if contains_cmd '(^|[;&|[:space:]])(mkfs|mkfs\.[a-z0-9]+)([[:space:]]|$)' \
   emit_deny "mkfs/dd against a device node — irreversible data loss."
 fi
 
-# ── HTTP write requests → ask ────────────────────────────────────────────
-# curl/wget with an explicit write method or a data/form payload (default GET is allowed).
-# Exception: Slack chat.postMessage (g-standup / g-pr-bump post as Greg via his own token) — allowed silently.
-if ! contains_cmd 'slack\.com/api/chat\.postMessage' && \
-   contains_icmd '(curl|wget)([[:space:]]).*(-X[[:space:]]*(POST|PUT|DELETE|PATCH)|--request[[:space:]]*(POST|PUT|DELETE|PATCH)|(^|[[:space:]])(--data|--data-raw|--data-binary|--data-urlencode|--json|--form|-F|-d)([[:space:]=]))'; then
-  emit_guard "HTTP write request (POST/PUT/DELETE/PATCH or data/form payload)."
-fi
-# httpie / xh with a positional write method.
-if contains_cmd '(^|[;&|(]|[[:space:]])(http|https|xh|xhs)[[:space:]]+(POST|PUT|DELETE|PATCH)([[:space:]]|$)'; then
-  emit_guard "HTTP write request via httpie/xh."
-fi
+# ── HTTP write requests: allowed silently (Greg, 2026-07-31) ─────────────
+# curl/wget/httpie POST/PUT/DELETE/PATCH no longer prompt; curl|sh stays denied above.
 
 # ── Destructive local git → ask ──────────────────────────────────────────
 if contains_git 'git[[:space:]]+reset[[:space:]]+--hard'; then
@@ -257,7 +244,7 @@ fi
 # Allowed silently in all modes (Greg, 2026-06-13): npm/pnpm/yarn/bun install,
 # pip install, brew/cargo/gem/go install. Package PUBLISH stays hard-denied below.
 
-# ── Accidental package publishing → always deny ──────────────────────────
+# ── Package publishing → ask (was deny until 2026-07-31) ─────────────────
 # Allow --dry-run variants (npm publish --dry-run is safe and common in CI).
 publish_patterns=(
   '(npm|yarn|pnpm|bun)[[:space:]]+publish'
@@ -267,7 +254,7 @@ publish_patterns=(
 )
 for pat in "${publish_patterns[@]}"; do
   if contains_cmd "$pat" && ! contains_cmd '(^|[[:space:]])(--dry-run|-n)([[:space:]=]|$)'; then
-    emit_deny "Publishing packages should run in CI or manually, not via Claude."
+    emit_guard "Publishing a package to a registry."
   fi
 done
 
