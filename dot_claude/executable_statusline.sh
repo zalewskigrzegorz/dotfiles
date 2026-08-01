@@ -34,6 +34,7 @@ transcript=$(printf '%s' "$input" | jq -r '.transcript_path // ""')
 cwd=$(printf '%s' "$input" | jq -r '.workspace.current_dir // .cwd // ""')
 sid=$(printf '%s' "$input" | jq -r '.session_id // ""')
 perm_mode=$(printf '%s' "$input" | jq -r '.permission_mode // ""')
+vim_mode=$(printf '%s' "$input" | jq -r '.vim.mode // ""')
 
 # Duration format scales with magnitude:
 #   < 1h   → "0m45s" / "37m12s"   (minute precision)
@@ -205,6 +206,19 @@ if [ -n "$sid" ]; then
   sess_c="${sess_palette[$slot]}"
 fi
 
+# Vim editor-mode badge — Claude's own "-- INSERT --" hint is dim grey, so an
+# escape/insert flip is invisible at a glance. Render it as a filled block in a
+# distinct hue per mode instead. `.vim` is only present when vim mode is on, so
+# non-vim sessions get nothing.
+CRUST=$'\033[38;2;17;17;27m'      # #11111B — text on filled blocks
+vim_seg=""
+case "$vim_mode" in
+  INSERT)  vim_seg=$'\033[48;2;80;250;123m'"${CRUST}${B} INSERT ${N}${BG_RESET} " ;;
+  NORMAL)  vim_seg=$'\033[48;2;139;233;253m'"${CRUST}${B} NORMAL ${N}${BG_RESET} " ;;
+  VISUAL)  vim_seg=$'\033[48;2;255;140;66m'"${CRUST}${B} VISUAL ${N}${BG_RESET} " ;;
+  REPLACE) vim_seg=$'\033[48;2;255;107;157m'"${CRUST}${B} REPLACE ${N}${BG_RESET} " ;;
+esac
+
 model_seg="${ACCENT}${B}${model}${N}"
 
 # Permission-mode / YOLO badge — Greg must always see how armed the session is.
@@ -371,7 +385,8 @@ if [ -n "$transcript" ] && [ -f "$transcript" ]; then
   [ -n "$ai_title" ] && win_seg="${SEP}${sess_c}${B}󰖯 ${ai_title}${N}"
 fi
 
-printf '%s%s%s%s%s%s%s%s%s%s%s%s' \
+printf '%s%s%s%s%s%s%s%s%s%s%s%s%s' \
+  "$vim_seg" \
   "$model_seg" "$mode_seg" "$proj_seg" "$git_seg" "$dur_seg" \
   "$tool_seg" "$comp_seg" \
   "$wait_seg" "$ctx_seg" "$lines_seg" "$style_seg" "$win_seg"
