@@ -60,6 +60,30 @@ sys.exit(0 if isinstance(data, list) and len(data) > 0 else 1)
 '
 }
 
+# Every interactive 1Password prompt in this script (`read -rs` below, `op signin`
+# further down) puts the terminal into raw/-echo mode to read a secret. Ctrl-C in
+# one of those leaves it that way: typing goes invisible AND output loses its
+# carriage return, so the whole rest of the apply staircases down the screen until
+# the user runs `stty sane`. Nothing hints at the cause. So snapshot termios and
+# put it back on every path out, the interrupt included.
+#
+# Deliberately NOT an EXIT trap: the gpg block near the end of this script owns
+# EXIT for its tmpdir cleanup, and a second one would clobber it.
+tty_state=""
+save_tty() {
+  if [[ -t 0 ]]; then
+    tty_state="$(stty -g 2>/dev/null || true)"
+  fi
+}
+restore_tty() {
+  if [[ -n "$tty_state" ]]; then
+    stty "$tty_state" 2>/dev/null || true
+  fi
+}
+# Restore, then re-raise so the caller still sees a real interrupt.
+guard_tty() { trap 'restore_tty; trap - INT; kill -INT $$' INT; }
+unguard_tty() { restore_tty; trap - INT; }
+
 prompt_for_service_account_token() {
   if [[ ! -t 0 ]]; then
     return 1
@@ -69,7 +93,10 @@ prompt_for_service_account_token() {
   echo "Paste OP_SERVICE_ACCOUNT_TOKEN to restore private files, or leave empty to skip."
   printf "OP_SERVICE_ACCOUNT_TOKEN: "
   local token
+  save_tty
+  guard_tty
   IFS= read -rs token || true
+  unguard_tty
   printf "\n"
 
   if [[ -z "$token" ]]; then
@@ -92,10 +119,15 @@ ensure_op_signed_in() {
   if have_op_accounts; then
     echo "1Password CLI is not signed in; starting op signin for this sync."
     if [[ -t 0 ]]; then
+      # `op signin` reads a password in raw mode — same termios guard as the
+      # paste-the-token prompt, so a Ctrl-C here cannot wreck the terminal.
+      save_tty
+      guard_tty
       # The exported OP_SESSION_* variable only needs to live for this script.
       if eval "$(op signin -f)"; then
-        run_op op whoami >/dev/null 2>&1 && return 0
+        run_op op whoami >/dev/null 2>&1 && { unguard_tty; return 0; }
       fi
+      unguard_tty
     else
       echo "Cannot run interactive op signin without a TTY."
     fi
