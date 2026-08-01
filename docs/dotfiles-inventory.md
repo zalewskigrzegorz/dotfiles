@@ -29,6 +29,26 @@ These are applied on macOS workstation and Debian homelab:
 - **Full snapshot (extra formulae, casks with tap prefixes, VS Code pins):** `brew/Brewfile.current`.
 - **Human-readable lists:** `docs/brew-snapshot-20260503.md`.
 
+## GitHub CLI extensions
+
+Installed by `run_onchange_after_35-gh-extensions.sh` (both profiles). The
+`EXTENSIONS` array in that script is the source of truth — the extensions
+themselves live in `~/.local/share/gh/extensions`, which chezmoi does not track,
+so anything installed by hand and not listed here dies on the next machine.
+
+| Extension | Repo | Why it's here |
+|---|---|---|
+| `gh stack` | `github/gh-stack` | native stacked PRs; backs the `work pr` stack sub-picker |
+| `gh dash` | `dlvhdr/gh-dash` | PR/issue dashboard TUI — config in `dot_config/private_gh-dash`, wrapper `dash` |
+| `gh combine-prs` | `rnorth/gh-combine-prs` | combine matching PRs (dependabot batches) into one |
+| `gh contribute` | `vilmibm/gh-contribute` | suggest an issue to work on in a repo |
+| `gh copilot` | `github/gh-copilot` | `gh copilot suggest` / `explain` |
+| `gh standup` | `sgoedecke/gh-standup` | GitHub-activity standup report |
+| `gh tidy` | `HaywardMorihara/gh-tidy` | pull default branch, `git gc`, prune merged local branches |
+
+The script skips already-installed extensions and no-ops when `gh` is missing or
+unauthenticated. Upgrades are **not** automatic: `gh extension upgrade --all`.
+
 ## Cursor
 
 - **`dot_cursor/` → `~/.cursor/`** (chezmoi): settings, hooks, **`rules/`** (global assistant rules), **`skills/`**. On **`homelab`** profile, `.cursor/**` targets are skipped (see `.chezmoiignore`) — no Cursor sync on headless hosts.

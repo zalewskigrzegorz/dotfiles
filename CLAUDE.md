@@ -59,6 +59,7 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 | 32 | `run_onchange_after_32-agent-mcp-sync.sh.tmpl` | apply `agent-mcp/mcp-servers.json.tmpl` |
 | 33 | `run_onchange_after_33-claude-plugins-sync.sh.tmpl` | apply `agent-plugins/plugins.json.tmpl` |
 | 35 | `run_after_35-raycast-scripts-compat.sh.tmpl` | Raycast compatibility shim |
+| 35 | `run_onchange_after_35-gh-extensions.sh` | install `gh` CLI extensions (gh-dash, gh-stack, …) |
 | 36 | `run_onchange_after_36-git-hooks.sh.tmpl` | wire tracked git hooks (`core.hooksPath` → gitleaks pre-commit/pre-push) |
 | 45 | `run_once_after_45-install-tmux-plugins.sh` | TPM + tmux plugins |
 
@@ -95,6 +96,7 @@ When `bin/audit-drift` isn't enough, compare each live source against the repo:
 | Claude MCP servers | `claude mcp list` | `agent-mcp/mcp-servers.json.tmpl`, `nushell-mcp.json.tmpl` |
 | Claude skills | `ls ~/.claude/skills/` | `ls agent-skills/` |
 | Claude hooks / output-styles | `ls ~/.claude/{hooks,output-styles}/` | `dot_claude/{hooks,output-styles}/` |
+| `gh` CLI extensions | `gh extension list` | `run_onchange_after_35-gh-extensions.sh` (`EXTENSIONS` array) |
 
 Classify each row `LIVE_ONLY` (add to repo), `REPO_ONLY` (`chezmoi apply`, or an intentional removal), or `MODIFIED` (`chezmoi re-add` for live→repo, `chezmoi apply` for repo→live). Apply in order: edit `.tmpl` files, then `re-add`, then `bin/sync` last. Verify with an empty `chezmoi diff`.
 
@@ -106,7 +108,8 @@ The Brewfile is templated, so a raw grep misses entries behind `{{ if }}` — re
 2. Claude plugin → `agent-plugins/plugins.json.tmpl`
 3. MCP server → `agent-mcp/mcp-servers.json.tmpl` (or `nushell-mcp.json.tmpl`)
 4. Claude skill → `cp -r ~/.claude/skills/<X> agent-skills/<X>` (never `chezmoi add` — see hard rule 5)
-5. Any other dotfile → `chezmoi add <path>`, then check the source name got the right prefix
+5. `gh` extension → append `owner/repo` to the `EXTENSIONS` array in `run_onchange_after_35-gh-extensions.sh` (never `gh extension install` alone — extensions live in untracked `~/.local/share/gh/`)
+6. Any other dotfile → `chezmoi add <path>`, then check the source name got the right prefix
 
 Finish with `chezmoi diff` to confirm the change was captured. Don't commit until asked.
 
