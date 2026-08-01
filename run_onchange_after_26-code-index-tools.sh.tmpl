@@ -31,6 +31,10 @@ uv tool install -p 3.13 serena-agent
 
 echo "code-index-tools: installing cocoindex-code[full] (uv tool)…"
 # heavy: pulls sentence-transformers + torch on first install.
-uv tool install --upgrade 'cocoindex-code[full]'
+# --with 'mcp<2': cocoindex-code 0.2.39 imports `mcp.server.fastmcp` (MCP SDK
+# 1.x API) but its unpinned `mcp>=1.0.0` pulls the breaking 2.0 release, which
+# moved that module → `ccc mcp` crashes with ModuleNotFoundError. Pin to 1.x so
+# the MCP server actually starts. Drop once upstream caps the mcp dependency.
+uv tool install --upgrade --with 'mcp<2' 'cocoindex-code[full]'
 
 echo "code-index-tools: done."
