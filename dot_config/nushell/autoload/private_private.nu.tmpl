@@ -16,3 +16,10 @@ $env.{{ . }} = {{ if $hasOp }}{{ onepasswordRead (printf "op://%s/%s/password" $
 {{- range (index . "privateEnvExpressions" | default list) }}
 $env.{{ .name }} = {{ .value }}
 {{- end }}
+{{- /* Grafana base URL — the `url` field of the same 1Password item that holds
+       the SA token, so the grafana-query.nu wrappers get it from env and never
+       shell out to `op read` (a prompt) on every call. Resolved at apply; only
+       the op reference lives in the repo, never the value. */ -}}
+{{- if $hasOp }}
+$env.GRAFANA_URL = {{ onepasswordRead (printf "op://%s/GRAFANA_SERVICE_ACCOUNT_TOKEN/url" $vault) | quote }}
+{{- end }}
