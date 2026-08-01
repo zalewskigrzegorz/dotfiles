@@ -80,6 +80,19 @@
     "plan": {
       "type": "http",
       "url": "https://plan.agent-native.com/mcp"
+    },
+    {{/* Serena — 100% local LSP-based semantic-nav MCP, no cloud, no API key.
+         CLI installed as a uv tool by run_onchange_after_26-code-index-tools.sh.tmpl.
+         Absolute ~/.local/bin path (like the nushell MCP) so runtime resolution
+         never depends on PATH order. Context flag is `claude-code`
+         (`ide-assistant` is deprecated). Serena auto-downloads its own TS/JS
+         language server on first use — no typescript-language-server needed.
+         CocoIndex's `ccc mcp` is deliberately NOT declared here: the
+         cocoindex-code plugin (agent-plugins/plugins.json.tmpl) already
+         registers it, and a second user-scope copy would just duplicate it. */}}
+    "serena": {
+      "command": "{{ .chezmoi.homeDir }}/.local/bin/serena",
+      "args": ["start-mcp-server", "--context", "claude-code", "--project-from-cwd"]
     }
   }
 }
