@@ -4,8 +4,9 @@
 # `pr_watch` chip. Run by launchd every 3 min (com.greg.pr-watch). PUSH-driven:
 # ends with `sketchybar --set`.
 #
-# "Actionable" mirrors bin/prs action logic — a PR needs MY action when it is
-# ready to MERGE, has CHANGES_REQUESTED, or has failing CI ("fix CI"). PRs that
+# "Actionable" comes from the shared classifier (`work-pr actionable`) — a PR
+# needs MY action when it is ready to MERGE, has unresolved threads to resolve,
+# has CHANGES_REQUESTED, conflicts, needs e2e kicked, or has failing CI. PRs that
 # wait on others (needs review / draft / blocked) are NOT actionable → chip's
 # fix/merge counters stay hidden for them.
 #
@@ -20,6 +21,37 @@
 #
 # Cache: ~/.cache/pr-watch-last.json  { "<num>": {action, outstanding, actionable, title, url} }
 # (cache is only a fallback for transient gh/GraphQL failures — the flag is live.)
+#
+# The action chain itself is no longer here: it is the SHARED classifier in
+# workpr.nu (`work-pr classify` → action / actionable / rank / bucket), also used
+# by bin/prs and `work pr`, so the chip and the menu can never disagree. A nu
+# *script* loads no autoload dirs, so source it explicitly the way the gh-dash
+# `T` binding does. The vocabulary emitted here is unchanged — bin/pr-watch-open
+# case-matches on these exact strings.
+#
+# THIS SOURCE LINE IS LOAD-BEARING FOR THE CHIP. `source` demands a path that is
+# constant AT PARSE TIME (a `source` inside a runtime `if` scopes its defs to that
+# block, leaving `work-pr` undefined), so naming only the applied target meant a
+# machine that had not run `chezmoi apply` yet failed at PARSE time — launchd
+# polled every 180s, nu bailed before main, the chip's cache silently froze and
+# nothing but /tmp/com.greg.pr-watch.err said so. Resolve the const across BOTH
+# byte-identical copies of workpr.nu (plain `.nu`, no `.tmpl`), preferring the one
+# in the SAME tree as this script so a freshly edited repo copy is never paired
+# with a stale applied module:
+#   repo copy   ../dot_config/nushell/autoload/workpr.nu  (what launchd runs: ~/Code/dotfiles/bin/pr-watch)
+#   applied     ~/.config/nushell/autoload/workpr.nu      (running out of ~/bin)
+# `path self` is const-evaluable and does NOT require the target to exist, so it
+# is safe to probe. If BOTH are gone the const falls through to a sentinel whose
+# *name* is the fix, so the log reads `File not found: ...run-bin-sync...` rather
+# than a bare missing-file parse error.
+const WORKPR_REPO = (path self "../dot_config/nushell/autoload/workpr.nu")
+const WORKPR_APPLIED = ($nu.home-dir | path join ".config" "nushell" "autoload" "workpr.nu")
+const WORKPR_NU = (
+    if ($WORKPR_REPO | path exists)       { $WORKPR_REPO }
+    else if ($WORKPR_APPLIED | path exists) { $WORKPR_APPLIED }
+    else { "workpr.nu-NOT-FOUND---run-bin-sync-to-apply-dotfiles-then-retry" }
+)
+source $WORKPR_NU
 
 # Work repo comes from the private work.env (restored from 1Password by `sync`);
 # never hardcode org/repo names here — this file is public.
@@ -116,55 +148,32 @@ def main [] {
     }
     let prs = ($listed.stdout | from json)
 
-    let rows = ($prs | each { |pr|
-        let failed = ($pr.statusCheckRollup | where {|c| ($c | get -o conclusion) == "FAILURE"} | length)
-        # Still-running/expected checks: CheckRun has status (COMPLETED/IN_PROGRESS/
-        # QUEUED), StatusContext has state (PENDING/EXPECTED/...). Either kind
-        # unfinished → the PR is NOT mergeable yet, whatever GitHub's mergeable says.
-        let pending = ($pr.statusCheckRollup | where {|c|
-            let st = ($c | get -o status | default "")
-            let state = ($c | get -o state | default "")
-            (($st != "") and ($st != "COMPLETED")) or ($state in ["PENDING" "EXPECTED"])
-        } | length)
-        # e2e never started: a required StatusContext sits EXPECTED ("waiting for
-        # status to be reported") while no e2e CheckRun is actually running —
-        # happens when "E2E tests: skip by label" skipped. Fix = run_e2e toggle.
-        let e2e_expected = ($pr.statusCheckRollup | where {|c| ($c | get -o state | default "") == "EXPECTED"} | length)
-        let e2e_running = ($pr.statusCheckRollup | where {|c|
-            let st = ($c | get -o status | default "")
-            (($st != "") and ($st != "COMPLETED")) and (($c | get -o name | default "") =~ "(?i)e2e")
-        } | length)
-        let review = ($pr | get -o reviewDecision | default "")
-        let draft = $pr.isDraft
-        let action = (
-            if $draft and $failed > 0            { "draft+CI" }
-            else if $draft                       { "draft" }
-            else if $failed > 0                  { "fix CI" }
-            else if $pr.mergeable == "CONFLICTING" { "conflict" }
-            else if $review == "CHANGES_REQUESTED" { "changes req" }
-            else if $review == "REVIEW_REQUIRED"   { "needs review" }
-            else if ($e2e_expected > 0) and ($e2e_running == 0) { "run e2e" }
-            else if $pending > 0                   { "CI…" }
-            else if $pr.mergeable == "MERGEABLE"   { "MERGE" }
-            else                                    { "blocked" }
-        )
-        let actionable = ($action in ["MERGE" "changes req" "fix CI" "conflict" "run e2e"])
-        {number: $pr.number, action: $action, title: $pr.title, url: $pr.url, actionable: $actionable}
-    })
-
     # Outstanding-comment count — EVERY open PR (one GraphQL each, ~7 calls /
     # 3 min poll). Computed live; cache is only a fallback on GraphQL failure.
-    let enriched = ($rows | each { |r|
-        let key = ($r.number | into string)
+    #
+    # Classification happens ONCE per PR and only after those counts land, so the
+    # classifier's `resolve` gate (MERGE + unresolved threads → resolve, because
+    # GitHub blocks the merge) sees a real number instead of being patched on
+    # afterwards. The 10-branch chain, the `resolve` gate and the actionable set
+    # all live in `work-pr classify` now; the cache fallback stays here because
+    # only this poller has a cache to fall back to.
+    let enriched = ($prs | each { |pr|
+        let key = ($pr.number | into string)
         let prev_out = ($prev | get -o $key | get -o outstanding | default 0)
         let prev_unres = ($prev | get -o $key | get -o unresolved | default 0)
-        let cur = (outstanding-comments $r.number)
+        let cur = (outstanding-comments $pr.number)
         let out = (if $cur == null { $prev_out } else { $cur.out })
         let unres = (if $cur == null { $prev_unres } else { $cur.unresolved })
-        # GitHub blocks merge on ANY unresolved conversation → never claim MERGE
-        # while threads are open; my action is to resolve them.
-        let action = (if ($r.action == "MERGE") and ($unres > 0) { "resolve" } else { $r.action })
-        $r | merge { action: $action, actionable: ($r.actionable or ($action == "resolve")), outstanding: $out, unresolved: $unres }
+        let c = (work-pr classify $pr --unresolved $unres --outstanding $out)
+        {
+            number: $c.number,
+            action: $c.action,
+            title: $c.title,
+            url: $c.url,
+            actionable: $c.actionable,
+            outstanding: $out,
+            unresolved: $unres,
+        }
     })
 
     # Persist cache (fallback for transient gh/GraphQL failures).
@@ -178,16 +187,19 @@ def main [] {
 
     # Outstanding comments surface on ANY PR; fix/merge counters only from
     # actionable PRs. n_comments = total comments still awaiting my reply/resolve.
+    # The glyph groups come from `work-pr bucket`, not from state lists repeated
+    # here: fix = fix CI / changes req / conflict / run e2e, merge = MERGE,
+    # ci = CI…. One glyph per bucket is the whole reason the bucket map exists.
     let act = ($enriched | where actionable)
     let n_comments = ($enriched | get outstanding | math sum)
-    let n_run = ($enriched | where action == "CI…" | length)
+    let n_run = ($enriched | where {|r| (work-pr bucket $r.action) == "ci"} | length)
     if ($act | is-empty) and ($n_comments == 0) and ($n_run == 0) {
         set-chip ["drawing=off"]
         return
     }
 
-    let n_fix = ($act | where action in ["fix CI" "changes req" "conflict" "run e2e"] | length)
-    let n_merge = ($act | where action == "MERGE" | length)
+    let n_fix = ($act | where {|r| (work-pr bucket $r.action) == "fix"} | length)
+    let n_merge = ($act | where {|r| (work-pr bucket $r.action) == "merge"} | length)
 
     mut parts = []
     if $n_fix > 0   { $parts = ($parts | append $"($G_FIX) ($n_fix)") }

@@ -3,11 +3,17 @@
 #
 # LEFT click  → toggle a popup under the chip listing every open PR from the
 #               pr-watch cache (~/.cache/pr-watch-last.json): action glyph +
-#               "#num  title  <comment count>". Clicking a row opens that PR
-#               in the browser and closes the popup. No herdr dependency.
+#               "#num  title  <comment count>". Clicking a row — with either
+#               button — opens that PR in the browser and closes the popup.
+#               No herdr dependency.
 # RIGHT click → gh-dash flow: open/focus a herdr workspace running `gh dash`
 #               (my work PRs). Reuses an existing workspace if one is open.
 #               No-ops cleanly if the herdr server isn't running.
+#
+# A popup row deliberately does NOT right-click into `work pr`: with no --action
+# that command opens an fzf picker and bails on the `is-terminal --stdin` guard,
+# and a sketchybar click_script has no TTY. Wiring it needs its own herdr
+# workspace/pane launcher (see gh_dash below), not a click_script tweak.
 set -uo pipefail
 export PATH="/opt/homebrew/bin:$PATH"
 
@@ -104,6 +110,7 @@ popup() {
                 "draft+CI")     tag="draft+CI"  color="$C_DRAFTCI" ;;
                 draft)          tag="draft"     color="$C_DRAFT" ;;
                 "needs review") tag="review?"   color="$C_REVIEW" ;;
+                blocked)        tag="blocked"   color="$C_REVIEW" ;;
                 *)              tag="$action"   color="$C_MUTED" ;;
             esac
 
