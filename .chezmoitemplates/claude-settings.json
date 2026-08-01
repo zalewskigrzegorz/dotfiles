@@ -298,6 +298,11 @@
           },
           {
             "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/pre-tool-use/auto-allow.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/pre-tool-use/caffeinate-lease.sh",
             "timeout": 5000
           }
