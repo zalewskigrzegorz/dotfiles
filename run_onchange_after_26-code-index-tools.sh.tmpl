@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Install local code-indexing CLIs as uv tools (→ ~/.local/bin).
+#   - serena-agent      : LSP-based semantic navigation MCP (oraios/serena)
+#   - cocoindex-code    : local AST semantic search + `ccc` CLI (cocoindex-io)
+#
+# `[full]` extra on cocoindex is MANDATORY: it pulls local SentenceTransformers
+# embeddings (arctic-embed-xs) + embedded LMDB. Without it the CLI silently
+# defaults to a cloud embedding provider that needs an API key.
+#
+# run_onchange: chezmoi re-runs this whenever the rendered content changes.
+
+set -euo pipefail
+
+# chezmoi runs hooks with a minimal PATH; surface brew + local bins.
+for d in \
+  "/opt/homebrew/bin" \
+  "/home/linuxbrew/.linuxbrew/bin" \
+  "${HOME}/.local/bin" \
+; do
+  [[ -d "$d" ]] && PATH="$d:$PATH"
+done
+export PATH
+
+if ! command -v uv >/dev/null 2>&1; then
+  echo "code-index-tools: uv not on PATH — skipping (brew bundle installs it)."
+  exit 0
+fi
+
+echo "code-index-tools: installing serena-agent (uv tool)…"
+uv tool install -p 3.13 serena-agent
+
+echo "code-index-tools: installing cocoindex-code[full] (uv tool)…"
+# heavy: pulls sentence-transformers + torch on first install.
+uv tool install --upgrade 'cocoindex-code[full]'
+
+echo "code-index-tools: done."

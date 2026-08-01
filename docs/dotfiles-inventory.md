@@ -49,6 +49,26 @@ so anything installed by hand and not listed here dies on the next machine.
 The script skips already-installed extensions and no-ops when `gh` is missing or
 unauthenticated. Upgrades are **not** automatic: `gh extension upgrade --all`.
 
+## Local code-indexing tools
+
+Installed as **uv tools** (→ `~/.local/bin`) by
+`run_onchange_after_26-code-index-tools.sh.tmpl`. Both run 100% locally — no
+cloud embedding provider, no external vector DB, no API keys.
+
+| Tool | uv package | Role | Wired via |
+|---|---|---|---|
+| Serena | `serena-agent` | LSP-based semantic nav MCP; auto-downloads its own TS/JS language server | user-scope MCP in `agent-mcp/mcp-servers.json.tmpl` |
+| CocoIndex | `cocoindex-code[full]` | AST semantic search, `ccc` CLI; local SentenceTransformers + embedded LMDB | `cocoindex-code` plugin (`agent-plugins/plugins.json.tmpl`) ships both the skill and the `ccc mcp` server |
+
+- **`[full]` extra is mandatory** for CocoIndex — bare `cocoindex-code` silently
+  defaults to a cloud embedding provider that needs an API key.
+- Do **not** also declare `ccc mcp` in `agent-mcp` — the plugin already registers
+  it; a second copy just duplicates the server.
+- `ccc mcp` shows "Failed to connect" until a one-time `ccc init` (interactive,
+  picks the local model). On-demand — the skill runs it on first real use.
+- Version check: `ccc doctor` (prints `Version:`), not `ccc version`.
+- Indexing (`ccc index`) is on-demand per repo — setup indexes nothing.
+
 ## Cursor
 
 - **`dot_cursor/` → `~/.cursor/`** (chezmoi): settings, hooks, **`rules/`** (global assistant rules), **`skills/`**. On **`homelab`** profile, `.cursor/**` targets are skipped (see `.chezmoiignore`) — no Cursor sync on headless hosts.

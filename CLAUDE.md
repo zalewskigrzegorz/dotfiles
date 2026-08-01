@@ -137,6 +137,27 @@ Plugins / MCP / skills sources of truth:
 
 Anything installed via `/plugin install`, `claude mcp add`, or `~/.claude/skills/<new>` on a machine **must** be reflected in the matching source above before the next `chezmoi apply`.
 
+#### Local code-indexing tools (Serena + CocoIndex)
+
+100%-local semantic code search/nav for Claude Code — no cloud, no API keys.
+Both CLIs are installed as **uv tools** (→ `~/.local/bin`) by
+`run_onchange_after_26-code-index-tools.sh.tmpl`.
+
+- **Serena** (`oraios/serena`) — LSP-based semantic nav. User-scope MCP in
+  `agent-mcp/mcp-servers.json.tmpl` (`serena start-mcp-server --context claude-code
+  --project-from-cwd`). Auto-downloads its own TS/JS language server on first use
+  — no `typescript-language-server`/`typescript` needed on PATH.
+- **CocoIndex** (`cocoindex-io/cocoindex-code`) — AST semantic search, `ccc` CLI.
+  Installed as `cocoindex-code[full]` (**`[full]` is mandatory** — local
+  SentenceTransformers + embedded LMDB; bare install silently needs a cloud key).
+  Its Claude Code skill **and** its `ccc mcp` server both come from the
+  `cocoindex-code` **plugin** (`agent-plugins/plugins.json.tmpl`) — do NOT also
+  add `ccc mcp` to `agent-mcp` (double-registers). The `ccc mcp` server shows
+  "Failed to connect" until a one-time `ccc init` (interactive, picks the local
+  model) — that's on-demand; the skill runs it on first real use.
+- Version check is `ccc doctor` (prints `Version:`), **not** `ccc version`/`--version`.
+- Indexing (`ccc index`) is on-demand per repo — nothing indexed by setup.
+
 ### Skille z skills.sh (ephemeral)
 
 Jednorazowa wiedza domenowa idzie przez **`skill-scout`** → `npx skills use <owner/repo@skill>`, który wypisuje SKILL.md na stdout i **niczego nie instaluje**. `npx skills add` jest zakazany — pisze do `~/.claude/skills/`, które `run_onchange_after_30` czyści przez `rsync --delete`, więc skill i tak zniknie, a do tego czasu obciąża kontekst każdej sesji.
