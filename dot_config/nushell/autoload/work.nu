@@ -302,6 +302,30 @@ def "work _seed-untracked" [parent: path, wt_path: path]: nothing -> nothing {
     if $copied > 0 { print -e $"🌱 seeded ($copied) untracked path\(s\) \(env + node_modules)" }
 }
 
+# Seed a fresh worktree with a CocoIndex index cloned from the parent checkout.
+# git worktrees start with no `.cocoindex_code`, so `ccc search` there finds
+# nothing. We APFS-clonefile the parent's index (`cp -c`: instant, copy-on-write,
+# ~0 extra disk — a 960 MB index clones in ~9 ms) then kick an incremental
+# `ccc index` refresh in the background: it re-embeds ONLY this branch's diff vs
+# the parent (a no-op refresh is ~9 s; a few changed files add a little), so the
+# worktree ends up with a branch-accurate index for near-free. Best-effort:
+# never blocks or fails the create. Skips cleanly if the parent isn't indexed.
+def "work _seed-cocoindex" [parent: path, wt_path: path]: nothing -> nothing {
+    let src = ($parent | path join ".cocoindex_code")
+    let dst = ($wt_path | path join ".cocoindex_code")
+    if not ($src | path exists) { return }   # parent not indexed → nothing to share
+    if ($dst | path exists) { return }
+    let c = (do { ^cp -cR $src $dst } | complete)
+    if $c.exit_code != 0 { do { ^cp -R $src $dst } | complete | ignore }
+    if not ($dst | path exists) { return }
+    # Detach the refresh fully (nohup + &) so `work new` returns immediately.
+    let ccc = ($env.HOME | path join ".local/bin/ccc")
+    if ($ccc | path exists) {
+        do { ^bash -c $"cd '($wt_path)' && nohup '($ccc)' index > .cocoindex_code/seed-refresh.log 2>&1 &" } | complete | ignore
+    }
+    print -e $"🔎 cloned cocoindex index \(COW) — refreshing branch diff in background"
+}
+
 # Create a new worktree + herdr workspace, focus it.
 def "work new" [
     name: string@"work _complete-branches-no-wt" = ""
@@ -441,7 +465,10 @@ def "work new" [
     )
     if $r.exit_code != 0 { error make { msg: $"herdr worktree create failed: ($r.stderr)" } }
     let ws = (try { $r.stdout | from json | get -o result.workspace.workspace_id } catch { "" })
-    if $mode == "full" and not $no_seed { work _seed-untracked $parent $wt_path }
+    if $mode == "full" and not $no_seed {
+        work _seed-untracked $parent $wt_path
+        work _seed-cocoindex $parent $wt_path
+    }
     work _apply-layout $ws $wt_path
 
     print -e $"✅ ($branch_name) → ($wt_path)"

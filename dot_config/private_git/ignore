@@ -1,0 +1,6 @@
+**/.claude/settings.local.json
+
+**/.claude/.cc-writes/
+
+# CocoIndex local index (LMDB/sqlite) — worktrees clone it, never commit
+.cocoindex_code/
