@@ -8,7 +8,9 @@
 #   work ls           — list worktrees of the current repo (nu data)
 #   work switch (sw)   — picker over worktrees → focus that workspace
 #   work rm [branch]  — remove worktree + workspace + git branch
-#   work pr [number]  — open a GitHub PR in a worktree
+#   work pr [number]  — PR command center (defined in workpr.nu — loads after this
+#                       file, so it can call the primitives here; the reverse is
+#                       impossible, which is why `work pr` does not live here)
 #   work prune        — batch-remove merged worktrees
 #   work help         — cheatsheet
 #
@@ -247,14 +249,12 @@ def "work _checkout-path" [repo_root: path, branch: string]: nothing -> string {
     $found
 }
 
-# Seed a fresh worktree with untracked env files + node_modules from the parent
-# checkout. git worktrees carry only tracked files, so a new tree has no `.env`
-# and no deps. We clone them via APFS clonefile (`cp -c`: instant, no extra disk,
-# preserves pnpm symlinks) at the same relative paths — handles monorepos (nested
-# node_modules / .env) automatically. Uses git's own ignore list so ONLY env +
-# node_modules are touched, nothing else. Best-effort: never fails the create.
-# Ask what to do when opening someone else's branch/PR. Enter = full worktree,
-# so the common case stays zero-friction. Returns "full" | "light" | "diff".
+# Ask what to do when checking out an existing branch. Enter = full worktree, so
+# the common case stays zero-friction. Returns "full" | "light" | "diff".
+# ONE caller: `work new`'s `[c] checkout existing` branch (whose "diff" case runs
+# `git diff $base_ref...$ref`). `work pr` used to call it too; the workpr.nu
+# registry replaced that, and the registry cannot be reached from here (workpr.nu
+# loads later), so this def stays.
 def "work _pick-mode" [what: string]: nothing -> string {
     print $"\n($what) — what do you want?"
     print "  [1] 🌱 full worktree     seed .env + node_modules, ready to run   (default, Enter)"
@@ -270,6 +270,12 @@ def "work _pick-mode" [what: string]: nothing -> string {
     }
 }
 
+# Seed a fresh worktree with untracked env files + node_modules from the parent
+# checkout. git worktrees carry only tracked files, so a new tree has no `.env`
+# and no deps. We clone them via APFS clonefile (`cp -c`: instant, no extra disk,
+# preserves pnpm symlinks) at the same relative paths — handles monorepos (nested
+# node_modules / .env) automatically. Uses git's own ignore list so ONLY env +
+# node_modules are touched, nothing else. Best-effort: never fails the create.
 def "work _seed-untracked" [parent: path, wt_path: path]: nothing -> nothing {
     let r = (do { ^git -C $parent ls-files --others --ignored --exclude-standard --directory } | complete)
     if $r.exit_code != 0 { return }
@@ -442,78 +448,11 @@ def "work new" [
     { repo: $repo, branch: $branch_name, path: $wt_path, label: $label, workspace_id: $ws, base: $base_ref, created: true }
 }
 
-# Open a GitHub PR in a new worktree workspace.
-def "work pr" [
-    number?: int
-    --no-focus
-    --no-seed  # skip copying .env + node_modules from the parent checkout
-    --full     # skip the mode selector, go straight to a seeded worktree
-]: nothing -> any {
-    work deps-preflight
-    if (which gh | is-empty) { error make { msg: "gh CLI required: brew install gh" } }
-    let info = (work repo-info)
-    let parent = $info.root
-    let focus_flag = (if $no_focus { "--no-focus" } else { "--focus" })
-
-    let pr_num = (
-        if ($number | is-not-empty) { $number } else {
-            if (which fzf | is-empty) { error make { msg: "Pass a PR number (fzf not installed)." } }
-            let rows = (^gh pr list --limit 50 --json number,title,headRefName --jq '.[] | "\(.number)\t\(.title)\t\(.headRefName)"')
-            if ($rows | str trim | is-empty) { error make { msg: "No open PRs." } }
-            let picked = ($rows | ^fzf --delimiter "\t" --with-nth=1,2,3 --prompt "PR: " | str trim)
-            if ($picked | is-empty) { error make { msg: "No PR selected." } }
-            ($picked | split row "\t" | first | into int)
-        }
-    )
-
-    let mode = (
-        if $full { "full" } else if $no_seed { "light" } else { work _pick-mode $"PR #($pr_num)" }
-    )
-    if $mode == "diff" { ^gh pr diff $pr_num; return }
-
-    let pr_meta_r = (do { ^gh pr view $pr_num --json headRefName,baseRefName,isCrossRepository } | complete)
-    if $pr_meta_r.exit_code != 0 { error make { msg: $"Cannot resolve PR #($pr_num): ($pr_meta_r.stderr)" } }
-    let pr_meta = ($pr_meta_r.stdout | from json)
-    let head_branch = $pr_meta.headRefName
-    if ($head_branch | is-empty) { error make { msg: $"PR #($pr_num) has no head branch." } }
-    let is_fork = $pr_meta.isCrossRepository
-    let base = $"origin/($pr_meta.baseRefName)"
-    let wt_path = (work worktree-path $info.name $head_branch)
-    let label = (work _label $info.name $head_branch)
-
-    let existing_co = (work _checkout-path $parent $head_branch)
-    if ($existing_co | is-not-empty) {
-        print -e $"Worktree for PR #($pr_num) exists, opening."
-        let r = (do { ^herdr worktree open --cwd $parent --path $existing_co --label $label $focus_flag --json } | complete)
-        let ws = (try { $r.stdout | from json | get -o result.workspace.workspace_id } catch { "" })
-        work _apply-layout $ws $existing_co
-        return { repo: $info.name, pr: $pr_num, branch: $head_branch, path: $existing_co, created: false }
-    }
-
-    if $is_fork {
-        # Fork: git creates the detached checkout + gh sets up the fork remote, then herdr opens it.
-        let a = (do { ^git -C $parent worktree add --detach $wt_path } | complete)
-        if $a.exit_code != 0 { error make { msg: $"worktree add failed: ($a.stderr)" } }
-        let co = (do { ^bash -c $"cd '($wt_path)' && gh pr checkout ($pr_num)" } | complete)
-        if $co.exit_code != 0 {
-            ^git -C $parent worktree remove $wt_path --force
-            error make { msg: $"gh pr checkout #($pr_num) failed: ($co.stderr)" }
-        }
-        let cur = (do { ^git -C $wt_path branch --show-current } | complete | get stdout | str trim)
-        if ($cur | is-empty) { ^git -C $wt_path checkout -B $head_branch | ignore }
-        do { ^herdr worktree open --cwd $parent --path $wt_path --label $label $focus_flag --json } | complete | ignore
-    } else {
-        # Same-repo: herdr creates the checkout tracking the PR branch.
-        do { ^git -C $parent fetch origin $head_branch } | complete | ignore
-        let r = (do { ^herdr worktree create --cwd $parent --branch $head_branch --base $"origin/($head_branch)" --path $wt_path --label $label $focus_flag --json } | complete)
-        if $r.exit_code != 0 { error make { msg: $"herdr worktree create failed: ($r.stderr)" } }
-    }
-
-    if $mode == "full" { work _seed-untracked $parent $wt_path }
-    work _apply-layout (work _herdr-ws-for $parent $wt_path) $wt_path
-    print -e $"✅ PR #($pr_num) → ($head_branch)"
-    { repo: $info.name, pr: $pr_num, branch: $head_branch, path: $wt_path, base: $base, created: true }
-}
+# `work pr` lives in workpr.nu — autoload visibility is one-directional (a file
+# can only call defs from files that loaded BEFORE it), and the PR command center
+# needs the primitives above, so it has to be defined in the later-loading file.
+# Its worktree/fork/seed/layout logic is the old body of this def, lifted into
+# `work-pr _worktree`.
 
 # List ALL worktrees on disk (cross-repo). nu data; `| to json` for scripting.
 def "work ls" []: nothing -> list<record> {
@@ -654,11 +593,11 @@ def "work help" []: nothing -> nothing {
     print "WORKFLOW"
     print "  work new <name>  →  praca  →  commit / push  →  work rm <name>"
     print "  przełącz:  work switch   (albo prefix+w / prefix+g / sidebar)"
-    print "  PR:        work pr <n>"
+    print "  PR:        work pr <n>   (menu: agent / gh / worktree)"
     print ""
     print "KOMENDY"
     print "  work new [name]    worktree + workspace (picker / <name> / --from / --type / --no-prefix)"
-    print "  work pr [number]   otwórz PR → selektor: full worktree / lekki (bez seeda) / tylko diff"
+    print "  work pr [number]   PR command center — menu: agent / gh / worktree (--action headless)"
     print "  work ls            lista worktree (nu data; `| to json`)"
     print "  work switch (sw)   picker → focus workspace"
     print "  work rm [branch]   usuń worktree + workspace + branch (--force / --keep-branch)"

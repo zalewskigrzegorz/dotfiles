@@ -102,17 +102,20 @@ keybindings:
   issues: []
   prs:
     - key: T
-      name: worktree
-      # herdr-native: work pr creates + focuses the worktree workspace itself
-      # (gh-dash runs inside a herdr pane, so the socket call lands on the server).
-      command: >
-        nu -c 'cd {{ `{{.RepoPath}}` }}; source ~/.config/nushell/autoload/work.nu; work pr {{ `{{.PrNumber}}` }}'
-    - key: z
-      name: pr actions
-      # fzf picker: resolve every open conversation + toggle the CI labels.
+      name: pr menu
+      # One key for the whole PR command center: `work pr` reads the PR's state
+      # once, then offers agent / gh / worktree intents in a single fzf picker
+      # (it also creates + focuses the worktree workspace itself — gh-dash runs
+      # inside a herdr pane, so the socket call lands on the server).
+      # `work pr` lives in workpr.nu but leans on work.nu's worktree primitives,
+      # and `nu -c` does NOT read ~/.config/nushell/autoload — source both.
+      # The `cd` into RepoPath stays load-bearing: the worktree + agent intents
+      # resolve the local checkout from cwd (`work repo-info`). An empty RepoPath
+      # is a no-op cd, so gh-only intents still work from wherever gh-dash sits.
       # --repo/--pr explicitly, so it also works for repos absent from repoPaths.
       # --pause holds the output; gh-dash repaints the moment the child exits.
-      command: pr-menu --repo {{ `{{.RepoName}}` }} --pr {{ `{{.PrNumber}}` }} --pause
+      command: >
+        nu -c 'cd {{ `{{.RepoPath}}` }}; source ~/.config/nushell/autoload/work.nu; source ~/.config/nushell/autoload/workpr.nu; work pr --pr {{ `{{.PrNumber}}` }} --repo {{ `{{.RepoName}}` }} --pause'
   branches: []
 repoPaths:
   "zalewskigrzegorz/dotfiles": "/Users/greg/Code/dotfiles"

@@ -1,13 +1,24 @@
 #!/usr/bin/env nu
 
-# pr-brief — print a ready-to-run agent prompt for a PR that needs work. Used by
-# bin/pr-watch-open to auto-launch `claude` in the worktree with full context, so
-# clicking the pr_watch chip lands you on an agent that already knows what to do.
+# pr-brief — print a ready-to-run agent prompt for a PR that needs work. Called by
+# `work pr`'s agent intents (`work-pr _brief` in dot_config/nushell/autoload/workpr.nu),
+# which caches this stdout to ~/.cache/pr-brief-<num>.md and hands the file to
+# `claude` as its first message, so the agent starts already knowing the task.
+#
+# NOT called by bin/pr-watch-open any more — that lost its worktree/agent launch in
+# 100f667 and now only opens the browser (left) or gh-dash (right).
 #
 # Standalone (no `work` autoload dependency) — only needs `gh`.
 
-# Work repo comes from the private work.env (restored from 1Password by `sync`);
-# never hardcode org/repo names here — this file is public.
+# The agent intents `work pr` can start. Each maps 1:1 onto a skill under
+# agent-skills/, and the brief's framing mirrors what that SKILL.md expects as a
+# first message. No --intent = the original fix-CI-shaped brief, unchanged.
+const INTENTS = ["review" "respond" "fix-ci" "babysit" "bump"]
+
+# Work repo is only the DEFAULT — `--repo owner/name` overrides it, because `work
+# pr` also drives PRs in satellite repos. It comes from the private work.env
+# (restored from 1Password by `sync`); never hardcode org/repo names here — this
+# file is public.
 def work-repo []: nothing -> string {
     let from_env = ($env.WORK_MAIN_REPO? | default "")
     if $from_env != "" { return $from_env }
@@ -20,8 +31,8 @@ def work-repo []: nothing -> string {
 
 # Unresolved review threads — only reachable via GraphQL (gh pr view --json has no
 # reviewThreads field). Returns [] on any failure.
-def review-threads [num: int]: nothing -> list {
-    let parts = ((work-repo) | split row "/")
+def review-threads [num: int, repo: string]: nothing -> list {
+    let parts = ($repo | split row "/")
     let q = 'query($owner:String!,$name:String!,$num:Int!){repository(owner:$owner,name:$name){pullRequest(number:$num){reviewThreads(first:100){nodes{isResolved path line comments(first:1){nodes{author{login} body}}}}}}}'
     let r = (do {
         # -f, not -F, for the String! variables: -F type-coerces, so an all-digit
@@ -41,42 +52,42 @@ def review-threads [num: int]: nothing -> list {
         })
 }
 
-def main [num: int] {
-    let r = (do { ^gh pr view $num --repo (work-repo) --json "number,title,url,statusCheckRollup" } | complete)
-    if $r.exit_code != 0 {
-        print $"Pracujesz nad PR #($num). Nie udało się pobrać szczegółów \(gh\): ($r.stderr | str trim)"
-        return
+# Header + rows only. The instruction paragraph that follows differs per intent,
+# so each caller prints its own — that is why this stops at the list.
+def checks-section [failed: list] {
+    print "## Failujące checki CI"
+    for c in $failed {
+        let name = ($c | get -o name | default ($c | get -o context | default "check"))
+        let url = ($c | get -o detailsUrl | default ($c | get -o targetUrl | default ""))
+        print $"- ($name) ($url)"
     }
-    let pr = ($r.stdout | from json)
+}
 
-    let failed = ($pr.statusCheckRollup | where {|c|
-        (($c | get -o conclusion | default "") == "FAILURE") or (($c | get -o state | default "") == "FAILURE")
-    })
-    let threads = (review-threads $num | where {|t| not $t.isResolved})
+def threads-section [threads: list] {
+    print "## Nierozwiązane wątki review"
+    for t in $threads {
+        let body = ($t.body | str replace -a "\n" " " | str trim)
+        let body_short = (if ($body | str length) > 240 { $"($body | str substring 0..240)…" } else { $body })
+        print $"- [($t.path):($t.line)] @($t.author): ($body_short)"
+    }
+}
 
+# The no-flag output, byte-for-byte what pr-brief printed before --intent existed.
+# bin/pr-watch-open and the sketchybar chip depend on it, so it stays frozen.
+def legacy-brief [pr: record, failed: list, threads: list] {
     print $"Pracujesz nad PR #($pr.number): ($pr.title)"
     print $pr.url
     print ""
 
     if ($failed | is-not-empty) {
-        print "## Failujące checki CI"
-        for c in $failed {
-            let name = ($c | get -o name | default ($c | get -o context | default "check"))
-            let url = ($c | get -o detailsUrl | default ($c | get -o targetUrl | default ""))
-            print $"- ($name) ($url)"
-        }
+        checks-section $failed
         print ""
         print "Zbadaj logi tych checków, znajdź przyczynę i napraw. Uruchom odpowiednie testy lokalnie żeby potwierdzić fix przed pushem."
         print ""
     }
 
     if ($threads | is-not-empty) {
-        print "## Nierozwiązane wątki review"
-        for t in $threads {
-            let body = ($t.body | str replace -a "\n" " " | str trim)
-            let body_short = (if ($body | str length) > 240 { $"($body | str substring 0..240)…" } else { $body })
-            print $"- [($t.path):($t.line)] @($t.author): ($body_short)"
-        }
+        threads-section $threads
         print ""
         print "Zaadresuj każdy wątek w kodzie. Po wprowadzeniu zmian napisz krótką odpowiedź na każdy komentarz (po angielsku)."
         print ""
@@ -84,5 +95,218 @@ def main [num: int] {
 
     if ($failed | is-empty) and ($threads | is-empty) {
         print "Brak wykrytych failujących checków ani otwartych wątków review — sprawdź stan PRki ręcznie."
+    }
+}
+
+# Shared preamble for every intent brief: who owns the PR, where it points, and a
+# one-line state summary so the agent does not re-query gh just to orient itself.
+def intent-header [pr: record, failed: list, threads: list] {
+    print $"Pracujesz nad PR #($pr.number): ($pr.title)"
+    print $pr.url
+
+    let author = ($pr | get -o author.login | default "?")
+    let head = ($pr | get -o headRefName | default "?")
+    let base = ($pr | get -o baseRefName | default "?")
+    print $"Autor: @($author) · ($head) → ($base)"
+
+    mut flags = []
+    if ($pr | get -o isDraft | default false) { $flags = ($flags | append "draft") }
+    if (($pr | get -o mergeable | default "") == "CONFLICTING") { $flags = ($flags | append "konflikt z bazą") }
+    let flag_txt = ($flags | str join " · ")
+    let tail = (if ($flag_txt | is-empty) { "" } else { $" · ($flag_txt)" })
+    print $"Stan: ($failed | length) czerwonych checków · ($threads | length) nierozwiązanych wątków($tail)"
+}
+
+# g-pr-review — reviewer side, PR you did NOT author. Its P2 guard settles
+# authorship itself and bounces to g-pr-respond when the PR turns out to be mine,
+# so the brief only has to say which side of the table we are on.
+def brief-review [pr: record, failed: list, threads: list] {
+    # LINE 1, always. Only a leading slash command is intercepted client-side —
+    # anywhere else it reaches the model as prose and no skill is dispatched.
+    print $"/g-pr-review ($pr.number)"
+    print ""
+    intent-header $pr $failed $threads
+    print ""
+    print "## Zadanie"
+    print "Robisz review tej PRki jako recenzent, nie jako autor. Przeanalizuj diff po cichu, wyciągnij tylko findings które naprawdę mają znaczenie (security, performance, jakość, testy), zapytaj o każdy osobno Post/Skip, i na koniec wystaw jeden verdict: APPROVE / REQUEST_CHANGES / COMMENT."
+    print "Wszystko co leci na GitHuba jest po angielsku i przechodzi przez greg-voice. Nie kasuj i nie edytuj cudzych komentarzy."
+    print "Jeśli po sprawdzeniu autorstwa wyjdzie, że PRka jest moja — to zły skill, wtedy /g-pr-respond."
+    print ""
+
+    if ($threads | is-not-empty) {
+        threads-section $threads
+        print ""
+        print "Te wątki już wiszą na PRce. Jeśli sam już tu recenzowałem, skill wejdzie w tryb follow-up i one są robotą — nie zaczynaj review od zera."
+        print ""
+    }
+
+    if ($failed | is-not-empty) {
+        checks-section $failed
+        print ""
+        print "Czerwone CI to robota autora — nie wchodź w naprawę, ale nie approve'uj na czerwonym."
+        print ""
+    }
+}
+
+# g-pr-respond — author side, my own PR. Flow is fetch → triage → fix → commit →
+# Greg pushes → post replies, and it never issues `gh pr review`.
+def brief-respond [pr: record, failed: list, threads: list] {
+    print $"/g-pr-respond ($pr.number)"
+    print ""
+    intent-header $pr $failed $threads
+    print ""
+    print "## Zadanie"
+    print "To moja PRka i odpowiadam recenzentom. Ściągnij nierozwiązane wątki, ustaw severity, zapytaj o każdy w batchach po maksymalnie 4, nanieś fixy, pokaż `git diff`."
+    print "Commit w formacie g-commit: jedna linia, gitmoji na końcu, bez co-authora i bez stopki o AI. Push jest mój — po commicie czekaj aż napiszę `pushed`, dopiero potem wrzucaj odpowiedzi na wątki."
+    print "Odpowiedzi na GitHuba po angielsku, przez greg-voice. Żadnego `gh pr review` — własnej PRki się nie approve'uje. Wątki i tak trzeba potem zamknąć ręcznie na GitHubie."
+    print ""
+
+    if ($threads | is-not-empty) {
+        threads-section $threads
+        print ""
+        print "To punkt startowy z jednego zapytania — pełną listę wątków wraz z odpowiedziami dociągnij przez fetch-comments.sh."
+        print ""
+    } else {
+        print "Nie widzę nierozwiązanych wątków w reviewThreads — sprawdź jeszcze review bodies i komentarze top-level przez fetch-reviews.sh, zanim uznasz, że nie ma na co odpowiadać."
+        print ""
+    }
+
+    if ($failed | is-not-empty) {
+        checks-section $failed
+        print ""
+        print "CI jest przy tym czerwone. Jeśli to skutek tych samych uwag, napraw przy okazji; jeśli nie ma związku, zostaw to na osobny przebieg /g-pr-fix-checks."
+        print ""
+    }
+}
+
+# g-pr-fix-checks — rebase + force-with-lease + run_e2e toggle. It normally lists
+# all my open PRs and asks which to touch, so the brief has to pin it to this one.
+def brief-fix-ci [pr: record, failed: list, threads: list] {
+    print $"/g-pr-fix-checks ($pr.number)"
+    print ""
+    intent-header $pr $failed $threads
+    print ""
+    print "## Zadanie"
+    print $"Ta PRka jest czerwona albo konfliktuje z bazą. Zajmij się TYLKO #($pr.number) — nie ruszaj pozostałych moich PRek i nie rebase'uj niczego, co jest zielone i mergowalne."
+    # Parens inside a $"..." interpolation are subexpressions — escape them.
+    let base = ($pr | get -o baseRefName | default "main")
+    print $"Domyślna ścieżka: checkout brancha PRki, `git rebase origin/($base)`, `git push --force-with-lease`, potem toggle labela run_e2e \(remove → add, bo dodanie istniejącego labela to no-op\). Brak labela run_e2e w repo to nie błąd — zanotuj i jedź dalej."
+    print "Konflikt w rebase: nie zgaduj rozwiązania. Pokaż listę plików i zapytaj. Nigdy `git rebase --skip`, nigdy `git push --force` bez lease."
+    print "Na koniec wróć na brancha, z którego startowałem."
+    print ""
+
+    if ($failed | is-not-empty) {
+        checks-section $failed
+        print ""
+        print "Run-id do `gh run view <id> --log-failed` wyciągniesz z powyższych URL-i (`/actions/runs/<id>`). Jeśli z logów wyjdzie, że fail nie pochodzi z bazy, a z diffa tej PRki — napraw kod i potwierdź lokalnie tą samą komendą, którą odpalało CI, zanim pushniesz."
+        print ""
+    } else {
+        print "Nie widzę czerwonych checków — jeśli powodem jest konflikt z bazą, rebase i tak jest właściwą ścieżką. Jeśli nie ma ani konfliktu, ani faili, nie ruszaj tej PRki."
+        print ""
+    }
+
+    if ($threads | is-not-empty) {
+        print $"Jest tu też ($threads | length) nierozwiązanych wątków review — nie twoja robota w tym przebiegu, na to jest /g-pr-respond."
+        print ""
+    }
+}
+
+# babysit-prs — one autonomous pass, no confirmations. Normally sweeps every open
+# PR, so the scoping line matters more here than anywhere else.
+def brief-babysit [pr: record, failed: list, threads: list] {
+    print $"/babysit-prs ($pr.number)"
+    print ""
+    intent-header $pr $failed $threads
+    print ""
+    print "## Zadanie"
+    print $"Jeden autonomiczny przebieg babysit zawężony do PR #($pr.number). Bez pytań o potwierdzenie — samo odpalenie skilla jest zgodą na commit, push i rerun — ale też bez wychodzenia poza tę jedną PRkę."
+    print "Klasyfikacja: konflikt z bazą → rebase, a konflikt w trakcie rebase → `git rebase --abort` plus notyfikacja, bo konfliktów nie rozwiązujesz sam. Czerwone e2e/playwright → `gh run rerun <run-id> --failed`, maksymalnie 2 podejścia na SHA. Lint / tsc / unit / build → fix, commit, push, jedno podejście na check na SHA. Pending → zostaw, następny przebieg to zobaczy."
+    print "Stan trzymasz w ~/.cache/babysit-prs.json; zmiana head SHA resetuje budżety, `slack_bump` zostaje. Nowe komentarze → jedna notyfikacja alerter na PRkę, bez odpowiadania na wątki. Nie mergujesz, nie approve'ujesz, nie zamykasz, nie pushujesz na bazę, nie ruszasz cudzych PRek."
+    print ""
+
+    if ($pr | get -o isDraft | default false) {
+        print "Uwaga: to draft, a babysit-prs domyślnie pomija drafty (czerwony draft to zwykle świadomy WIP). Tę jedną obsłuż mimo tego — została wybrana ręcznie."
+        print ""
+    }
+
+    if ($failed | is-not-empty) {
+        checks-section $failed
+        print ""
+        print "Run-id do `gh run view <id> --log-failed` i do `gh run rerun <id> --failed` jest w powyższych URL-ach (`/actions/runs/<id>`)."
+        print ""
+    }
+
+    if ($threads | is-not-empty) {
+        threads-section $threads
+        print ""
+        print "Wątki liczą się tylko do notyfikacji o nowych komentarzach — na nie nie odpowiadasz, to robota /g-pr-respond."
+        print ""
+    }
+}
+
+# g-pr-bump — Slack nudge, no code. It resolves pending reviewers from gh itself
+# and assumes the main monorepo, so the brief only has to pin the PR, name the
+# repo (its cross-repo guard needs it) and repeat the confirm-before-posting rule.
+def brief-bump [pr: record, repo: string, threads: list] {
+    print $"/g-pr-bump ($pr.number)"
+    print ""
+    print $"Pracujesz nad PR #($pr.number): ($pr.title)"
+    print $pr.url
+    let author = ($pr | get -o author.login | default "?")
+    print $"Repo: ($repo) · autor: @($author)"
+    print ""
+    print "## Zadanie"
+    print "Bump recenzentów na Slacku w wątku tej PRki w kanale review — bez ruszania kodu, bez odpowiadania na wątki review."
+    print "Listę pending wyciągnij z GitHuba \(requested_reviewers + requested_teams minus ci, którzy już approve'owali\) — to źródło prawdy, nawet jeśli podam kogoś z pamięci. Kanał, ID bota i tabelę subteamów masz w work-context."
+    print "Odpowiedź leci jako reply w wątku parent message'a PR Review Bota, nigdy jako nowy top-level. Jedno zdanie, mentiony w formie `<!subteam^SID>`."
+    print "Pokaż mi złożoną wiadomość i rozpoznaną listę pending, poczekaj na moje potwierdzenie, dopiero potem wysyłaj. Jeśli w wątku już wisi świeży bump — nie powtarzaj, powiedz mi o tym."
+    print ""
+    print $"Jeśli ($repo) to nie główne monorepo, ten skill jest poza swoim zakresem \(kanał review nie hostuje wątków satelitów tak samo\) — zapytaj mnie zamiast improwizować."
+    print ""
+    if ($threads | is-not-empty) {
+        print $"Uwaga: na PRce wisi ($threads | length) nierozwiązanych wątków review. Bump i tak może mieć sens, ale jeśli to ja jestem winien odpowiedzi, powiedz mi to — na wątki jest /g-pr-respond."
+        print ""
+    }
+}
+
+# Print an agent-ready brief for a PR.
+#
+# Without --intent: the original fix-CI-shaped brief (failing checks + unresolved
+# threads). With --intent: the same context reframed for one specific skill, with
+# that skill's invocation as LINE 1 (client-side interception only fires on a
+# leading slash command) and the PR context underneath.
+def main [
+    num: int                 # PR number
+    --intent: string = ""    # review | respond | fix-ci | babysit | bump — omit for the plain brief
+    --repo: string = ""      # owner/name — defaults to WORK_MAIN_REPO from work.env
+] {
+    if ($intent != "") and ($intent not-in $INTENTS) {
+        let allowed = ($INTENTS | str join ", ")
+        error make {msg: $"unknown --intent '($intent)' — expected one of: ($allowed)"}
+    }
+
+    # One resolution for every gh call below, so a satellite-repo PR is never
+    # briefed against the work monorepo by accident.
+    let target = (if $repo != "" { $repo } else { work-repo })
+
+    let r = (do { ^gh pr view $num --repo $target --json "number,title,url,statusCheckRollup,headRefName,baseRefName,author,isDraft,mergeable" } | complete)
+    if $r.exit_code != 0 {
+        print $"Pracujesz nad PR #($num) w ($target). Nie udało się pobrać szczegółów \(gh\): ($r.stderr | str trim)"
+        return
+    }
+    let pr = ($r.stdout | from json)
+
+    let failed = ($pr.statusCheckRollup | where {|c|
+        (($c | get -o conclusion | default "") == "FAILURE") or (($c | get -o state | default "") == "FAILURE")
+    })
+    let threads = (review-threads $num $target | where {|t| not $t.isResolved})
+
+    match $intent {
+        "" => { legacy-brief $pr $failed $threads }
+        "review" => { brief-review $pr $failed $threads }
+        "respond" => { brief-respond $pr $failed $threads }
+        "fix-ci" => { brief-fix-ci $pr $failed $threads }
+        "babysit" => { brief-babysit $pr $failed $threads }
+        "bump" => { brief-bump $pr $target $threads }
     }
 }

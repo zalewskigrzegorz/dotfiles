@@ -1,6 +1,50 @@
 #!/usr/bin/env nu
 
 # PR triage — open PRs grouped by action needed
+#
+# The action classifier is SHARED with bin/pr-watch and `work pr` — it lives in
+# workpr.nu (`work-pr signals` / `classify` / `action` / `rank`). A nu *script*
+# loads no autoload dirs at all, so source it explicitly, exactly like the
+# gh-dash `T` binding does for work.nu.
+#
+# `source` demands a path that is constant AT PARSE TIME, which rules out a
+# runtime `if`-guard: `source` inside a block scopes the loaded defs to that
+# block, so `work-pr` would still be undefined in main. It also rules out naming
+# ONLY the applied target — until the first `chezmoi apply` that file does not
+# exist and the whole script dies at parse time (bin/pr-watch died exactly that
+# way, silently, on every launchd poll). So resolve the const across BOTH copies
+# of workpr.nu, which are byte-identical (it is a plain `.nu`, no `.tmpl`), and
+# prefer the one in the SAME tree as this script so a freshly edited repo copy is
+# never paired with a stale applied module:
+#   repo copy   ../dot_config/nushell/autoload/workpr.nu  (running out of ~/Code/dotfiles/bin)
+#   applied     ~/.config/nushell/autoload/workpr.nu      (running out of ~/bin)
+# `path self` is const-evaluable and does NOT require the target to exist, so it
+# is safe to probe. If BOTH are gone the const falls through to a sentinel whose
+# *name* is the fix, so the error reads `File not found: ...run-bin-sync...`
+# rather than a bare missing-file parse error.
+const WORKPR_REPO = (path self "../dot_config/nushell/autoload/workpr.nu")
+const WORKPR_APPLIED = ($nu.home-dir | path join ".config" "nushell" "autoload" "workpr.nu")
+const WORKPR_NU = (
+    if ($WORKPR_REPO | path exists)       { $WORKPR_REPO }
+    else if ($WORKPR_APPLIED | path exists) { $WORKPR_APPLIED }
+    else { "workpr.nu-NOT-FOUND---run-bin-sync-to-apply-dotfiles-then-retry" }
+)
+source $WORKPR_NU
+
+# ONE vocabulary everywhere. This table used to own seven states of its own and
+# tested reviewDecision BEFORE mergeable, while pr-watch tested CONFLICTING first
+# — so a conflicting PR with reviews outstanding read "changes req" here and
+# "conflict" on the SketchyBar chip. That is the drift the shared classifier
+# exists to kill, so prs now prints whatever `work-pr classify` says, including
+# the four states it never had (`conflict`, `run e2e`, `CI…`, `resolve`). There is
+# deliberately no compatibility flag: a `--vocabulary legacy` default would make
+# the unification invisible in the one place Greg actually reads.
+#
+# `resolve` cannot in practice reach this table — the classifier gates it behind a
+# non-null `unresolved`, and that count costs one GraphQL query per PR, which this
+# script deliberately does not spend (one `gh pr list`, nothing else). It is
+# coloured below anyway so the mapping is total.
+
 def main [
     --repo: string = ""  # defaults to WORK_MAIN_REPO from the private work.env
     --author: string = "@me"
@@ -24,45 +68,41 @@ def main [
     )
 
     let rows = ($raw | each { |pr|
-        let failed = ($pr.statusCheckRollup | where { |c| ($c | get -o conclusion) == "FAILURE" } | length)
-        let review = ($pr | get -o reviewDecision | default "")
-        let draft = $pr.isDraft
+        let c = (work-pr classify $pr)
 
-        let action = (
-            if $draft and $failed > 0    { "draft+CI" }
-            else if $draft               { "draft" }
-            else if $failed > 0          { "fix CI" }
-            else if $review == "CHANGES_REQUESTED" { "changes req" }
-            else if $review == "REVIEW_REQUIRED"   { "needs review" }
-            else if $pr.mergeable == "MERGEABLE"   { "MERGE" }
-            else                                    { "blocked" }
-        )
-
-        let action_colored = (match $action {
+        # Colours track the SketchyBar chip's families (bin/pr-watch-open C_*), so
+        # a state reads the same on the bar and in this table:
+        #   fix family (orange) → red · conflict (C_CONF) → light_red
+        #   CI… (gold) → yellow_bold · resolve (sky) → cyan
+        let action_colored = (match $c.action {
             "MERGE"        => $"(ansi green_bold)MERGE(ansi reset)",
+            "resolve"      => $"(ansi cyan)resolve(ansi reset)",
             "needs review" => $"(ansi yellow)needs review(ansi reset)",
             "blocked"      => $"(ansi yellow)blocked(ansi reset)",
+            "CI…"          => $"(ansi yellow_bold)CI…(ansi reset)",
             "fix CI"       => $"(ansi red)fix CI(ansi reset)",
+            "conflict"     => $"(ansi light_red)conflict(ansi reset)",
             "changes req"  => $"(ansi red)changes req(ansi reset)",
+            "run e2e"      => $"(ansi red)run e2e(ansi reset)",
             "draft+CI"     => $"(ansi red)draft+CI(ansi reset)",
             "draft"        => $"(ansi purple)draft(ansi reset)",
-            _              => $action,
+            _              => $c.action,
         })
 
         {
-            "#": $pr.number,
+            "#": $c.number,
             action: $action_colored,
-            title: ($pr.title | str substring 0..60),
-            branch: ($pr.headRefName | str substring 0..40),
-            failed: (if $failed > 0 { $failed } else { null }),
-            url: $pr.url,
+            title: ($c.title | str substring 0..60),
+            branch: ($c.headRefName | str substring 0..40),
+            failed: (if $c.failed > 0 { $c.failed } else { null }),
+            url: $c.url,
+            rank: $c.rank,
         }
     })
 
-    let order = ["MERGE" "needs review" "blocked" "fix CI" "changes req" "draft" "draft+CI"]
-
-    $rows | sort-by { |r|
-        let plain = ($r.action | ansi strip)
-        $order | enumerate | where { |e| $e.item == $plain } | get -o 0.index | default 99
-    }
+    # `classify` already carries the shared rank, so the display order is the same
+    # one the menu's relevance sort and the chip use:
+    #   MERGE < resolve < needs review < blocked < CI… < fix CI < conflict
+    #   < changes req < run e2e < draft < draft+CI
+    $rows | sort-by rank | reject rank
 }
