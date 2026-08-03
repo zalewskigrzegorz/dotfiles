@@ -27,7 +27,10 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 echo "code-index-tools: installing serena-agent (uv tool)…"
-uv tool install -p 3.13 serena-agent
+# NOTE: temporarily pinned to Greg's fork branch that adds nushell (nu --lsp) support.
+# Revert to `uv tool install -p 3.13 serena-agent` once the upstream PR merges + releases.
+uv tool install -p 3.13 --reinstall \
+  "git+https://github.com/zalewskigrzegorz/serena.git@feat/nushell-language-support"
 
 echo "code-index-tools: installing cocoindex-code[full] (uv tool)…"
 # heavy: pulls sentence-transformers + torch on first install.
