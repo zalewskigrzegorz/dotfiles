@@ -124,3 +124,6 @@ dot_config/streamdeck/ProfilesV3-snapshot*/
 .mib2c-updaterc
 # CocoIndex Code (ccc)
 /.cocoindex_code/
+
+# serena per-project cache (may contain work paths)
+.serena/
