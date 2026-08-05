@@ -17,6 +17,16 @@ mcp-debugger exposes real language debuggers as MCP tools. Prefer it over print-
 
 Do NOT reach for it when a single glance at the code or one log line would answer the question — session setup costs a few seconds and the target must be runnable.
 
+<!-- LOCAL NOTE (Greg, 2026-08-05 — not upstream): -->
+> **⚠️ Do NOT launch `.ts` files on the released v0.23.0.** `start_debugging` on a
+> `.ts` scriptPath hangs forever (tested: tsx auto-detect, explicit
+> `runtimeExecutable`, `--import tsx` loader, attach — none bind breakpoints).
+> Worse: each hung attempt orphans a `proxy-bootstrap.js` node process that leaks
+> memory until V8 OOM-crashes (~20 min, macOS crash popups). Debug the compiled
+> `.js` instead, or Python. If a launch ever hangs: `pkill -f proxy-bootstrap.js`.
+> Upstream fixed the js-debug hangs 2026-08-03/04 — retest when npm has >0.23.0
+> (a weekly claude.ai routine watches for the release).
+
 ## The golden path (launch)
 
 ```text
