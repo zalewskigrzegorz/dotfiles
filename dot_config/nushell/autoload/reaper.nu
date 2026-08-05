@@ -27,6 +27,17 @@
 # through it (vite/eslint/tsc/next/…), the rest catch native/binary tools.
 const DEV_PATTERN = '(?i)(\bnode\b|\bdeno\b|\bbun\b|vite|esbuild|rollup|webpack|turbo|next(-server)?|nuxt|remix|astro|\btsc\b|tsserver|ts-node|\btsx\b|eslint|prettier|biome|\bjest\b|vitest|mocha|cypress|playwright|karma|nodemon|\bpm2\b|concurrently|storybook|\bnx\b|watchman|\bnpm\b|pnpm|yarn)'
 
+# code-index jobs: Serena LSP servers. These are python, so DEV_PATTERN misses
+# them — but a stray serena from a closed worktree chews CPU just like a leftover
+# vite. Tagged KIND=serena so you know what it is before you reap it.
+const CODEINDEX_PATTERN = '(?i)(serena-agent|serena.*start-mcp)'
+
+# classify a matched process for the KIND column.
+def reap-kind [args: string]: nothing -> string {
+    if $args =~ '(?i)(serena)' { "🧭 serena"
+    } else { "dev" }
+}
+
 # ~/foo instead of /Users/greg/foo, then keep it short enough for the column.
 def reap-short-dir [p: string]: nothing -> string {
     let h = ($env.HOME | default "")
@@ -86,7 +97,7 @@ export def reaper [
             let etime = (if ($m | is-empty) { "?" } else { ($m | first | get etime) })
             { pid: $p.pid, cpu: $p.cpu, mem: $p.mem, etime: $etime, args: $args }
         }
-        | where {|r| $r.args =~ $DEV_PATTERN }
+        | where {|r| $r.args =~ $DEV_PATTERN or $r.args =~ $CODEINDEX_PATTERN }
         | where cpu >= $min_cpu
         | sort-by cpu --reverse
     )
@@ -98,6 +109,7 @@ export def reaper [
             let dir = ($cwds | get -o ($r.pid | into string) | default "?")
             {
                 key: $"p:($r.pid)"
+                kind: (reap-kind $r.args)
                 cpu_disp: $"($r.cpu | math round --precision 1)%"
                 mem_disp: ($r.mem | into string)
                 etime: $r.etime
@@ -116,6 +128,7 @@ export def reaper [
                     let f = ($l | split row "||")
                     {
                         key: $"d:($f.0)"
+                        kind: "🐳 docker"
                         cpu_disp: "docker"
                         mem_disp: "—"
                         etime: ($f | get -o 3 | default "")
@@ -136,7 +149,7 @@ export def reaper [
 
     # --- report-only: pretty table, no kill
     if $report {
-        print ($rows | select cpu_disp mem_disp etime dir cmd | rename CPU RSS UPTIME DIR COMMAND | table)
+        print ($rows | select kind cpu_disp mem_disp etime dir cmd | rename KIND CPU RSS UPTIME DIR COMMAND | table)
         return
     }
 
@@ -144,6 +157,7 @@ export def reaper [
     let lines = (
         $rows | each {|r|
             let visible = ([
+                ($r.kind     | fill --alignment left  --width 10)
                 ($r.cpu_disp | fill --alignment right --width 7)
                 ($r.mem_disp | fill --alignment right --width 10)
                 ($r.etime    | fill --alignment right --width 12)
@@ -156,11 +170,11 @@ export def reaper [
 
     if (which fzf | is-empty) {
         print "reap: fzf not found — showing report instead."
-        print ($rows | select cpu_disp mem_disp etime dir cmd | rename CPU RSS UPTIME DIR COMMAND | table)
+        print ($rows | select kind cpu_disp mem_disp etime dir cmd | rename KIND CPU RSS UPTIME DIR COMMAND | table)
         return
     }
 
-    let header = ($"    CPU        RSS       UPTIME  DIR                                  COMMAND")
+    let header = ($"    KIND        CPU        RSS       UPTIME  DIR                                  COMMAND")
     let picked = (
         $lines | str join "\n"
         | ^fzf --multi --delimiter "\t" --with-nth "2.."
