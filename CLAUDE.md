@@ -137,26 +137,22 @@ Plugins / MCP / skills sources of truth:
 
 Anything installed via `/plugin install`, `claude mcp add`, or `~/.claude/skills/<new>` on a machine **must** be reflected in the matching source above before the next `chezmoi apply`.
 
-#### Local code-indexing tools (Serena + CocoIndex)
+#### Local code-indexing tools (Serena)
 
-100%-local semantic code search/nav for Claude Code — no cloud, no API keys.
-Both CLIs are installed as **uv tools** (→ `~/.local/bin`) by
+100%-local semantic code nav for Claude Code — no cloud, no API keys.
+Installed as a **uv tool** (→ `~/.local/bin`) by
 `run_onchange_after_26-code-index-tools.sh.tmpl`.
 
 - **Serena** (`oraios/serena`) — LSP-based semantic nav. User-scope MCP in
   `agent-mcp/mcp-servers.json.tmpl` (`serena start-mcp-server --context claude-code
   --project-from-cwd`). Auto-downloads its own TS/JS language server on first use
   — no `typescript-language-server`/`typescript` needed on PATH.
-- **CocoIndex** (`cocoindex-io/cocoindex-code`) — AST semantic search, `ccc` CLI.
-  Installed as `cocoindex-code[full]` (**`[full]` is mandatory** — local
-  SentenceTransformers + embedded LMDB; bare install silently needs a cloud key).
-  Its Claude Code skill **and** its `ccc mcp` server both come from the
-  `cocoindex-code` **plugin** (`agent-plugins/plugins.json.tmpl`) — do NOT also
-  add `ccc mcp` to `agent-mcp` (double-registers). The `ccc mcp` server shows
-  "Failed to connect" until a one-time `ccc init` (interactive, picks the local
-  model) — that's on-demand; the skill runs it on first real use.
-- Version check is `ccc doctor` (prints `Version:`), **not** `ccc version`/`--version`.
-- Indexing (`ccc index`) is on-demand per repo — nothing indexed by setup.
+- **CocoIndex (`ccc`) REMOVED 2026-08-05.** Each session's `ccc mcp` loaded a
+  local embedding model into its own Python fleet and re-indexed every worktree
+  separately; with ~7 concurrent sessions the wake-from-sleep thundering herd
+  (8 serena + 22 cocoindex procs) starved WindowServer and froze the UI. Net
+  cost > benefit. Gone from the plugin list, install script, and rules. Don't
+  reinstall it or add `ccc` anywhere.
 
 ### Skille z skills.sh (ephemeral)
 

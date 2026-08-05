@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Install local code-indexing CLIs as uv tools (→ ~/.local/bin).
 #   - serena-agent      : LSP-based semantic navigation MCP (oraios/serena)
-#   - cocoindex-code    : local AST semantic search + `ccc` CLI (cocoindex-io)
 #
-# `[full]` extra on cocoindex is MANDATORY: it pulls local SentenceTransformers
-# embeddings (arctic-embed-xs) + embedded LMDB. Without it the CLI silently
-# defaults to a cloud embedding provider that needs an API key.
+# CocoIndex (`ccc`) REMOVED 2026-08-05: per-session `ccc mcp` loaded a local
+# embedding model into its own Python fleet, and on multi-worktree work it
+# re-indexed each worktree separately. With ~7 concurrent Claude sessions the
+# wake-from-sleep thundering herd (8 serena + 22 cocoindex procs) starved
+# WindowServer and froze the UI. Net cost > benefit, so it's gone. Serena stays.
 #
 # run_onchange: chezmoi re-runs this whenever the rendered content changes.
 
@@ -32,12 +33,7 @@ echo "code-index-tools: installing serena-agent (uv tool)…"
 uv tool install -p 3.13 --reinstall \
   "git+https://github.com/zalewskigrzegorz/serena.git@feat/nushell-language-support"
 
-echo "code-index-tools: installing cocoindex-code[full] (uv tool)…"
-# heavy: pulls sentence-transformers + torch on first install.
-# --with 'mcp<2': cocoindex-code 0.2.39 imports `mcp.server.fastmcp` (MCP SDK
-# 1.x API) but its unpinned `mcp>=1.0.0` pulls the breaking 2.0 release, which
-# moved that module → `ccc mcp` crashes with ModuleNotFoundError. Pin to 1.x so
-# the MCP server actually starts. Drop once upstream caps the mcp dependency.
-uv tool install --upgrade --with 'mcp<2' 'cocoindex-code[full]'
+# Best-effort: drop a previously-installed cocoindex-code tool (removed 2026-08-05).
+uv tool uninstall cocoindex-code >/dev/null 2>&1 || true
 
 echo "code-index-tools: done."
