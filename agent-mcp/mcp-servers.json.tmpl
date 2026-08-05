@@ -17,13 +17,20 @@
         "{{ .chezmoi.homeDir }}/.config/nushell/env.nu"
       ]
     },
-    "console-ninja": {
-      "command": "node",
-      "args": ["{{ .chezmoi.homeDir }}/.console-ninja/mcp/"]
+    {{/* console-ninja + wallaby MCP REMOVED 2026-08-05 — never worked in Claude
+         Code sessions (Greg's report), sat dead in the registry. Runtime JS
+         debugging is covered by mcp-debugger (DAP) below. */}}
+    "mcp-debugger": {
+      "command": "npx",
+      "args": ["-y", "@debugmcp/mcp-debugger", "stdio"]
     },
-    "wallaby": {
-      "command": "node",
-      "args": ["{{ .chezmoi.homeDir }}/.wallaby/mcp/"]
+    {{/* posit-dev/mcp-repl — persistent Python REPL, 1 tool, embedded runtime
+         (no Jupyter), sandboxed (network off, writes scoped to workspace).
+         JS/Node REPL deliberately skipped 2026-08-05: nothing maintained exists
+         (pydantic archived, jupyter-kernel-mcp dead); revisit ~2027-02. */}}
+    "repl": {
+      "command": "uvx",
+      "args": ["posit-mcp-repl", "--interpreter", "python"]
     },
     {{/* playwright MCP REMOVED 2026-07-27 (was commented out since 2026-05-24). agent-browser covered every automation case, so the block went away along with the global @playwright/cli. This says nothing about Playwright as a test framework — the work repo's e2e suite and the `pwt` nushell helper are untouched. To bring the MCP back: "playwright": { "command": "npx", "args": ["@playwright/mcp@latest"] }.
     */}}

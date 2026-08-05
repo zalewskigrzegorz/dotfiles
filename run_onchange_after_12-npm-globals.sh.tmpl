@@ -19,8 +19,11 @@ fi
 # Skill-driven tools the agents depend on. See agent-skills/<name>/SKILL.md for
 # why each one is here. Keep this list short — npm globals rot fast.
 tools=(
-  "@wallabyjs/cli"   # Wallaby standalone CLI (agent-skills/wallaby/SKILL.md)
+  "tsx"   # TS runtime for mcp-debugger's js-debug adapter (agent-skills/mcp-debugger);
+          # it probes node_modules/.bin then PATH — global tsx = .ts debugging works in any repo
 )
+# @wallabyjs/cli removed 2026-08-05 — wallaby never worked in Claude sessions;
+# DAP debugging goes through mcp-debugger now (agent-mcp/mcp-servers.json.tmpl).
 
 for tool in "${tools[@]}"; do
   echo "npm install -g $tool"

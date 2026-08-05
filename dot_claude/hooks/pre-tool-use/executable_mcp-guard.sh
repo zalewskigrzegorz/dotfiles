@@ -45,6 +45,11 @@ esac
 case "$TOOL_NAME" in
   mcp__draw__*) exit 0 ;;
   mcp__claude-in-chrome__*) exit 0 ;;
+  # mcp-debugger — local DAP debugging; launching/stepping the debuggee is no more
+  # power than Bash already grants, and MUT regex would false-positive on set_breakpoint.
+  mcp__mcp-debugger__*) exit 0 ;;
+  # posit mcp-repl — sandboxed local Python REPL (network off, writes scoped to workspace).
+  mcp__repl__*) exit 0 ;;
   # Homey get_*/list_* — read-only; MUT regex false-positives on "schedule" noun.
   mcp__Homey__get_*|mcp__Homey__list_*|mcp__Homey__device_state|mcp__Homey__home_report) exit 0 ;;
   # Hindsight memory layer — the whole memory conversation (recall/reflect/retain/
