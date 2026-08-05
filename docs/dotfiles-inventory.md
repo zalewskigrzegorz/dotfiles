@@ -58,16 +58,13 @@ cloud embedding provider, no external vector DB, no API keys.
 | Tool | uv package | Role | Wired via |
 |---|---|---|---|
 | Serena | `serena-agent` | LSP-based semantic nav MCP; auto-downloads its own TS/JS language server | user-scope MCP in `agent-mcp/mcp-servers.json.tmpl` |
-| CocoIndex | `cocoindex-code[full]` | AST semantic search, `ccc` CLI; local SentenceTransformers + embedded LMDB | `cocoindex-code` plugin (`agent-plugins/plugins.json.tmpl`) ships both the skill and the `ccc mcp` server |
 
-- **`[full]` extra is mandatory** for CocoIndex — bare `cocoindex-code` silently
-  defaults to a cloud embedding provider that needs an API key.
-- Do **not** also declare `ccc mcp` in `agent-mcp` — the plugin already registers
-  it; a second copy just duplicates the server.
-- `ccc mcp` shows "Failed to connect" until a one-time `ccc init` (interactive,
-  picks the local model). On-demand — the skill runs it on first real use.
-- Version check: `ccc doctor` (prints `Version:`), not `ccc version`.
-- Indexing (`ccc index`) is on-demand per repo — setup indexes nothing.
+- **CocoIndex (`ccc`) removed 2026-08-05.** Per-session `ccc mcp` loaded a local
+  embedding model into its own Python fleet and re-indexed each worktree; with
+  ~7 concurrent Claude sessions the wake-from-sleep herd (8 serena + 22 cocoindex
+  procs) starved WindowServer and froze the UI. Dropped from the plugin list
+  (`agent-plugins/plugins.json.tmpl`), the install script, and the rules. Serena
+  is the only local code-intelligence server now.
 
 ## Cursor
 
