@@ -25,6 +25,9 @@
       "Bash(ls *)",
       "Bash(rg *)",
       "Bash(fd *)",
+      "Bash(ast-grep *)",
+      "Bash(sg run *)",
+      "Bash(sg scan *)",
       "Bash(which *)",
       "Bash(cat *)",
       "Bash(head *)",
@@ -275,7 +278,9 @@
       "mcp__claude_ai_Slack__slack_read_*",
       "mcp__claude_ai_Slack__slack_search_*",
       "mcp__hindsight__*",
-      "mcp__mempalace__*"
+      "mcp__mempalace__*",
+      "mcp__mcp-debugger__*",
+      "mcp__repl__*"
     ],
     "deny": [
       "Read(**/.env)",
