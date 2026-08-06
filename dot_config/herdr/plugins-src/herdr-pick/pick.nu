@@ -50,7 +50,7 @@ def pick_file [] {
         all_scrollback
         | parse --regex r#'([~\w./@-]*/[\w./@-]+)'#
         | get capture0
-        | each { |t| $t | str trim --right --char ':' | str trim --right --char ')' | path expand }
+        | each { |t| $t | str trim --right --char ':' | str trim --right --char ')' | str trim --right --char '.' | str trim --right --char ',' | path expand }
         | uniq
         | where { |p| ($p | path exists) and (($p | path type) == "file") }
     )
