@@ -114,7 +114,7 @@ Cluster duplicates (P4).
 
 Recommend `Post` for Critical by default; judgment for Suggestion/Nit. Zero findings → skip to B4.
 
-Before surfacing each batch, run the drafted `comment_body` values through greg-voice (P5.5). The body in the question is the humanized one — that's what gets posted in B5. The verdict summary body (B4/B5) goes through the same gate.
+Before surfacing each batch, run the drafted `comment_body` values through greg-voice (P5.5). The body in the question is the humanized one — that's what gets posted in B5. If a non-empty review body is unavoidable (B5 exceptions), it goes through the same gate.
 
 ## B4. Verdict
 
@@ -138,13 +138,18 @@ gh api --method POST "repos/$OWNER/$REPO/pulls/$NUMBER/reviews" --input - <<'JSO
 {
   "commit_id": "<SHA>",
   "event": "<EVENT>",
-  "body": "<one- or two-line summary; include any findings that couldn't be anchored inline>",
+  "body": "",
   "comments": [
     { "path": "<path>", "line": <line>, "side": "RIGHT", "body": "<comment_body>" }
   ]
 }
 JSON
 ```
+
+**Review body stays empty by default** — inline comments carry the feedback, no recap paragraph on the PR. Exceptions only:
+
+* GitHub requires a non-empty `body` for `REQUEST_CHANGES` and `COMMENT` events — use one terse line there (e.g. `"see inline comments"`), never a summary of the findings.
+* A finding that couldn't be anchored inline (B2) may go in the body — just that finding, nothing else.
 
 If you genuinely need a file: `PAYLOAD=$(mktemp -t g-pr-review.XXXXXX.json)` — never a fixed `/tmp/g-pr-review.json`.
 
@@ -255,6 +260,7 @@ If user picks a verdict, submit via B5 (single `gh api ... /reviews` call, `comm
 * A finalizing `gh pr review` (via B5/C5) is allowed **only** after explicit Yes. Never finalize silently.
 * Never delete or edit existing comments on the PR.
 * Never write the review payload to a fixed temp path. Use stdin heredoc, or `mktemp` if a file is required.
+* Never write a summary/recap into the review `body` — it stays empty except the two B5 exceptions (API-required one-liner, un-anchorable finding).
 * **When `MINE=true`, stop and redirect to `g-pr-respond`.** This skill never applies the author's fix, commits, or answers reviewers as the author.
 * Don't resolve threads that belong to another reviewer — a thread opened by X and answered by the author is X's to close.
 
