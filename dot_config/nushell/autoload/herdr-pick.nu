@@ -27,7 +27,7 @@ def of [] {
         ^herdr pane read $pane --source recent --lines 500
         | parse --regex r#'([~\w./@-]*/[\w./@-]+)'#
         | get capture0
-        | each { |t| $t | str trim --right --char ':' | str trim --right --char ')' | path expand }
+        | each { |t| $t | str trim --right --char ':' | str trim --right --char ')' | str trim --right --char '.' | str trim --right --char ',' | path expand }
         | uniq
         | where { |p| ($p | path exists) and (($p | path type) == "file") }
     )
