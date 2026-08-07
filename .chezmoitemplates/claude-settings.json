@@ -545,5 +545,5 @@
   "worktree": {
     "baseRef": "fresh"
   },
-  "model": "opus[1m]"
+  "model": "claude-opus-4-8[1m]"
 }

@@ -1357,15 +1357,54 @@ def "work-pr _fzf" [rows: list<string>, prompt: string, header: string]: nothing
     $r.stdout | lines | where {|l| ($l | str trim) != ""} | each {|l| $l | split row "\t" | first }
 }
 
+# Ordered registry ids the current state calls for — the picker's top section.
+# Composite on purpose (every applicable next step, not a single verdict): the
+# same signals as `work-pr action` / `_do-blockers`, in unblock-the-merge order.
+# Promotion overrides `relevant`: the update-* rows are only `rel` on BEHIND,
+# but a CONFLICTING PR must still surface them on top.
+def "work-pr _suggest" [st: record]: nothing -> list<string> {
+    mut out = []
+    if (work-pr _unresolved-n $st) > 0 {
+        $out = ($out | append "resolve")
+        if $st.isMine { $out = ($out | append "respond") }
+    }
+    if $st.failed > 0 {
+        if $st.isMine { $out = ($out | append "fix-ci") }
+        $out = ($out | append ["logs" "rerun"])
+    }
+    if $st.mergeable == "CONFLICTING" {
+        $out = ($out | append ["update-merge" "update-rebase"])
+    } else if $st.mergeStateStatus == "BEHIND" {
+        $out = ($out | append "update-merge")
+    }
+    if ($st.e2e_expected > 0) and ($st.e2e_running == 0) { $out = ($out | append "run_e2e") }
+    if $st.pending > 0 { $out = ($out | append "watch") }
+    if $st.reviewDecision == "CHANGES_REQUESTED" { $out = ($out | append "re-review") }
+    if $st.isDraft { $out = ($out | append "ready") }
+    # The classifier already gates MERGE on green checks + no unresolved; isMine
+    # mirrors the merge row's own `relevant`.
+    if (($st | get -o action | default "") == "MERGE") and $st.isMine and (not $st.isDraft) {
+        $out = ($out | append "merge")
+    }
+    $out | uniq
+}
+
 # Relevance PARTITION, not sort-by: `sort-by rel --reverse` reorders within each
-# group, which shuffles the registry order the rows were written in.
+# group, which shuffles the registry order the rows were written in. Suggested
+# rows go first, in `_suggest`'s order — fzf's cursor starts on row 1, so a bare
+# Enter does the right thing for the PR's current state.
 def "work-pr _pick" [st: record, reg: list<record>]: nothing -> list<string> {
     let a = (work-pr _annotate $reg $st)
-    let hot = ($a | where rel)
-    let cold = ($a | where {|it| not $it.rel})
-    let ordered = ($hot | append $cold)
+    let sug = (work-pr _suggest $st)
+    # each-over-sug, not `where id in $sug`: keeps _suggest's order, not the
+    # registry's.
+    let sug_rows = ($sug | each {|id| $a | where id == $id } | flatten)
+    let rest = ($a | where {|it| not ($it.id in $sug)})
+    let hot = ($rest | where rel)
+    let cold = ($rest | where {|it| not $it.rel})
+    let ordered = ($sug_rows | append $hot | append $cold)
     let rows = ($ordered | each {|it|
-        let mark = (if $it.rel { "" } else { "· " })
+        let mark = (if ($it.id in $sug) { "→ " } else if $it.rel { "" } else { "· " })
         let suffix = (if ($it.ann | is-empty) { "" } else { $" \(($it.ann)\)" })
         $"($it.id)\t($mark)($it.disp_glyph)  ($it.disp_label | fill -w 34)($suffix)"
     })
@@ -1374,6 +1413,82 @@ def "work-pr _pick" [st: record, reg: list<record>]: nothing -> list<string> {
 }
 
 # ── dispatcher ──────────────────────────────────────────────────────────────
+
+# One pass over a picked id set: split registry/stack/label ids, validate labels
+# BEFORE the first write, order the plan (gh → labels → stack → worktree → at
+# most one agent), run it. `took_over` is true when an agent/worktree action ran
+# — focus already moved to another workspace, so the menu loop must not reclaim
+# this screen with a fresh picker.
+def "work-pr _dispatch" [st: record, ids: list<string>, reg: list<record>, ctx: record]: nothing -> record {
+    let known_ids = ($reg | get id)
+    # `stack:<sub>` reaches _do-stack directly; anything else unknown is treated
+    # as a literal label name (pr-menu compatibility).
+    let stack_ids = ($ids | where {|i| $i | str starts-with "stack:"})
+    let reg_ids = ($ids | where {|i| $i in $known_ids})
+    let label_ids = ($ids | where {|i| (not ($i in $known_ids)) and (not ($i | str starts-with "stack:"))})
+
+    # `resolve` stays a RESERVED id: never a label alias, excluded from label
+    # validation, dispatched on its id. A repo label literally named `resolve`
+    # therefore cannot be toggled here.
+    #
+    # Which registry rows are label toggles comes from the registry itself
+    # (`kind: "label"`), not from a second list that a 4th label row would silently
+    # skip — skipping it means skipping the validate-before-first-write guard that
+    # stops a TAB multi-select from half-applying.
+    let label_rows = ($reg | where {|r| ($r | get -o kind | default "") == "label"} | get id)
+    let wanted = (($reg_ids | where {|i| $i in $label_rows}) | append $label_ids)
+    work-pr _validate-labels $st.repo $wanted
+
+    # gh actions first (registry order), then worktree, then AT MOST ONE agent —
+    # the agent takes over the terminal, so it runs last.
+    let gh_ids = ($reg | where group == "gh" | get id | where {|i| $i in $reg_ids})
+    let wt_ids = ($reg | where group == "worktree" | get id | where {|i| $i in $reg_ids})
+    let ag_all = ($reg | where group == "agent" | get id | where {|i| $i in $reg_ids})
+    let ag_ids = (
+        if ($ag_all | length) > 1 {
+            print -e $"more than one agent intent selected — running (($ag_all | first)), skipping the rest"
+            [($ag_all | first)]
+        } else { $ag_all }
+    )
+    # A worktree row alongside an agent row means TWO claude sessions in the same
+    # tree: the worktree row goes through `work _apply-layout`, which auto-launches
+    # a bare `claude`, and the agent row then opens its own briefed tab. The agent
+    # row already creates the tree, so the worktree row is redundant — drop it and
+    # say so rather than spawning a second session nobody asked for.
+    let wt_kept = (
+        if ($ag_ids | is-not-empty) and ($wt_ids | is-not-empty) {
+            print -e $"($ag_ids | first) already creates the worktree — skipping ($wt_ids | str join ', ')"
+            []
+        } else { $wt_ids }
+    )
+    let plan = ($gh_ids | append $label_ids | append $stack_ids | append $wt_kept | append $ag_ids)
+
+    mut failures = 0
+    mut results = []
+    for id in $plan {
+        let row = ($reg | where id == $id)
+        let f = (
+            if ($row | is-empty) {
+                if ($id | str starts-with "stack:") {
+                    work-pr _do-stack $st $id $ctx.yes $ctx.dry
+                } else {
+                    work-pr _do-label $st $id $ctx.labels $ctx.dry
+                }
+            } else {
+                let r0 = ($row | first)
+                do $r0.run $st $ctx
+            }
+        )
+        let n = (if ($f | describe) == "int" { $f } else { 0 })
+        $failures += $n
+        $results = ($results | append {id: $id, failures: $n})
+    }
+    {
+        failures: $failures
+        results: $results
+        took_over: (($ag_ids | is-not-empty) or ($wt_kept | is-not-empty))
+    }
+}
 
 # `--action` accepts, in this order: a registry id, a `stack:<sub>` passthrough, an
 # alias from WORKPR_LABEL_ALIASES, or — pr-menu compatibility — a literal repo
@@ -1449,7 +1564,7 @@ def "work pr" [
     # Skip the reads a path does not need: a pure label action never touches
     # GraphQL. One round trip shared by the menu count and the mutation set.
     let needs_threads = (($act_id | is-empty) or ($act_id in ["resolve" "respond" "blockers"]))
-    let st = (
+    mut st = (
         if $needs_threads {
             work-pr _state $target.repo $target.num
         } else {
@@ -1457,78 +1572,36 @@ def "work pr" [
         }
     )
 
-    let ids = (
-        if ($act_id | is-not-empty) {
-            [$act_id]
-        } else {
-            work-pr _pick $st $reg
-        }
-    )
-    # Cancel deliberately does NOT hold the screen (mirrors pr-menu's exit 0).
-    if ($ids | is-empty) { return }
-
-    # `stack:<sub>` reaches _do-stack directly; anything else unknown is treated
-    # as a literal label name (pr-menu compatibility).
-    let stack_ids = ($ids | where {|i| $i | str starts-with "stack:"})
-    let reg_ids = ($ids | where {|i| $i in $known_ids})
-    let label_ids = ($ids | where {|i| (not ($i in $known_ids)) and (not ($i | str starts-with "stack:"))})
-
-    # `resolve` stays a RESERVED id: never a label alias, excluded from label
-    # validation, dispatched on its id. A repo label literally named `resolve`
-    # therefore cannot be toggled here.
-    #
-    # Which registry rows are label toggles comes from the registry itself
-    # (`kind: "label"`), not from a second list that a 4th label row would silently
-    # skip — skipping it means skipping the validate-before-first-write guard that
-    # stops a TAB multi-select from half-applying.
-    let label_rows = ($reg | where {|r| ($r | get -o kind | default "") == "label"} | get id)
-    let wanted = (($reg_ids | where {|i| $i in $label_rows}) | append $label_ids)
-    work-pr _validate-labels $target.repo $wanted
-
-    # gh actions first (registry order), then worktree, then AT MOST ONE agent —
-    # the agent takes over the terminal, so it runs last.
-    let gh_ids = ($reg | where group == "gh" | get id | where {|i| $i in $reg_ids})
-    let wt_ids = ($reg | where group == "worktree" | get id | where {|i| $i in $reg_ids})
-    let ag_all = ($reg | where group == "agent" | get id | where {|i| $i in $reg_ids})
-    let ag_ids = (
-        if ($ag_all | length) > 1 {
-            print -e $"more than one agent intent selected — running (($ag_all | first)), skipping the rest"
-            [($ag_all | first)]
-        } else { $ag_all }
-    )
-    # A worktree row alongside an agent row means TWO claude sessions in the same
-    # tree: the worktree row goes through `work _apply-layout`, which auto-launches
-    # a bare `claude`, and the agent row then opens its own briefed tab. The agent
-    # row already creates the tree, so the worktree row is redundant — drop it and
-    # say so rather than spawning a second session nobody asked for.
-    let wt_kept = (
-        if ($ag_ids | is-not-empty) and ($wt_ids | is-not-empty) {
-            print -e $"($ag_ids | first) already creates the worktree — skipping ($wt_ids | str join ', ')"
-            []
-        } else { $wt_ids }
-    )
-    let plan = ($gh_ids | append $label_ids | append $stack_ids | append $wt_kept | append $ag_ids)
-
-    let ctx = {yes: $yes, dry: $dry_run, focus: (not $no_focus), labels: $st.labels, drop: $drop}
     mut failures = 0
     mut results = []
-    for id in $plan {
-        let row = ($reg | where id == $id)
-        let f = (
-            if ($row | is-empty) {
-                if ($id | str starts-with "stack:") {
-                    work-pr _do-stack $st $id $yes $dry_run
-                } else {
-                    work-pr _do-label $st $id $st.labels $dry_run
-                }
-            } else {
-                let r0 = ($row | first)
-                do $r0.run $st $ctx
-            }
-        )
-        let n = (if ($f | describe) == "int" { $f } else { 0 })
-        $failures += $n
-        $results = ($results | append {id: $id, failures: $n})
+    if ($act_id | is-not-empty) {
+        # Headless/back-compat path: exactly one pass, no loop — gh-dash `T`,
+        # scripts and `--json` consumers keep today's behaviour.
+        let ctx = {yes: $yes, dry: $dry_run, focus: (not $no_focus), labels: $st.labels, drop: $drop}
+        let d = (work-pr _dispatch $st [$act_id] $reg $ctx)
+        $failures = $d.failures
+        $results = $d.results
+    } else {
+        # Menu loop: run the picked actions, refetch, offer the menu again — one
+        # PR usually needs several. Esc/Ctrl-C leaves; so does an agent/worktree
+        # action, because focus already moved to another workspace.
+        loop {
+            let ids = (work-pr _pick $st $reg)
+            if ($ids | is-empty) { break }
+            # ctx is rebuilt per iteration: the `labels` snapshot must track what
+            # the previous pass just toggled.
+            let ctx = {yes: $yes, dry: $dry_run, focus: (not $no_focus), labels: $st.labels, drop: $drop}
+            let d = (work-pr _dispatch $st $ids $reg $ctx)
+            $failures += $d.failures
+            $results = ($results | append $d.results)
+            if $d.took_over { break }
+            # Full refetch, threads included — the counters, annotations and
+            # suggestion order have to reflect what the actions just changed.
+            $st = (work-pr _state $st.repo $st.num)
+        }
+        # Cancel with nothing run deliberately does NOT hold the screen and emits
+        # no JSON (mirrors pr-menu's exit 0 — the pre-loop behaviour).
+        if ($results | is-empty) { return }
     }
 
     # --json BEFORE --pause: the hold blocks on `input`, and a caller that asked for

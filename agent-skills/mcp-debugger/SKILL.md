@@ -26,6 +26,22 @@ Do NOT reach for it when a single glance at the code or one log line would answe
 > `.js` instead, or Python. If a launch ever hangs: `pkill -f proxy-bootstrap.js`.
 > Upstream fixed the js-debug hangs 2026-08-03/04 — retest when npm has >0.23.0
 > (a weekly claude.ai routine watches for the release).
+> Retested upstream main 2026-08-06 (local build): hang + orphans GONE
+> (`start_debugging` returns ~1.4s, clean), but `.ts` breakpoints STILL never
+> bind — tsx is detected, the debuggee runs to completion (exitCode=0) before
+> js-debug adopts the child, session ends terminated. `.js` on the same build
+> works perfectly (entry pause, breakpoints, locals). So pulling from upstream
+> only removes the OOM landmine, not the TS gap — keep debugging compiled `.js`.
+>
+> **✅ TS debugging that DOES work on 0.23.0 (verified 2026-08-06): breakpoints
+> in `.ts` sources via the compiled `.js` + sourcemaps.** Build with sourcemaps
+> (`tsc --sourceMap` / esbuild `--sourcemap`), then:
+> `set_breakpoint` on the **`.ts` file**, and `start_debugging` with
+> `scriptPath: <dist>/entry.js` + `dapLaunchArgs: { sourceMaps: true,
+> outFiles: ["<dist>/**/*.js"], stopOnEntry: true }`. `stopOnEntry` is
+> REQUIRED — without it, short programs run to completion before js-debug binds
+> the sourcemapped breakpoints. Stack frames, breakpoint hits, and locals all
+> map back to the `.ts` source. Only the `scriptPath` must stay `.js`.
 
 ## The golden path (launch)
 

@@ -46,11 +46,29 @@ def pick_url [] {
 }
 
 def pick_file [] {
+    # Per-pane scan (not the joined blob): relative paths in a pane's output
+    # only make sense against that pane's own cwd.
+    let panes = (
+        try { ^herdr pane list | from json | get -o result.panes | default [] } catch { [] }
+    )
     let files = (
-        all_scrollback
-        | parse --regex r#'([~\w./@-]*/[\w./@-]+)'#
-        | get capture0
-        | each { |t| $t | str trim --right --char ':' | str trim --right --char ')' | str trim --right --char '.' | str trim --right --char ',' | path expand }
+        $panes
+        | each { |p|
+            let cwd = ($p | get -o foreground_cwd | default ($p | get -o cwd | default $env.HOME))
+            try { ^herdr pane read $p.pane_id --source visible --lines 500 } catch { "" }
+            | ansi strip
+            | parse --regex r#'([~\w./@-]*/[\w./@-]+)'#
+            | get capture0
+            | each { |t| $t | str trim --right --char ':' | str trim --right --char ')' | str trim --right --char '.' | str trim --right --char ',' }
+            | each { |t|
+                if ($t | str starts-with '~') or ($t | str starts-with '/') {
+                    $t | path expand
+                } else {
+                    [$cwd $t] | path join | path expand
+                }
+            }
+        }
+        | flatten
         | uniq
         | where { |p| ($p | path exists) and (($p | path type) == "file") }
     )

@@ -3,6 +3,7 @@
 # `tina "paczki na dole"`           → literal TTS, no LLM (default, exact wording)
 # `tina --ai "..."`                 → let the LLM phrase it (it WILL rewrite you)
 # `tina -t livingroom "..."`        → one zone
+# `tina ask "jaka jest pogoda"`     → she answers out loud from live sensors
 # `tina trigger washing_machine_done` → fire any announce-agent recipe
 # `tina log` / `tina replay <id>` / `tina help`
 #
@@ -15,8 +16,7 @@
 #
 # Targets come from `MEDIA_PLAYERS` in
 # lab:/opt/homelab/services/announce-agent/src/zones.js:
-#   all         → greg_office + nest (kitchen). fireplace only swaps in when
-#                 nest is busy/offline, so `all` does NOT hit the living room.
+#   all         → greg_office + nest (kitchen) + fireplace (salon), whole house
 #   office      → greg_office (AirPlay)
 #   kitchen     → nest, falls back to fireplace
 #   livingroom  → fireplace, falls back to nest
@@ -44,6 +44,28 @@ def tina [
   } else {
     tina-literal $text $target $dry
   }
+}
+
+# Ask about the house out loud — pogoda, co otwarte, co chodzi, gdzie są psy.
+# Recipe `ask` fetches the whole sensor bundle every time; the prompt makes her
+# answer only the question and add a second sentence only when a reading changes
+# your decision (deszcz przy spacerze, płyta zostawiona przy wyjściu).
+#
+# Knows: pogoda + opady w najbliższej godzinie, PM2.5, temperatury, otwarte
+# drzwi, AGD w trakcie, płyta/klima zostawione, gdzie psy są TERAZ, kuweta, waga
+# Lucy. Nie zna historii — "czy psy wyszły dziś" jest poza zasięgiem, odpowie
+# tylko, gdzie są w tej chwili.
+def "tina ask" [
+  ...question: string
+  --target (-t): string@"nu-complete tina-targets" = "auto"
+  --dry (-d)     # print the answer, don't play it
+] {
+  let q = ($question | str join " " | str trim)
+  if ($q | is-empty) {
+    print -e "tina ask: no question — `tina ask \"jaka jest pogoda\"`"
+    return
+  }
+  tina trigger ask --target $target --dry=$dry --params { question: $q }
 }
 
 # Fire any announce-agent recipe (pralka, kuweta, pogoda, faktury, ...). Waits
@@ -114,6 +136,7 @@ def "tina help" [] {
   print "  tina --ai \"...\"                 let the LLM phrase it (it rewrites you)"
   print "  tina -t livingroom \"...\"         announce in one zone"
   print "  tina --dry \"...\"                 don't play (with --ai: print her draft)"
+  print "  tina ask \"jaka jest pogoda\"      ask about the house, she answers out loud"
   print "  tina trigger <name>             fire a recipe (TAB for the list)"
   print "  tina log [n] [--all]            recent events"
   print "  tina replay <event_id>          replay a past event"
@@ -121,7 +144,6 @@ def "tina help" [] {
   print ""
   print "Targets — hit TAB after -t, each one is described in the menu:"
   print (nu-complete tina-targets)
-  print "Note: `all` does NOT reach the living room — fireplace is only a fallback."
   print ""
   print $"Backend: ($TINA)  — /say literal · /trigger/:name via LLM"
 }
@@ -186,7 +208,7 @@ def tina-generated [text: string, target: string, dry: bool] {
 # `MEDIA_PLAYERS` in lab:/opt/homelab/services/announce-agent/src/zones.js.
 def "nu-complete tina-targets" [] {
   [
-    { value: "all",        description: "office + kuchnia (Nest) — UWAGA: nie łapie salonu" }
+    { value: "all",        description: "cały dom — biuro + kuchnia + salon" }
     { value: "auto",       description: "wg obecności telefonów, ścisza się w nocy" }
     { value: "office",     description: "biuro, AirPlay (greg_office)" }
     { value: "kitchen",    description: "kuchnia (Nest), fallback → kominek" }
