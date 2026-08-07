@@ -42,7 +42,7 @@ action: **confirm the target with Greg** unless he named it himself. Zones:
 
 | Target | Speakers | Note |
 |---|---|---|
-| `all` (default) | `greg_office` + `nest` (kitchen) | **does NOT reach the living room** — `fireplace` is only a swap/fallback for a busy or offline Nest |
+| `all` (default) | `greg_office` + `nest` (kitchen) + `fireplace` (living room) | whole house |
 | `office` | `greg_office` | AirPlay |
 | `kitchen` | `nest` → falls back to `fireplace` | |
 | `livingroom` | `fireplace` → falls back to `nest` | |
@@ -53,6 +53,47 @@ Source of truth: `MEDIA_PLAYERS` in
 
 Night hours: `auto` applies night-mode volumes; the explicit zones do not, so a
 late `-t all` is full volume.
+
+## Asking about the house
+
+```bash
+tina ask "jaka jest pogoda"
+tina ask "czy mogę wyjść z domu"
+tina ask --dry "co się dzieje w domu"    # answer printed, not spoken
+```
+
+Recipe `ask` fetches the whole sensor bundle on every call — weather + rain in
+the next hour, PM2.5, indoor/outdoor temps, which doors are open, which
+appliances are running, hob/AC left on, where the dogs are, litter box, Lucy's
+last weight. The prompt makes her answer only the question and add a second
+sentence only when a reading changes the decision (rain when asked about a walk,
+hob left on when asked about leaving). Adding a device to `fetch:` does not make
+her chattier.
+
+History comes from **Homey Insights** via the `insights` fetcher source — Homey
+keeps the time-series itself, nothing is stored on our side. Today's dog walks,
+outdoor min/max, "did the washer run today" all work.
+
+```yaml
+- { id: daisy_hist, source: insights, device: Daisy Tracker,
+    capability: in_geofence, merge_gap_minutes: 35, min_minutes: 20 }
+```
+
+Booleans come back as `false_periods` / `true_periods` (each with `count`,
+`periods`, `last_at`, `last_minutes`, `minutes_total`); numbers as
+`min`/`max`/`avg`/`first`/`last`. Which direction is interesting depends on the
+device — out of a geofence is `false`, a washer running is `true`.
+
+**Dog walks are approximate, and saying so is part of the answer.** The geofence
+covers a road next to the house, so walking past registers a spurious return;
+`merge_gap_minutes` stitches those back together and `min_minutes` drops blips.
+On top of that the tracker only polls every ~30 min in `power_saving`, so short
+walks can be invisible and timestamps land on poll boundaries. The prompt
+therefore prefers `dogs_last_out` ("wyszły o 20:02, na 30 minut") over a walk
+count, and never says "na pewno".
+
+Not every capability has a log — `logged: false` comes back instead of an error,
+so recipe facts must guard on it (`(x && x.logged) ? … : null`).
 
 ## Firing event recipes
 
@@ -79,6 +120,11 @@ tina replay <event_id> -t kitchen
 
 `status: ok` with empty `played_on` means nothing came out of a speaker — check
 `silenced_reason` (`no_target` = that zone has no live media_player).
+
+**`GET /api/events` is a projection — it has no `facts` or `fetched`.** To debug
+what a recipe actually computed, fetch the single event:
+`curl -s http://lab:3001/api/events/<event_id> | jq .facts`. Reading `facts:
+null` off the list view and concluding the fetch failed is a trap.
 
 ## Where it lives
 

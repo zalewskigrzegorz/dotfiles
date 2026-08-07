@@ -23,3 +23,12 @@ $env.{{ .name }} = {{ .value }}
 {{- if $hasOp }}
 $env.GRAFANA_URL = {{ onepasswordRead (printf "op://%s/GRAFANA_SERVICE_ACCOUNT_TOKEN/url" $vault) | quote }}
 {{- end }}
+{{- /* GrowthBook API host — the `url` field of the same item that holds the key.
+       Note this is the API origin, NOT the web UI origin: the UI at
+       growthbook.bhstage.cloud serves only the frontend and 404s on /api/v1.
+       Same reasoning as GRAFANA_URL — resolved at apply, never an `op read`
+       per call, and only the reference lives in the repo. */ -}}
+{{- if $hasOp }}
+$env.GROWTHBOOK_API_HOST_STAGE = {{ onepasswordRead (printf "op://%s/GROWTHBOOK_API_KEY_STAGE/url" $vault) | quote }}
+$env.GROWTHBOOK_API_HOST_PROD = {{ onepasswordRead (printf "op://%s/GROWTHBOOK_API_KEY_PROD/url" $vault) | quote }}
+{{- end }}

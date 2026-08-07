@@ -127,29 +127,33 @@ One `AskUserQuestion`, single question: `"<N> comments selected — submit revie
 
 Recommend **Request changes** if any Critical was selected; otherwise **Approve** (or **Comment only** when there are non-trivial Suggestions). Mark `(Recommended)`.
 
-## B5. Submit (single call)
+## B5. Submit (two calls — pending review, then event)
 
 Map verdict → event: Approve→`APPROVE`, Request changes→`REQUEST_CHANGES`, Comment only→`COMMENT`, Don't submit→abort.
 
-Pipe JSON via stdin heredoc — **do not** write to a fixed temp path (collides with stale files):
+**Never submit in one call.** Creating a review with `event` set makes `body` mandatory for `REQUEST_CHANGES`/`COMMENT`, which is what puts a "see inline comments" blob on the PR. Create it **pending** (no `event`, no `body`), then submit the event separately — `body` is optional on that endpoint, so the review carries no summary at all.
+
+Step 1 — create pending review. Pipe JSON via stdin heredoc; **do not** write to a fixed temp path (collides with stale files):
 
 ```bash
-gh api --method POST "repos/$OWNER/$REPO/pulls/$NUMBER/reviews" --input - <<'JSON'
+REVIEW_ID=$(gh api --method POST "repos/$OWNER/$REPO/pulls/$NUMBER/reviews" --input - <<'JSON' | jq -r .id
 {
   "commit_id": "<SHA>",
-  "event": "<EVENT>",
-  "body": "",
   "comments": [
     { "path": "<path>", "line": <line>, "side": "RIGHT", "body": "<comment_body>" }
   ]
 }
 JSON
+)
 ```
 
-**Review body stays empty by default** — inline comments carry the feedback, no recap paragraph on the PR. Exceptions only:
+Step 2 — submit the verdict, no body:
 
-* GitHub requires a non-empty `body` for `REQUEST_CHANGES` and `COMMENT` events — use one terse line there (e.g. `"see inline comments"`), never a summary of the findings.
-* A finding that couldn't be anchored inline (B2) may go in the body — just that finding, nothing else.
+```bash
+gh api --method POST "repos/$OWNER/$REPO/pulls/$NUMBER/reviews/$REVIEW_ID/events" -f event=<EVENT>
+```
+
+**The review body is always empty** — inline comments carry the feedback, no recap paragraph on the PR, no "see inline comments" filler. One exception: a finding that couldn't be anchored inline (B2) may go in the body — just that finding, nothing else. In that case pass `-f body="<finding>"` on step 2.
 
 If you genuinely need a file: `PAYLOAD=$(mktemp -t g-pr-review.XXXXXX.json)` — never a fixed `/tmp/g-pr-review.json`.
 
