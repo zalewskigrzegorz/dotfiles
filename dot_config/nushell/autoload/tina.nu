@@ -3,7 +3,9 @@
 # `tina "paczki na dole"`           → literal TTS, no LLM (default, exact wording)
 # `tina --ai "..."`                 → let the LLM phrase it (it WILL rewrite you)
 # `tina -t livingroom "..."`        → one zone
-# `tina ask "jaka jest pogoda"`     → she answers out loud from live sensors
+# `tina ask "czy psy dziś wychodziły"` → Jarvis odpowiada z toolów (Gemini)
+# `tina ask --legacy "..."`            → stara ścieżka (Bielik, 21 fetchy)
+# `tina runs` / `tina events`          → co robił mózg i co się działo w domu
 # `tina trigger washing_machine_done` → fire any announce-agent recipe
 # `tina log` / `tina replay <id>` / `tina help`
 #
@@ -46,26 +48,67 @@ def tina [
   }
 }
 
-# Ask about the house out loud — pogoda, co otwarte, co chodzi, gdzie są psy.
-# Recipe `ask` fetches the whole sensor bundle every time; the prompt makes her
-# answer only the question and add a second sentence only when a reading changes
-# your decision (deszcz przy spacerze, płyta zostawiona przy wyjściu).
+const JARVIS = "http://192.168.50.10:3002"
+
+# Ask about the house — Jarvis picks the tools it needs (Homey state, history in
+# VictoriaMetrics, the event log) and answers in two sentences. Unlike the old
+# path it does NOT fetch everything every time, and it says "nie mam odczytu"
+# instead of inventing one.
 #
-# Knows: pogoda + opady w najbliższej godzinie, PM2.5, temperatury, otwarte
-# drzwi, AGD w trakcie, płyta/klima zostawione, gdzie psy są TERAZ, kuweta, waga
-# Lucy. Nie zna historii — "czy psy wyszły dziś" jest poza zasięgiem, odpowie
-# tylko, gdzie są w tej chwili.
+# Knows: stan urządzeń, historia metryk od uruchomienia bazy, eventy domu,
+# pogoda, psy, AGD, kurs dolara. Nie zna: niczego sprzed startu bazy metryk.
 def "tina ask" [
   ...question: string
   --target (-t): string@"nu-complete tina-targets" = "auto"
-  --dry (-d)     # print the answer, don't play it
+  --dry (-d)       # print the answer, don't play it
+  --legacy         # old announce-agent recipe path (Bielik + 21 fetchy)
 ] {
   let q = ($question | str join " " | str trim)
   if ($q | is-empty) {
     print -e "tina ask: no question — `tina ask \"jaka jest pogoda\"`"
     return
   }
-  tina trigger ask --target $target --dry=$dry --params { question: $q }
+
+  if $legacy {
+    tina trigger ask --target $target --dry=$dry --params { question: $q }
+    return
+  }
+
+  let res = (
+    http post --full --allow-errors --content-type application/json
+      $"($JARVIS)/ask" { question: $q, target: $target, speak: (not $dry) }
+  )
+  if $res.status != 200 {
+    print -e $"tina ask: ($JARVIS)/ask → HTTP ($res.status)"
+    print -e ($res.body | to text)
+    return
+  }
+
+  let body = $res.body
+  print $"🗣  ($body.text)"
+  let tools = ($body.tools? | default [] | str join ', ')
+  print $"   ($body.style) · tools: (if ($tools | is-empty) { 'brak' } else { $tools }) · $($body.cost_usd? | default 0)"
+  if $dry {
+    print "   dry-run, nothing played"
+  } else if ($body.spoken_on | is-empty) {
+    print -e "   nothing played"
+  } else {
+    print $"   played on: ($body.spoken_on | str join ', ')"
+  }
+}
+
+# Recent brain runs — what it was asked, which tools it reached for, what it cost.
+def "tina runs" [n: int = 10] {
+  http get $"($JARVIS)/runs?limit=($n)"
+  | get runs
+  | select started_at trigger_kind input answer status cost_usd
+}
+
+# Recent house events from the Jarvis event log.
+def "tina events" [--minutes (-m): int = 120] {
+  http get $"($JARVIS)/events?minutes=($minutes)"
+  | get events
+  | select ts source type severity handled_action
 }
 
 # Fire any announce-agent recipe (pralka, kuweta, pogoda, faktury, ...). Waits
@@ -137,6 +180,9 @@ def "tina help" [] {
   print "  tina -t livingroom \"...\"         announce in one zone"
   print "  tina --dry \"...\"                 don't play (with --ai: print her draft)"
   print "  tina ask \"jaka jest pogoda\"      ask about the house, she answers out loud"
+  print "  tina ask --legacy \"...\"         stara ścieżka (Bielik + 21 fetchy)"
+  print "  tina runs [n]                   ostatnie przebiegi mózgu (koszt, toole)"
+  print "  tina events [-m 120]            eventy domu z ostatnich N minut"
   print "  tina trigger <name>             fire a recipe (TAB for the list)"
   print "  tina log [n] [--all]            recent events"
   print "  tina replay <event_id>          replay a past event"
