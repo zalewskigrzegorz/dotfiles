@@ -10,30 +10,41 @@ The Bash tool runs zsh and `nu -c` does not load autoload dirs, so always source
 it explicitly — bare `tina …` gives `command not found`:
 
 ```bash
-nu -c 'source ~/.config/nushell/autoload/tina.nu; tina -t livingroom "paczki czekają na dole"'
+nu -c 'source ~/.config/nushell/autoload/tina.nu; tina announce -t livingroom "paczki czekają na dole"'
 ```
 
 Outer single quotes, message in double quotes. Diacritics are fine.
 
-## Verbatim is the default — keep it that way
+## `tina announce` speaks, bare `tina` asks
+
+One word = one intention. The two you will confuse if you skim:
+
+| You want | Command |
+|---|---|
+| the house to hear your exact words | `tina announce "..."` |
+| an answer to a question | `tina "..."` |
+
+**Bare `tina "..."` used to be the literal announcement and is now the AI.** If
+you type the old form out of habit, Tina answers your shopping list as if it were
+a question instead of reading it out. Announcements always carry `announce`.
 
 ```bash
-tina "paczki czekają na dole"        # literal TTS, no LLM. What you type is what she says.
-tina -t livingroom "kolacja gotowa"  # one zone
-tina --dry "..."                     # don't play
-tina --ai "..."                      # phrase it with the LLM
-tina log 5                           # recent events (structured table)
+tina announce "paczki czekają na dole"   # literal TTS, no LLM. What you type is what she says.
+tina announce -t livingroom "kolacja gotowa"  # one zone
+tina announce -d "..."                   # don't play
+tina announce -r "..."                   # -r/--rephrase: let the LLM word it
+tina history 5                           # recent spoken events (structured table)
 ```
 
 **Default to verbatim.** Greg's use case is passing a message to another floor,
-so the wording is the point. `--ai` routes through the generator, which rephrases
-and has invented whole sentences in the past ("Matka, ale na dole jest naprawdę
-gorąco!" from an unrelated message). Only reach for `--ai` when he explicitly
-wants it composed rather than read.
+so the wording is the point. `-r/--rephrase` routes through the generator, which
+rewrites and has invented whole sentences in the past ("Matka, ale na dole jest
+naprawdę gorąco!" from an unrelated message). Only reach for it when he
+explicitly wants the message composed rather than read.
 
-Both paths do the same ElevenLabs TTS in Tina's voice — `--ai` only adds the
-rewrite. Verbatim goes through `POST /say`, which answers synchronously with
-what actually played; `--ai` goes through `POST /trigger/announce`.
+Both paths do the same ElevenLabs TTS in Tina's voice — `--rephrase` only adds
+the rewrite. Verbatim goes through `POST /say`, which answers synchronously with
+what actually played; `--rephrase` goes through `POST /trigger/announce`.
 
 ## Before you broadcast
 
@@ -57,10 +68,15 @@ late `-t all` is full volume.
 ## Asking about the house
 
 ```bash
-tina ask "jaka jest pogoda"
-tina ask "czy mogę wyjść z domu"
-tina ask --dry "co się dzieje w domu"    # answer printed, not spoken
+tina "jaka jest pogoda"
+tina "czy mogę wyjść z domu"
+tina -d "co się dzieje w domu"    # answer printed, not spoken
 ```
+
+This is the jarvis-brain path (`POST /ask`), which picks its own tools. The old
+`ask` recipe below still exists on the announce-agent and is reachable as
+`tina workflow ask --params {question: "..."}`; the `--legacy` flag that used to
+select it is gone.
 
 Recipe `ask` fetches the whole sensor bundle on every call — weather + rain in
 the next hour, PM2.5, indoor/outdoor temps, which doors are open, which
@@ -98,25 +114,30 @@ so recipe facts must guard on it (`(x && x.logged) ? … : null`).
 ## Firing event recipes
 
 ```bash
-tina trigger washing_machine_done          # waits, prints what she said
-tina trigger meal --params {kind: dinner}
-tina trigger weather_outgoing --dry
+tina workflow washing_machine_done          # waits, prints what she said
+tina workflow meal --params {kind: dinner}
+tina workflow weather_outgoing --dry
 ```
 
 Recipe names come live from `GET /triggers` (TAB-completes for Greg). Each recipe
 composes from its own facts — **don't smuggle free text through one** (e.g.
 `service_alert --params {msg: ...}`); it ignores your text and announces
-something unrelated. Free text has exactly two homes: `tina` and `tina --ai`.
+something unrelated. Free text has exactly two homes: `tina announce` and
+`tina announce -r`.
 
 ## Verify it landed
 
 Verbatim prints `played_on` immediately. Otherwise:
 
 ```bash
-tina log 3                        # ts, trigger, spoken line, played_on, event_id
-tina log 5 --all                 # include recipe-driven events
+tina history 3                    # ts, trigger, spoken line, played_on, event_id
+tina history 5 --all              # include recipe-driven events
 tina replay <event_id> -t kitchen
 ```
+
+The three read-only views are named after whose record they are — `tina history`
+is her mouth (what she said), `tina brain` her head (questions, tools, cost),
+`tina house` her house (sensor events).
 
 `status: ok` with empty `played_on` means nothing came out of a speaker — check
 `silenced_reason` (`no_target` = that zone has no live media_player).
