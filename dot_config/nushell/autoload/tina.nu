@@ -123,6 +123,8 @@ def "tina announce" [
 }
 
 const LISTEN_MAX_SECONDS = 240        # ~4 min @ 16 kHz/16-bit mono — safe margin under /ask-audio's body limit
+const LISTEN_CAP_SECONDS = 15         # runaway guard for auto mode, NOT the expected length
+const LISTEN_HUSH = "0.8"             # trailing silence that ends the take, in seconds
 const LISTEN_MAX_AUDIO_BYTES = 8mb    # raw wav; base64 (+33%) still fits under the 12 MB limit
 const MAC_VOICE = "Zosia"             # pl_PL voice that ships with macOS
 
@@ -158,9 +160,24 @@ def "tina listen" [
     print $"🎙  nagrywam ($seconds) s..."
     ^rec -q -c 1 -r 16000 -b 16 $wav trim 0 $seconds
   } else {
-    print "🎙  mów — kończę, gdy zamilkniesz (max 15 s)"
-    # silence 1 0.1 3% 1 1.5 3% = start on sound, stop after 1.5 s of quiet
-    ^rec -q -c 1 -r 16000 -b 16 $wav trim 0 15 silence 1 0.1 3% 1 1.5 3%
+    print $"🎙  mów — kończę, gdy zamilkniesz \(Enter = od razu, max ($LISTEN_CAP_SECONDS) s\)"
+    # `silence 1 0.1 3% 1 <hush> 3%` = start on sound, stop after <hush> of quiet.
+    # sox has no "stop on keypress", so rec runs in the background and a poll
+    # loop watches the keyboard: any key SIGINTs it, which makes sox close the
+    # wav cleanly (a plain Ctrl-C would abort nu itself and lose the take).
+    # The loop also exits on its own the moment sox stops on silence, so the
+    # `read` never outlives the recording. `-t 0` guards the non-tty case,
+    # where `read` would fail instantly and spin the loop hot.
+    ^bash -c $"
+      rec -q -c 1 -r 16000 -b 16 '($wav)' trim 0 ($LISTEN_CAP_SECONDS) silence 1 0.1 3% 1 ($LISTEN_HUSH) 3% &
+      p=$!
+      if [ -t 0 ]; then
+        while kill -0 $p 2>/dev/null; do
+          if read -rsn1 -t 0.2; then kill -INT $p 2>/dev/null; break; fi
+        done
+      fi
+      wait $p 2>/dev/null || true
+    "
   }
 
   if not ($wav | path exists) {
@@ -271,6 +288,38 @@ def "tina replay" [
   )
 }
 
+# The services store UTC and hand back full ISO strings. Printed raw they cost
+# 24 characters per row — enough to push `answer` and `cost_usd` off the right
+# edge of the terminal — and they read two hours behind the wall clock, so a run
+# from 13:55 looked like it happened at 11:55. Same-day rows only need the time.
+def _tina-when [ts] {
+  let d = ($ts | into datetime | date to-timezone "Europe/Warsaw")
+  let today = (date now | date to-timezone "Europe/Warsaw" | format date "%Y-%m-%d")
+  if ($d | format date "%Y-%m-%d") == $today {
+    $d | format date "%H:%M"
+  } else {
+    $d | format date "%m-%d %H:%M"
+  }
+}
+
+# Questions and answers are free text and some carry newlines (the briefs do).
+# A multi-line cell makes nu blow the row up to four lines and wrecks the table,
+# so flatten first and mark the cut rather than letting it wrap.
+# Nu sizes table columns by content, so one long cell takes the width and the
+# rest get squeezed to five characters and wrap vertically. Truncating to a
+# fixed number does not help — it is the terminal that decides. Split whatever
+# is left after the narrow columns evenly between the free-text ones.
+def _tina-colwidth [reserved: int, parts: int] {
+  let w = (try { term size | get columns } catch { 0 })
+  let w = (if $w < 60 { 120 } else { $w })
+  [((($w - $reserved) / $parts) | into int), 20] | math max
+}
+
+def _tina-oneline [s: any, max: int] {
+  let t = ($s | default "" | into string | str replace -a "\n" " " | str trim)
+  if ($t | str length) > $max { $"($t | str substring 0..($max - 1))…" } else { $t }
+}
+
 # Her mouth — what Tina said out loud, where it played, and the id to replay it.
 def "tina history" [
   n: int = 5
@@ -283,23 +332,51 @@ def "tina history" [
   let filtered = if $all { $rows } else {
     $rows | where trigger_name in ["say" "announce"]
   }
+  # `llm_trimmed` is the sentence she actually said, not a flag — it is the one
+  # free-text column here, so it gets whatever the fixed ones leave over.
+  let cell = (_tina-colwidth 74 1)
   $filtered
   | first $n
-  | select ts trigger_name status dry_run llm_trimmed played_on event_id
+  | each {|r| {
+      czas: (_tina-when $r.ts)
+      co: $r.trigger_name
+      status: $r.status
+      dry: $r.dry_run
+      powiedziała: (_tina-oneline $r.llm_trimmed $cell)
+      # played_on is a list of media_player ids; nu renders it as "[list 1 item]"
+      # unless it is joined, which told you nothing about WHERE it played.
+      zagrało: ($r.played_on | default [] | each {|t| $t | str replace "media_player." ""} | str join ", ")
+      event_id: $r.event_id
+  }}
 }
 
 # Her head — brain runs: what it was asked, which tools it reached for, what it cost.
 def "tina brain" [n: int = 10] {
+  # czas 5 + skąd 12 + status 6 + koszt 9, plus nu's borders and padding.
+  let cell = (_tina-colwidth 56 2)
   http get $"($JARVIS)/runs?limit=($n)"
   | get runs
-  | select started_at trigger_kind input answer status cost_usd
+  | each {|r| {
+      czas: (_tina-when $r.started_at)
+      skąd: $r.trigger_kind
+      pytanie: (_tina-oneline $r.input $cell)
+      odpowiedź: (_tina-oneline $r.answer $cell)
+      status: $r.status
+      koszt: $r.cost_usd
+  }}
 }
 
 # Her house — what actually happened at the sensors, from the Jarvis event log.
 def "tina house" [--minutes (-m): int = 120] {
   http get $"($JARVIS)/events?minutes=($minutes)"
   | get events
-  | select ts source type severity handled_action
+  | each {|e| {
+      czas: (_tina-when $e.ts)
+      skąd: $e.source
+      co: $e.type
+      waga: $e.severity
+      reakcja: $e.handled_action
+  }}
 }
 
 # The tina cheat sheet, grouped by what you're trying to do.
@@ -481,7 +558,12 @@ def "nu-complete tina-history-ids" [] {
 def _tina-meta [body: record] {
   let tools = ($body.tools? | default [] | str join ', ')
   let cost = ($body.cost_usd? | default 0)
-  print $"   ($body.style?  | default 'brain') · narzędzia: (if ($tools | is-empty) { 'brak' } else { $tools }) · $($cost)"
+  # `delivery` is the stage direction she wrote for the TTS on this one sentence
+  # — it changes how it sounded, so it belongs next to the style that named it.
+  let styl = ($body.style? | default 'brain')
+  let gra = ($body.delivery? | default "")
+  let styl = (if ($gra | is-empty) { $styl } else { $"($styl) — ($gra)" })
+  print $"   ($styl) · narzędzia: (if ($tools | is-empty) { 'brak' } else { $tools }) · $($cost)"
 }
 
 # Print a recorded event the same way for every path.
