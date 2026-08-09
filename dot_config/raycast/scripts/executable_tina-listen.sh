@@ -1,8 +1,8 @@
 #!/bin/bash
 # @raycast.schemaVersion 1
-# @raycast.title Jarvis: Listen
+# @raycast.title Tina: Listen
 # @raycast.mode compact
-# @raycast.packageName Jarvis
+# @raycast.packageName Tina
 # @raycast.icon 🎙️
 # Push-to-talk into the house assistant. Bind a hotkey to this command in
 # Raycast (Greg uses ⌥Space); it records until you stop talking.
