@@ -89,7 +89,7 @@ def tina [
 
   let body = $res.body
   print $"🗣  ($body.text)"
-  tina-meta $body
+  _tina-meta $body
   if $dry {
     print "   dry-run, nic nie zagrało"
   } else if ($body.spoken_on | is-empty) {
@@ -116,9 +116,9 @@ def "tina announce" [
   }
 
   if $rephrase {
-    tina-rephrased $text $target $dry
+    _tina-rephrased $text $target $dry
   } else {
-    tina-literal $text $target $dry
+    _tina-literal $text $target $dry
   }
 }
 
@@ -140,7 +140,7 @@ def "tina listen" [
   --seconds (-s): int = 0                            # stała długość; 0 = stop na ciszy
   --target (-t): string@"nu-complete tina-targets"   # odpowiedz w domu zamiast na Macu
   --dry (-d)                                         # tylko wypisz, nie mów nigdzie
-  --keep (-k)                                        # zostaw wav w $nu.temp-path
+  --keep (-k)                                        # zostaw wav w $nu.temp-dir
 ] {
   if $seconds > $LISTEN_MAX_SECONDS {
     print -e $"tina listen: -s ($seconds) za długo — limit ~($LISTEN_MAX_SECONDS) s, /ask-audio tnie body na 12 MB"
@@ -152,7 +152,7 @@ def "tina listen" [
     return
   }
 
-  let wav = $"($nu.temp-path)/tina-listen-(random chars -l 6).wav"
+  let wav = $"($nu.temp-dir)/tina-listen-(random chars -l 6).wav"
 
   if $seconds > 0 {
     print $"🎙  nagrywam ($seconds) s..."
@@ -212,7 +212,7 @@ def "tina listen" [
 
   let body = $res.body
   print $"🗣  ($body.text)"
-  tina-meta $body
+  _tina-meta $body
 
   if $dry {
     print "   dry-run, nic nie zagrało"
@@ -223,7 +223,7 @@ def "tina listen" [
       print $"   zagrało na: ($body.spoken_on | str join ', ')"
     }
   } else {
-    tina-say $body.text
+    _tina-say $body.text
   }
 }
 
@@ -237,7 +237,7 @@ def "tina workflow" [
   --dry (-d)                                         # wygeneruj i wypisz, nic nie graj
   --params: record = {}                              # parametry, np. {kind: dinner}
 ] {
-  let before = (tina-latest-id)
+  let before = (_tina-latest-id)
   mut body = { dry_run: $dry, params: $params }
   if $target != null { $body = ($body | insert target $target) }
 
@@ -251,12 +251,12 @@ def "tina workflow" [
     return
   }
 
-  let ev = (tina-await $before $name)
+  let ev = (_tina-await $before $name)
   if $ev == null {
     print -e $"tina workflow: brak eventu w 40 s — sprawdź ($TINA)/api/events"
     return
   }
-  tina-print $ev $dry
+  _tina-print $ev $dry
 }
 
 # Play a past announcement again (id z `tina history`).
@@ -313,7 +313,7 @@ def "tina help" [] {
   print "  tina listen                    zapytaj głosem — ODPOWIEDŹ Z GŁOŚNIKA MACA"
   print "  tina listen -t kitchen         …a jednak niech odpowie w domu"
   print "  tina listen -s 8               nagraj równo 8 s zamiast stopu na ciszy"
-  print "  tina listen -k                 zostaw wav w $nu.temp-path"
+  print "  tina listen -k                 zostaw wav w $nu.temp-dir"
   print ""
   print "MÓWISZ — każesz jej coś powiedzieć lub zrobić"
   print '  tina announce "paczki na dole" dosłownie, bez LLM — dokładnie twoje słowa'
@@ -341,7 +341,7 @@ def "tina help" [] {
 # --- paths -------------------------------------------------------------------
 
 # Verbatim: POST /say is synchronous and reports what played, so no polling.
-def tina-literal [text: string, target: string, dry: bool] {
+def _tina-literal [text: string, target: string, dry: bool] {
   let res = (
     http post --full --allow-errors --content-type application/json
       $"($TINA)/say" { text: $text, target: $target, dry_run: $dry }
@@ -367,8 +367,8 @@ def tina-literal [text: string, target: string, dry: bool] {
 }
 
 # Through the LLM: /trigger is fire-and-forget, so wait for the recorded event.
-def tina-rephrased [text: string, target: string, dry: bool] {
-  let before = (tina-latest-id)
+def _tina-rephrased [text: string, target: string, dry: bool] {
+  let before = (_tina-latest-id)
   let res = (
     http post --full --allow-errors --content-type application/json
       $"($TINA)/trigger/announce"
@@ -383,12 +383,12 @@ def tina-rephrased [text: string, target: string, dry: bool] {
     }
     return
   }
-  let ev = (tina-await $before "announce")
+  let ev = (_tina-await $before "announce")
   if $ev == null {
     print -e $"tina announce: brak eventu w 40 s — sprawdź ($TINA)/api/events"
     return
   }
-  tina-print $ev $dry
+  _tina-print $ev $dry
 }
 
 # Speak on the Mac's own speaker.
@@ -397,12 +397,12 @@ def tina-rephrased [text: string, target: string, dry: bool] {
 # and no audio, so playing it locally would need a second round trip to the
 # announce-agent's TTS — an extra hop and ElevenLabs credits for something macOS
 # already does offline, with a native pl_PL voice.
-def tina-say [text: string] {
+def _tina-say [text: string] {
   if (which say | is-empty) {
     print -e "   (brak `say` — to nie macOS, odpowiedź została na ekranie)"
     return
   }
-  let voice = (tina-mac-voice)
+  let voice = (_tina-mac-voice)
   if $voice == null {
     ^say $text
   } else {
@@ -411,7 +411,7 @@ def tina-say [text: string] {
 }
 
 # Polish `say` voice, or null to let macOS fall back to its system default.
-def tina-mac-voice [] {
+def _tina-mac-voice [] {
   let voices = (
     ^say -v '?'
     | lines
@@ -478,14 +478,14 @@ def "nu-complete tina-history-ids" [] {
 # --- internals ---------------------------------------------------------------
 
 # The one-line "how she got there" footer, shared by every brain path.
-def tina-meta [body: record] {
+def _tina-meta [body: record] {
   let tools = ($body.tools? | default [] | str join ', ')
   let cost = ($body.cost_usd? | default 0)
   print $"   ($body.style?  | default 'brain') · narzędzia: (if ($tools | is-empty) { 'brak' } else { $tools }) · $($cost)"
 }
 
 # Print a recorded event the same way for every path.
-def tina-print [ev: record, dry: bool] {
+def _tina-print [ev: record, dry: bool] {
   print $"🔊 ($ev.llm_trimmed)"
   if $dry {
     print $"   dry-run, nic nie zagrało  [($ev.target)]"
@@ -497,14 +497,14 @@ def tina-print [ev: record, dry: bool] {
 }
 
 # event_id of the newest event, or null when the store is empty/unreachable.
-def tina-latest-id [] {
+def _tina-latest-id [] {
   let res = (http get --full --allow-errors $"($TINA)/api/events?limit=1")
   if $res.status != 200 { return null }
   $res.body | get -o rows | default [] | get -o 0.event_id
 }
 
 # Poll the event store until an event for $trigger newer than $before shows up.
-def tina-await [before: any, trigger: string] {
+def _tina-await [before: any, trigger: string] {
   for _ in 1..40 {
     sleep 1sec
     let row = (
