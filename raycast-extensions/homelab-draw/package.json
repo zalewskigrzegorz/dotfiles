@@ -2,7 +2,7 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "homelab-draw",
   "title": "Homelab Draw",
-  "description": "Browse canvases on draw.lab and open them in Draw, AI, or Present mode — or save the current scene under a name.",
+  "description": "Browse canvases on draw.lab and open them in Draw or AI — or save the current scene under a name.",
   "icon": "icon.png",
   "author": "zalewskigrzegorz",
   "license": "MIT",
@@ -12,7 +12,7 @@
       "name": "browse",
       "title": "Draw: Browse",
       "subtitle": "Homelab Draw",
-      "description": "Search canvases on draw.lab and open any of them in Draw, AI, or Present mode.",
+      "description": "Search canvases on draw.lab and open any of them in Draw or AI.",
       "icon": "browse.png",
       "mode": "view"
     },
@@ -20,7 +20,7 @@
       "name": "save",
       "title": "Draw: Save",
       "subtitle": "Homelab Draw",
-      "description": "Save the current AI scene (or an existing canvas / preload) to draw.lab with a name.",
+      "description": "Save the current AI scene (or an existing canvas) to draw.lab with a name.",
       "icon": "save.png",
       "mode": "view"
     }

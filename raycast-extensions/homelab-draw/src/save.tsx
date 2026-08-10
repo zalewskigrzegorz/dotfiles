@@ -14,14 +14,12 @@ import {
   bridgeUrl,
   drawUrl,
   getAiSceneAppState,
-  presentUrl,
   saveCanvas,
   type SaveSource,
 } from "./lib/bridge";
 
 type Detected =
   | { source: "draw"; sourceId: string; label: string }
-  | { source: "present"; presentToken: string; label: string }
   | { source: "ai"; label: string };
 
 function matchesHost(url: string, base: string): boolean {
@@ -31,7 +29,7 @@ function matchesHost(url: string, base: string): boolean {
 }
 
 // Probe open Comet/Chrome tabs (via Raycast BrowserExtension) for a draw.lab
-// canvas deep-link or a draw-present.lab preload link. Falls back to AI scene.
+// canvas deep-link. Falls back to AI scene.
 async function detectFromBrowser(): Promise<Detected> {
   try {
     const tabs = await BrowserExtension.getTabs();
@@ -42,18 +40,6 @@ async function detectFromBrowser(): Promise<Detected> {
     if (drawTab) {
       const id = drawTab.url.match(/[?&]canvas=([^&]+)/)![1];
       return { source: "draw", sourceId: id, label: `draw.lab · canvas=${id.slice(0, 8)}…` };
-    }
-    const presentTab = tabs.find(
-      (t) =>
-        matchesHost(t.url, presentUrl()) && /[?&]preload=([^&]+)/.test(t.url),
-    );
-    if (presentTab) {
-      const token = presentTab.url.match(/[?&]preload=([^&]+)/)![1];
-      return {
-        source: "present",
-        presentToken: token,
-        label: `draw-present.lab · preload=${token.slice(0, 8)}…`,
-      };
     }
   } catch {
     // BrowserExtension API not available — fall through to AI.
@@ -108,11 +94,8 @@ export default function SaveCommand() {
     if (chosen === "draw" && detected.source === "draw") {
       return { ...base, sourceId: detected.sourceId };
     }
-    if (chosen === "present" && detected.source === "present") {
-      return { ...base, presentToken: detected.presentToken };
-    }
     // Override forced a source that we can't pre-fill — bridge will 400 with a
-    // clear error message ("sourceId is required …" or "presentToken is …").
+    // clear error message ("sourceId is required …").
     return base;
   }
 
@@ -178,7 +161,6 @@ export default function SaveCommand() {
         <Form.Dropdown.Item value="auto" title="Auto (from active tab)" icon={Icon.Wand} />
         <Form.Dropdown.Item value="ai" title="draw-ai (live)" icon={Icon.Stars} />
         <Form.Dropdown.Item value="draw" title="draw.lab (active canvas tab)" icon={Icon.Pencil} />
-        <Form.Dropdown.Item value="present" title="draw-present.lab (active preload)" icon={Icon.Play} />
       </Form.Dropdown>
       <Form.TextField
         id="name"
