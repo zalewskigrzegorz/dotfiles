@@ -36,17 +36,16 @@ Raycast  →  draw-bridge  →  draw.lab / draw-mcp
 
 | Command | Endpoint it calls | Needs |
 |---|---|---|
-| **Draw: Present Canvas** | \`GET /canvases\` + \`POST /scene-to-presentation\` | a canvas saved on the **draw.lab server** (not just browser localStorage) |
-| **Draw: Import AI Scene** | \`POST /import-ai-scene\` | \`/data/draw-mcp/scene.json\` on the homelab host |
-| **Draw: Full Pipeline** | \`POST /full-pipeline\` | same as Import AI + canvas storage configured |
+| **Draw: Browse** | \`GET /canvases\` + \`POST /canvases/:id/open\` | a canvas saved on the **draw.lab server** (not just browser localStorage) |
+| **Draw: Save** | \`POST /canvases\` | \`/data/draw-mcp/scene.json\` on the homelab host (for \`source=ai\`) |
 
 ---
 
 ## Setup checklist (homelab side)
 
 - [ ] **\`GET /canvases\`** exposed by draw-bridge — proxies \`GET /api/v2/kv\` on draw.lab using the Bearer JWT, returns \`[{id, title?, modifiedAt?}]\` or \`{canvases:[…]}\`.
-- [ ] **Canvases persisted server-side** in excalidraw-full — until then \`POST /scene-to-presentation\` returns 404 because canvas IDs only live in browser localStorage. Sign in / enable anonymous sync.
-- [ ] **\`/data/draw-mcp/scene.json\` exists** on the homelab host — draw-mcp must write it. Without this both Import AI and Full Pipeline ENOENT.
+- [ ] **Canvases persisted server-side** in excalidraw-full — otherwise canvas IDs only live in browser localStorage and the bridge 404s. Sign in / enable anonymous sync.
+- [ ] **\`/data/draw-mcp/scene.json\` exists** on the homelab host — draw-mcp must write it. Without this \`source=ai\` saves ENOENT.
 - [ ] *(Optional cosmetic)* In the excalidraw-full fork, on canvas switch: \`window.history.replaceState(null, "", "/#" + canvasId)\`. Lets this extension's "open in browser" badge actually light up.
 
 Use the action panel below (\`⌘ K\`) to open extension preferences, copy curl commands, or retry.

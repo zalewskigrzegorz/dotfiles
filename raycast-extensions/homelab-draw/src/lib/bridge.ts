@@ -23,12 +23,8 @@ export type Canvas = {
   updatedAt?: string;
 };
 
-export type OpenTarget = "draw" | "ai" | "present";
-export type SaveSource = "ai" | "draw" | "present";
-
-export function presentUrl(): string {
-  return "http://draw-present.lab";
-}
+export type OpenTarget = "draw" | "ai";
+export type SaveSource = "ai" | "draw";
 
 type BridgeError = { error: string };
 
@@ -84,7 +80,6 @@ export async function saveCanvas(args: {
   name: string;
   source: SaveSource;
   sourceId?: string;
-  presentToken?: string;
   mode?: "new" | "update";
   targetId?: string;
 }): Promise<{ id: string; url: string }> {

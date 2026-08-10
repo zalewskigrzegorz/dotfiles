@@ -1,6 +1,6 @@
 ---
 name: deck
-description: Build a presentation deck for Greg to actually stand up and deliver — a self-contained animated HTML deck in the Mocha Neon palette, a PL/EN teleprompter in Obsidian, and a phone remote so he can flip slides while reading notes. Use when Greg says he's presenting, giving a talk, doing an academy/brown-bag/demo session, "zrób prezentację", "deck na akademię", "muszę o tym opowiedzieć", "slajdy", "prezentacja na jutro", or asks to turn work he did into something he can show a team. Also use when he wants to update or re-run a previous talk. NOT for one-off diagrams (use draw/excalidraw-slides) and NOT for written documents that are merely shared (those are just markdown).
+description: Build a presentation deck for Greg to actually stand up and deliver — a self-contained animated HTML deck in the Mocha Neon palette, a PL/EN teleprompter in Obsidian, and a phone remote so he can flip slides while reading notes. Use when Greg says he's presenting, giving a talk, doing an academy/brown-bag/demo session, "zrób prezentację", "deck na akademię", "muszę o tym opowiedzieć", "slajdy", "prezentacja na jutro", or asks to turn work he did into something he can show a team. Also use when he wants to update or re-run a previous talk. NOT for one-off diagrams (draw those on draw.lab) and NOT for written documents that are merely shared (those are just markdown).
 ---
 
 # Deck

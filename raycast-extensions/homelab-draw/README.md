@@ -1,12 +1,11 @@
 # Homelab Draw — Raycast extension
 
-Drives `draw.lab` + `draw-bridge` from Raycast. Replaces the three `draw-*` shell script commands with a proper TS extension that uses `BrowserExtension.getTabs()` to detect which canvas is open in the browser.
+Drives `draw.lab` + `draw-bridge` from Raycast. Replaces the old `draw-*` shell script commands with a proper TS extension that uses `BrowserExtension.getTabs()` to detect which canvas is open in the browser.
 
 ## Commands
 
-- **Draw: Present Canvas** — picks a canvas from `draw-bridge` and opens presentation mode.
-- **Draw: Import AI Scene** — pushes `draw-mcp/scene.json` into a new draw.lab canvas.
-- **Draw: Full Pipeline** — import AI scene → create canvas → open presentation in one go.
+- **Draw: Browse** — searches canvases on `draw.lab` (FTS via bridge) and opens one in Draw or AI.
+- **Draw: Save** — saves the live AI scene (or the canvas in the active tab) to `draw.lab` under a name.
 
 ## Setup (one-off)
 
@@ -25,18 +24,17 @@ Leave `npm run dev` running while you iterate. Once happy, `npm run build` produ
 
 ## Required bridge endpoints
 
-| Endpoint                       | Body                                  | Used by             |
-|--------------------------------|---------------------------------------|---------------------|
-| `GET  /canvases`               | —                                     | Present (picker)    |
-| `POST /scene-to-presentation`  | `{ source: "draw-lab", canvasId }`    | Present (open)      |
-| `POST /import-ai-scene`        | `{}`                                  | Import AI Scene     |
-| `POST /full-pipeline`          | `{}`                                  | Full Pipeline       |
-
-`GET /canvases` is **new** — add it to `draw-bridge` so it proxies `GET draw:3002/api/v2/kv` (Bearer JWT) and returns `[{ id, title?, modifiedAt? }]` or `{ canvases: [...] }`.
+| Endpoint                       | Body                                       | Used by          |
+|--------------------------------|--------------------------------------------|------------------|
+| `GET  /canvases?q=`            | —                                          | Browse (list)    |
+| `POST /canvases/:id/open`      | `{ target: "draw" \| "ai" }`                | Browse (open)    |
+| `POST /canvases`               | `{ source, name, sourceId?, mode?, targetId? }` | Save        |
+| `GET  /ai-scene/appstate`      | —                                          | Save (overwrite) |
+| `DELETE /canvases/:id`         | —                                          | Browse (delete)  |
 
 ## Optional: "open in browser" badge
 
-The Present picker tags rows whose canvas id appears in any open `draw.lab` browser tab URL. To make that useful, add the canvas id to the URL hash in the excalidraw-full fork — something like:
+The Browse picker tags rows whose canvas id appears in any open `draw.lab` browser tab URL. To make that useful, add the canvas id to the URL hash in the excalidraw-full fork — something like:
 
 ```js
 // when current canvas changes:
