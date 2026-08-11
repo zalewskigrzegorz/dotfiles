@@ -21,4 +21,20 @@ if [[ ! -f "$HOME/.Brewfile" ]]; then
   exit 0
 fi
 
+# brew refuses to load formulae from untrusted third-party taps; trust every
+# tap declared in the Brewfile so bundle can run unattended.
+grep -E '^tap "' "$HOME/.Brewfile" | cut -d '"' -f 2 | while IFS= read -r tap; do
+  brew trust "$tap" >/dev/null 2>&1 || true
+done
+
 brew bundle --global
+
+# pay-respects: timescam/tap packages a rolling "nightly" whose sha256 goes
+# stale on every upstream rebuild, so a plain Brewfile entry breaks bundle with
+# a checksum mismatch. Kept out of the Brewfile; installed best-effort here and
+# pinned so bundle never tries to upgrade it.
+if ! brew list --versions pay-respects >/dev/null 2>&1; then
+  brew install timescam/tap/pay-respects ||
+    echo "pay-respects install failed (stale nightly sha256 in tap); retry manually later" >&2
+fi
+brew pin pay-respects >/dev/null 2>&1 || true
