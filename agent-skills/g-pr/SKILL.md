@@ -13,7 +13,7 @@ User wants to create a PR, update PR description, or align with the project PR t
 
 All **generated** PR title and body content must be **English**, even if the conversation is in another language.
 
-Always run the **generated PR body through the `greg-voice` skill** (voice mode — it is Greg's own PR) before creating/updating the PR — strip AI tells (em dashes, significance-inflation, rule-of-three, promotional filler). Keep the template headers and every checkbox exactly; voice only the prose in `What/Why/How?`, `Reference`, and `Testing`.
+Always run the **generated PR body through the `greg-voice` skill** (voice mode — it is Greg's own PR) before creating/updating the PR — strip AI tells (em dashes, significance-inflation, rule-of-three, promotional filler). Keep the template headers and every checkbox exactly; voice only the prose in `What/Why/How?`, `Reference`, and `Testing`. Voice is a rewrite pass, **not** a license to expand — the Brevity rules below cap the length and win over everything.
 
 ## Constraints
 
@@ -24,13 +24,24 @@ Always run the **generated PR body through the `greg-voice` skill** (voice mode 
 
 Same convention as commits: `type(scope): subject` with types from repo `commitlint.config.js` when present (work monorepo: `feat`, `fix`, `docs`, `chore`, `tests`, `hotfix`). Gitmoji on the PR title is optional; match the latest or main commit if helpful.
 
+## Brevity — hard rules (override everything else)
+
+The reader is a tired reviewer; every sentence costs them focus. The code is the source of truth — the description only points at it.
+
+- **What/Why/How? = max 3 short lines total.** One line *what* changed; one line *why* only when it's not obvious; one line *how* only when the approach is surprising. One line is the ideal.
+- **Never enumerate the diff.** No per-file bullets, no "Changes:" lists, no restating what the reviewer will see in the code anyway.
+- **No context essays.** No background paragraphs, no problem-domain explanations, no motivation build-up. If the reviewer doesn't get it, they'll ask in a thread.
+- **No selling.** Ban "This PR introduces/enhances/improves/ensures", "comprehensive", "robust", "seamless", benefit lists, rule-of-three summaries.
+- **Testing = one line** (what you actually ran or clicked). **Reference = bare links** (+ `Fixes #n`), no prose describing the links.
+- When in doubt, cut. A 4-line body is a good body; a 20-line body is a failed one.
+
 ## Body sections
 
 | Section | Content |
 |---------|---------|
-| What/Why/How? | Short summary: what changed, why, how. |
+| What/Why/How? | Max 3 short lines — see Brevity rules above. |
 | Reference | Links to Slack, docs, issues. **If this PR should close a GitHub issue when merged**, add a closing keyword on its own line: `Fixes #123` or `Closes #123` (GitHub recognizes these in the PR description). Use the exact issue number—if unknown, **ask**; do not guess. Also include any non-closing references as normal links or `Related #456`. |
-| Testing | How the change was tested. |
+| Testing | One line: what was run/clicked to verify. |
 | Check yourself | Check/uncheck boxes to match reality. |
 | Security | Check boxes when applicable. |
 
