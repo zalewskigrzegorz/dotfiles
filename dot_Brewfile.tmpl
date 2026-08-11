@@ -60,7 +60,8 @@ brew "oven-sh/bun/bun"
 # sox: `rec` nagrywa z mikrofonu Maca dla `tina listen` (push-to-talk do Tiny).
 # Bez niego komenda odmawia startu i podpowiada instalację.
 brew "sox"
-brew "timescam/tap/pay-respects"
+# pay-respects: installed + pinned by run_onchange_after_10-brew-bundle.sh
+# (tap ships a rolling "nightly" with a perma-stale sha256 that breaks bundle)
 brew "rclone"
 brew "ripgrep"
 brew "rsync"
