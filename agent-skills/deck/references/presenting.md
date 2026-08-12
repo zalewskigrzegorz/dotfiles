@@ -1,6 +1,6 @@
 # Hosting, remote, publishing
 
-## deck.lab — the normal path
+## deck.mrglaszki.com — the normal path
 
 Service lives in `~/Code/home-lab/services/deck/` and runs on the lab. Push from the Mac:
 
@@ -16,9 +16,9 @@ deck goto <slug> <n>
 
 | URL | Purpose |
 |---|---|
-| `http://deck.lab/` | list of decks, drag-and-drop upload |
-| `http://deck.lab/d/<slug>` | the deck — the window he shares or projects |
-| `http://deck.lab/r/<slug>` | the remote — prev/next plus the current slide's notes |
+| `https://deck.mrglaszki.com/` | list of decks, drag-and-drop upload |
+| `https://deck.mrglaszki.com/d/<slug>` | the deck — the window he shares or projects |
+| `https://deck.mrglaszki.com/r/<slug>` | the remote — prev/next plus the current slide's notes |
 
 `DECK_HOST=http://localhost:8899 deck push …` retargets everything at a local container.
 
@@ -61,7 +61,7 @@ git -C ~/Code/home-lab push
 ssh lab 'cd /opt/homelab && git pull && docker compose -f services/deck/compose.yaml up -d --build --force-recreate'
 ```
 
-`*.lab` is a DNS wildcard onto 192.168.50.10, so no record needs adding. Two things not to
+`*.mrglaszki.com` is a DNS wildcard onto 192.168.50.10, so no record needs adding. Two things not to
 break: traefik carries an `X-Accel-Buffering: no` middleware (without it SSE is buffered
 and the remote goes deaf), and uvicorn runs a single worker (slide state and the listener
 list are in-process).
@@ -102,13 +102,13 @@ window with `aerospace list-windows --all | grep -i "<deck title>"`.
 
 ## Publishing afterwards
 
-**In the room:** `deck.lab`. **Afterwards:** an Artifact, for people to keep.
+**In the room:** `deck.mrglaszki.com`. **Afterwards:** an Artifact, for people to keep.
 
 Make a separate `deck-artifact.html` so the hosted copy is untouched:
 
 1. Strip `<!DOCTYPE>`, `<html>`, `<head>`, `<body>`; keep `<title>`. The Artifact host
    supplies the skeleton.
-2. Delete any SSE remote block the deck carries of its own. (Decks pushed to `deck.lab`
+2. Delete any SSE remote block the deck carries of its own. (Decks pushed to `deck.mrglaszki.com`
    don't have one — the controller is injected server-side and never lands in the file.)
 3. Confirm zero external references.
 

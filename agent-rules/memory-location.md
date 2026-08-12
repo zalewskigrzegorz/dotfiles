@@ -78,7 +78,7 @@ that skill's flow rather than improvising.
 | Use case | URL |
 |---|---|
 | Claude Code MCP (auto-wired via dotfiles) | `http://192.168.50.10:8888/mcp/greg/` |
-| Raycast / external HTTPS MCP | `https://mcp.lab/hindsight/mcp/greg/` |
+| Raycast / external HTTPS MCP | `https://mcp.mrglaszki.com/hindsight/mcp/greg/` |
 | REST API base | `http://192.168.50.10:8888` |
 | OpenAPI Swagger | `http://192.168.50.10:8888/docs` |
 | Web UI | `http://192.168.50.10:9999/` |

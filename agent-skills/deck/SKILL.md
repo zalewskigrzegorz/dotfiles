@@ -1,6 +1,6 @@
 ---
 name: deck
-description: Build a presentation deck for Greg to actually stand up and deliver — a self-contained animated HTML deck in the Mocha Neon palette, a PL/EN teleprompter in Obsidian, and a phone remote so he can flip slides while reading notes. Use when Greg says he's presenting, giving a talk, doing an academy/brown-bag/demo session, "zrób prezentację", "deck na akademię", "muszę o tym opowiedzieć", "slajdy", "prezentacja na jutro", or asks to turn work he did into something he can show a team. Also use when he wants to update or re-run a previous talk. NOT for one-off diagrams (draw those on draw.lab) and NOT for written documents that are merely shared (those are just markdown).
+description: Build a presentation deck for Greg to actually stand up and deliver — a self-contained animated HTML deck in the Mocha Neon palette, a PL/EN teleprompter in Obsidian, and a phone remote so he can flip slides while reading notes. Use when Greg says he's presenting, giving a talk, doing an academy/brown-bag/demo session, "zrób prezentację", "deck na akademię", "muszę o tym opowiedzieć", "slajdy", "prezentacja na jutro", or asks to turn work he did into something he can show a team. Also use when he wants to update or re-run a previous talk. NOT for one-off diagrams (draw those on draw.mrglaszki.com) and NOT for written documents that are merely shared (those are just markdown).
 ---
 
 # Deck
@@ -11,7 +11,7 @@ Three deliverables, in this order:
 
 1. **`deck.html`** — one self-contained file, animated, Mocha Neon, 16:9. Goes in bazgroly.
 2. **Teleprompter** — a note in Obsidian, Polish instructions + English speech.
-3. **Push to `deck.lab`** — `deck push`, which hosts the deck and gives him a phone remote with the notes on it.
+3. **Push to `deck.mrglaszki.com`** — `deck push`, which hosts the deck and gives him a phone remote with the notes on it.
 
 ## The rule that makes the talk good
 
@@ -96,12 +96,12 @@ Also include, all in Polish: per-slide timing, a cut order for when he's running
 
 Start from `templates/narration-template.md`.
 
-**The same file gets pushed to `deck.lab` as `notes.md`**, which is what puts the notes on
+**The same file gets pushed to `deck.mrglaszki.com` as `notes.md`**, which is what puts the notes on
 his phone during the talk. Write it once, use it twice — no separate speaker-notes format.
 
-## Push it to deck.lab
+## Push it to deck.mrglaszki.com
 
-The deck and its notes live on the lab, at `deck.lab` (service in `home-lab/services/deck/`).
+The deck and its notes live on the lab, at `deck.mrglaszki.com` (service in `home-lab/services/deck/`).
 From the Mac:
 
 ```bash
@@ -112,8 +112,8 @@ That prints two URLs:
 
 | URL | Who looks at it |
 |---|---|
-| `http://deck.lab/d/<slug>` | **the deck** — the window he shares or projects |
-| `http://deck.lab/r/<slug>` | **the remote** — his phone: prev/next, plus the notes for the slide that is currently up |
+| `https://deck.mrglaszki.com/d/<slug>` | **the deck** — the window he shares or projects |
+| `https://deck.mrglaszki.com/r/<slug>` | **the remote** — his phone: prev/next, plus the notes for the slide that is currently up |
 
 This is the whole reason the notes file matters. He stands there holding the phone: the
 current slide's block is on screen, Polish stage directions dimmed, the English he says
@@ -123,7 +123,7 @@ highlighted. He taps → and both the projected deck and his own notes advance t
 number → slide number. Get them out of step and he reads slide 9's notes over slide 8.
 Renumber the narration whenever you insert a slide.
 
-The uploaded HTML needs no cooperation — `deck.lab` injects its own controller on the way
+The uploaded HTML needs no cooperation — `deck.mrglaszki.com` injects its own controller on the way
 out, which calls the deck's `nextSlide()` / `prevSlide()` / `showSlide(n)` and reports the
 current slide back. Any deck from `templates/deck-template.html` satisfies that.
 
@@ -132,7 +132,7 @@ Other `deck` verbs: `ls`, `open <slug>`, `remote <slug>`, `rm <slug>`, `next|pre
 
 **Don't rebuild a local server for this.** `~/Code/dotfiles/bin/deck-serve` still exists as
 an offline fallback (`nohup deck-serve <deck.html> 8777 … & disown`) for when the lab is
-unreachable, but `deck.lab` is the path — it survives reboots, needs no terminal, and the
+unreachable, but `deck.mrglaszki.com` is the path — it survives reboots, needs no terminal, and the
 phone reaches it from anywhere on the LAN.
 
 **AeroSpace hotkeys don't work** and the bindings were removed on 2026-07-30. Don't re-add

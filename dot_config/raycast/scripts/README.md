@@ -28,21 +28,19 @@ expression: `WORKSPACE_DIR`, `WORK_COMPANY`, and `WORK_MAIN_PROJECT`.
 ## MCP on macOS (Raycast, no repo)
 
 - Use only HTTPS in Raycast MCP URLs (Apple policy):
-  - `https://mcp.lab/homey/mcp`
-  - `https://mcp.lab/excalidraw/mcp`
+  - `https://mcp.mrglaszki.com/homey/mcp`
+  - `https://mcp.mrglaszki.com/excalidraw/mcp`
 - HTTP (`http://...`) can still be used for LAN/server-side tests, but not as a Raycast MCP URL on macOS.
-- Server-side setup uses one wildcard certificate (`*.lab`) with SAN entries for `*.lab` and `mcp.lab`.
-- On the Mac (same network), open `https://mcp.lab/cert/cert.pem` in Safari once, import to Keychain, set trust to **Always Trust**, then fully restart Raycast.
-- DNS note: a separate `mcp.lab` record is not required when your wildcard (for example `*.lab`) already points to the same Traefik IP.
+- Server-side setup uses one wildcard certificate (`*.mrglaszki.com`) with SAN entries for `*.mrglaszki.com` and `mcp.mrglaszki.com`.
+- (cert install niepotrzebny — lab używa zaufanego certu Let's Encrypt na *.mrglaszki.com)
+- DNS note: a separate `mcp.mrglaszki.com` record is not required when your wildcard (for example `*.mrglaszki.com`) already points to the same Traefik IP.
 - Traefik serves one HTTPS host/certificate with two paths (`/homey/mcp`, `/excalidraw/mcp`) from `docker/config/traefik/mcp-gateway.yml`.
 
 ### TLS error quick fix (`Reason: A TLS error caused the secure connection to fail`)
 
-1. Remove any old `mcp.lab` self-signed cert from Keychain (`login` and `System`).
-2. Import fresh `https://mcp.lab/cert/cert.pem` to **System** keychain and set **Always Trust**.
-3. Verify SAN/hostname on Mac:
-   - `openssl s_client -connect mcp.lab:443 -servername mcp.lab </dev/null | openssl x509 -noout -subject -issuer -text | rg "Subject:|Issuer:|DNS:"`
-   - Ensure SAN includes `DNS:*.lab` and `DNS:mcp.lab`.
-4. Verify DNS resolution points to Traefik:
-   - `dig +short mcp.lab`
-5. Quit Raycast completely and launch again.
+(cert install niepotrzebny — lab używa zaufanego certu Let's Encrypt na *.mrglaszki.com)
+
+If issues persist, verify DNS resolution points to Traefik:
+   - `dig +short mcp.mrglaszki.com`
+
+Then quit Raycast completely and launch again.

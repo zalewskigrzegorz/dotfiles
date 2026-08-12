@@ -30,7 +30,7 @@ ssh lab 'curl -sf -o /dev/null -w "%{http_code}" http://192.168.50.10:3001/audio
 2. **Play via HA REST** (token lives on lab in the announce-agent stack env):
 
 ```bash
-ssh lab 'HA_TOKEN=$(grep ^HA_TOKEN= /opt/homelab/stacks/announce-agent/.env | cut -d= -f2-); HA=http://homeassistant.lab:8123; \
+ssh lab 'HA_TOKEN=$(grep ^HA_TOKEN= /opt/homelab/stacks/announce-agent/.env | cut -d= -f2-); HA=http://homeassistant.mrglaszki.com:8123; \
 curl -sS -X POST "$HA/api/services/media_player/volume_set" -H "Authorization: Bearer $HA_TOKEN" -H "Content-Type: application/json" \
   -d "{\"entity_id\":\"<entity>\",\"volume_level\":0.7}" >/dev/null; \
 curl -sS -X POST "$HA/api/services/media_player/play_media" -H "Authorization: Bearer $HA_TOKEN" -H "Content-Type: application/json" \

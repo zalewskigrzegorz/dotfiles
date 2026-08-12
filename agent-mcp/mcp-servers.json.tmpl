@@ -2,11 +2,11 @@
   "mcpServers": {
     "draw": {
       "type": "http",
-      "url": "https://mcp.lab/excalidraw/mcp"
+      "url": "https://mcp.mrglaszki.com/excalidraw/mcp"
     },
     "Homey": {
       "type": "http",
-      "url": "https://mcp.lab/homey/mcp"
+      "url": "https://mcp.mrglaszki.com/homey/mcp"
     },
     "nushell": {
       "command": "{{ .chezmoi.homeDir }}/.cargo/bin/mcp-server-nu",
@@ -58,7 +58,7 @@
          every repo via the global user scope. */}}
     "n8n-mcp": {
       "type": "http",
-      "url": "http://n8n.lab/mcp-server/http",
+      "url": "https://n8n.mrglaszki.com/mcp-server/http",
       "headers": {
         "Authorization": {{ if lookPath "op" }}{{ printf "Bearer %s" (onepasswordRead (printf "op://%s/N8N_API_KEY/password" (index . "onePasswordVault" | default "Dotfiles"))) | quote }}{{ else }}"Bearer "{{ end }}
       }
