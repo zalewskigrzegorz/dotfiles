@@ -2,12 +2,12 @@
 
 Endpoints:
 
-- Excalidraw AI app: `http://draw-ai.lab`
+- Excalidraw AI app: `https://draw-ai.mrglaszki.com`
 - Raycast/HTTP MCP gateway:
-  - `https://mcp.lab/excalidraw/mcp`
-  - `https://mcp.lab/homey/mcp`
-- Cert download: `https://mcp.lab/cert/cert.pem`
-- Other apps pattern: `http://{service-name}.lab`
+  - `https://mcp.mrglaszki.com/excalidraw/mcp`
+  - `https://mcp.mrglaszki.com/homey/mcp`
+- Cert download: `https://mcp.mrglaszki.com/cert/cert.pem`
+- Other apps pattern: `https://{service-name}.mrglaszki.com`
 
 ## What can be automated from dotfiles
 
@@ -17,19 +17,14 @@ Endpoints:
 
 > **As of the agent-sync rework**, both Cursor and Claude Code now share a single source of truth at `agent-mcp/mcp-servers.json.tmpl`. `chezmoi apply` renders it into `~/.cursor/mcp.json` (via `dot_cursor/mcp.json.tmpl`) and calls `claude mcp add --scope user` for each server. See `docs/agents-sync.md` for the full layout.
 
-## One-time macOS certificate step (required for Raycast HTTPS)
-
-1. Open `https://mcp.lab/cert/cert.pem` in Safari.
-2. Import to Keychain Access (`System` keychain recommended).
-3. Set trust to `Always Trust`.
-4. Restart Raycast.
+## Certificate (no install needed — Let's Encrypt trusted)
 
 ## Raycast (manual)
 
 In Raycast MCP settings add:
 
-- `https://mcp.lab/homey/mcp`
-- `https://mcp.lab/excalidraw/mcp`
+- `https://mcp.mrglaszki.com/homey/mcp`
+- `https://mcp.mrglaszki.com/excalidraw/mcp`
 
 ## Cursor (global dotfile-managed)
 
@@ -40,11 +35,11 @@ In Raycast MCP settings add:
   "mcpServers": {
     "homey-http": {
       "type": "http",
-      "url": "https://mcp.lab/homey/mcp"
+      "url": "https://mcp.mrglaszki.com/homey/mcp"
     },
     "excalidraw-http": {
       "type": "http",
-      "url": "https://mcp.lab/excalidraw/mcp"
+      "url": "https://mcp.mrglaszki.com/excalidraw/mcp"
     }
   }
 }
@@ -65,11 +60,11 @@ For a per-repo MCP entry that's not global, create/update `.mcp.json` in that re
   "mcpServers": {
     "homey-http": {
       "type": "http",
-      "url": "https://mcp.lab/homey/mcp"
+      "url": "https://mcp.mrglaszki.com/homey/mcp"
     },
     "excalidraw-http": {
       "type": "http",
-      "url": "https://mcp.lab/excalidraw/mcp"
+      "url": "https://mcp.mrglaszki.com/excalidraw/mcp"
     }
   }
 }
@@ -78,8 +73,8 @@ For a per-repo MCP entry that's not global, create/update `.mcp.json` in that re
 Alternative (user scope via CLI, not committed):
 
 ```bash
-claude mcp add --transport http --scope user homey-http https://mcp.lab/homey/mcp
-claude mcp add --transport http --scope user excalidraw-http https://mcp.lab/excalidraw/mcp
+claude mcp add --transport http --scope user homey-http https://mcp.mrglaszki.com/homey/mcp
+claude mcp add --transport http --scope user excalidraw-http https://mcp.mrglaszki.com/excalidraw/mcp
 ```
 
 ## Notes

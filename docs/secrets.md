@@ -96,7 +96,7 @@ Create both as **Password** items in the `Dotfiles` vault with the value in the
 `password` field (`op://Dotfiles/HOMEY_TOKEN/password`). macOS-only — the lab has
 no Stream Deck, so the "Skipping HOMEY_TOKEN…" notice during `chezmoi apply`
 there is expected and harmless. The Homey **MCP** server
-(`https://mcp.lab/homey/mcp`) is unrelated; it keeps its own credentials
+(`https://mcp.mrglaszki.com/homey/mcp`) is unrelated; it keeps its own credentials
 server-side and does not use these.
 
 ## Sync Flow

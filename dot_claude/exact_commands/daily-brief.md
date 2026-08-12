@@ -259,6 +259,10 @@ For `category:invitation` — these are calendar invites that may contain *life*
 
 ### Slack (via `mcp__claude_ai_Slack__*`)
 
+These tools are **deferred** — absent from the visible tool list until loaded via
+`ToolSearch("select:mcp__claude_ai_Slack__slack_search_public,mcp__claude_ai_Slack__slack_read_channel")`.
+Never conclude "no Slack MCP in this session" — load them first.
+
 ```
 slack_search_public  query="<@U044DRVH8UF> after:<5-days-ago>"    # mentions of Greg
 slack_search_public  query="from:me after:<5-days-ago>"            # threads Greg started (may need follow-up)
@@ -345,7 +349,7 @@ Convert `lastUpdated` (ms epoch) to Polish relative time ("dziś rano", "wczoraj
 
 ```bash
 curl -s --max-time 5 "http://lab:3001/api/events?from=$(date -u -v-24H +%Y-%m-%dT%H:%M:%SZ)&limit=30"
-# Alternative reverse proxy: http://announce.lab/api/events?from=...&limit=30
+# Alternative reverse proxy: https://announce.mrglaszki.com/api/events?from=...&limit=30
 ```
 
 Response shape: `{rows: [{event_id, ts, trigger_name, kind, target, dry_run, llm_trimmed, audio_url, ...}]}`. `llm_trimmed` is the text Tina actually spoke.

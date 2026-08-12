@@ -46,7 +46,7 @@ So rotate = temperature, press = power. Same recipe for any room AC.
 > keep temp on the dial, put on/off on an adjacent **key** (Toggle Device). Feature
 > request sent to the dev (odd@adapted.no) asking for an independent dial-press action.
 
-## 2026-06-23 — FINAL layout design (brainstormed on draw.lab)
+## 2026-06-23 — FINAL layout design (brainstormed on draw.mrglaszki.com)
 
 This supersedes the room-*folder* "SmartHome layout" further down. Built interactively;
 implement in the Elgato GUI with the Homey Pro plugin once Greg's plugin access is back.
@@ -108,7 +108,7 @@ Dials: `Mic gain` · `Speaker` · `Cam zoom` · `◉ PAGES`. MuteDeck = cross-ap
 
 HTTP triggers to the lab via the **API Request** plugin (GUI-configured, survives — NOT
 MCP). Keys: `n8n workflow trigger (webhook)` · `Lab status (live tile, poll)` ·
-`Tina / announce event (lab:3001)` · `draw.lab / tools (open)`. 4 keys + 3 dials free.
+`Tina / announce event (lab:3001)` · `draw.mrglaszki.com / tools (open)`. 4 keys + 3 dials free.
 Dial 4 = `◉ PAGES`.
 
 ### Still to draw / define (later)

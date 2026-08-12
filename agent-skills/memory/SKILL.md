@@ -52,7 +52,7 @@ set it explicitly.
 | Use case | URL |
 |---|---|
 | MCP from Claude Code (Mac, lab) — auto-wired w dotfiles | `http://192.168.50.10:8888/mcp/greg/` |
-| MCP from Raycast (wymaga HTTPS) | `https://mcp.lab/hindsight/mcp/greg/` |
+| MCP from Raycast (wymaga HTTPS) | `https://mcp.mrglaszki.com/hindsight/mcp/greg/` |
 | REST API base | `http://192.168.50.10:8888` |
 | Web UI | `http://192.168.50.10:9999/` |
 | OpenAPI Swagger | `http://192.168.50.10:8888/docs` |
@@ -249,17 +249,12 @@ Albo dla recall: ten sam pattern, URL `.../memories/recall`, body `{"query":"$js
 
 ## From Raycast (HTTPS wymagane)
 
-Pre-req: Traefik route na `mcp.lab` gateway + cert install (per `mcp.lab`
-flow w home-lab README). **Nie używamy** `mem.lab` jako osobnego hostu —
-cert `*.lab` nie matchuje single-label wildcard (RFC 6125), więc wpinamy
-się pod istniejący gateway `mcp.lab/hindsight/...` razem z Homey/Excalidraw.
-
 Raycast Settings → MCP Servers → Add:
-- URL: `https://mcp.lab/hindsight/mcp/greg/`
+- URL: `https://mcp.mrglaszki.com/hindsight/mcp/greg/`
 - Type: HTTP/SSE
 - Auth: None
 
-Raycast cert install: Safari → `https://mcp.lab/cert/cert.pem` → import do Keychain System → "Always Trust" → restart Raycast.
+(cert install niepotrzebny — lab używa zaufanego certu Let's Encrypt na *.mrglaszki.com)
 
 ## Operations on the stack
 
@@ -365,7 +360,7 @@ ssh lab "docker compose -f /opt/homelab/services/hindsight/compose.yaml stop hin
  ├─ Claude Code MCP   ─┐                  hindsight (8888 + 9999)
  ├─ n8n               ─┼─→ http://192.168.50.10:8888 (LAN)
  ├─ Python            ─┘                        │
- ├─ Raycast           ───→ https://mcp.lab/hindsight/mcp/greg/  (Traefik gateway)
+ ├─ Raycast           ───→ https://mcp.mrglaszki.com/hindsight/mcp/greg/  (Traefik gateway)
                                                 │
                                           ollama:11434/v1  (bielik-7b)
                                                 │
