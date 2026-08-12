@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Install + (re)load the com.greg.karakeep-raycast-patch LaunchAgent: re-applies
+# bin/karakeep-raycast-patch so the Karakeep Raycast extension keeps searching
+# the server instead of filtering the ~40 bookmarks it prefetched. Raycast
+# overwrites the bundles on every extension update, which silently reverts the
+# patch and makes every query show "(0)" — hence the periodic re-run.
+#
+# The patch is idempotent and reports "already" when there is nothing to do, so
+# a 6h interval plus RunAtLoad costs nothing. Needs node on PATH (`node --check`
+# guards the rewrite), which lives behind mise here, not in /opt/homebrew.
+#
+# Bump this version comment to force re-run when the plist/interval changes.
+# Version: 2026-08-12.1
+set -euo pipefail
+
+{{ if eq .chezmoi.os "darwin" -}}
+plist_dir="$HOME/Library/LaunchAgents"
+plist_file="$plist_dir/com.greg.karakeep-raycast-patch.plist"
+mkdir -p "$plist_dir"
+
+cat > "$plist_file" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.greg.karakeep-raycast-patch</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>{{ .chezmoi.homeDir }}/Code/dotfiles/bin/karakeep-raycast-patch</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>{{ .chezmoi.homeDir }}/.local/share/mise/shims:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>21600</integer>
+  <key>WatchPaths</key>
+  <array>
+    <string>{{ .chezmoi.homeDir }}/.config/raycast-x/extensions</string>
+    <string>{{ .chezmoi.homeDir }}/.config/raycast/extensions</string>
+  </array>
+  <key>StandardOutPath</key>
+  <string>/tmp/com.greg.karakeep-raycast-patch.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/com.greg.karakeep-raycast-patch.err</string>
+</dict>
+</plist>
+PLIST
+
+if launchctl list | grep -q "com.greg.karakeep-raycast-patch"; then
+  launchctl unload "$plist_file" || true
+fi
+launchctl load "$plist_file"
+echo "[ok] com.greg.karakeep-raycast-patch loaded (every 6h + on extension change)"
+{{ else -}}
+exit 0
+{{ end -}}
