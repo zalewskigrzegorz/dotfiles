@@ -36,6 +36,15 @@ personal Slack user token.
 - **The bot sleeps between messages.** After each send it often replies "Please,
   give me a minute… 💤" and takes ~40–60 s to post the next question. Poll the DM
   until the real next question appears; skip the sleep line and the plan-echo.
+- **Slack MCP tools are DEFERRED — they are absent from the visible tool list
+  until loaded.** Do NOT conclude "no Slack MCP in this session". Load them
+  first: `ToolSearch("select:mcp__claude_ai_Slack__slack_read_channel")` (add
+  other `mcp__claude_ai_Slack__*` tools to the same call as needed), then call
+  them normally. If ToolSearch returns "No matching deferred tools found" even
+  though `claude mcp list` shows the connector Connected, the tools never
+  registered in THIS session (stale long-lived session) — tell Greg the session
+  needs a restart, or hand the Slack reads to another session that has them.
+  Don't burn time on Chrome automation of app.slack.com as a first resort.
 
 ## Workflow
 
