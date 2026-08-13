@@ -42,15 +42,16 @@ If `$WORK_COMPANY` is available, `$WORK_MAIN_PROJECT` usually is too — you may
 1. Run `git status`. If there are no staged changes, stop and tell the user to stage files first. Do not stage on their behalf.
 2. Determine the mode (see above).
 3. Analyze the staged diff: `git diff --cached`.
-4. Build the commit message (rules below).
-5. **Suggest-only mode:**
+4. **Work mode, deslop gate (mandatory):** apply the `deslop` skill to the staged diff before composing the message. A repo-local `.claude/skills/deslop` takes precedence over the global one. If the pass edits files, re-stage exactly those files and re-read `git diff --cached` — the message must describe the cleaned diff. The gate passes only by running the pass; "the diff already looks clean" is not a pass. Skipped only when the user explicitly says to skip it.
+5. Build the commit message (rules below).
+6. **Suggest-only mode:**
    - Print the **raw** commit message exactly as it would be committed (no markdown fences, no commentary around it).
    - Add one short follow-up line: "Commit and push are up to you."
    - Stop. Do not run any git mutation command.
-6. **Work mode, branch guard:** if `git rev-parse --abbrev-ref HEAD` is `main` or `master`, create a feature branch first:
+7. **Work mode, branch guard:** if `git rev-parse --abbrev-ref HEAD` is `main` or `master`, create a feature branch first:
    - `git checkout -b <type>/<scope>-<short-slug>` (e.g. `feat/<scope>-short-thing`).
    - Slug: lowercase, hyphens, short. Pick `type`/`scope` consistent with the commit you are about to make.
-7. **Work mode, commit:** run `git commit` **only after the user explicitly asks to commit**. Output the message first for confirmation. Never run `git push`.
+8. **Work mode, commit:** run `git commit` **only after the user explicitly asks to commit**. Output the message first for confirmation. Never run `git push`.
 
 ## Commit message rules
 
