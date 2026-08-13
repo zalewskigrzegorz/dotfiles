@@ -155,7 +155,7 @@
       "Bash(curl *api.nbp.pl*)",
       "Bash(curl *open-meteo.com*)",
       "Bash(curl *lab:3001*)",
-      "Bash(curl *announce.lab*)",
+      "Bash(curl *announce.mrglaszki.com*)",
       "Bash(curl *api.elevenlabs.io*)",
       "Bash(mkdir -p *Documents/briefings*)",
       "Bash(osascript *)",

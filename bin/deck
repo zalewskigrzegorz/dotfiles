@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# deck — talk to deck.lab from the Mac.
+# deck — talk to deck.mrglaszki.com from the Mac.
 #
 #   deck push <deck.html> [notes.md] [slug]   upload (slug defaults to the filename)
 #   deck ls                                   list what's hosted
@@ -8,11 +8,11 @@
 #   deck rm <slug>                            delete
 #   deck next|prev|first|last|calm <slug>     drive it from the shell
 #
-# DECK_HOST overrides the target (default http://deck.lab).
+# DECK_HOST overrides the target (default https://deck.mrglaszki.com).
 
 set -euo pipefail
 
-HOST="${DECK_HOST:-http://deck.lab}"
+HOST="${DECK_HOST:-https://deck.mrglaszki.com}"
 
 die() { printf '%s\n' "$*" >&2; exit 1; }
 
