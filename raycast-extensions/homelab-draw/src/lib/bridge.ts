@@ -7,12 +7,12 @@ type Prefs = {
 
 export function bridgeUrl(): string {
   const { bridgeUrl } = getPreferenceValues<Prefs>();
-  return (bridgeUrl ?? "http://draw-bridge.lab").replace(/\/$/, "");
+  return (bridgeUrl ?? "https://draw-bridge.mrglaszki.com").replace(/\/$/, "");
 }
 
 export function drawUrl(): string {
   const { drawUrl } = getPreferenceValues<Prefs>();
-  return (drawUrl ?? "http://draw.lab").replace(/\/$/, "");
+  return (drawUrl ?? "https://draw.mrglaszki.com").replace(/\/$/, "");
 }
 
 export type Canvas = {

@@ -28,7 +28,7 @@ function matchesHost(url: string, base: string): boolean {
   return url.startsWith(baseClean + "/") || url === baseClean;
 }
 
-// Probe open Comet/Chrome tabs (via Raycast BrowserExtension) for a draw.lab
+// Probe open Comet/Chrome tabs (via Raycast BrowserExtension) for a draw.mrglaszki.com
 // canvas deep-link. Falls back to AI scene.
 async function detectFromBrowser(): Promise<Detected> {
   try {
@@ -39,7 +39,7 @@ async function detectFromBrowser(): Promise<Detected> {
     );
     if (drawTab) {
       const id = drawTab.url.match(/[?&]canvas=([^&]+)/)![1];
-      return { source: "draw", sourceId: id, label: `draw.lab · canvas=${id.slice(0, 8)}…` };
+      return { source: "draw", sourceId: id, label: `draw.mrglaszki.com · canvas=${id.slice(0, 8)}…` };
     }
   } catch {
     // BrowserExtension API not available — fall through to AI.
@@ -160,7 +160,7 @@ export default function SaveCommand() {
       >
         <Form.Dropdown.Item value="auto" title="Auto (from active tab)" icon={Icon.Wand} />
         <Form.Dropdown.Item value="ai" title="draw-ai (live)" icon={Icon.Stars} />
-        <Form.Dropdown.Item value="draw" title="draw.lab (active canvas tab)" icon={Icon.Pencil} />
+        <Form.Dropdown.Item value="draw" title="draw.mrglaszki.com (active canvas tab)" icon={Icon.Pencil} />
       </Form.Dropdown>
       <Form.TextField
         id="name"

@@ -2,7 +2,7 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "homelab-draw",
   "title": "Homelab Draw",
-  "description": "Browse canvases on draw.lab and open them in Draw or AI — or save the current scene under a name.",
+  "description": "Browse canvases on draw.mrglaszki.com and open them in Draw or AI — or save the current scene under a name.",
   "icon": "icon.png",
   "author": "zalewskigrzegorz",
   "license": "MIT",
@@ -12,7 +12,7 @@
       "name": "browse",
       "title": "Draw: Browse",
       "subtitle": "Homelab Draw",
-      "description": "Search canvases on draw.lab and open any of them in Draw or AI.",
+      "description": "Search canvases on draw.mrglaszki.com and open any of them in Draw or AI.",
       "icon": "browse.png",
       "mode": "view"
     },
@@ -20,7 +20,7 @@
       "name": "save",
       "title": "Draw: Save",
       "subtitle": "Homelab Draw",
-      "description": "Save the current AI scene (or an existing canvas) to draw.lab with a name.",
+      "description": "Save the current AI scene (or an existing canvas) to draw.mrglaszki.com with a name.",
       "icon": "save.png",
       "mode": "view"
     }
@@ -32,17 +32,17 @@
       "description": "Base URL of draw-bridge.",
       "type": "textfield",
       "required": false,
-      "default": "http://draw-bridge.lab",
-      "placeholder": "http://draw-bridge.lab"
+      "default": "https://draw-bridge.mrglaszki.com",
+      "placeholder": "https://draw-bridge.mrglaszki.com"
     },
     {
       "name": "drawUrl",
       "title": "Draw URL",
-      "description": "Base URL of the draw.lab Excalidraw instance.",
+      "description": "Base URL of the draw.mrglaszki.com Excalidraw instance.",
       "type": "textfield",
       "required": false,
-      "default": "http://draw.lab",
-      "placeholder": "http://draw.lab"
+      "default": "https://draw.mrglaszki.com",
+      "placeholder": "https://draw.mrglaszki.com"
     }
   ],
   "dependencies": {

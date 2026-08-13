@@ -25,10 +25,10 @@ ${hint ? `**Likely fix:** ${hint}\n\n` : ""}---
 ## How this extension works
 
 This is a thin Raycast front-end. The actual work happens on **draw-bridge** (\`${bridge}\`),
-which talks to **draw.lab** (Excalidraw fork) and **draw-mcp** (scene producer).
+which talks to **draw.mrglaszki.com** (Excalidraw fork) and **draw-mcp** (scene producer).
 
 \`\`\`
-Raycast  →  draw-bridge  →  draw.lab / draw-mcp
+Raycast  →  draw-bridge  →  draw.mrglaszki.com / draw-mcp
             (homelab)        (homelab)
 \`\`\`
 
@@ -36,14 +36,14 @@ Raycast  →  draw-bridge  →  draw.lab / draw-mcp
 
 | Command | Endpoint it calls | Needs |
 |---|---|---|
-| **Draw: Browse** | \`GET /canvases\` + \`POST /canvases/:id/open\` | a canvas saved on the **draw.lab server** (not just browser localStorage) |
+| **Draw: Browse** | \`GET /canvases\` + \`POST /canvases/:id/open\` | a canvas saved on the **draw.mrglaszki.com server** (not just browser localStorage) |
 | **Draw: Save** | \`POST /canvases\` | \`/data/draw-mcp/scene.json\` on the homelab host (for \`source=ai\`) |
 
 ---
 
 ## Setup checklist (homelab side)
 
-- [ ] **\`GET /canvases\`** exposed by draw-bridge — proxies \`GET /api/v2/kv\` on draw.lab using the Bearer JWT, returns \`[{id, title?, modifiedAt?}]\` or \`{canvases:[…]}\`.
+- [ ] **\`GET /canvases\`** exposed by draw-bridge — proxies \`GET /api/v2/kv\` on draw.mrglaszki.com using the Bearer JWT, returns \`[{id, title?, modifiedAt?}]\` or \`{canvases:[…]}\`.
 - [ ] **Canvases persisted server-side** in excalidraw-full — otherwise canvas IDs only live in browser localStorage and the bridge 404s. Sign in / enable anonymous sync.
 - [ ] **\`/data/draw-mcp/scene.json\` exists** on the homelab host — draw-mcp must write it. Without this \`source=ai\` saves ENOENT.
 - [ ] *(Optional cosmetic)* In the excalidraw-full fork, on canvas switch: \`window.history.replaceState(null, "", "/#" + canvasId)\`. Lets this extension's "open in browser" badge actually light up.
@@ -80,8 +80,8 @@ Use the action panel below (\`⌘ K\`) to open extension preferences, copy curl 
             shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
           />
           <Action.OpenInBrowser
-            title="Open Draw.lab"
-            url="http://draw.lab/"
+            title="Open Draw.mrglaszki.com"
+            url="https://draw.mrglaszki.com/"
             shortcut={{ modifiers: ["cmd"], key: "o" }}
           />
         </ActionPanel>

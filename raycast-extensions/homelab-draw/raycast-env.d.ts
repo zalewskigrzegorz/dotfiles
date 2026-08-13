@@ -10,7 +10,7 @@
 type ExtensionPreferences = {
   /** Bridge URL - Base URL of draw-bridge. */
   "bridgeUrl": string,
-  /** Draw URL - Base URL of the draw.lab Excalidraw instance. */
+  /** Draw URL - Base URL of the draw.mrglaszki.com Excalidraw instance. */
   "drawUrl": string
 }
 

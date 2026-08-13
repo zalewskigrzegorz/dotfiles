@@ -159,7 +159,7 @@ export default function BrowseCommand() {
 function renderDetailMarkdown(c: Canvas): string {
   const thumb = c.thumbnail
     ? `![thumbnail](${c.thumbnail})`
-    : "_(no thumbnail yet — open the canvas in draw.lab once and it'll appear)_";
+    : "_(no thumbnail yet — open the canvas in draw.mrglaszki.com once and it'll appear)_";
   return `# ${c.name ?? c.id}\n\n${thumb}`;
 }
 
