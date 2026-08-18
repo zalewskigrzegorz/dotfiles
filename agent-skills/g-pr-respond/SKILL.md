@@ -34,17 +34,15 @@ here:
 
 ## P2. Confirm it's your PR (guard)
 
-This skill only handles PRs **you authored**. One authorship check settles it — being a co-author or having commits on the branch does **not** make it yours; only `author.login == me` does.
+This skill only handles PRs **you authored**. One authorship check settles it — being a co-author or having commits on the branch does **not** make it yours; only `author.login == me` does. Both sides are already in hand: `$ME` cached in P0b, `author.login` fetched in P1 (no PR → P1 already stopped and asked). No extra API call.
 
 ```bash
-# true => my PR. Exit: 0 mine / 1 not mine / 2 no PR.
-MINE="$(bash "$SCRIPTS/is-pr-mine.sh" "$NUMBER")"   # $NUMBER optional; omit to use current branch
-echo "MINE=$MINE"
+[[ "$ME" == "$AUTHOR" ]] && MINE=true || MINE=false   # $AUTHOR = author.login from P1
+echo "MINE=$MINE (me=$ME author=$AUTHOR)"
 ```
 
 * `MINE=true` → proceed with the flow below.
 * `MINE=false` → **wrong skill.** This PR is someone else's and you're the reviewer. Tell the user: "This is @author's PR, not yours — use `g-pr-review` to leave or follow up on a review." Stop unless the user explicitly overrides ("no, just draft author-style replies anyway").
-* `MINE` empty / exit 2 → no PR resolved; go back to P1.
 
 State `MINE=true` in one line before proceeding.
 

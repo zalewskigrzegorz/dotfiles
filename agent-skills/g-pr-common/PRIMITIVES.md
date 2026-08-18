@@ -5,9 +5,10 @@ directory deliberately has no `SKILL.md`, so nothing registers it, nothing
 auto-triggers it, and it costs no description context. Read it when either skill
 points here; never invoke it directly.
 
-P2 (the ownership guard) is deliberately absent: `g-pr-review` needs a three-way
-mine / not-mine / no-PR exit to pick its flow, `g-pr-respond` needs a two-way
-guard. Each keeps its own copy.
+P2 (the ownership guard) is deliberately absent: it's a one-line compare of
+`$ME` (P0b) against `author.login` (P1), but the two skills branch on the result
+differently — `g-pr-review` then picks fresh/followup, `g-pr-respond` just
+proceeds. Each keeps its own P2.
 
 These apply to both flows below.
 
@@ -57,7 +58,7 @@ After first call in a session, subsequent runs read from env — saves one API h
 
 ## P1. Resolve the target
 
-Capture `OWNER`, `REPO`, `NUMBER`, `SHA` (`headRefOid`), and the PR URL. Pass `-R "$OWNER/$REPO"` on every `gh` call when working from a PR URL or across forks.
+Capture `OWNER`, `REPO`, `NUMBER`, `SHA` (`headRefOid`), `AUTHOR` (`author.login`), and the PR URL. Pass `-R "$OWNER/$REPO"` on every `gh` call when working from a PR URL or across forks.
 
 **When `USE_LOCAL=true` from P0**, derive locally and only call `gh pr view` for the PR-side fields (number, URL, author):
 
@@ -82,6 +83,10 @@ export G_PR_NUMBER="$NUMBER"
 export G_PR_OWNER="$OWNER"
 export G_PR_REPO="$REPO"
 ```
+
+`AUTHOR` comes from the `author.login` field of the `gh pr view --json ...` call
+above — parse it out of that same response, no extra API hit. P2 compares it
+against `$ME`.
 
 If no PR exists for HEAD and the user gave no number/URL → stop and ask for one.
 
@@ -144,7 +149,6 @@ SCRIPTS="${G_PR_REVIEW_SCRIPTS:-$HOME/.claude/skills/g-pr-review/scripts}"
 
 * `fetch-comments.sh OWNER REPO NUMBER` — unresolved inline threads (GraphQL, paginated), enriched with `pr_author`, `last_comment_author`, `last_comment_at`, `author_replied_last`, `reviewer_followed_up`.
 * `fetch-reviews.sh OWNER REPO NUMBER` — PR-level review bodies + merged top-level inline comments (humans + bots like CodeRabbit, Gemini, Copilot).
-* `is-pr-mine.sh [NUMBER|URL]` — prints `true`/`false` for "am I the PR author" (context on stderr, exit 0 mine / 1 not / 2 no PR). No arg → current branch. Authoritative author check for P2.
 
 ## P8. Rate limits
 
