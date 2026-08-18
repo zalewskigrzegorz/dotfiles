@@ -34,13 +34,10 @@ here:
 
 ## P2. Guard + pick the flow
 
-This skill only handles PRs **you did not author**. First settle authorship — being a co-author or having pushed commits does **not** make it yours; only `author.login == me` does.
+This skill only handles PRs **you did not author**. First settle authorship — being a co-author or having pushed commits does **not** make it yours; only `author.login == me` does. Both sides are already in hand: `$ME` cached in P0b, `author.login` fetched in P1 (no PR → P1 already stopped and asked). No extra API call for the guard.
 
 ```bash
-# true => my PR, false => someone else's. Exit: 0 mine / 1 not mine / 2 no PR.
-MINE="$(bash "$SCRIPTS/is-pr-mine.sh" "$NUMBER")"   # $NUMBER optional; omit to use current branch
-
-ME="${G_PR_ME:-$(gh api user --jq .login)}"  # cached from P0b
+[[ "$ME" == "$AUTHOR" ]] && MINE=true || MINE=false   # $AUTHOR = author.login from P1
 MY_REVIEWS="$(gh api "repos/$OWNER/$REPO/pulls/$NUMBER/reviews" --jq "[.[] | select(.user.login == \"$ME\")] | length")"
 ```
 
