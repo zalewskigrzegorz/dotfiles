@@ -38,6 +38,10 @@ bin/sketchybar-watcher/**
 .config/raycast/ai/**
 .config/raycast/config.json
 .config/raycast/extensions/**
+# Local Raycast dev extensions: ship source only. node_modules/dist are rebuilt
+# in the target via `npm ci` (see each extension's README), never carried by chezmoi.
+raycast-extensions/spam/node_modules/**
+raycast-extensions/spam/dist/**
 .config/zed/.tmp*
 .config/zed/embeddings/**
 .config/zed/prompts/**
