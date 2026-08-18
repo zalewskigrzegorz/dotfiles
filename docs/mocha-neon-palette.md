@@ -34,7 +34,6 @@ lavender = compute/misc).
 | App | Config file | Tokens used | Hand-tuned? |
 |---|---|---|---|
 | statusline | `dot_claude/executable_statusline.sh` | mauve, pink, lavender, green, gold, peach, red, sky | hand |
-| tmux | `dot_config/tmux/tmux.conf` | mauve, pink, sky, gold, surface, base | hand |
 | sketchybar (Lua) | `dot_config/sketchybar/colors.lua` | all | hand |
 | sketchybar (Go watcher) | `bin/sketchybar-watcher/main.go` | all (mirrored from colors.lua) | hand |
 | starship | `dot_config/starship/starship.toml` | named palette via `[palettes.mocha-neon]` | imported |

@@ -61,5 +61,5 @@ pwsh). Keep it small — the heavy config lives on the lab server you attach to.
 
 ## Status
 
-Deferred until the Mac + lab migration is settled. No fallback engineering — if the
-preview build or `--remote` misbehaves, fall back to `ssh lab` + tmux on the lab.
+Windows herdr is still preview-only. No fallback engineering — if the preview build
+or `--remote` misbehaves, fall back to `ssh lab` and run herdr (`hd`) on the lab directly.

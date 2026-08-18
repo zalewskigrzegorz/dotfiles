@@ -1,7 +1,7 @@
 # Mocha Neon glyph atlas
 
 Single source of truth for every nerd-font / unicode codepoint used across
-the Mocha Neon stack (statusline, tmux, sketchybar, starship, nu prompt).
+the Mocha Neon stack (statusline, sketchybar, starship, nu prompt).
 Pair with `docs/mocha-neon-palette.md` (which is the color SOT).
 
 When swapping a glyph: edit ALL referenced files in lockstep. The "Where used"
@@ -20,8 +20,8 @@ column is the punch list.
 
 | Role | Glyph | Codepoint | Nerd-font name | Where used |
 |---|---|---|---|---|
-| Prefix-idle (Mocha Neon mascot) | `󱗃` | U+F15C3 | nf-md-unicorn-variant | `tmux.conf` status-left (idle), `starship.toml` `[character]` success_symbol |
-| Prefix-active / service mode | `󱓈` | U+F14C8 | nf-md-skull-scan-outline | `tmux.conf` status-left (`client_prefix` ON) |
+| Prefix-idle (Mocha Neon mascot) | `󱗃` | U+F15C3 | nf-md-unicorn-variant | `starship.toml` `[character]` success_symbol |
+| Prefix-active / service mode | `󱓈` | U+F14C8 | nf-md-skull-scan-outline | signature glyph (service-mode indicator) |
 | AI / claude-sessions | `󰧑` | U+F0675 | nf-md-creation | sketchybar `widgets/claude_sessions.lua` (icon) |
 
 ## Per-surface glyphs
@@ -33,16 +33,6 @@ column is the punch list.
 | `tool_seg` (tool-call counter) | `󰣖` | U+F08D6 | nf-md-hammer-wrench |
 | `comp_seg` (compaction counter) | `󰑨` | U+F0468 | nf-md-recycle |
 | `wait_seg` (waiting badge) | `󰂚` | U+F00A9 | nf-md-bell |
-
-### tmux (`dot_config/tmux/tmux.conf`)
-
-| Segment | Glyph | Codepoint | Nerd-font name |
-|---|---|---|---|
-| `status-left` prefix-active | `󱓈` | U+F14C8 | nf-md-skull-scan-outline |
-| `status-left` prefix-idle | `󱗃` | U+F15C3 | nf-md-unicorn-variant |
-| `status-right` session label | `󱎫` | U+F14CB | nf-md-clock-time-eight |
-| `status-right` week label | `󰸗` | U+F0E37 | nf-md-calendar-week |
-| reload banner / `display-message` | `󱗃` | U+F15C3 | nf-md-unicorn-variant |
 
 ### Sketchybar — workspace icons (`dot_config/sketchybar/items/spaces.lua`)
 
@@ -98,9 +88,9 @@ Driven by `sketchybar-watcher` Go binary. State glyphs:
 > nu/reedline doesn't expose VISUAL / REPLACE prompt indicators — see
 > polish brainstorm for upstream PR + local-hack workarounds.
 
-### Window wrappers (`dot_config/nushell/autoload/zz-tmux-window-wrappers.nu`)
+### TUI tab wrappers (`dot_config/nushell/autoload/zz-herdr-tui-wrappers.nu`)
 
-Spawn each TUI in its own tmux window labelled with this glyph + name:
+Rename the current herdr tab to this glyph + name while the TUI runs:
 
 | Command | Glyph | Codepoint | Nerd-font name |
 |---|---|---|---|
@@ -111,7 +101,7 @@ Spawn each TUI in its own tmux window labelled with this glyph + name:
 | `lazydocker` | `󰡨` | U+F0868 | nf-md-docker |
 | `btop` | `` | U+F0E4 | nf-fa-tachometer |
 
-(See `dot_config/nushell/autoload/zz-tmux-window-wrappers.nu` for exact `\u{xxxx}`
+(See `dot_config/nushell/autoload/zz-herdr-tui-wrappers.nu` for exact `\u{xxxx}`
 escapes — those survive every edit; literal glyphs in source have been silently
 stripped before.)
 
@@ -127,6 +117,6 @@ stripped before.)
 2. Verify it renders in **Iosevka Nerd Font Mono** (the dotfiles font).
 3. Add to the relevant per-surface section here.
 4. Reference by **`\u{xxxxx}` escape** in source where possible
-   (`zz-tmux-window-wrappers.nu` and Go code do this; tmux.conf and Lua use
-   literal glyphs because they're rendered through static config files).
+   (`zz-herdr-tui-wrappers.nu` and Go code do this; Lua uses literal glyphs
+   because they're rendered through static config files).
 5. Re-shoot screenshots in `~/Code/personal/bazgroly/dotfiles/screenshots/`.

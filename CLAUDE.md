@@ -20,7 +20,7 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 ├── dot_Brewfile.tmpl               # brew bundle source (templated by profile)
 ├── nushell-mcp.json.tmpl           # MCP servers for the nushell mcp integration
 ├── dot_claude/                     # → ~/.claude (settings, hooks, output-styles, skills/, statusline)
-├── dot_config/                     # → ~/.config (nushell, tmux, nvim, ghostty, sketchybar, ...)
+├── dot_config/                     # → ~/.config (nushell, herdr, nvim, ghostty, sketchybar, ...)
 ├── dot_cursor/                     # → ~/.cursor
 ├── private_dot_ssh/                # → ~/.ssh (mode 0600, templated)
 ├── agent-plugins/plugins.json.tmpl # Claude Code plugin install list
@@ -61,7 +61,6 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 | 35 | `run_after_35-raycast-scripts-compat.sh.tmpl` | Raycast compatibility shim |
 | 35 | `run_onchange_after_35-gh-extensions.sh` | install `gh` CLI extensions (gh-dash, gh-stack, …) |
 | 36 | `run_onchange_after_36-git-hooks.sh.tmpl` | wire tracked git hooks (`core.hooksPath` → gitleaks pre-commit/pre-push) |
-| 45 | `run_once_after_45-install-tmux-plugins.sh` | TPM + tmux plugins |
 
 Bootstrap from scratch: `./bootstrap.sh` (installs chezmoi + runs first apply).
 
@@ -172,8 +171,8 @@ Jednorazowa wiedza domenowa idzie przez **`skill-scout`** → `npx skills use <o
 
 ## Multiplexer — herdr (Mac)
 
-- **`hd` / `herdr` is the launcher** (`dot_config/nushell/autoload/herdr.nu` → `hd`, `hd-restart`, `hd-stop`). Prefix = `ctrl+space`. The priority-sorted **agent sidebar** (blocked-first) is the core — it replaces the old `claude-agent-presence` stack and the window-wrappers. Worktrees via the herdr-native `work` CLI (`new`/`ls`/`switch`/`rm`/`pr`). Nav: `prefix+w` workspace picker · `prefix+g` goto · `prefix+a` agent-cycle · `prefix+0` jump-to-waiting-agent · `prefix+h/j/k/l` panes. Config: `dot_config/herdr/config.toml`. Full reference: `docs/herdr.md`.
-- **tmux kept as a cold backup only (pre-herdr).** `dot_config/tmux/tmux.conf` (with `tmux-resurrect`/`tmux-continuum` and `zz-tmux-window-wrappers.nu`), `brew "tmux"`, and TPM stay in place but are NOT the active multiplexer. Revert = `git -C ~/Code/dotfiles checkout pre-herdr` (tag `pre-herdr` / branch `pre-herdr-backup`).
+- **`hd` / `herdr` is the launcher** (`dot_config/nushell/autoload/herdr.nu` → `hd`, `hd-restart`, `hd-stop`, `hd-lab`). Prefix = `ctrl+space`. The priority-sorted **agent sidebar** (blocked-first) is the core — it replaces the old `claude-agent-presence` stack and the window-wrappers. Worktrees via the herdr-native `work` CLI (`new`/`ls`/`switch`/`rm`/`pr`). Nav: `prefix+w` workspace picker · `prefix+g` goto · `prefix+a` agent-cycle · `prefix+0` jump-to-waiting-agent · `prefix+h/j/k/l` panes. Config: `dot_config/herdr/config.toml`. Full reference: `docs/herdr.md`.
+- **tmux removed** (2026-08-18). herdr is the only multiplexer on Mac and lab; the old `dot_config/tmux/`, `brew "tmux"`, TPM install script and tmux statusline scripts are gone. Pre-herdr state remains reachable at git tag `pre-herdr` / branch `pre-herdr-backup` if ever needed.
 
 ## Shell history (nushell)
 
@@ -182,16 +181,14 @@ Jednorazowa wiedza domenowa idzie przez **`skill-scout`** → `npx skills use <o
 
 ## Lab (`minis`, Debian) — connect & cold-start
 
-> **herdr DEFERRED on lab** — the lab still runs tmux until herdr lands there (`default_shell` in `config.toml` is the Mac nu path, needs per-OS templatizing first). The nested-tmux workflow below is lab-current, NOT Mac-current; on the Mac use herdr (`hd`).
-
 - SSH alias: `ssh lab` (chezmoi-templated `~/.ssh/config`); fallback `ssh lab-via-ip` (192.168.50.10).
-- **One-time terminfo install per remote** so tmux/nvim accept `xterm-ghostty`:
+- **herdr runs on the lab too.** Preferred access from the Mac is `hd-lab` (`herdr --remote lab --remote-keybindings server`) — a client-server attach to the lab's herdr server from a plain Ghostty window (not nested in a local herdr). Full remote flow in `docs/herdr.md`.
+- **One-time terminfo install per remote** so nvim accepts `xterm-ghostty`:
   ```
   infocmp -x xterm-ghostty | ssh <host> -- tic -x -
   ```
 - Lab login shell is `bash`, not nu. Either run `nu` after login or `chsh -s $(which nu)` (after adding nu to `/etc/shells`).
 - **Pulling new dotfiles on lab from bash:** `chezmoi update` (runs `git pull` in `~/.local/share/chezmoi` + `chezmoi apply`). `~/Code/dotfiles` on lab is NOT a git checkout.
-- Accepted workflow: `tn` on mac → SSH from inside that tmux window → `nu` + `tn`/`ta` on lab. Two status bars (mac-tmux + lab-tmux nested), prefix is `Space`, send to inner tmux via `Space Space` (`bind-key ' ' send-prefix`).
 
 ## Pointers
 

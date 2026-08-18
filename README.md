@@ -62,16 +62,6 @@ If no 1Password account is configured, run `op account add` once. On a headless 
 
 Until `op` is on `PATH` and authenticated, `sync` will apply public dotfiles and skip only the private restore.
 
-### tmux: window icons / names missing (backup-only — pre-herdr tmux)
-
-> The Mac multiplexer is now **herdr** (`hd`); tmux is kept only as a cold backup. This applies if you revert to tmux (`git checkout pre-herdr`) or are on the lab, where tmux is still active.
-
-Tab labels with icons come from TPM plugin `tmux-nerd-font-window-name` plus `~/.config/tmux/tmux-nerd-font-window-name.yml`. After a fresh machine or chezmoi migration:
-
-1. Run `chezmoi apply` once so `run_once_after_45-install-tmux-plugins.sh` can clone TPM and install plugins (or inside tmux press **prefix + capital I** to install TPM plugins manually).
-2. Restart tmux (or `tmux source-file ~/.config/tmux/tmux.conf`).
-3. Your terminal profile must use a **Nerd Font** (otherwise icons render as empty boxes or disappear).
-
 Package installation is driven by `~/.Brewfile`, rendered from `dot_Brewfile.tmpl`. The first apply installs Homebrew/Linuxbrew when missing, but `brew bundle` is opt-in while the app list is being reviewed:
 
 ```bash

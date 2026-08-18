@@ -1,6 +1,6 @@
 # Vim/Neovim - Editor tools and file selection
 
-# Smart file picker with fzf (plain — fzf-tmux needs $TMUX; runs anywhere incl herdr).
+# Smart file picker with fzf (plain fzf — runs anywhere, incl. herdr).
 def v [] {
     fd --max-depth 10 --type f --hidden --exclude .git --exclude node_modules --exclude target --exclude build
     | fzf --preview 'bat --color=always --style=full --line-range=:500 {}'

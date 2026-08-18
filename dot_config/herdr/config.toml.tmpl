@@ -1,6 +1,4 @@
 # herdr configuration — managed by chezmoi (source: dot_config/herdr/config.toml)
-# tmux+sesh replacement. Plan: bazgroly/dotfiles/plans/2026-06-28-herdr-migration-mac.md
-# Backup of the old tmux setup: git tag `pre-herdr` / branch `pre-herdr-backup`.
 
 # Onboarding wizard already done.
 onboarding = false
@@ -109,8 +107,7 @@ description = "New worktree in the focused repo (work new)"
 # URL / file picker — our own greg.herdr-pick plugin (dot_config/herdr/plugins-src).
 # type="shell" calls `herdr plugin pane open` to spawn the picker overlay (real TTY →
 # fzf works). The picker scans EVERY pane's scrollback. url → browser (ctrl-y copies),
-# file → nvim in a new tab. Replaces the old tmux fzf-url-picker (prefix u) +
-# open-file-window (prefix F/H/G), and the `url`/`of` nu commands.
+# file → nvim in a new tab. Same job as the `url`/`of` nu commands.
 [[keys.command]]
 key = "prefix+u"
 type = "shell"

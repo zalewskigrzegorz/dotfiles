@@ -1,6 +1,5 @@
-# Pick-and-open from the current herdr pane's scrollback — the herdr-native
-# replacement for the old tmux fzf-url-picker (prefix u) and open-file-window
-# (prefix F/H/G). Run inside a herdr pane; reads THIS pane via the herdr socket.
+# Pick-and-open from the current herdr pane's scrollback.
+# Run inside a herdr pane; reads THIS pane via the herdr socket.
 #   url   — pick a URL seen in the pane → open in the browser
 #   of    — pick a file path seen in the pane → open in nvim
 

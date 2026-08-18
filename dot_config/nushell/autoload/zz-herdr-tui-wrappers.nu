@@ -1,4 +1,4 @@
-# herdr TUI tab wrappers — herdr replacement for the old tmux window wrappers.
+# herdr TUI tab wrappers.
 # When inside herdr, intercept common TUI commands: rename the CURRENT tab to a
 # nerd-font icon + name for the duration of the TUI, then restore the tab's
 # previous label on exit (works on ctrl-c / error too). Outside herdr, pass

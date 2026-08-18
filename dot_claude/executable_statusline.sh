@@ -160,8 +160,8 @@ bar() {
 # via ~/.claude/sessions/*.json + kill -0), then takes the lowest free slot —
 # so up to 8 parallel sessions never share a colour. Pool exhausted → hash
 # fallback. Allocation runs ONCE per session (claim file persists); every
-# later render is a single cat. (Replaces the old tmux window auto-colour,
-# dropped in the herdr port — herdr has no tab-colour CLI.)
+# later render is a single cat. (herdr has no tab-colour CLI, so the colour
+# lives here in the statusline instead.)
 sess_c="$PINK"
 if [ -n "$sid" ]; then
   sess_palette=("$PINK" "$CYAN" "$MINT" "$GOLD" "$PURPLE" "$O" "$R" "$LABEL")
@@ -377,7 +377,7 @@ style_seg=""
 [ -n "$style" ] && [ "$style" != "default" ] && style_seg="${SEP}${GOLD}${style}${N}"
 
 # Full session title (aiTitle) — read straight from the transcript, so it is
-# NOT truncated like the tmux window name (the hook trims that to ~16 chars).
+# NOT truncated like the herdr tab name (the hook trims that to ~16 chars).
 win_seg=""
 if [ -n "$transcript" ] && [ -f "$transcript" ]; then
   ai_title=$(grep '"type":"ai-title"' "$transcript" 2>/dev/null | tail -1 \

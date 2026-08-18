@@ -5,7 +5,7 @@ description: Read the scrollback of Greg's terminal/shell pane in his herdr work
 
 # herdr-peek
 
-Read Greg's shell-pane scrollback so you can see what a command did without him pasting it. herdr replacement for the old tmux-peek.
+Read Greg's shell-pane scrollback so you can see what a command did without him pasting it.
 
 ## Background
 

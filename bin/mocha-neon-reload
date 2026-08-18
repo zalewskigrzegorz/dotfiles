@@ -5,10 +5,9 @@
 # Touches every surface that depends on chezmoi-synced sources, in order:
 #   1. chezmoi apply       — propagate source → live
 #   2. sketchybar-restart  — clean watcher + bar restart
-#   3. tmux source-file    — reload tmux.conf (if a server is running)
-#   4. aerospace reload    — reapply gaps + bindings
-#   5. borders reload      — bordersrc changes
-#   6. report status       — summary of what got refreshed
+#   3. aerospace reload    — reapply gaps + bindings
+#   4. borders reload      — bordersrc changes
+#   5. report status       — summary of what got refreshed
 #
 # Idempotent. Safe to run repeatedly. Skips steps gracefully when a tool
 # isn't installed or the related daemon isn't running.
@@ -52,19 +51,7 @@ else
   skip "sketchybar not available (not Darwin or not installed)"
 fi
 
-# 3. tmux source-file (only if a server is running)
-step "tmux"
-if command -v tmux >/dev/null 2>&1 && tmux info >/dev/null 2>&1; then
-  if tmux source-file "$HOME/.config/tmux/tmux.conf" >/dev/null 2>&1; then
-    ok "reloaded tmux.conf"
-  else
-    err "source-file failed (check tmux.conf syntax)"
-  fi
-else
-  skip "no tmux server running"
-fi
-
-# 4. aerospace (Darwin only)
+# 3. aerospace (Darwin only)
 step "aerospace"
 if [ "$(uname -s)" = "Darwin" ] && command -v aerospace >/dev/null 2>&1; then
   if pgrep -x AeroSpace >/dev/null 2>&1; then
@@ -76,7 +63,7 @@ else
   skip "aerospace not available"
 fi
 
-# 5. borders (Darwin only) — JankyBorders doesn't honor SIGUSR1; the standard
+# 4. borders (Darwin only) — JankyBorders doesn't honor SIGUSR1; the standard
 # reload pattern is to invoke `borders <args>` again on the running instance,
 # which forwards new options. If not running, start it via bordersrc.
 step "borders"
@@ -98,7 +85,7 @@ else
   skip "borders not available"
 fi
 
-# 6. status summary
+# 5. status summary
 step "summary"
 printf "  ${MAUVE}▸${N} sketchybar widgets:\n"
 for n in apple widgets.claude_sessions notif_preview widgets.battery widgets.cpu; do
