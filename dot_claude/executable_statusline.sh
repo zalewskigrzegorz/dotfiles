@@ -376,14 +376,19 @@ fi
 style_seg=""
 [ -n "$style" ] && [ "$style" != "default" ] && style_seg="${SEP}${GOLD}${style}${N}"
 
-# Full session title (aiTitle) — read straight from the transcript, so it is
-# NOT truncated like the herdr tab name (the hook trims that to ~16 chars).
+# Session title — the semantic checkpoint title set via `hd-title` (shared store,
+# keyed by <sid>), falling back to the native aiTitle from the transcript when no
+# checkpoint has been set yet. Coloured with the per-session colour (sess_c); the
+# text changes at checkpoints, the colour stays constant for the session.
 win_seg=""
-if [ -n "$transcript" ] && [ -f "$transcript" ]; then
-  ai_title=$(grep '"type":"ai-title"' "$transcript" 2>/dev/null | tail -1 \
+win_title=""
+title_store="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/claude-session-title/$sid"
+[ -n "$sid" ] && [ -f "$title_store" ] && win_title=$(cat "$title_store" 2>/dev/null)
+if [ -z "$win_title" ] && [ -n "$transcript" ] && [ -f "$transcript" ]; then
+  win_title=$(grep '"type":"ai-title"' "$transcript" 2>/dev/null | tail -1 \
                | jq -r '.aiTitle // empty' 2>/dev/null)
-  [ -n "$ai_title" ] && win_seg="${SEP}${sess_c}${B}󰖯 ${ai_title}${N}"
 fi
+[ -n "$win_title" ] && win_seg="${SEP}${sess_c}${B}󰖯 ${win_title}${N}"
 
 printf '%s%s%s%s%s%s%s%s%s%s%s%s%s' \
   "$vim_seg" \
