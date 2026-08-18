@@ -19,7 +19,6 @@ These are applied on macOS workstation and Debian homelab:
 - `dot_config/starship`
 - `dot_config/superfile`
 - `dot_config/television`
-- `dot_config/tmux`
 - `dot_config/zellij`
 - `bin`
 

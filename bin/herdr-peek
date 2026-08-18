@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # herdr-peek — read the shell/terminal pane's recent scrollback in the CURRENT
 # herdr workspace, so Claude can see what a command did without pasting.
-# Replaces tmux-peek (which assumed tmux window 1 = terminal). Uses herdr's socket.
+# Uses herdr's socket to read the workspace's shell pane.
 #
 #   herdr-peek            # last 25 lines of the workspace's shell pane
 #   herdr-peek -n 100     # more lines

@@ -1,5 +1,5 @@
 -- Mocha Neon — Catppuccin Mocha with 11 bumped accents to match the
--- terminal stack (statusline / tmux / sketchybar / starship).
+-- terminal stack (statusline / sketchybar / starship).
 return {
   "catppuccin/nvim",
   name = "catppuccin",

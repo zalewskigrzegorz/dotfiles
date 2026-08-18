@@ -1,4 +1,4 @@
-# work.nu — git worktree workflow on herdr (replaces the tmux+sesh version).
+# work.nu — git worktree workflow on herdr.
 #
 # Each worktree = one herdr workspace (grouped under the source repo, native
 # `prefix+shift+g`). This CLI wraps `herdr worktree …` so the same flow works
@@ -13,8 +13,6 @@
 #                       impossible, which is why `work pr` does not live here)
 #   work prune        — batch-remove merged worktrees
 #   work help         — cheatsheet
-#
-# Old tmux version: `git -C ~/Code/dotfiles show pre-herdr:dot_config/nushell/autoload/work.nu`.
 
 # Emoji-prefix mapping for worktree workspace labels (commitlint types).
 const WORK_PREFIX_EMOJI = {
@@ -203,8 +201,8 @@ def "work _herdr-ws-for" [repo_root: path, wt_path: path]: nothing -> string {
 }
 
 # Auto-layout for a worktree workspace: ensure a "claude" tab running claude.
-# Matches the old tmux layout (only claude auto-spawned; git/nvim stay on-demand
-# via `lazygit` / `baz` to spare CPU). Idempotent — skips if a claude tab exists.
+# Only claude auto-spawns; git/nvim stay on-demand via `lazygit` / `baz` to spare
+# CPU. Idempotent — skips if a claude tab exists.
 def "work _apply-layout" [workspace_id: string, cwd: path]: nothing -> nothing {
     # Every worktree open/create funnels through here, so this is where we ensure
     # the work-scoped skills (g-pr-review, …) exist in the worktree's .claude/skills.

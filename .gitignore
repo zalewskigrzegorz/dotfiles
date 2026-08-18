@@ -86,8 +86,6 @@ cache/
 node_modules/
 
 # Application plugins (managed separately)
-.config/tmux/plugins/
-dot_config/tmux/plugins/
 fzf
 # don't ignore pull script
 !fzf/pull.nu

@@ -1,4 +1,4 @@
-# herdr — agent multiplexer (tmux+sesh replacement)
+# herdr — agent multiplexer
 
 [herdr](https://github.com/ogulcancelik/herdr) is a Rust terminal multiplexer with a
 native **agent-state sidebar** (priority-sorted: blocked → done → working → idle).
@@ -8,16 +8,14 @@ That sidebar is the reason for the switch — it replaces the whole hand-built
 
 ## Status: migrated to herdr
 
-herdr is the active multiplexer on the Mac. `claude-agent-presence` (sketchybar chip,
+herdr is the only multiplexer on Mac and lab. `claude-agent-presence` (sketchybar chip,
 `bin/claude-agent-*`, `tmux-window-jump`) and the whole sesh family (`bin/sesh*`,
 `sesh.nu`, `dot_config/sesh`, `claude-focus-session`) are **decommissioned**. url/file
 opening is now the `url` and `of` nu commands (`autoload/herdr-pick.nu`), not pluck.
 
-tmux is kept as a **cold backup only** — `dot_config/tmux/tmux.conf`, `brew "tmux"`, TPM,
-and the statusline scripts feeding tmux.conf stay in place but are not active.
-
-- **Backup point:** `git tag pre-herdr` and branch `pre-herdr-backup`.
-- **Revert:** `git -C ~/Code/dotfiles checkout pre-herdr` (tmux config never changed).
+tmux is **fully removed** (2026-08-18) — `dot_config/tmux/`, `brew "tmux"`, the TPM
+install script and the tmux statusline scripts are all gone. The pre-herdr state is
+still reachable at `git tag pre-herdr` / branch `pre-herdr-backup` if ever needed.
 
 ## Install + config
 
@@ -46,7 +44,7 @@ and the statusline scripts feeding tmux.conf stay in place but are not active.
 | `prefix+t` | picker-plus: workspaces / ssh / zoxide / agent panes |
 | `prefix+r` | reviewr code-review sidebar · `prefix+m` tokscale usage |
 
-## Peek (replaces tmux-peek)
+## Peek
 
 Native `herdr` agent skill: `herdr pane read <w-p> --source recent --lines 50`,
 `herdr agent list`, `herdr agent wait <t> --status done`. Every pane exports
@@ -84,7 +82,7 @@ TCC attribution (#808); restart the server instead.
   - `work` names the worktree's tabs (claude tab `󰚩 claude`, shell tab ` nu`).
   - `zz-herdr-tui-wrappers.nu` — running `lg`/`dash`/`nvim`/`lazydocker`/`btop`
     renames the *current* tab to a nerd-font icon while the TUI runs, restoring the
-    previous label on exit. Port of the old tmux window wrappers.
+    previous label on exit.
   - `dot_claude/hooks/stop/herdr-claude-title.sh` (Stop hook) — renames the claude tab
     to `󰚩 <topic>`, reading the latest `aiTitle` from the transcript.
 
@@ -94,13 +92,12 @@ TCC attribution (#808); restart the server instead.
 scrollback, fzf-picks a URL → browser (`ctrl-y` copies) or a file → nvim in a new tab.
 Pure nu (reuses the regex from `autoload/herdr-pick.nu`), no Go build. Source lives in
 the repo at `dot_config/herdr/plugins-src/herdr-pick/` (chezmoi renders it to
-`~/.config/herdr/plugins-src/`), and `run_34` `herdr plugin link`s it. Replaces the
-old tmux fzf-url-picker (`prefix u`) + open-file-window (`prefix F/H/G`) and supersedes
+`~/.config/herdr/plugins-src/`), and `run_34` `herdr plugin link`s it. Supersedes
 the community `herdr-fzf-url` (which is URL-only and needs a Go build).
 
 ## Community tooling — adopted
 
-Installed via `run_onchange_after_34-herdr-plugins-sync.sh` (Mac; lab still tmux):
+Installed via `run_onchange_after_34-herdr-plugins-sync.sh`:
 
 - **[thanhdat77/herdr-picker-plus](https://github.com/thanhdat77/herdr-picker-plus)** —
   `prefix+t`. Unified fuzzy picker: workspaces / SSH hosts / zoxide / agent panes / roots

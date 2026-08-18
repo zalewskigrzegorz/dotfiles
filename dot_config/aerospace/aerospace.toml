@@ -178,8 +178,8 @@ ctrl-alt-r = 'exec-and-forget $HOME/Code/dotfiles/bin/read-claude'
 # Read the CLIPBOARD aloud (copy a selection with ⌘C first). Copy superkey 2×tap.
 ctrl-alt-c = 'exec-and-forget $HOME/Code/dotfiles/bin/read-claude --clip'
 # Native floating picker (choose-gui, Mocha Neon). Dygma "Windows" superkey taps cmd-ctrl-l.
-# cmd-ctrl-s (sesh) + cmd-ctrl-w (agent jump) removed — decommissioned under herdr
-# (native picker prefix+g/w + agent sidebar + prefix+0 replace them). cmd-ctrl-s now free.
+# cmd-ctrl-s + cmd-ctrl-w are free — the native picker (prefix+g/w), agent sidebar
+# and prefix+0 cover window/agent jumping.
 cmd-ctrl-l = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-picker'
 
 # Jump to workspace of the most recent notification (written by sketchybar-watcher).
@@ -252,8 +252,8 @@ ctrl-alt-r = 'exec-and-forget $HOME/Code/dotfiles/bin/read-claude'
 # Read the CLIPBOARD aloud (copy a selection with ⌘C first). Copy superkey 2×tap.
 ctrl-alt-c = 'exec-and-forget $HOME/Code/dotfiles/bin/read-claude --clip'
 # Native floating picker (choose-gui, Mocha Neon). Dygma "Windows" superkey taps cmd-ctrl-l.
-# cmd-ctrl-s (sesh) + cmd-ctrl-w (agent jump) removed — decommissioned under herdr
-# (native picker prefix+g/w + agent sidebar + prefix+0 replace them). cmd-ctrl-s now free.
+# cmd-ctrl-s + cmd-ctrl-w are free — the native picker (prefix+g/w), agent sidebar
+# and prefix+0 cover window/agent jumping.
 cmd-ctrl-l = 'exec-and-forget $HOME/Code/dotfiles/bin/aerospace-picker'
 
 # Jump to workspace of the most recent notification (written by sketchybar-watcher).

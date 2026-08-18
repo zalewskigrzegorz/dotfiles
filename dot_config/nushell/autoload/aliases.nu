@@ -2,7 +2,7 @@
 #
 # `q` saves the slow `exit` typing. `lg` restores muscle memory from the older
 # config (also flagged in the 2026-05-23 polish brainstorm). Other tool-specific
-# aliases live in their own dedicated autoloads (vim.nu, tmux.nu, pnpm.nu …).
+# aliases live in their own dedicated autoloads (vim.nu, pnpm.nu …).
 
 # exit the shell
 alias q = exit

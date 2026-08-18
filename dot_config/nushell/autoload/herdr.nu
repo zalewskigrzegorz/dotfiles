@@ -1,6 +1,4 @@
-# herdr (agent multiplexer) launcher helpers — tmux+sesh replacement.
-# Plan: bazgroly/dotfiles/plans/2026-06-28-herdr-migration-mac.md
-# Revert to tmux: `git -C ~/Code/dotfiles checkout pre-herdr` then `chezmoi apply`.
+# herdr (agent multiplexer) launcher helpers.
 
 # Start or attach the herdr TUI.
 def --env hd [] { herdr }
@@ -24,7 +22,7 @@ def hd-restart [] {
 # Stop the herdr server (detaches everything, processes end).
 def hd-stop [] { herdr server stop }
 
-# Attach the lab's herdr server as a thin client (client-server, not ssh+tmux).
+# Attach the lab's herdr server as a thin client (client-server, not ssh+remote shell).
 # --remote-keybindings server: the LAB interprets the prefix with its own config
 # (ctrl+space). Default `local` does NOT intercept the prefix in remote-attach,
 # so the leader appears dead. Run from a plain Ghostty window (not nested in herdr).

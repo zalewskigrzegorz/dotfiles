@@ -4,7 +4,7 @@
 
 | Domain | Font | Role |
 |---|---|---|
-| **All code / monospace** (terminal, editors, sketchybar, tmux, code blocks) | `JetBrainsMono Nerd Font` | locked 2026-05-23, re-confirmed 2026-06-10 |
+| **All code / monospace** (terminal, editors, sketchybar, code blocks) | `JetBrainsMono Nerd Font` | locked 2026-05-23, re-confirmed 2026-06-10 |
 | **Browser body / prose / headings** | `Atkinson Hyperlegible Next` | locked 2026-06-10 |
 | **Browser serif** (sites forcing `font-family: serif`) | `Verdana` | evidence-backed, visually distinct from Atkinson |
 | **Browser sans-serif** (most sites) | `Atkinson Hyperlegible Next` | locked |
@@ -118,5 +118,5 @@ font-family: "JetBrainsMono Nerd Font", "JetBrains Mono",
 ```
 
 Primary = JetBrainsMono Nerd Font (Nerd Font glyphs required for sketchybar /
-tmux / statusline). `"JetBrains Mono"` fallback is the no-glyph variant for
+statusline). `"JetBrains Mono"` fallback is the no-glyph variant for
 machines without the Nerd Font cask installed.

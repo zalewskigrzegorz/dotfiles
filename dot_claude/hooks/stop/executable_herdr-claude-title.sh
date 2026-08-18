@@ -5,9 +5,8 @@
 # Claude writes {"type":"ai-title","aiTitle":"…"} into the transcript shortly
 # after the first prompt and re-generates it as the session evolves. We read the
 # latest aiTitle and rename the current herdr tab to "<claude-icon> <title>"
-# (matches the icon work.nu uses for the claude tab). herdr port of the old
-# tmux-session/tmux-window.sh NAME effect — colour mirroring dropped (herdr
-# 0.7.x has no tab/pane colour CLI; its sidebar carries agent status instead).
+# (matches the icon work.nu uses for the claude tab). No colour mirroring —
+# herdr 0.7.x has no tab/pane colour CLI; its sidebar carries agent status instead.
 #
 # Wired to BOTH events so a fresh agent's tab updates immediately:
 #   * UserPromptSubmit fires before the turn → renames on the first prompt,

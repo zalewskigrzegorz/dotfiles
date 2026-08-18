@@ -26,7 +26,7 @@ if not DRY and subprocess.run(["pgrep", "-x", "afplay"], capture_output=True).re
 
 
 def claude_last():
-    """Last assistant text from the FOCUSED tmux pane's project session."""
+    """Last assistant text from the FOCUSED herdr pane's project session."""
     files = []
     cwd = ""
     try:
@@ -37,9 +37,6 @@ def claude_last():
             cwd = (focused.get("foreground_cwd") or focused.get("cwd") or "").strip()
     except Exception:
         cwd = ""
-    if not cwd:  # fallback: backup tmux session
-        cwd = subprocess.run(["tmux", "display-message", "-p", "#{pane_current_path}"],
-                             capture_output=True, text=True).stdout.strip()
     if cwd:
         files = glob.glob(os.path.expanduser("~/.claude/projects/" + cwd.replace("/", "-") + "/*.jsonl"))
     if not files:
