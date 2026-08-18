@@ -592,8 +592,8 @@ def "work-pr _confirm" [summary: string, yes: bool]: nothing -> bool {
     if $yes { return true }
     if not (is-terminal --stdin) { work-pr _die $"($summary) needs --yes when stdin is not a TTY" }
     print -e $summary
-    let ans = (input "proceed? [y/N]: " | str trim | str lowercase)
-    $ans == "y"
+    let reply = (input "proceed? [y/N]: " | str trim | str lowercase)
+    $reply == "y"
 }
 
 def "work-pr _do-diff" [st: record, dry: bool]: nothing -> int {
