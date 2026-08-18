@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# hd-title "<text>" — set the CURRENT Claude session's tab/title to <text>.
+#
+# One writer for two surfaces, kept in sync:
+#   1. the herdr tab label   (plain text — no colour glyph)
+#   2. a shared title store   (read by the statusline's win_seg)
+#
+# Why no colour on the tab: herdr can't colour tab-label text (ANSI codes render
+# literally), and the only self-coloured option — an emoji dot — is double-width
+# and, worse, sits mid-line in the agents sidebar and truncated the title there.
+# So the per-session COLOUR lives only in the statusline (win_seg, ANSI, free),
+# and the tab/sidebar keep the full width for readable text. Only the TEXT changes
+# across checkpoints; on `/clear` a SessionStart hook sets a neutral text.
+#
+# Invoked by: the agent at checkpoints, the herdr-claude-title bootstrap hook, and
+# the SessionStart clear hook. Idempotent, non-blocking.
+set -u
+
+text="${1:-}"
+[ -n "$text" ] || { echo "usage: hd-title <text>" >&2; exit 2; }
+
+sid="${CLAUDE_CODE_SESSION_ID:-}"
+title_dir="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/claude-session-title"
+mkdir -p "$title_dir" 2>/dev/null
+
+# 1) shared store — the statusline reads this by <sid> and colours it per-session.
+[ -n "$sid" ] && printf '%s' "$text" > "$title_dir/$sid" 2>/dev/null
+
+# 2) herdr tab label (only when we're inside a herdr pane).
+if [ "${HERDR_ENV:-}" = "1" ] && [ -n "${HERDR_TAB_ID:-}" ]; then
+  export PATH="/opt/homebrew/bin:/home/linuxbrew/.linuxbrew/bin:$PATH"
+  HERDR_BIN="${HERDR_BIN:-herdr}"
+  command -v "$HERDR_BIN" >/dev/null 2>&1 || HERDR_BIN=/opt/homebrew/bin/herdr
+  if command -v "$HERDR_BIN" >/dev/null 2>&1; then
+    # Trim to keep the tab strip / sidebar scannable. Tune via CLAUDE_HERDR_TITLE_MAX.
+    max="${CLAUDE_HERDR_TITLE_MAX:-24}"
+    t="$text"
+    [ "${#t}" -gt "$max" ] && t="${t:0:$((max - 1))}…"
+    "$HERDR_BIN" tab rename "$HERDR_TAB_ID" "$t" >/dev/null 2>&1 || true
+  fi
+fi
+
+exit 0

@@ -1,57 +1,67 @@
 #!/usr/bin/env bash
-# Claude Code Stop + UserPromptSubmit hook — name the herdr tab after the live
-# conversation topic.
+# herdr tab / statusline title — bootstrap + reset only (drives bin/hd-title).
 #
-# Claude writes {"type":"ai-title","aiTitle":"…"} into the transcript shortly
-# after the first prompt and re-generates it as the session evolves. We read the
-# latest aiTitle and rename the current herdr tab to "<claude-icon> <title>"
-# (matches the icon work.nu uses for the claude tab). No colour mirroring —
-# herdr 0.7.x has no tab/pane colour CLI; its sidebar carries agent status instead.
+# The AGENT owns the title at checkpoints (it calls `hd-title` directly when it
+# starts a new task / hits a checkpoint). This hook only keeps a sensible default
+# so the tab is never blank or stale:
 #
-# Wired to BOTH events so a fresh agent's tab updates immediately:
-#   * UserPromptSubmit fires before the turn → renames on the first prompt,
-#     falling back to the prompt text until an aiTitle exists (otherwise a new
-#     agent shows the *previous* session's stale tab label until its first Stop).
-#   * Stop keeps the tab in sync with the regenerated aiTitle as the topic drifts.
+#   * UserPromptSubmit — if nothing is set yet for this session, seed the title
+#     from the first prompt (a decent default until the agent sets a checkpoint).
+#   * SessionStart source=clear — reset the TEXT to the repo/branch. The colour
+#     stays (same session, same colour slot), which is the whole point.
 #
-# Idempotent, non-blocking.
+# No per-turn churn: the native aiTitle is frozen on the session's first topic,
+# so mirroring it every Stop just re-pinned a stale label. Idempotent, non-blocking.
 set -u
 
-# Need a herdr tab to rename + jq to read the transcript.
-[ "${HERDR_ENV:-}" = "1" ] || exit 0
-[ -n "${HERDR_TAB_ID:-}" ] || exit 0
 command -v jq >/dev/null 2>&1 || exit 0
-
-export PATH="/opt/homebrew/bin:/home/linuxbrew/.linuxbrew/bin:$PATH"
-HERDR_BIN="${HERDR_BIN:-herdr}"
-command -v "$HERDR_BIN" >/dev/null 2>&1 || HERDR_BIN=/opt/homebrew/bin/herdr
-command -v "$HERDR_BIN" >/dev/null 2>&1 || exit 0
-
 INPUT=$(cat 2>/dev/null || true)
-transcript=$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null)
-[ -n "$transcript" ] && [ -f "$transcript" ] || exit 0
+[ -n "$INPUT" ] || exit 0
 
-title=$(grep '"type":"ai-title"' "$transcript" 2>/dev/null | tail -1 \
-          | jq -r '.aiTitle // empty' 2>/dev/null)
+sid=$(printf '%s' "$INPUT" | jq -r '.session_id // empty' 2>/dev/null)
+[ -n "$sid" ] && export CLAUDE_CODE_SESSION_ID="$sid"
+sid="${CLAUDE_CODE_SESSION_ID:-}"
+[ -n "$sid" ] || exit 0
 
-# No aiTitle yet (brand-new agent, first prompt) — fall back to the submitted
-# prompt so the tab reflects the current agent instead of the stale prior label.
-# UserPromptSubmit input carries `.prompt`; Stop input doesn't, so this is a
-# no-op there. Strip leading slash-command / control markup and whitespace.
-if [ -z "$title" ]; then
-  title=$(printf '%s' "$INPUT" | jq -r '.prompt // empty' 2>/dev/null \
-            | sed -e 's/^<command-name>[^<]*<\/command-name>[[:space:]]*//' \
-                  -e 's/<[^>]*>//g' -e 's/^[[:space:]>›]*//' \
-            | tr '\n' ' ' | sed -e 's/[[:space:]]\{2,\}/ /g' -e 's/[[:space:]]*$//')
-fi
-[ -n "$title" ] || exit 0
+event=$(printf '%s' "$INPUT" | jq -r '.hook_event_name // empty' 2>/dev/null)
+cwd=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
 
-# Trim to keep the tab strip scannable. Tune via CLAUDE_HERDR_TITLE_MAX.
-max="${CLAUDE_HERDR_TITLE_MAX:-22}"
-if [ "${#title}" -gt "$max" ]; then title="${title:0:$((max - 1))}…"; fi
+HD=$(command -v hd-title 2>/dev/null || echo "$HOME/Code/dotfiles/bin/hd-title")
+[ -x "$HD" ] || exit 0
 
-# nf-md-robot (U+F06A9) — same icon work.nu gives the claude tab.
-icon=$(printf '\xf3\xb0\x9a\xa9')
-"$HERDR_BIN" tab rename "$HERDR_TAB_ID" "${icon}  ${title}" >/dev/null 2>&1 || true
+store="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/claude-session-title/$sid"
+
+# Neutral default: current branch (unless it's the default branch), else repo name.
+default_title() {
+  local d="${1:-$PWD}" root branch
+  root=$(git -C "$d" rev-parse --show-toplevel 2>/dev/null)
+  branch=$(git -C "$d" branch --show-current 2>/dev/null)
+  if [ -n "$root" ] && [ -n "$branch" ] && [ "$branch" != "master" ] && [ "$branch" != "main" ]; then
+    printf '%s' "$branch"
+  elif [ -n "$root" ]; then
+    basename "$root"
+  else
+    basename "${d:-$PWD}"
+  fi
+}
+
+case "$event" in
+  SessionStart)
+    src=$(printf '%s' "$INPUT" | jq -r '.source // empty' 2>/dev/null)
+    # Reset stale text on /clear; the colour is untouched. Other sources no-op so
+    # a resumed session keeps whatever title it had.
+    [ "$src" = "clear" ] && "$HD" "$(default_title "$cwd")"
+    ;;
+  UserPromptSubmit)
+    # Bootstrap from the first prompt only when nothing is set yet.
+    if [ ! -s "$store" ]; then
+      prompt=$(printf '%s' "$INPUT" | jq -r '.prompt // empty' 2>/dev/null \
+                | sed -e 's/^<command-name>[^<]*<\/command-name>[[:space:]]*//' \
+                      -e 's/<[^>]*>//g' -e 's/^[[:space:]>›]*//' \
+                | tr '\n' ' ' | sed -e 's/[[:space:]]\{2,\}/ /g' -e 's/[[:space:]]*$//')
+      [ -n "$prompt" ] && "$HD" "$prompt"
+    fi
+    ;;
+esac
 
 exit 0
