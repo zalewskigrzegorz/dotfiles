@@ -1,0 +1,37 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "spam",
+  "title": "Spam",
+  "description": "Generate a per-site spam-catcher alias <apex-domain>@mrglaszki.com from the active browser tab and paste it into the focused field.",
+  "icon": "command-icon.png",
+  "author": "zalewskigrzegorz",
+  "license": "MIT",
+  "categories": ["Web", "Productivity"],
+  "commands": [
+    {
+      "name": "spam",
+      "title": "Spam",
+      "subtitle": "mrglaszki.com",
+      "description": "Take the active browser tab's apex domain and paste <domain>@mrglaszki.com into the focused field.",
+      "mode": "no-view"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.84.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^1.0.11",
+    "@types/node": "^22.7.0",
+    "@types/react": "^19.0.10",
+    "eslint": "^8.57.1",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.2"
+  },
+  "scripts": {
+    "build": "ray build -e dist",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}
