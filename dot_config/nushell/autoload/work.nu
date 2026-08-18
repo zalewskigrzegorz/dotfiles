@@ -569,6 +569,27 @@ def "work prune" [--dry-run]: nothing -> any {
     { pruned: ($picked | each { |l| $l | split row "\t" | first }) }
 }
 
+# Recompute the correct label for the CURRENT herdr workspace and rename it back.
+# herdr sometimes auto-relabels a workspace from the branch/tab (e.g. main → a
+# stray tab name); this restores the label `work new`/`work switch` would give it.
+def "work reset" []: nothing -> any {
+    work deps-preflight
+    let info = (work repo-info)
+    let wt_path = (if $info.is_worktree { $info.worktree_path } else { $info.root })
+    let ws = (work _herdr-ws-for $info.root $wt_path)
+    if ($ws | is-empty) {
+        print -e $"No herdr workspace maps to ($wt_path). Open it with `work switch` first."
+        return
+    }
+    let branch = (do { ^git -C $wt_path branch --show-current } | complete | get stdout | str trim)
+    let label = (work _label $info.name $branch)
+    let old = (try { (do { ^herdr workspace get $ws } | complete).stdout | from json | get -o result.workspace.label | default "" } catch { "" })
+    let r = (do { ^herdr workspace rename $ws $label } | complete)
+    if $r.exit_code != 0 { error make { msg: $"herdr workspace rename failed: ($r.stderr)" } }
+    print -e $"✅ ($old) → ($label)"
+    { workspace_id: $ws, old: $old, new: $label }
+}
+
 # Open nvim in this repo's bazgroly dir.
 def baz []: nothing -> nothing {
     let dir = (work bazgroly-path)
@@ -602,6 +623,7 @@ def "work help" []: nothing -> nothing {
     print "  work switch (sw)   picker → focus workspace"
     print "  work rm [branch]   usuń worktree + workspace + branch (--force / --keep-branch)"
     print "  work prune         batch usuń merged + clean (--dry-run)"
+    print "  work reset         przywróć poprawny label bieżącego workspace herdr"
     print "  baz                nvim w bazgroly tego repo"
     print ""
     print "NAWIGACJA herdr:  prefix=ctrl+space · prefix w workspace · prefix g goto · prefix b sidebar · prefix ? help"
