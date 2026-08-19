@@ -206,6 +206,30 @@ if [ -n "$sid" ]; then
   sess_c="${sess_palette[$slot]}"
 fi
 
+# herdr workspace number — the quick "which session is this" handle. Same 1-9
+# number as prefix+g / prefix+w, read from the pane env (HERDR_WORKSPACE_ID) and
+# mapped via `herdr workspace list`. So Greg can say "sesja 2" and mean this one.
+# Cached ~30s per workspace so we don't shell out to herdr on every render;
+# absent outside herdr (lab / plain terminal) → segment omitted. Coloured with
+# the per-session colour so the number and title share one identity.
+num_seg=""
+if [ -n "$HERDR_WORKSPACE_ID" ] && command -v herdr >/dev/null 2>&1; then
+  num_cache="$cache_dir/wsnum-$HERDR_WORKSPACE_ID"
+  if [ -f "$num_cache" ]; then
+    nmtime=$(stat -f %m "$num_cache" 2>/dev/null || stat -c %Y "$num_cache" 2>/dev/null || echo 0)
+    [ $(( now_ts - nmtime )) -gt 30 ] && rm -f "$num_cache"
+  fi
+  if [ -f "$num_cache" ]; then
+    sess_num=$(cat "$num_cache" 2>/dev/null)
+  else
+    sess_num=$(herdr workspace list 2>/dev/null \
+      | jq -r --arg w "$HERDR_WORKSPACE_ID" \
+          '.result.workspaces[] | select(.workspace_id==$w) | .number' 2>/dev/null)
+    [ -n "$sess_num" ] && printf '%s' "$sess_num" > "$num_cache" 2>/dev/null
+  fi
+  [ -n "$sess_num" ] && num_seg="${sess_c}${B}▸${sess_num}${N} "
+fi
+
 # Vim editor-mode badge — Claude's own "-- INSERT --" hint is dim grey, so an
 # escape/insert flip is invisible at a glance. Render it as a filled block in a
 # distinct hue per mode instead. `.vim` is only present when vim mode is on, so
@@ -390,8 +414,8 @@ if [ -z "$win_title" ] && [ -n "$transcript" ] && [ -f "$transcript" ]; then
 fi
 [ -n "$win_title" ] && win_seg="${SEP}${sess_c}${B}󰖯 ${win_title}${N}"
 
-printf '%s%s%s%s%s%s%s%s%s%s%s%s%s' \
-  "$vim_seg" \
+printf '%s%s%s%s%s%s%s%s%s%s%s%s%s%s' \
+  "$num_seg" "$vim_seg" \
   "$model_seg" "$mode_seg" "$proj_seg" "$git_seg" "$dur_seg" \
   "$tool_seg" "$comp_seg" \
   "$wait_seg" "$ctx_seg" "$lines_seg" "$style_seg" "$win_seg"
