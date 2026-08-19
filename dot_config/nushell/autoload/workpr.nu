@@ -148,17 +148,46 @@ def "work-pr _resolve-menu-target" [repo_flag: string, pr_flag: int]: nothing ->
 }
 
 # fzf over open PRs. Returns 0 when nothing was picked.
+#
+# --limit is 500, not 50: a busy monorepo carries hundreds of open PRs, so the one
+# you actually want — often an agent-authored branch (claude[bot]/cursor[bot]) you
+# have not checked out yet — falls outside the newest 50 and the picker showed
+# "0/50" for a PR that genuinely exists. fzf handles hundreds of rows fine.
+#
+# Rows are annotated and ranked so yours surface without scrolling:
+#   ●  = the head branch is already checked out as a worktree for this repo
+#   rank 0 = authored by you · 1 = checked-out worktree · 2 = everything else
 def "work-pr _pick-pr" [repo: string]: nothing -> int {
     if (which fzf | is-empty) { work-pr _die "pass a PR number (fzf not on PATH)" }
-    let l = (do { ^gh pr list --repo $repo --limit 50 --json number,title,headRefName --jq '.[] | "\(.number)\t\(.title)\t\(.headRefName)"' } | complete)
+    let repo_name = ($repo | split row "/" | last | str lowercase)
+    let open_branches = (
+        (try { work _scan-worktrees } catch { [] })
+        | where {|w| ($w.repo | str lowercase) == $repo_name }
+        | get -o branch | default []
+    )
+    let me = (work-pr _me)
+    let l = (do { ^gh pr list --repo $repo --state open --limit 500 --json number,title,headRefName,author --jq '.[] | "\(.number)\t\(.title)\t\(.headRefName)\t\(.author.login)"' } | complete)
     if $l.exit_code != 0 { work-pr _die ($l.stderr | str trim) }
     if ($l.stdout | str trim | is-empty) { work-pr _die $"no open PRs in ($repo)" }
-    let r = (do { $l.stdout | ^fzf --delimiter "\t" --with-nth "1,2,3" --reverse --prompt "PR: " } | complete)
+    let rows = (
+        $l.stdout | lines | each {|line|
+            let f = ($line | split row "\t")
+            let num = ($f | get 0)
+            let head = ($f | get 2? | default "")
+            let author = ($f | get 3? | default "")
+            let is_open = ($head in $open_branches)
+            let rank = (if ($author == $me) and ($me | is-not-empty) { 0 } else if $is_open { 1 } else { 2 })
+            {rank: $rank, line: $"(if $is_open { '● ' } else { '  ' })($line)"}
+        }
+        | sort-by rank
+    )
+    let r = (do { ($rows | get line | str join "\n") | ^fzf --delimiter "\t" --with-nth "1,2,3" --reverse --prompt "PR: " } | complete)
     if $r.exit_code in [1 130] { return 0 }
     if $r.exit_code != 0 { work-pr _die $"fzf failed \(($r.exit_code)\): ($r.stderr | str trim)" }
     let picked = ($r.stdout | str trim)
     if ($picked | is-empty) { return 0 }
-    $picked | split row "\t" | first | into int
+    # First column is "● 26123" or "  26123" — strip the marker before the int cast.
+    $picked | split row "\t" | first | str replace "●" "" | str trim | into int
 }
 
 # ── state: one gh pr view + at most one GraphQL round trip ───────────────────
@@ -1194,11 +1223,14 @@ def "work-pr registry" []: nothing -> list<record> {
             run: {|st, ctx| work-pr _do-agent $st "babysit" "full" $ctx.focus $ctx.dry }
         }
         {
-            # No reviewRequestedAt in `gh pr view --json`, so "> 2 days" cannot be
-            # computed yet — the row exists so `--action bump` works and a later
-            # timelineItems query can promote it.
+            # Surfaces whenever reviewers are still requested (pending). No
+            # reviewRequestedAt in `gh pr view --json`, so the "> 2 days" staleness
+            # gate can't be computed yet — a later timelineItems query can add it;
+            # until then any pending reviewer is a valid bump target (g-pr-bump
+            # itself re-checks who has already approved before pinging).
             id: "bump" group: "agent" glyph: "📣" label: "nudge reviewers on Slack"
-            relevant: {|st| false }
+            state: {|st| $"($st.reviewRequests | length) pending" }
+            relevant: {|st| $st.isMine and (($st.reviewRequests | length) > 0) }
             run: {|st, ctx| work-pr _do-agent $st "bump" "none" $ctx.focus $ctx.dry }
         }
         {

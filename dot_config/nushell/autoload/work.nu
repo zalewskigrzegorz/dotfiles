@@ -488,11 +488,17 @@ def "work sw" []: nothing -> nothing { work switch }
 # Remove worktree + workspace + git branch.
 def "work rm" [
     branch?: string@"work _complete-worktrees"
+    --self (-s)   # remove the worktree you are standing in (no picker)
     --force
     --keep-branch
 ]: nothing -> record {
     work deps-preflight
     let wts = (work _scan-worktrees)
+
+    # `-s` removes the worktree cwd sits inside — the common "kill this one" case,
+    # kept explicit so a bare `work rm` never nukes the current tree by surprise.
+    let here = (pwd | path expand)
+    let cur = ($wts | where {|w| let p = ($w.path | path expand); ($here == $p) or ($here | str starts-with $"($p)/") } | get -o 0)
 
     let target = (
         if ($branch | is-not-empty) {
@@ -502,6 +508,10 @@ def "work rm" [
                 error make { msg: $"Ambiguous '($branch)' — in: (($m | get repo) | str join ', '). Use the picker (`work rm`)." }
             }
             ($m | first)
+        } else if $self {
+            if ($cur == null) { error make { msg: "Not inside a worktree — `-s` has nothing to remove." } }
+            print -e $"🎯 current worktree: ($cur.branch) \(($cur.repo)\)"
+            $cur
         } else if (which fzf | is-not-empty) {
             if ($wts | is-empty) { error make { msg: "No worktrees." } }
             let picked = ($wts | each { |w| $"($w.repo)\t($w.branch)\t($w.status)\t($w.path)" } | str join "\n" | ^fzf --delimiter "\t" --with-nth=1,2,3 --prompt "Remove worktree: " | str trim)
@@ -532,6 +542,12 @@ def "work rm" [
         }
     }
     print -e $"✅ Removed: ($target.branch)"
+    # Removing the worktree you were standing in leaves the shell in a deleted dir.
+    # herdr closes+refocuses its own workspaces; a plain-git worktree does not, so
+    # nudge the caller out (a def cannot change the caller's cwd).
+    if (($here == ($target.path | path expand)) or ($here | str starts-with $"(($target.path | path expand))/")) and ($ws | is-empty) {
+        print -e $"↩️  you were inside it — `cd ($target.root)`"
+    }
     { removed: $target.branch, path: $target.path }
 }
 

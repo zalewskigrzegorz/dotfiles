@@ -100,6 +100,10 @@ quit-after-last-window-closed = true
 # Quake terminal
 keybind = global:cmd+f2=toggle_quick_terminal
 
+# Close on ctrl (cmd wolny na nawigację)
+keybind = ctrl+q=quit
+keybind = ctrl+w=close_surface
+
 # Enable macos notifications
 desktop-notifications = true
 

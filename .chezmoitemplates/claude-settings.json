@@ -259,7 +259,7 @@
       "Read(**/*.key)",
       "Bash(sudo:*)"
     ],
-    "defaultMode": "default"
+    "defaultMode": "acceptEdits"
   },
   "hooks": {
     "PreToolUse": [
