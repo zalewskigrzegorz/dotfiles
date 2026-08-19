@@ -42,6 +42,21 @@ scratch/AI artifacts.
 3. If a skill's own flow (e.g. `g-pr-review`) already drafts the text, run
    `greg-voice` over that draft before it leaves the machine.
 
+## Slack — send through `g-slack`, as Greg
+
+Slack has a second requirement on top of the voice: **identity.** Any message
+that speaks as Greg goes out through the **`g-slack`** skill, which posts with
+his personal user token (footer-free) after voicing the text. Never send a
+Greg-reply through the claude.ai Slack MCP (`slack_send_message`) — it stamps
+`*Sent using* @Claude` on every message, publicly.
+
+- **Represents Greg** (a reply, an opinion, a decision, a DM) → `g-slack`: voiced
+  + sent as Greg, no footer. This is the default for anything you'd type in a
+  channel on his behalf.
+- **Automation** that transparently didn't need his judgement — PR bumps
+  (`g-pr-bump`), scheduled notifications, daily-brief drops — keeps the Claude
+  footer and stays on its own flow. That footer is correct there, not a bug.
+
 ## When `humanizer` is still the right skill
 
 `humanizer` remains a standalone tool for text that is **not** in Greg's voice —

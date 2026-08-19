@@ -13,7 +13,7 @@ personal Slack user token.
 > `~/.local/state/dotfiles/secrets/work-context.md` → **§ "Slack — standup"** for
 > the bot user ID, bot DM channel, public standup channel, and the fixed question
 > list. `source ~/.local/state/dotfiles/secrets/work.env` for `$WORK_GITHUB_ORG`,
-> `$WORK_MAIN_REPO`, `$WORK_PROJECT_DIR`, **and `$WORK_SLACK_STANDUP_TOKEN`** (the
+> `$WORK_MAIN_REPO`, `$WORK_PROJECT_DIR`, **and `$WORK_SLACK_POSTER_TOKEN`** (the
 > footer-free user token — already in the env file, so **never `op read` at
 > runtime**; no vault prompt). Never hardcode any of these here.
 
