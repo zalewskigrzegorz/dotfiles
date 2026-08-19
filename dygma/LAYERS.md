@@ -64,8 +64,8 @@ SK:Windows      A      S      D      F      G SK:Read reset talk      ∅      �
 | 3 | Copy | copy (⌘C) | AI translate | **read clipboard aloud** (⌃⌥C) |
 | 4 | vs autocomplete | autocomplete (⌃Space) | AI hard-rewrite ADHD-Slack (⌃⌘G) | — free |
 | 5 | Read reset talk | reset layers → base | **read Claude aloud** (⌃⌥R) | Slack channel search |
-| 6 | Windows | sesh | aerospace picker | tmux window switch |
-| 7 | leaders | tmux leader | aerospace leader | — free |
+| 6 | Windows | aerospace picker (⌃⌘L) | aerospace picker (⌃⌘L) | menu-bar search (⌘.) |
+| 7 | leaders | herdr prefix (⌃Space) | aerospace leader (⌃⇧Space) | — free |
 
 ## Mouse + win — nav-tools layer
 - **Movement** (cross): `@E`=↑ `@S`=← `@D`=↓ `@F`=→ · **scroll** `@3`=↑ `@C`=↓ · **back/fwd** `@W`/`@R`
