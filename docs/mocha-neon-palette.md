@@ -29,6 +29,15 @@ border, prefix-active state. Other accents are per-widget semantic (gold = time,
 pink = alerts, green = power, peach = sound, red = recording, sky = network,
 lavender = compute/misc).
 
+## Derived surfaces (backgrounds, not accents)
+
+Dark tints for "selected/active" backgrounds, where a full accent hex is too
+loud. Formula: ≈30% accent over `base #1E1E2E`.
+
+| Role | Hex | Derived from | Used by |
+|---|---|---|---|
+| active surface | `#423B6D` | lavender @30% | herdr `active_row_bg` (selected sidebar/tab row) |
+
 ## Per-app mapping
 
 | App | Config file | Tokens used | Hand-tuned? |
@@ -40,6 +49,7 @@ lavender = compute/misc).
 | nvim | `dot_config/nvim/lua/plugins/catppuccin.lua` | 11 overrides | imported |
 | ghostty | `dot_config/ghostty/config` | ANSI 0–15 + cursor + selection | hand |
 | aerospace borders | `dot_config/borders/bordersrc` | mauve (active), surface (inactive) | hand |
+| herdr | `dot_config/herdr/config.toml.tmpl` | base, mauve, blue, green, red, gold + active surface | hand |
 
 ## WCAG AA verification on base `#1E1E2E`
 

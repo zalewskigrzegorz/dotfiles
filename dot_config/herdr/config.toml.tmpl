@@ -13,7 +13,8 @@ new_cwd = "follow"
 name = "catppuccin"
 
 # Mocha Neon overrides on top of catppuccin (see dot_config/mocha-neon/palette.lua).
-# Token set is fixed: panel_bg, accent, blue, green, red, yellow (no cyan token).
+# Fixed dark — no light/dark auto-switch (matches the Mocha Neon lock).
+auto_switch = false
 [theme.custom]
 panel_bg = "#1E1E2E"
 accent   = "#B347FF"
@@ -21,6 +22,14 @@ blue     = "#8BE9FD"
 green    = "#A6E3A1"
 red      = "#FF6B9D"
 yellow   = "#FFD700"
+# Selected/active row highlight. catppuccin's default active_row_bg (#1e1e2e) is
+# IDENTICAL to our panel_bg → the selected element had zero contrast (invisible).
+# active_row_bg = lavender-tinted surface (≈30% #9580FF over base) — clear
+# selection without the loud full-accent look. (The dim-subtext washout that
+# lighter tints caused is fixed separately in [ui.sidebar.agents], not here.)
+# selection_bg = neutral surface1 for range/hover selection.
+active_row_bg = "#423B6D"
+selection_bg  = "#45475A"
 
 [worktrees]
 directory = "~/.herdr/worktrees"
@@ -29,8 +38,24 @@ directory = "~/.herdr/worktrees"
 # The whole reason for the switch: attention-queue ordering (blocked first).
 agent_panel_sort = "priority"
 accent = "#B347FF"
+# Outer terminal window title (what AeroSpace / the Ghostty tab bar shows).
+# Renders on the herdr SERVER, so {hostname} = the host the panes actually run
+# on. Fixes the two-identical-Ghostty-windows problem: `hd-lab` attaches to the
+# lab's herdr server in a separate window, and now that window reads "minis · …"
+# while the local one reads the Mac hostname. {tab} carries the hd-title topic.
+window_title = "{hostname} · {workspace} · {tab}"
 # Show detected agent labels on pane borders when no manual name is set.
 show_agent_labels_on_pane_borders = true
+
+# Agent-sidebar rows shipped too dim: the 2nd line (agent name) and the task/tab
+# description washed out — worse than the spaces list's git branch, which reads
+# fine. NOTE: `dim = false` alone did NOT lift it — herdr keeps a dark base fg for
+# these tokens regardless, so an explicit bright `fg` is what actually fixes it.
+[ui.sidebar.agents]
+rows = [
+  ["state_icon", "workspace", { token = "tab", fg = "#D8D8EC", dim = false }],
+  [{ token = "agent", fg = "#B0B0CC", dim = false }],
+]
 
 [ui.toast]
 # macOS desktop notification when a background agent changes state.
