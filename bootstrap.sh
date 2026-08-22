@@ -39,6 +39,15 @@ mkdir -p "$chezmoi_config_dir"
     printf 'sourceDir = "%s"\n\n' "$source_dir"
   fi
   cat <<TOML
+# Pin the umask so directory modes do not depend on WHICH shell ran chezmoi.
+# Unpinned, chezmoi inherits the caller's umask: an apply from a umask-077
+# context writes every managed dir 0700, the next apply from umask-022 wants
+# 0755 back, and \`chezmoi status\` fills with ~800 rows of pure mode churn that
+# buries real drift (see dot_config/nushell/autoload/chezmoi.nu on why --force
+# used to be the only way past it). 0o022 → dirs 0755, files 0644; \`private_*\`
+# entries still get 0700/0600.
+umask = 0o022
+
 [data]
 profile = "$profile"
 TOML

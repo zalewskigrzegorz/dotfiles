@@ -22,6 +22,18 @@ agent-skills/**
 agent-rules/**
 agent-mcp/**
 
+# bin/ is rsynced to ~/bin by run_onchange_after_28, not applied by chezmoi.
+# Reason: chezmoi derives a target's exec bit from the SOURCE FILENAME
+# (`executable_foo`), never from the source file's mode. All 41 scripts here are
+# 755 on disk and none carries the prefix, so chezmoi wrote every ~/bin/* at
+# 0644 — silent on the Mac (bin/ is on PATH from the checkout and wins) but on
+# the lab there is no checkout, so ~/bin/sync IS `sync`/`chezmoi` and could not
+# execute. Renaming to `executable_*` is the idiomatic fix but `bin/` does double
+# duty as a PATH dir, and ~10 launchd plists, herdr config.toml and sketchybar
+# items hardcode ~/Code/dotfiles/bin/<name>. rsync -a keeps the real modes and
+# keeps ~/bin out of `chezmoi status` entirely — same pattern as agent-skills/.
+bin/**
+
 # sketchybar-watcher is built and run straight out of the source dir
 # (~/Code/dotfiles/bin/sketchybar-watcher/) by run_onchange_after_36 — sketchybar
 # init.lua and aerospace's after-startup-command both exec that path. Copying the
