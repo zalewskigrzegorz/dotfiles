@@ -44,7 +44,7 @@ esac
 # in permissions.allow (hook ASK overrides settings allow).
 case "$TOOL_NAME" in
   mcp__draw__*) exit 0 ;;
-  mcp__claude-in-chrome__*) exit 0 ;;
+  # claude-in-chrome retired 2026-08-23 — permissions.deny blocks it; no early-exit.
   # mcp-debugger — local DAP debugging; launching/stepping the debuggee is no more
   # power than Bash already grants, and MUT regex would false-positive on set_breakpoint.
   mcp__mcp-debugger__*) exit 0 ;;
