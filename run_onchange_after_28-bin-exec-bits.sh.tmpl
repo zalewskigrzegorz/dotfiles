@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# rsync bin/ → ~/bin, preserving real file modes.
+#
+# `bin/**` is in .chezmoiignore (see the comment there for the full why):
+# chezmoi takes a target's exec bit from the SOURCE FILENAME (`executable_foo`),
+# not from the source file's mode, so it wrote all 41 scripts at 0644. Harmless
+# on the Mac — bin/ is on PATH from the checkout and shadows ~/bin — but the lab
+# has no checkout, so ~/bin/sync IS `sync`/`chezmoi` there, and 0644 means it
+# cannot run at all. rsync -a carries the 755 across and, because chezmoi no
+# longer manages these targets, `chezmoi status` stays quiet.
+#
+# Same pattern as run_onchange_after_30 does for agent-skills/.
+#
+# No --delete: ~/bin also holds a few binaries that never came from this repo,
+# and blowing them away is not this script's job.
+#
+# fingerprint: {{ output "bash" "-c" (printf "cd %q && find bin -type f -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
+set -euo pipefail
+
+SOURCE_BIN="{{ .chezmoi.sourceDir }}/bin"
+TARGET_BIN="${HOME}/bin"
+
+if [[ ! -d "$SOURCE_BIN" ]]; then
+  echo "bin sync: $SOURCE_BIN missing — skipping."
+  exit 0
+fi
+
+mkdir -p "$TARGET_BIN"
+
+# Excludes mirror the per-path bin/ entries that were already in .chezmoiignore:
+# these are built and executed straight out of the source dir, so a copy in
+# ~/bin is either stale or useless.
+rsync -a \
+  --exclude 'sketchybar-watcher/' \
+  --exclude 'sketchybar-watcher-bin' \
+  --exclude 'aerospace-flip-window/' \
+  --exclude 'temp-watch' \
+  "$SOURCE_BIN"/ "$TARGET_BIN"/
+
+echo "bin sync: $(find "$TARGET_BIN" -maxdepth 1 -type f -perm -u+x | wc -l | tr -d ' ') executable(s) in ${TARGET_BIN}."
