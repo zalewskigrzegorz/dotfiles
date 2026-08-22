@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# BrowserSkill (github.com/Tencent/BrowserSkill) — install the `bsk` CLI + local
+# daemon that lets AI agents drive Greg's REAL, logged-in browser (Comet) in a
+# separate, visible Agent Window. Not headless, not cloud, not a fresh profile.
+#
+# Two local runtime pieces, only one of which is installable from a script:
+#   1. `bsk` CLI + daemon  → installed here, to ~/.local/bin (no sudo, sha256-verified)
+#   2. browser extension   → Chrome Web Store, has to be clicked by hand:
+#      https://chromewebstore.google.com/detail/hhcmgoofomhgciiibhipgmgkgnoenaoi
+#      Installed copy lands in
+#      ~/Library/Application Support/Comet/Default/Extensions/hhcmgoofomhgciiibhipgmgkgnoenaoi
+#
+# `bsk install-skill` is deliberately NOT run here. Stage 30 rsyncs
+# agent-skills/bsk/ → ~/.claude/skills + ~/.cursor/skills with
+# --delete, so agent-skills/ is the single source of truth (hard rule 5).
+# To refresh the skill after a CLI upgrade (`bsk update`):
+#   bsk install-skill --harness claude-code --yes
+#   cp ~/.claude/skills/bsk/SKILL.md \
+#      ~/Code/dotfiles/agent-skills/bsk/SKILL.md
+#
+# `npm install bsk` is NOT this project — that name is an abandoned 2017 Vue
+# app squatting the registry. Only the GitHub release installer below is right.
+#
+# macOS only: the lab is headless, there is no browser there to drive.
+#
+# Version: 2026-08-20.1
+set -euo pipefail
+
+{{ if eq .chezmoi.os "darwin" -}}
+export PATH="${HOME}/.local/bin:/opt/homebrew/bin:${PATH}"
+DEST="${HOME}/.local/bin/bsk"
+
+if [[ -x "$DEST" ]]; then
+  echo "[skip] bsk already installed — $("$DEST" --version) (upgrade with \`bsk update\`)"
+else
+  echo "[install] bsk CLI → ${DEST}"
+  curl -fsSL https://raw.githubusercontent.com/Tencent/BrowserSkill/main/install.sh | sh
+  echo "[ok] $("$DEST" --version)"
+  echo "[next] install the extension in Comet, then run \`bsk doctor\` (all rows ok/na):"
+  echo "       https://chromewebstore.google.com/detail/hhcmgoofomhgciiibhipgmgkgnoenaoi"
+fi
+{{- end }}

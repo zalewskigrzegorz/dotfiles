@@ -1,6 +1,6 @@
 ---
 name: agent-browser
-description: Automate browser interactions via the agent-browser CLI (Chrome/CDP, accessibility-tree snapshots with @eN refs). Use when the user asks to navigate, click, fill, extract text, take screenshots, log into a site, test a web app, or automate any browser task. Browser automation in this setup goes through agent-browser exclusively — playwright-cli skill + playwright MCP were dropped 2026-05-24 as agent-browser proved faster and cheaper in tokens.
+description: The UNATTENDED browser — headless-ish Chrome/CDP on its own profile, accessibility-tree snapshots with @eN refs, cheapest in tokens. Use when Greg says "agent browser", "strzel na tę stronę", "sprawdź tę stronę", "zescrapuj", "odpal test na deployu" — or for any quick browser job that needs no login and no watching: fetch a public page, scrape docs, read the DOM, screenshot, smoke-test a deployed URL. If the task needs his login/session, gets bot-blocked, needs a captcha or 2FA, or he wants to watch it happen, use the `bsk` skill instead.
 allowed-tools: Bash(agent-browser:*) Bash(npx agent-browser:*)
 ---
 

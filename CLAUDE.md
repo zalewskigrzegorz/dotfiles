@@ -54,6 +54,8 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 | 15 | `run_onchange_after_15-macos-nushell-application-support.sh.tmpl` | macOS-only nushell support |
 | 20 | `run_onchange_after_20-macos-xdg-launchagent.sh.tmpl` | macOS XDG launch agent |
 | 25 | `run_once_after_25-install-claude.sh.tmpl` | Install Claude Code CLI |
+| 27 | `run_onchange_after_27-browserskill.sh.tmpl` | Install the `bsk` CLI (BrowserSkill), macOS only |
+| 28 | `run_onchange_after_28-bin-exec-bits.sh.tmpl` | rsync `bin/` → `~/bin` (keeps the exec bit; `bin/**` is chezmoi-ignored) |
 | 30 | `run_onchange_after_30-agent-skills-sync.sh.tmpl` | rsync `agent-skills/` → `~/.claude/skills`, `~/.cursor/skills` |
 | 31 | `run_onchange_after_31-agent-rules-sync.sh.tmpl` | rsync `agent-rules/` |
 | 32 | `run_onchange_after_32-agent-mcp-sync.sh.tmpl` | apply `agent-mcp/mcp-servers.json.tmpl` |
@@ -85,6 +87,13 @@ Run **`bin/audit-drift`** first — it prints a classified view of `chezmoi diff
 - `TEMPLATE_DRIFT` — source is `.tmpl`; `re-add` may no-op even when live differs, because the template still renders to live. Needs the manual rewrite below.
 - `BINARY_DRIFT` — as FILE_DRIFT, but watch the exec bit (`re-add` can drop it if the source lacks the `executable_` prefix)
 - `FAKE_SCRIPT` — a `run_*` script that always shows in `chezmoi diff` because it executes every apply. Not real drift.
+
+**Two former sources of permanent fake drift, both fixed 2026-08-20 — don't reintroduce them:**
+
+- **umask.** chezmoi inherits the umask of whatever process ran it, so an apply from a umask-077 shell wrote every managed dir `0700` and the next apply from umask-022 wanted `0755` back — ~816 rows of pure mode churn that `bin/sync` could only bulldoze with `--force`. `umask = 0o022` is now pinned top-level in `~/.config/chezmoi/chezmoi.toml` **and** in the generator in `bootstrap.sh`. `private_*` entries still get `0700`/`0600`.
+- **`bin/` exec bit.** chezmoi takes a target's exec bit from the source *filename* (`executable_foo`), never from the source file's mode — so all 41 scripts (755 on disk, no prefix) landed in `~/bin` at `0644`. Invisible on the Mac, fatal on the lab where `~/bin/sync` **is** `sync`/`chezmoi`. Fixed by ignoring `bin/**` and rsyncing it (stage 28). Do **not** rename them to `executable_*`: `bin/` doubles as a PATH dir and ~10 launchd plists, `herdr/config.toml` and sketchybar items hardcode `~/Code/dotfiles/bin/<name>`.
+
+A healthy `chezmoi status` is now ~2 rows, both `R` script rows. Anything more is real.
 
 When `bin/audit-drift` isn't enough, compare each live source against the repo:
 
@@ -152,6 +161,48 @@ Installed as a **uv tool** (→ `~/.local/bin`) by
   (8 serena + 22 cocoindex procs) starved WindowServer and froze the UI. Net
   cost > benefit. Gone from the plugin list, install script, and rules. Don't
   reinstall it or add `ccc` anywhere.
+
+#### Browser automation — two stacks (Mac)
+
+| Stack | Reach for it when | Source of truth |
+|---|---|---|
+| `agent-browser` (skill, Chrome/CDP) | **Quick shot, no human needed** — public page, docs scrape, DOM read, test a deployed page. Cheaper in tokens. | `agent-skills/agent-browser/` |
+| **`bsk`** (BrowserSkill → Comet Agent Window) | **Greg wants to watch, joint research, behind a login, or bot-blocked/captcha.** Also long multi-step flows. | `run_onchange_after_27-browserskill.sh.tmpl` + `agent-skills/bsk/` |
+
+**`claude-in-chrome` RETIRED 2026-08-23** — kept hanging, and the two stacks
+above cover it. It was never a config-file MCP (not in `agent-mcp/`); it ships
+with the harness and pairs via the Chrome extension, so the only repo-side gate
+is `mcp__claude-in-chrome__*` in `permissions.deny`
+(`.chezmoitemplates/claude-settings.json`) — that blocks calls but the tools
+still load if the extension is paired. Untrack-able off-switch (lives in
+`~/.claude.json` → `claudeInChromeDefaultEnabled`): `/chrome` → turn off
+"Enabled by default", or disable the extension (`fcoeoabgfenejglbffodgkkbkcdhcgfn`)
+in `chrome://extensions`. Don't re-add it.
+
+**BrowserSkill** ([Tencent/BrowserSkill](https://github.com/Tencent/BrowserSkill),
+MIT) drives Greg's **real, logged-in Comet profile** from the CLI in a separate,
+visible **Agent Window** — his own windows are left alone unless a tab is
+explicitly `bsk tab borrow`ed. Policy lives in
+`agent-rules/browserskill-agent-window.md`.
+
+- CLI + daemon → `~/.local/bin/bsk`, state in `~/.bsk` (runtime only, not tracked).
+  Upgrade with `bsk update`; health check `bsk doctor` (all rows `ok`/`N/A`).
+  `agent skill up to date → N/A` is expected — see the skill bullet below.
+- Extension is **hand-installed** from the [Chrome Web Store](https://chromewebstore.google.com/detail/hhcmgoofomhgciiibhipgmgkgnoenaoi)
+  (id `hhcmgoofomhgciiibhipgmgkgnoenaoi`) and lives in Comet's `Default` profile.
+  A script cannot install it — `0 browsers connected` in `doctor` means it's off.
+- **Skill dir is `bsk`, not `browser-skill`** (renamed 2026-08-23 so Greg can
+  just say "agent-browser" or "bsk" and hit the right one). It comes from
+  `agent-skills/bsk/` via stage 30, **not** from `bsk install-skill` (rsync
+  `--delete` would fight it). Side effect: `bsk doctor` looks for
+  `~/.claude/skills/browser-skill` and now reports `agent skill up to date →
+  N/A no agent skill installed`. That's by design. To refresh after `bsk update`:
+  `bsk install-skill --harness claude-code --yes`, copy
+  `~/.claude/skills/browser-skill/SKILL.md` into `agent-skills/bsk/SKILL.md`,
+  **keep our `name: bsk` frontmatter + trigger phrases**, then `bin/sync` (the
+  rsync deletes the stray `browser-skill/` dir).
+- **`npm install bsk` is the wrong package** — an abandoned 2017 Vue app squatting
+  that name. Only the GitHub release installer is correct.
 
 ### Skille z skills.sh (ephemeral)
 
