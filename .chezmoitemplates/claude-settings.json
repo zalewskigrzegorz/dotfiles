@@ -329,6 +329,11 @@
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/pre-tool-use/block-dangerous-commands.sh",
             "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "rtk hook claude",
+            "timeout": 5000
           }
         ]
       },
