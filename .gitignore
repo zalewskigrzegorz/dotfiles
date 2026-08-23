@@ -111,6 +111,12 @@ dot_config/zed/prompts/
 dot_config/zed/.tmp*
 bin/sketchybar-watcher/sketchybar-watcher
 
+# Native binaries compiled from scriptc/*.ts by run_onchange_after_29.
+# Arch-specific (arm64 Mac vs amd64 lab) and ~400 KB each — every machine
+# builds its own. Add a line here for each new scriptc/<name>.ts.
+bin/audit-drift
+.scriptc/
+
 # Stream Deck raw profile snapshots embed plugin OAuth tokens (Slack xoxp) — keep out of git
 dot_config/streamdeck/ProfilesV3-snapshot*/
 *.streamDeckProfilesBackup
