@@ -21,6 +21,9 @@ fi
 tools=(
   "tsx"   # TS runtime for mcp-debugger's js-debug adapter (agent-skills/mcp-debugger);
           # it probes node_modules/.bin then PATH — global tsx = .ts debugging works in any repo
+  "scriptc"  # vercel-labs/scriptc — compiles TS to a native binary (LLVM IR / C backend),
+             # no Node or V8 in the output. Needs node 24+ and clang at BUILD time only.
+             # Experimental (0.0.x) — pin nothing yet, just track latest.
 )
 # @wallabyjs/cli removed 2026-08-05 — wallaby never worked in Claude sessions;
 # DAP debugging goes through mcp-debugger now (agent-mcp/mcp-servers.json.tmpl).

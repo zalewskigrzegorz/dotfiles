@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# Compile every scriptc/*.ts into a native binary in bin/, then mirror it to ~/bin.
+#
+# scriptc (vercel-labs/scriptc) turns ordinary TypeScript into a standalone
+# executable — no Node, no V8 in the output. Sources live in scriptc/, the
+# binaries they produce are gitignored: they are arch-specific (arm64 Mac vs
+# amd64 lab) and 300-400 KB each, so every machine builds its own.
+#
+# Runs AFTER stage 28 on purpose: 28 rsyncs bin/ → ~/bin, and this stage has to
+# put the freshly built binary on both sides of that copy.
+#
+# Why bin/ and not just ~/bin: $PATH has ~/Code/dotfiles/bin at position 3 and
+# ~/bin at 20, so the checkout shadows ~/bin on the Mac. A binary written only
+# to ~/bin would never be the one that runs.
+#
+# The lab has neither node nor clang, so scriptc cannot run there. Each source
+# may ship a plain-shell twin in scriptc/fallback/<name>; when the toolchain is
+# missing that twin gets installed instead, so the command still exists.
+#
+# fingerprint: {{ output "bash" "-c" (printf "cd %q && find scriptc -type f -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
+set -euo pipefail
+
+SOURCE_DIR="{{ .chezmoi.sourceDir }}/scriptc"
+SOURCE_BIN="{{ .chezmoi.sourceDir }}/bin"
+TARGET_BIN="${HOME}/bin"
+
+if [[ ! -d "$SOURCE_DIR" ]]; then
+  echo "scriptc build: $SOURCE_DIR missing — skipping."
+  exit 0
+fi
+
+mkdir -p "$SOURCE_BIN" "$TARGET_BIN"
+
+# Pick up brew node on macOS, and mise's shims if that is what owns node here.
+if [[ -x /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+fi
+if [[ -d "${HOME}/.local/share/mise/shims" ]]; then
+  PATH="${HOME}/.local/share/mise/shims:${PATH}"
+fi
+
+can_build=1
+command -v scriptc >/dev/null 2>&1 || can_build=0
+command -v clang   >/dev/null 2>&1 || can_build=0
+
+install_fallback() {
+  local name="$1" fallback="${SOURCE_DIR}/fallback/$1"
+  if [[ ! -f "$fallback" ]]; then
+    echo "scriptc build: no toolchain and no fallback for ${name} — skipping." >&2
+    return
+  fi
+  install -m 0755 "$fallback" "${SOURCE_BIN}/${name}"
+  install -m 0755 "$fallback" "${TARGET_BIN}/${name}"
+  echo "scriptc build: ${name} → shell fallback (no scriptc/clang here)."
+}
+
+shopt -s nullglob
+for src in "$SOURCE_DIR"/*.ts; do
+  name="$(basename "$src" .ts)"
+
+  if [[ "$can_build" -eq 0 ]]; then
+    install_fallback "$name"
+    continue
+  fi
+
+  # --no-keep-c: scriptc keeps the generated .ll/.c next to the output by
+  # default, and bin/ is a PATH dir, not a build tree.
+  if ! scriptc build "$src" --no-keep-c -o "${SOURCE_BIN}/${name}" >/dev/null; then
+    echo "scriptc build: ${name} failed to compile — leaving the existing binary alone." >&2
+    continue
+  fi
+
+  chmod 0755 "${SOURCE_BIN}/${name}"
+  install -m 0755 "${SOURCE_BIN}/${name}" "${TARGET_BIN}/${name}"
+  echo "scriptc build: ${name} ok."
+done

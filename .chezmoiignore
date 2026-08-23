@@ -22,6 +22,11 @@ agent-skills/**
 agent-rules/**
 agent-mcp/**
 
+# TypeScript sources compiled to native binaries by run_onchange_after_29.
+# The build output lands in bin/ (and ~/bin); the sources belong to the repo,
+# not the home directory.
+scriptc/**
+
 # bin/ is rsynced to ~/bin by run_onchange_after_28, not applied by chezmoi.
 # Reason: chezmoi derives a target's exec bit from the SOURCE FILENAME
 # (`executable_foo`), never from the source file's mode. All 41 scripts here are
