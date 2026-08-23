@@ -28,8 +28,17 @@ interface ManagedEntry {
   sourceRelative: string;
 }
 
+// A failing chezmoi must not read as "no drift": stdout is empty either way,
+// so the exit status is the only thing that tells the two apart. An expired
+// 1Password session is the usual cause and it needs to be visible.
 function chezmoi(args: string[]): string {
   const r = spawnSync("chezmoi", args, { encoding: "utf8" });
+  if (r.status !== 0) {
+    console.error(`audit-drift: \`chezmoi ${args.join(" ")}\` exited ${r.status}`);
+    const err = (r.stderr ?? "").trim();
+    if (err !== "") console.error(err);
+    process.exit(1);
+  }
   return r.stdout ?? "";
 }
 

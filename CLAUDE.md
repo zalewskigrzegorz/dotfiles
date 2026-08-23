@@ -57,7 +57,7 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 | 25 | `run_once_after_25-install-claude.sh.tmpl` | Install Claude Code CLI |
 | 27 | `run_onchange_after_27-browserskill.sh.tmpl` | Install the `bsk` CLI (BrowserSkill), macOS only |
 | 28 | `run_onchange_after_28-bin-exec-bits.sh.tmpl` | rsync `bin/` → `~/bin` (keeps the exec bit; `bin/**` is chezmoi-ignored) |
-| 29 | `run_onchange_after_29-scriptc-build.sh.tmpl` | compile `scriptc/*.ts` → native binaries in `bin/` + `~/bin` (shell fallback where scriptc/clang are missing) |
+| 29 | `run_onchange_after_29-scriptc-build.sh.tmpl` | compile `scriptc/*.ts` → native binaries in `bin/` + `~/bin` |
 | 30 | `run_onchange_after_30-agent-skills-sync.sh.tmpl` | rsync `agent-skills/` → `~/.claude/skills`, `~/.cursor/skills` |
 | 31 | `run_onchange_after_31-agent-rules-sync.sh.tmpl` | rsync `agent-rules/` |
 | 32 | `run_onchange_after_32-agent-mcp-sync.sh.tmpl` | apply `agent-mcp/mcp-servers.json.tmpl` |
@@ -129,13 +129,14 @@ Finish with `chezmoi diff` to confirm the change was captured. Don't commit unti
 
 Live drift in `~/.claude/skills/<name>/` is **overwritten** on the next apply unless persisted back into `agent-skills/`.
 
-## Native helpers — `scriptc/` (Mac)
+## Native helpers — `scriptc/`
 
 [scriptc](https://github.com/vercel-labs/scriptc) (vercel-labs, Apache-2.0, **experimental 0.0.x**) compiles ordinary TypeScript to a standalone native binary — no Node, no V8 in the output. Installed as an npm global by `run_onchange_after_12-npm-globals.sh.tmpl`; needs node 24+ and clang **at build time only**.
 
 - **Source of truth is `scriptc/<name>.ts`.** Stage 29 compiles each one to `bin/<name>` and mirrors it to `~/bin/<name>`. The binaries are **gitignored** — arch-specific and ~400 KB each, so every machine builds its own. Add a `.gitignore` line per new source.
 - **Output goes to `bin/`, not just `~/bin`,** because `$PATH` has `~/Code/dotfiles/bin` at position 3 and `~/bin` at 20 — the checkout shadows `~/bin` on the Mac.
-- **The lab has neither node nor clang**, so nothing builds there. Each source may ship a plain-shell twin at `scriptc/fallback/<name>`; stage 29 installs that instead when the toolchain is missing, so the command still exists on Debian. Keep the twin behaviourally equivalent or delete it.
+- **Both machines build natively.** Mac: brew/mise node + Apple clang → Mach-O arm64, ~4.5s. Lab: linuxbrew node 26 + the `llvm` formula's clang → ELF x86-64, ~1.1s. Stage 29 must `eval` the right `brew shellenv` (`/opt/homebrew` **or** `/home/linuxbrew/.linuxbrew`) — a non-interactive lab shell sees neither node nor clang without it, which reads exactly like "the lab has no toolchain" and is wrong.
+- **There is no shell fallback.** A missing toolchain fails the stage loudly. A second, hand-maintained shell twin of each helper only rots and diverges.
 - `scriptc coverage <file.ts>` reports how much compiles statically before you commit to a port. `audit-drift.ts` is 100% static (57/57 statements).
 - Supported at runtime: `child_process`, `fs`, `path`, `http`/`http2`, `net`, `tls`, `fetch`, `regex`, `readline`, `process` (see `packages/runtime/src/scr_*.c` upstream).
 
