@@ -13,9 +13,10 @@
 # ~/bin at 20, so the checkout shadows ~/bin on the Mac. A binary written only
 # to ~/bin would never be the one that runs.
 #
-# The lab has neither node nor clang, so scriptc cannot run there. Each source
-# may ship a plain-shell twin in scriptc/fallback/<name>; when the toolchain is
-# missing that twin gets installed instead, so the command still exists.
+# Both machines can build: the Mac via brew/mise node + Apple clang, the lab via
+# linuxbrew node 26 + the llvm formula's clang. There is no shell fallback — a
+# missing toolchain is a broken machine, and this stage says so instead of
+# quietly installing a second, divergent implementation.
 #
 # fingerprint: {{ output "bash" "-c" (printf "cd %q && find scriptc -type f -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
 set -euo pipefail
@@ -31,37 +32,37 @@ fi
 
 mkdir -p "$SOURCE_BIN" "$TARGET_BIN"
 
-# Pick up brew node on macOS, and mise's shims if that is what owns node here.
+# Pick up brew node on macOS AND linuxbrew on the lab, plus mise's shims if
+# that is what owns node here. Same branch order as stage 12 — without the
+# linuxbrew arm, a non-interactive lab shell sees neither node nor clang even
+# though both are installed.
 if [[ -x /opt/homebrew/bin/brew ]]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi
 if [[ -d "${HOME}/.local/share/mise/shims" ]]; then
   PATH="${HOME}/.local/share/mise/shims:${PATH}"
 fi
 
-can_build=1
-command -v scriptc >/dev/null 2>&1 || can_build=0
-command -v clang   >/dev/null 2>&1 || can_build=0
-
-install_fallback() {
-  local name="$1" fallback="${SOURCE_DIR}/fallback/$1"
-  if [[ ! -f "$fallback" ]]; then
-    echo "scriptc build: no toolchain and no fallback for ${name} — skipping." >&2
-    return
-  fi
-  install -m 0755 "$fallback" "${SOURCE_BIN}/${name}"
-  install -m 0755 "$fallback" "${TARGET_BIN}/${name}"
-  echo "scriptc build: ${name} → shell fallback (no scriptc/clang here)."
-}
-
 shopt -s nullglob
-for src in "$SOURCE_DIR"/*.ts; do
-  name="$(basename "$src" .ts)"
+sources=("$SOURCE_DIR"/*.ts)
+if [[ ${#sources[@]} -eq 0 ]]; then
+  echo "scriptc build: no sources in $SOURCE_DIR — nothing to do."
+  exit 0
+fi
 
-  if [[ "$can_build" -eq 0 ]]; then
-    install_fallback "$name"
-    continue
+for tool in scriptc clang; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "scriptc build: $tool not on PATH — cannot build ${#sources[@]} source(s)." >&2
+    echo "  Mac:  brew install node && npm install -g scriptc (stage 12), clang ships with Xcode CLT." >&2
+    echo "  Lab:  brew install node llvm && npm install -g scriptc." >&2
+    exit 1
   fi
+done
+
+for src in "${sources[@]}"; do
+  name="$(basename "$src" .ts)"
 
   # --no-keep-c: scriptc keeps the generated .ll/.c next to the output by
   # default, and bin/ is a PATH dir, not a build tree.
