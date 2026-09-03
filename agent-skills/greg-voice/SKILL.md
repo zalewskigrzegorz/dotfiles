@@ -11,9 +11,13 @@ description: |
   ask, and the text almost never says "Slack". Also triggers on "napisz to po
   mojemu", "podsumuj to na slacka", "skróć to", "luźniej", "dosadnie", "tylko
   konkrety", "just the meat", "casual style", "shorten this", or when a draft
-  reads too long, too stiff, or over-explained. Do NOT run the `humanizer` skill
-  before or after this one — AI-tell removal is built in here, and a second
-  rewrite pass flattens the voice back out.
+  reads too long, too stiff, or over-explained. Also covers e-mails to outside
+  companies and strangers — dealer, bank, urząd, leasing, ubezpieczyciel,
+  kontrahent, sprzedawca ("mail do dealera", "odpisz firmie", "napisz do
+  urzędu") — where the same pass switches to the polite Pan/Pani/Państwo
+  register described inside. Do NOT run the `humanizer` skill before or after
+  this one — AI-tell removal is built in here, and a second rewrite pass
+  flattens the voice back out.
 license: MIT
 compatibility: claude-code opencode
 allowed-tools:
@@ -188,6 +192,48 @@ breaks when the list is empty — line 42".
 Never flatten review text into a neutral senior-engineer note "because it is
 technical writing". That reads like a bot and is the thing this skill exists to
 prevent.
+
+## The one exception: outside companies and strangers
+
+The casual register above is for people who know Greg — his team, reviewers,
+friends, Slack. When the recipient is an **outside organisation or someone he
+has never met** — a car dealer, a bank, a leasing company, an insurer, an
+urząd, a kontrahent, a shop, a landlord — the tone shifts to polite, formal
+Polish (or English). Same single pass, same AI-tell removal, different
+register. Added 2026-09-03 after a dealer e-mail came out too chummy
+("co jesteście w stanie zaproponować") and one sentence was pure filler
+("każde zejście z ceny pomoże mi domknąć decyzję po Waszej stronie").
+
+How to spot it: the recipient is a company address or a person Greg names by
+role (handlowiec, doradca, urzędnik), it is a first or early contact, or Greg
+says "do dealera / do firmy / do urzędu / odpisz im".
+
+What changes:
+
+- **Address them as Pan / Pani / Państwo.** "Dzień dobry", "Pozdrawiam",
+  "mają Państwo", "czy dałoby się". Never "Hej", "Cześć", never "wy / macie"
+  for a company. In English: "Hello", "Could you", "Best regards".
+- **Ask, don't demand.** "Czy jest przestrzeń na lepsze warunki?" — not "co
+  jesteście w stanie zaproponować". "Poproszę o symulację" — not "policzcie".
+- **Say the real reason plainly.** "Im niższa cena, tym łatwiej przekonam
+  żonę i podpiszę u Państwa" is Greg. Anything Greg could not say out loud to
+  that person's face gets cut — that is the test for filler.
+- **Formal ≠ corporate.** The humanizer catalogue still applies in full: no
+  "uprzejmie informuję", "w nawiązaniu do", "pragnę zapytać", no rule of
+  three, no signposting, no hedging. Short sentences, real numbers, one
+  question per paragraph.
+
+What stays Greg:
+
+- Point first, just the meat, still short. A numbered list only when there
+  are genuinely several separate asks.
+- Honest and human: "muszę jeszcze przekonać żonę :)" is fine — one smiley at
+  most, never `XD` or `:D` here.
+- Exact numbers, names and dates stay in.
+
+Small register check before handing it over: read it as the recipient.
+If any line would make a stranger think "who talks like that?", rewrite that
+line. Then stop — do not polish the whole thing again.
 
 ## AI tells — same pass, with carve-outs
 
