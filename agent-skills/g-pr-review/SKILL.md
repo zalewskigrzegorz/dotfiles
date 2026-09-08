@@ -1,6 +1,6 @@
 ---
 name: g-pr-review
-description: Review SOMEONE ELSE'S pull request as the reviewer. Two modes, auto-picked — a fresh review (analyze the diff → per-finding Post/Skip → submit one APPROVE/REQUEST_CHANGES/COMMENT verdict), or a follow-up when you already reviewed and the author replied (handle their responses, optionally update the verdict). Fetches unresolved threads and bot inline comments, asks per finding/thread in batched AskUserQuestion calls (≤4 at once, recommendation each), drafts English comments/replies, humanizes them, posts via gh. Use whenever you want to review a PR, leave PR comments, approve/request changes, or respond to the author on a PR you're reviewing — current branch, PR number, or PR URL. If the PR is YOURS and you're answering reviewers, use g-pr-respond instead.
+description: Review SOMEONE ELSE'S pull request as the reviewer. Two modes, auto-picked — a fresh review (orient with a what/why summary + focus popup → analyze the diff → per-finding Post/Skip → submit one APPROVE/REQUEST_CHANGES/COMMENT verdict), or a follow-up when you already reviewed and the author replied (handle their responses, optionally update the verdict). Fetches unresolved threads and bot inline comments, asks per finding/thread in batched AskUserQuestion calls (≤4 at once, recommendation each), drafts English comments/replies, humanizes them, posts via gh. Use whenever you want to review a PR, leave PR comments, approve/request changes, or respond to the author on a PR you're reviewing — current branch, PR number, or PR URL. If the PR is YOURS and you're answering reviewers, use g-pr-respond instead.
 ---
 
 # g-pr-review
@@ -59,7 +59,7 @@ State the detected mode in one line before proceeding. User override always wins
 
 | Mode | Meaning | Flow |
 |------|---------|------|
-| `fresh` | Someone else's PR, no prior review from me | **Flow B — Fresh review** (analyze diff silently → per-finding Post/Skip → submit one APPROVE/REQUEST_CHANGES/COMMENT review). |
+| `fresh` | Someone else's PR, no prior review from me | **Flow B — Fresh review** (orient: what/why summary + focus popup → analyze diff silently → per-finding Post/Skip → submit one APPROVE/REQUEST_CHANGES/COMMENT review). |
 | `followup` | Someone else's PR, I already left ≥1 review | **Flow C — Follow-up** (handle threads where the author replied to me, optionally finalize an updated verdict). |
 
 **You are the reviewer, not the author.** A thread opened by reviewer X and answered by the PR author is X's to resolve — don't jump in unless you have something to add. Never frame replies as the author "closing" threads. If you find yourself wanting to apply the fix + commit + reply as the author, you're in the wrong skill — that's `g-pr-respond`.
@@ -85,6 +85,26 @@ Otherwise (`USE_LOCAL=false`):
 ```bash
 gh pr diff "$NUMBER" ${REPO_FLAG:+-R "$OWNER/$REPO"}
 ```
+
+## B1.5. Orient the reviewer, then let him aim the review
+
+Before hunting for findings, read the PR body (`gh pr view --json body`) and the diff once, and give the user the picture he needs to steer. He merges PRs he did not write and often comes in cold — the summary is what lets him say "look hard at X".
+
+Print, in the user's language, **≤ 10 lines total**:
+
+* **Cel** — one or two sentences: what the PR changes and why (link the epic / parent issue if the body names one).
+* **Co robi** — 2–5 numbered points, one per behavioural change, concrete (hook / endpoint / flag names, not "refactors the UI").
+* **Skala + flagi** — one line: files, `+/−`, areas touched, and anything that bites at merge time (conflict with base, draft, red CI, migrations, feature flags).
+
+Then one `AskUserQuestion`, `multiSelect: true`, header `Fokus`:
+`"Na co review ma zwrócić szczególną uwagę?"`. Options:
+
+* `Standardowy pełny przegląd (Recommended)` — security / perf / quality / tests per B2, nothing singled out.
+* 2–3 concrete areas the summary surfaced as risky or surprising — each label names the spot (`Kolejność gate'ów w WithACL`, `Nowa ścieżka password login`), the description says why it deserves a closer look.
+
+Picked areas become priority targets in B2: dig into them first, follow call sites beyond the diff if needed, and make sure each picked area yields either a finding or an explicit "checked, clean" line in the B3 batch context. Free text from `Other` is treated the same way.
+
+Skip the popup only when the PR is trivial (≤ 3 files, one obvious change) — the summary still prints.
 
 ## B2. Analyze silently
 
@@ -122,7 +142,7 @@ One `AskUserQuestion`, single question: `"<N> comments selected — submit revie
 * **Comment only** — feedback without a verdict.
 * **Don't submit** — abort, post nothing.
 
-Recommend **Request changes** if any Critical was selected; otherwise **Approve** (or **Comment only** when there are non-trivial Suggestions). Mark `(Recommended)`.
+Recommend **Request changes** if any Critical was selected; otherwise **Approve** (or **Comment only** when there are non-trivial Suggestions). Mark `(Recommended)`. Red CI is the author's job — never fix it here, and never recommend **Approve** while checks are red (recommend **Comment only** and say why).
 
 ## B5. Submit (two calls — pending review, then event)
 
@@ -301,6 +321,7 @@ If user picks a verdict, submit via B5 (single `gh api ... /reviews` call, `comm
 ## Flow B (`fresh`)
 
 * [ ] B1 diff source picked per P0 (`git diff merge-base..HEAD` when `USE_LOCAL=true`, else `gh pr diff`)
+* [ ] B1.5 what/why summary printed (≤ 10 lines) and focus popup asked (skipped only for trivial PRs); picked areas prioritized in B2
 * [ ] Diff analyzed silently (no diff dump in chat)
 * [ ] Findings recorded with severity, anchor, body, recommendation
 * [ ] B3 batched per-finding questions with `(Recommended)`
