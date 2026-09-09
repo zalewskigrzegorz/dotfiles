@@ -227,6 +227,14 @@ Jednorazowa wiedza domenowa idzie przez **`skill-scout`** → `npx skills use <o
 
 Żeby obcy skill został na stałe: `cp -r <temp-dir>/<skill> agent-skills/<skill>` + commit. `agent-skills/` jest jedynym źródłem prawdy.
 
+### Dubel `/skill` w pickerze → `bin/sync`, nie kasowanie ręczne
+
+Stage 30 dzieli `agent-skills/` na globalne (rsync do `~/.claude/skills/`) i **project-scoped** (kopiowane do `<repo>/.claude/skills/` **i usuwane z globalnego katalogu**, żeby nie żarły kontekstu w pozostałych repo). Bukiety: `WORK_SKILLS` z `bin/place-work-skills --list` (dzielone z `work new`, żeby świeży worktree też je dostał), `DOTFILES_SKILLS`, `HOMELAB_SKILLS`. Skrypt sam dopisuje `/.claude/skills/<name>/` do `.git/info/exclude` repo docelowego.
+
+Czyli work-scoped skill w `<work-repo>/.claude/skills/` jest **poprawny**. Bugiem jest jego kopia leżąca **równocześnie** w `~/.claude/skills/`. Tak było 2026-09-08 z ośmioma skillami (`g-pr*`, `g-github-issue`, `babysit-prs`) — `/g-pr-bump` pokazywał się dwa razy, ~830 tok/sesję na darmo. Naprawia to jeden `bin/sync`; ręczne `rm` w repo firmy wraca przy najbliższym apply, bo tak ma być. Weryfikacja: `comm -12 <(ls ~/.claude/skills | sort) <(ls <repo>/.claude/skills | sort)` ma być puste. Pełna reguła: `agent-rules/skill-scope-duplicates.md`.
+
+Kolizje nazw z teamem zostają świadomie — project scope przykrywa user scope, więc w monorepo `/deslop` i `/grafana-mcp-wtf` to wersje teamowe z gita, nie Grega. Podmiana wymagałaby PR-a do repo firmy.
+
 ## Secrets & private data
 
 - `private/` — gitignored staging area, restored to `~/` by `run_after_05`
