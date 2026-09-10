@@ -1,25 +1,31 @@
 ---
 name: herdr-peek
-description: Read the scrollback of Greg's terminal/shell pane in his herdr workspace on demand, so Claude can see a command + its output without Greg copy-pasting. Runs `herdr-peek` (wraps `herdr pane read`) to grab the last ~25 lines of the non-agent shell pane in the current herdr workspace, then Claude reads them and only asks for more if truncated. Use when Greg says "co się zawaliło", "co zwróciła ta komenda", "terminal nie przeszło", "zobacz w terminalu", "sprawdź terminal", "co na terminalu", "zobacz w oknie co się stało", "check terminal", "terminal output", "scrollback", "what's on the terminal", "show me the terminal" — or otherwise refers to a command he just ran in a shell pane whose output Claude needs to see. Shell pane only; for git/nvim TUIs Greg copy-pastes.
+description: Read the scrollback of a pane in Greg's herdr workspaces on demand, so Claude can see a command + its output — or what an agent in another tab reported — without Greg copy-pasting. Runs `herdr-peek` (wraps `herdr pane read`). No arg grabs the current workspace's shell pane; a bare number (`herdr-peek 8`) targets that workspace's AGENT pane, where the number is the tab index shown in herdr's statusline (▸8). Use when Greg says "co się zawaliło", "co zwróciła ta komenda", "terminal nie przeszło", "zobacz w terminalu", "sprawdź terminal", "co na terminalu", "zobacz w oknie co się stało", "zobacz co agent zgłosił", "co agent na 8 zrobił", "check terminal", "terminal output", "scrollback", "what's on the terminal", "show me the terminal", "see what the agent on tab N reported" — or otherwise refers to a command he just ran, or a numbered tab/agent he wants Claude to look at.
 ---
 
 # herdr-peek
 
-Read Greg's shell-pane scrollback so you can see what a command did without him pasting it.
+Read a herdr pane's scrollback so you can see what a command did — or what an agent in another tab reported — without Greg pasting it.
 
 ## Background
 
-Greg runs herdr (not tmux). A workspace has the agent pane (where you, Claude, run) plus a plain **shell pane** (nu) where he runs commands. `herdr-peek` reads that shell pane via the herdr socket — it auto-picks the non-agent pane (`agent_status == "unknown"`) in the **current** workspace (`$HERDR_WORKSPACE_ID`), excluding your own pane.
+Greg runs herdr (not tmux). A workspace has the agent pane (where you, Claude, run) plus a plain **shell pane** (nu) where he runs commands. Each workspace also has a **number** (`herdr workspace list` → `"number"`), the same index herdr shows in the tab strip / statusline (`▸8`). `herdr-peek` reads a pane via the herdr socket.
+
+Two ways it resolves a pane:
+
+- **No arg** → the **shell pane** of the *current* workspace (`$HERDR_WORKSPACE_ID`), excluding your own pane. This is for reading a command Greg just ran.
+- **A bare number or workspace id** (`herdr-peek 8`, `herdr-peek wM`) → the **agent pane** of *that* workspace. A bare number is the workspace `number` from `herdr workspace list` — the `▸N` in the statusline. This is for "look what the agent on tab N reported". Don't guess the mapping by counting — the script resolves the number itself.
 
 ## How to use
 
 1. Run the helper (on PATH, pre-allowed):
 
    ```
-   herdr-peek
+   herdr-peek          # current workspace's shell pane
+   herdr-peek 8        # workspace/tab 8's agent pane (statusline ▸8)
    ```
 
-   Default = last **25 lines** of the workspace's shell pane. Enough for most "this command failed" cases, low token cost.
+   Default = last **25 lines**. Enough for most cases, low token cost.
 
 2. **Read the output. Decide if it's enough:**
    - **Enough** (command + its error/result visible) → respond: diagnose, propose the fix.
@@ -33,20 +39,21 @@ Greg runs herdr (not tmux). A workspace has the agent pane (where you, Claude, r
 
    (`-n 50` for a smaller bump.) Read the fuller context and respond.
 
-4. Wrong pane / multiple shells in the workspace? Target one explicitly:
+4. Wrong pane, or need an exact one? Target it verbatim:
 
    ```
-   herdr-peek w2:p1
+   herdr-peek wM:p3
    ```
 
-   (`herdr pane list` shows pane ids + workspaces.)
+   (`herdr pane list` shows pane ids; `herdr workspace list` shows numbers.)
 
-## Not in herdr / no shell pane
+## Errors
 
-If `herdr-peek` prints `no shell pane found in this workspace` (e.g. only the agent pane is open, or `$HERDR_WORKSPACE_ID` is unset because you're not in a herdr pane), tell Greg you can't read it here and ask him to paste, or to name the pane. Don't retry blindly.
+- `no pane found for '<N>'` → that workspace number/id isn't live. Run `herdr workspace list` to see the current numbers, don't retry blindly.
+- `no shell pane found in this workspace` (no-arg case) → only the agent pane is open, or `$HERDR_WORKSPACE_ID` is unset because you're not in a herdr pane. Tell Greg you can't read it here and ask him to paste or name the pane.
 
 ## Scope
 
-- **Shell panes only.** Does not read git/nvim TUIs — Greg pastes from those.
+- **No-arg reads the shell pane; a number/id reads the agent pane.** Does not read git/nvim TUIs — Greg pastes from those.
 - Output is **raw text** (ANSI/prompt lines come through as-is) — read past the 🦄/statusline noise to the actual command + output.
 - **Read-only.** Never sends keys or runs commands in Greg's panes.
