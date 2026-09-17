@@ -25,7 +25,7 @@ local cal = sbar.add("item", {
         font = {
             family = settings.font.numbers, -- FiraCode Nerd Font Mono (NOT sketchybar-app-font)
             style = settings.font.style_map["Regular"],
-            size = 12.0, -- same scale as notif_preview label
+            size = 12.0, -- one notch under the bar default, so the date sits quiet
         }
     },
     position = "right",

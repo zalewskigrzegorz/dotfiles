@@ -88,7 +88,9 @@ fi
 # 5. status summary
 step "summary"
 printf "  ${MAUVE}▸${N} sketchybar widgets:\n"
-for n in apple widgets.claude_sessions notif_preview widgets.battery widgets.cpu; do
+# widgets.claude_sessions and notif_preview were deleted in f3fae4c; probing for
+# them reported "(missing)" on every reload, which teaches you to skip the probe.
+for n in apple front_app widgets.battery widgets.cpu; do
   if /opt/homebrew/bin/sketchybar --query "$n" >/dev/null 2>&1; then
     ok "$n"
   else
