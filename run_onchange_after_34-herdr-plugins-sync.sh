@@ -30,6 +30,7 @@ PLUGINS=(
   ChmaraX/herdr-nvim                  # nvim sidebar + agent-file picker + code annotations -> agent (prefix+e / prefix+o)
   vjeantet/herdr-scratchpad           # per-tab prompt buffer; ctrl+e drops it in the agent's box (prefix+s) — Rust
   hhdebb/herdr-radar                  # Agents sidebar: sticky state marks, worktree tree, busiest-first (prefix+shift+v)
+  AltanS/collie                       # phone PWA over the tailnet: which agent is blocked, answer it, push (see below)
 )
 
 # Plugins we deliberately dropped. The install loop never uninstalls, so without
@@ -87,4 +88,28 @@ if [[ -n "$tk_cfg_dir" && ! -f "$tk_cfg_dir/config.env" ]]; then
   mkdir -p "$tk_cfg_dir"
   printf 'TOKSCALE_CMD="bunx tokscale@latest"\n' > "$tk_cfg_dir/config.env"
   echo "herdr-plugins: wrote tokscale config.env (TOKSCALE_CMD=bunx)."
+fi
+
+# Collie serves a remote-control surface for every agent on this host, so the
+# identity gate is not optional: `tailscale serve` injects Tailscale-User-Login
+# and Collie rejects anyone who is not COLLIE_TRUSTED_USER. Derive that login
+# from the live tailscale state rather than hardcoding it — this repo is public.
+# Written once; an existing .env is left alone. Collie tightens it to 0600 itself.
+#
+# NOT automated here, because both need a human: "Enable HTTPS" in the tailnet
+# admin console (https://login.tailscale.com/admin/dns), then `bin/collie serve`
+# from the plugin dir to raise the tailnet front door, then `bin/collie pair`.
+# Until then the bridge is reachable on 127.0.0.1:8787 only.
+co_cfg_dir="$(herdr plugin config-dir herdr.collie 2>/dev/null || true)"
+if [[ -n "$co_cfg_dir" && ! -f "$co_cfg_dir/.env" ]] && command -v tailscale >/dev/null 2>&1; then
+  ts_login="$(tailscale status --json 2>/dev/null \
+    | jq -r '.User[(.Self.UserID|tostring)].LoginName // empty' 2>/dev/null || true)"
+  if [[ -n "$ts_login" ]]; then
+    mkdir -p "$co_cfg_dir"
+    printf 'COLLIE_TRUSTED_USER=%s\nCOLLIE_MUX=herdr\n' "$ts_login" > "$co_cfg_dir/.env"
+    chmod 600 "$co_cfg_dir/.env"
+    echo "herdr-plugins: wrote collie .env (trusted user from the tailnet login)."
+  else
+    echo "herdr-plugins: ⚠️  collie .env not written — tailscale is down or not logged in."
+  fi
 fi
