@@ -115,6 +115,9 @@ bin/sketchybar-watcher/sketchybar-watcher
 # Arch-specific (arm64 Mac vs amd64 lab) and ~400 KB each — every machine
 # builds its own. Add a line here for each new scriptc/<name>.ts.
 bin/audit-drift
+bin/pr-watch-open
+bin/claude-mcp-defaults
+bin/place-work-skills
 .scriptc/
 
 # Stream Deck raw profile snapshots embed plugin OAuth tokens (Slack xoxp) — keep out of git
