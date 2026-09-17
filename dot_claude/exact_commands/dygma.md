@@ -61,8 +61,8 @@ edit the layout competently is here. Don't make it a skill — rare use.
 | 3 | Copy | copy | AI translate | — (free) |
 | 4 | vs autocomplete | autocomplete | AI hard-rewrite ADHD-Slack (⌃⌘G) | read selection (⌥Esc system TTS) |
 | 5 | Read reset talk | reset layers→base | — (free) | Slack channel/contact search |
-| 6 | Windows | aerospace picker | sesh | tmux switch |
-| 7 | leaders | tmux leader | aerospace leader | — (free) |
+| 6 | Windows | aerospace picker (⌃⌘L) | Wooshy (⌃⌘/) | kindaVim Normal Mode (⌃[) |
+| 7 | leaders | herdr prefix (⌃Space) | aerospace leader | — (free) |
 - Free slots to fill later: `[3]2×tap, [5]hold, [7]2×tap`.
 - AI prompts (grammar/light/hard) live in Raycast AI commands; Defy just sends
   ⇧⌘G / ⌘G / ⌃⌘G. Use a cheap fast model (Haiku/4o-mini) for grammar/light.
