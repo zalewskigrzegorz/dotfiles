@@ -162,13 +162,19 @@ def "work deps-preflight" []: nothing -> nothing {
     if (which herdr | is-empty) { error make { msg: "herdr required: brew install herdr" } }
 }
 
-# Scan worktrees ON DISK (~/Code/tree/wt-*/), cross-repo — so worktrees made by
-# the old setup (or by hand) show up, not just ones herdr already opened.
+# Scan worktrees ON DISK, cross-repo — so worktrees made by the old setup (or by
+# hand) show up, not just ones herdr already opened. Two pools: ours
+# (~/Code/tree/wt-<repo>/<branch>) and herdr's native default
+# (~/.herdr/worktrees/<repo>/<slug>), where prefix+shift+g puts them.
 # Returns records: {repo, root, branch, path, status, head}.
 def "work _scan-worktrees" []: nothing -> list<record> {
-    let pool = ($env.HOME | path join "Code" "tree")
-    if not ($pool | path exists) { return [] }
-    glob $"($pool)/wt-*/**/.git" --depth 6
+    let pools = [
+        ($env.HOME | path join "Code" "tree" "wt-*")
+        ($env.HOME | path join ".herdr" "worktrees" "*")
+    ]
+    $pools
+    | each { |p| glob $"($p)/**/.git" --depth 6 }
+    | flatten
     | par-each { |m|
         let wt = ($m | path dirname)
         let cd_r = (do { ^git -C $wt rev-parse --path-format=absolute --git-common-dir } | complete)
