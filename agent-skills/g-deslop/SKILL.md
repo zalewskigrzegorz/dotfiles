@@ -1,9 +1,9 @@
 ---
-name: deslop
-description: Use when pending changes need AI-slop cleanup before they land in git — added comments, defensive bloat, any-casts, dead code, style inconsistent with the file. Invoked directly as /deslop, and mandatory as the pre-commit gate in g-commit work mode.
+name: g-deslop
+description: Use when pending changes need AI-slop cleanup before they land in git — added comments, defensive bloat, any-casts, dead code, style inconsistent with the file. Invoked directly as /g-deslop, and mandatory as the pre-commit gate in g-commit work mode. Greg's full gate; the work monorepo tracks its own shorter /deslop.
 ---
 
-# deslop
+# g-deslop
 
 Remove AI-generated slop from the changes you (or this branch) introduced. Never touch lines outside the diff.
 

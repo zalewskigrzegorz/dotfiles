@@ -142,6 +142,15 @@ Live drift in `~/.claude/skills/<name>/` is **overwritten** on the next apply un
 
 **What a port actually buys.** Measured on `audit-drift` with 200 drifted paths and `chezmoi` stubbed out, so the numbers are the wrapper's own cost: 9.8s → **0.06s** and 29.2 MB → **22.0 MB** peak RSS, ~1200 forks → 3. In real use the whole run is ~17.8s either way, because `chezmoi diff` + `chezmoi managed` dominate completely. **Port for the typed logic and for killing per-path subprocess fan-out, not for wall-clock** — if a helper is one `chezmoi`/`gh` call plus a `jq`, leave it in bash.
 
+**Two casting footguns, found porting `claude-mcp-defaults` (2026-09-17).** Both are silent — nothing throws, the wrong thing just happens:
+
+- **`JSON.parse(x) as SomeInterface` is not a type assertion.** scriptc *reconstructs* the value to match the interface and drops every field the interface does not declare. Casting `~/.claude.json` that way deletes `history`, `oauth`, `allowedTools` and everything else on write. Only ever cast parsed JSON to `Record<string, unknown>`.
+- **A nested cast returns a detached copy, not a reference.** `data["projects"] as Record<string, unknown>` gives you a new object; mutating it leaves `data` untouched. Write the result back explicitly at every level. The tell is a run that prints "changed" while the file comes out byte-identical.
+
+Also: `process.cwd()` resolves symlinks, bash's `$PWD` does not. On macOS `/tmp` is a symlink, so a helper that defaults to "the current directory" needs `process.env.PWD` to match its bash original.
+
+**Porting a helper that already exists in `bin/`:** the compiled binary lands on the same path as the tracked bash script, so stage 29 silently overwrites it on the next run. Do the swap deliberately — build, diff the binary against the bash original on every code path you can exercise without side effects, then `git rm --cached` the bash file (the `.gitignore` line makes the binary invisible to git, and the bash source stays in history).
+
 ## Claude-specific
 
 Global Claude config lives in `dot_claude/` → `~/.claude/`:
@@ -233,7 +242,7 @@ Stage 30 dzieli `agent-skills/` na globalne (rsync do `~/.claude/skills/`) i **p
 
 Czyli work-scoped skill w `<work-repo>/.claude/skills/` jest **poprawny**. Bugiem jest jego kopia leżąca **równocześnie** w `~/.claude/skills/`. Tak było 2026-09-08 z ośmioma skillami (`g-pr*`, `g-github-issue`, `babysit-prs`) — `/g-pr-bump` pokazywał się dwa razy, ~830 tok/sesję na darmo. Naprawia to jeden `bin/sync`; ręczne `rm` w repo firmy wraca przy najbliższym apply, bo tak ma być. Weryfikacja: `comm -12 <(ls ~/.claude/skills | sort) <(ls <repo>/.claude/skills | sort)` ma być puste. Pełna reguła: `agent-rules/skill-scope-duplicates.md`.
 
-Kolizje nazw z teamem zostają świadomie — project scope przykrywa user scope, więc w monorepo `/deslop` i `/grafana-mcp-wtf` to wersje teamowe z gita, nie Grega. Podmiana wymagałaby PR-a do repo firmy.
+Kolizje nazw z teamem **nie** są przykrywane — project scope nie shadowuje user scope, oba wpisy ładują się do pickera. Podmiana teamowego wymagałaby PR-a do repo firmy, więc fix to rename globalnego: `deslop` → `g-deslop` (2026-09-09), a `/deslop` w monorepo zostaje teamowy. Ten sam wzorzec dotyczy `grafana-mcp-wtf`.
 
 ## Secrets & private data
 
