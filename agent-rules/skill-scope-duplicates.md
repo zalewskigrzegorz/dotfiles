@@ -52,16 +52,23 @@ is what pruned the stale global copies and left one of each.
 4. **A skill that should only load in one repo belongs in a bucket**, not in
    the global set. That's the whole point of the split.
 
-## Team-tracked name collisions (expected, leave them)
+## Team-tracked name collisions → rename the global one
 
-Project scope shadows user scope. Where the work monorepo tracks its own skill
-under a name Greg also has globally, the **team's** version wins in that repo:
+Project scope does **not** shadow user scope in the picker: a global skill and a
+repo-local one sharing a `name:` both load, and `/name` shows up twice with two
+descriptions. `bin/sync` cannot fix this — neither copy is stale.
 
-| Name | Global (Greg) | Work monorepo (team, in git) |
+The team's file is theirs and changing it needs a PR, so the fix is always to
+**rename the global variant**, never to overwrite or delete the team's:
+
+| Name in repo | Team's version (in git) | Greg's, renamed |
 |---|---|---|
-| `deslop` | full pre-commit gate referenced by `g-commit` | short "remove AI slop" prompt |
-| `grafana-mcp-wtf` | private overlay copy, SKILL.md only | tracked version incl. `scripts/` |
+| `deslop` | short "remove AI slop" prompt | `g-deslop` — full pre-commit gate referenced by `g-commit` |
 
-These are not duplicates to clean up — the team's file is theirs and changing
-it needs a PR. If the global variant is what should run inside that repo, the
-fix is to rename the global one, never to overwrite the team's.
+After a rename, update every reference to the old name (other SKILL.md files,
+`CLAUDE.md`, rules) and run `bin/sync` so the stale global dir is deleted.
+
+**Compare `name:`, not directory names.** `grafana-mcp-wtf/` exists in both
+`~/.claude/skills/` (private overlay) and the monorepo, but the team's declares
+`name: grafana-mcp-wtf-dashboards` — different slugs, one picker entry each,
+nothing to fix.
