@@ -147,7 +147,11 @@ Live drift in `~/.claude/skills/<name>/` is **overwritten** on the next apply un
 - **`JSON.parse(x) as SomeInterface` is not a type assertion.** scriptc *reconstructs* the value to match the interface and drops every field the interface does not declare. Casting `~/.claude.json` that way deletes `history`, `oauth`, `allowedTools` and everything else on write. Only ever cast parsed JSON to `Record<string, unknown>`.
 - **A nested cast returns a detached copy, not a reference.** `data["projects"] as Record<string, unknown>` gives you a new object; mutating it leaves `data` untouched. Write the result back explicitly at every level. The tell is a run that prints "changed" while the file comes out byte-identical.
 
+- **An atomic write drops the target's permissions.** `rename` replaces the inode, so the file keeps the *temp* file's mode, not the original's — under umask 022 a 0600 credential file comes back 0644. Bash writing in place inherited the mode for free; the TS rewrite has to ask. Pass `{ mode: 0o600 }` to `writeFileSync` **and** `chmodSync` the temp file (`mode` only applies on create). Caught by a commit security review on `claude-mcp-defaults`, which writes `~/.claude.json`.
+
 Also: `process.cwd()` resolves symlinks, bash's `$PWD` does not. On macOS `/tmp` is a symlink, so a helper that defaults to "the current directory" needs `process.env.PWD` to match its bash original.
+
+The pattern behind all four: **a port changes the mechanics, not just the language.** Diff the binary against the bash original on every path you can exercise, and look hardest where bash got something implicitly — file modes, `$PWD`, inherited env.
 
 **Porting a helper that already exists in `bin/`:** the compiled binary lands on the same path as the tracked bash script, so stage 29 silently overwrites it on the next run. Do the swap deliberately — build, diff the binary against the bash original on every code path you can exercise without side effects, then `git rm --cached` the bash file (the `.gitignore` line makes the binary invisible to git, and the bash source stays in history).
 
