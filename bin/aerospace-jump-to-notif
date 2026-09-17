@@ -1,6 +1,7 @@
 #!/bin/bash
 # Jump to the workspace of the most recently pulsed notification.
-# Written by sketchybar-watcher (notif_preview.go) to /tmp/...-last-notif-ws.
+# Written by sketchybar-watcher (main.go refresh(), from the Dock-badge diff)
+# to /tmp/...-last-notif-ws. notif_preview.go used to write it; it went in f3fae4c.
 # One-shot: file is consumed (removed) on jump.
 set -eu
 f="/tmp/sketchybar-watcher-last-notif-ws"

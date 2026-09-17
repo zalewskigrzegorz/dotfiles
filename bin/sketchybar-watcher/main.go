@@ -59,7 +59,6 @@ var (
 	showVersion  = flag.Bool("version", false, "print version and exit")
 	homeDir      string
 	kindavimPath string
-	globalState  *state // set in main(); used by notif_preview to fire pulses
 )
 
 var workspaceOrder = []string{
@@ -773,7 +772,6 @@ func main() {
 	kindavimPath = filepath.Join(homeDir, kindavimEnvFile)
 
 	st := &state{}
-	globalState = st
 
 	listener, err := daemon(st)
 	if err != nil {
