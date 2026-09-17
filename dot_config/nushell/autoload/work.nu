@@ -438,6 +438,12 @@ def "work new" [
         }
     )
     if $r.exit_code != 0 { error make { msg: $"herdr worktree create failed: ($r.stderr)" } }
+    # `worktree add -b X origin/main` makes git track origin/main (autoSetupMerge), so
+    # lazygit/herdr arrows count against main forever. Drop it; the first push sets
+    # origin/<branch> via push.autoSetupRemote.
+    if not $checkout_existing {
+        ^git -C $wt_path branch --unset-upstream $branch_name
+    }
     let ws = (try { $r.stdout | from json | get -o result.root_pane.workspace_id } catch { "" })
     if $mode == "full" and not $no_seed {
         work _seed-untracked $parent $wt_path
