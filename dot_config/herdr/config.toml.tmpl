@@ -92,7 +92,8 @@ remove_worktree = "prefix+d"
 # (always ws_idx=1) instead of the focused one, so worktrees land under the wrong
 # repo. prefix+shift+g is rebound below to bin/herdr-worktree-new (→ `work new`).
 new_worktree = ""
-# reviewr takes plain prefix+r (r = review); resize moves to shift+r; reload → hd-reload CLI.
+# resize lives on shift+r; reload → hd-reload CLI. (Plain prefix+r was reviewr's,
+# free again since that plugin went in 2026-09.)
 reload_config = ""
 resize_mode = "prefix+shift+r"
 
@@ -106,12 +107,42 @@ resize_mode = "prefix+shift+r"
 # under nu. Replaced by the `url` / `of` nu commands (autoload/herdr-pick.nu): run them
 # in a shell pane to fzf-pick a link/file from the scrollback and open it.
 
-# reviewr: toggle the code-review sidebar (r = review).
+# reviewr removed 2026-09-17 — it opened its sidebar by itself on worktree.created,
+# in panes with no Claude Code, and Greg never used it. prefix+r is free again.
+
+# herdr-nvim: full-height nvim sidebar (own nvim per tab, survives the toggle) +
+# a picker over the files the agent just touched. The nvim half (annotations you
+# send back to the agent) is dot_config/nvim/lua/plugins/herdr-nvim.lua.
 [[keys.command]]
-key = "prefix+r"
+key = "prefix+e"
 type = "plugin_action"
-command = "persiyanov.reviewr.toggle"
-description = "Toggle reviewr code-review sidebar"
+command = "chmarax.herdr-nvim.toggle"
+description = "Toggle the nvim sidebar"
+
+[[keys.command]]
+key = "prefix+o"
+type = "plugin_action"
+command = "chmarax.herdr-nvim.pick-file"
+description = "Open a file the agent touched (fuzzy picker) in the nvim sidebar"
+
+# scratchpad: a buffer docked at the bottom of the tab for composing a prompt
+# before it goes anywhere. Ctrl+E drops it into the agent's input WITHOUT
+# pressing Enter, so a ten-line prompt can't half-send itself. One per tab.
+[[keys.command]]
+key = "prefix+s"
+type = "plugin_action"
+command = "herdr-scratchpad.open-scratchpad"
+description = "Toggle the scratchpad (compose a prompt, Ctrl+E sends it to the agent's box)"
+
+# radar: takes over the Agents sidebar — state marks that don't slip away
+# (a tick stays until you focus the pane, a question until you answer), worktrees
+# as a tree under their repo, busiest project first. prefix+shift+v cycles between
+# radar's order and herdr's own panel.
+[[keys.command]]
+key = "prefix+shift+v"
+type = "plugin_action"
+command = "hhdebb.herdr-radar.view-toggle"
+description = "Agents panel: cycle radar's order (grouped / flat / herdr's own)"
 
 # Jump to the agent that needs you: first blocked, else done(unseen), else working
 # (bin/herdr-focus-waiting). The one-key "go to the waiting agent" Greg wanted.
@@ -145,13 +176,14 @@ type = "shell"
 command = "{{ if eq .chezmoi.os "darwin" }}/opt/homebrew/bin/herdr{{ else }}/home/linuxbrew/.linuxbrew/bin/herdr{{ end }} plugin pane open --plugin greg.herdr-pick --entrypoint file-picker --focus"
 description = "Pick a file from any pane's scrollback → nvim (new tab)"
 
-# picker-plus: unified fuzzy picker (workspaces / SSH hosts / zoxide / agent panes /
+# navigator: unified fuzzy picker (workspaces / SSH hosts / zoxide / agent panes /
 # roots / quick actions). One key — the Dygma-button candidate. (thanhdat77, Rust TUI.)
+# Was `herdr-picker-plus` — same repo, renamed at v0.3.2; migrated 2026-09-17.
 [[keys.command]]
 key = "prefix+t"
 type = "plugin_action"
-command = "herdr-picker-plus.open"
-description = "Picker Plus: workspaces / servers / agents / zoxide / roots"
+command = "herdr-navigator.open"
+description = "Navigator: workspaces / servers / agents / sessions / zoxide / roots"
 
 # tokscale: token-usage + cost dashboard pane (wraps the tokscale TUI). prefix+t is taken
 # by picker-plus; prefix+y reads as yank, so tokscale gets prefix+m (money/meter).

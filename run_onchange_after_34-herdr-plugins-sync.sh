@@ -22,11 +22,24 @@ command -v herdr >/dev/null 2>&1 || { echo "herdr-plugins sync: herdr not on PAT
 herdr status >/dev/null 2>&1 || { echo "herdr-plugins sync: no running herdr server — launch herdr, then \`chezmoi apply\` to install."; exit 0; }
 
 PLUGINS=(
-  persiyanov/herdr-reviewr            # code-review sidebar: diff + inline comments -> agent (prefix+r)
-  zom-2018/herdr-ntfy-notify          # ntfy push when an agent goes blocked/done (needs an ntfy server)
-  thanhdat77/herdr-picker-plus        # unified fuzzy picker: workspaces/ssh/zoxide/agents (prefix+t) — Rust build
+  thanhdat77/herdr-navigator          # unified fuzzy picker: workspaces/ssh/zoxide/agents (prefix+t) — Rust build
   rjyo/herdr-window-title-sync        # sets OS window title (Ghostty/Moshi) from agent/prompt — needs bun, event-driven
   astkaasa/herdr-tokscale-dashboard   # token-usage + cost dashboard (prefix+m) — needs tokscale via TOKSCALE_CMD
+  kryptamine/herdr-auto-title         # tab titles that follow the work in each tab — Go build, startup daemon
+  shibayu36/herdr-equalize-panes      # auto `select-layout -E` on pane split/close/exit
+  ChmaraX/herdr-nvim                  # nvim sidebar + agent-file picker + code annotations -> agent (prefix+e / prefix+o)
+  vjeantet/herdr-scratchpad           # per-tab prompt buffer; ctrl+e drops it in the agent's box (prefix+s) — Rust
+  hhdebb/herdr-radar                  # Agents sidebar: sticky state marks, worktree tree, busiest-first (prefix+shift+v)
+)
+
+# Plugins we deliberately dropped. The install loop never uninstalls, so without
+# this a machine that already has one keeps it forever.
+RETIRED=(
+  persiyanov.reviewr                  # code-review sidebar; opened itself on worktree.created, unused (2026-09-17)
+  herdr-picker-plus                   # renamed upstream to thanhdat77/herdr-navigator at v0.3.2 (2026-09-17)
+  zom-2018.herdr-ntfy-notify          # never configured (empty config dir since 2026-06-29) and there is no
+                                      # ntfy server on the lab — it forked node on every agent_status_changed
+                                      # to exit doing nothing. Removed 2026-09-17.
 )
 
 # NOTE: dcolinmorgan/herdr-push was removed. The whole remote-respond stack
@@ -36,6 +49,13 @@ PLUGINS=(
 # (Mac + lab multiplexer); only the relay/PWA/worker service is gone.
 
 installed="$(herdr plugin list 2>/dev/null || true)"
+for id in "${RETIRED[@]}"; do
+  if printf '%s' "$installed" | grep -q "$id"; then
+    echo "herdr-plugins: uninstalling retired $id ..."
+    herdr plugin uninstall "$id" || echo "  ⚠️  failed to uninstall: $id"
+  fi
+done
+
 for p in "${PLUGINS[@]}"; do
   if printf '%s' "$installed" | grep -q "$p"; then
     echo "herdr-plugins: $p already installed."
