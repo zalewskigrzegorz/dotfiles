@@ -387,7 +387,7 @@
             "timeout": 10
           }
         ],
-        "matcher": "*"
+        "matcher": "^(startup|resume|clear|compact|fork)$"
       },
       {
         "hooks": [
@@ -525,7 +525,7 @@
   },
   "outputStyle": "pl-en-short",
   "theme": "custom:dracula-pro",
-  "verbose": true,
+  "verbose": false,
   "editorMode": "vim",
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
@@ -533,10 +533,9 @@
   "skipWorkflowUsageWarning": true,
   "preferredNotifChannel": "ghostty",
   "inputNeededNotifEnabled": true,
-  "remoteControlAtStartup": true,
+  "remoteControlAtStartup": false,
   "awaySummaryEnabled": false,
   "worktree": {
     "baseRef": "fresh"
-  },
-  "model": "claude-opus-4-8[1m]"
+  }
 }

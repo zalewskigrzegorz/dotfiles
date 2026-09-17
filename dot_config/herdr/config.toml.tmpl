@@ -125,24 +125,18 @@ type = "plugin_action"
 command = "chmarax.herdr-nvim.pick-file"
 description = "Open a file the agent touched (fuzzy picker) in the nvim sidebar"
 
-# scratchpad: a buffer docked at the bottom of the tab for composing a prompt
-# before it goes anywhere. Ctrl+E drops it into the agent's input WITHOUT
-# pressing Enter, so a ten-line prompt can't half-send itself. One per tab.
-[[keys.command]]
-key = "prefix+s"
-type = "plugin_action"
-command = "herdr-scratchpad.open-scratchpad"
-description = "Toggle the scratchpad (compose a prompt, Ctrl+E sends it to the agent's box)"
+# scratchpad (vjeantet/herdr-scratchpad) trialled and dropped 2026-09-17: it
+# works, but nvim already covers composing anything long enough to be worth
+# composing, so a second buffer with its own keybind earned nothing.
+# prefix+s is free.
 
-# radar: takes over the Agents sidebar — state marks that don't slip away
-# (a tick stays until you focus the pane, a question until you answer), worktrees
-# as a tree under their repo, busiest project first. prefix+shift+v cycles between
-# radar's order and herdr's own panel.
-[[keys.command]]
-key = "prefix+shift+v"
-type = "plugin_action"
-command = "hhdebb.herdr-radar.view-toggle"
-description = "Agents panel: cycle radar's order (grouped / flat / herdr's own)"
+# radar (hhdebb/herdr-radar) trialled and dropped the same day, 2026-09-17. It
+# does deliver the worktree tree and per-project grouping, but it takes over
+# [theme.custom] + [ui.sidebar.*] wholesale — it refuses to run otherwise, since
+# a table declared twice makes config.toml unparseable and that kills every
+# plugin. Its own palette made the spaces list too dim to scan, and it ate more
+# vertical space than the grouping bought back. The rows above (bright fg on the
+# 2nd line) are the reason this file reads better than the plugin did.
 
 # Jump to the agent that needs you: first blocked, else done(unseen), else working
 # (bin/herdr-focus-waiting). The one-key "go to the waiting agent" Greg wanted.
