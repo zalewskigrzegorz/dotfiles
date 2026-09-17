@@ -55,7 +55,7 @@
 // every project.
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 const CONFIG = join(process.env.HOME ?? "", ".claude.json");
@@ -177,9 +177,16 @@ function doWork(rest: string[]): void {
   }
 
   // Atomic swap on the same filesystem so a crash mid-write cannot truncate it.
+  //
+  // The mode is not optional here. ~/.claude.json holds oauth tokens, and rename
+  // replaces the target inode — so the new file keeps the TEMP file's permissions,
+  // not the original's. Left at the default, a umask of 022 would quietly relax a
+  // 0600 credential file to 0644 on the first write. The bash version this was
+  // ported from wrote in place, which preserved the mode for free.
   const dir = dirname(CONFIG);
   const tmpPath = join(dir, `.claude-mcp-defaults.${process.pid}.tmp`);
-  writeFileSync(tmpPath, `${pyJsonDump(data)}\n`);
+  writeFileSync(tmpPath, `${pyJsonDump(data)}\n`, { mode: 0o600 });
+  chmodSync(tmpPath, 0o600); // belt and braces: `mode` only applies on create.
   renameSync(tmpPath, CONFIG);
 
   for (const [path, added] of changed) {
