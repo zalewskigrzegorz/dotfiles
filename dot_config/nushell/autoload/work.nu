@@ -4,9 +4,12 @@
 # `prefix+shift+g`). This CLI wraps `herdr worktree …` so the same flow works
 # from the prompt and keeps Greg's path scheme + commitlint branch naming.
 #
-#   work new <name>   — create worktree + herdr workspace, focus it
+#   work [target]     — THE command: picker over branches / PRs / worktrees →
+#                       action menu (thin wrapper over the `workctl` binary,
+#                       scriptc/workctl.ts). `work new` / `work switch` /
+#                       `work pr` are the same thing with a different opening.
 #   work ls           — list worktrees of the current repo (nu data)
-#   work switch (sw)   — picker over worktrees → focus that workspace
+#   work layout       — apply the claude-tab layout to the current workspace
 #   work rm [branch]  — remove worktree + workspace + git branch
 #   work pr [number]  — PR command center (defined in workpr.nu — loads after this
 #                       file, so it can call the primitives here; the reverse is
@@ -31,21 +34,6 @@ const WORK_PREFIX_EMOJI = {
     style: "💄"
 }
 
-const WORK_PREFIX_DESC = {
-    feat: "new feature"
-    fix: "bug fix"
-    hotfix: "urgent prod fix"
-    docs: "documentation"
-    tests: "tests"
-    chore: "maintenance"
-    refactor: "code refactor"
-    perf: "performance"
-    build: "build system"
-    ci: "CI/CD"
-    revert: "revert previous commit"
-    style: "formatting/style"
-}
-
 # Normalize branch name to a short label suffix.
 #   "feat/billing-page" -> "✨billing-page"   "wip/x" -> "wip-x"   "experimental" -> "experimental"
 def "work normalize-label" [branch: string]: nothing -> string {
@@ -60,51 +48,6 @@ def "work normalize-label" [branch: string]: nothing -> string {
 # repo name in the label is redundant.
 def "work _label" [repo: string, branch: string]: nothing -> string {
     work normalize-label $branch
-}
-
-const WORK_CONVENTIONAL_DEFAULTS = [
-    "build" "chore" "ci" "docs" "feat" "fix"
-    "perf" "refactor" "revert" "style" "test"
-]
-
-# Load allowed commit type prefixes from a repo's commitlint config.
-def "work load-commitlint-types" [
-    repo_path?: path
-]: nothing -> list<string> {
-    let repo_path = (if ($repo_path | is-empty) { $env.PWD | path expand } else { $repo_path })
-    let candidates = [
-        ($repo_path | path join "commitlint.config.js")
-        ($repo_path | path join "commitlint.config.cjs")
-        ($repo_path | path join "commitlint.config.mjs")
-        ($repo_path | path join "package.json")
-    ]
-    let config_file = ($candidates | where { |p| $p | path exists } | first)
-    if ($config_file | is-empty) { return [] }
-    let content = (open --raw $config_file)
-
-    if ($config_file | str ends-with "package.json") {
-        let pkg = (try { open $config_file } catch { return [] })
-        let cl = ($pkg | get -o "commitlint")
-        if ($cl == null) { return [] }
-        let type_enum = ($cl | get -o "rules" | default {} | get -o "type-enum")
-        if ($type_enum != null and ($type_enum | length) >= 3) { return ($type_enum | get 2) }
-        let extends_list = ($cl | get -o "extends" | default [])
-        if ($extends_list | any { |e| $e | str contains "config-conventional" }) {
-            return $WORK_CONVENTIONAL_DEFAULTS
-        }
-        return []
-    }
-
-    let match = (
-        $content
-        | parse --regex `(?s)["']type-enum["']\s*:\s*\[\s*\d+\s*,\s*["'][^"']+["']\s*,\s*\[(.*?)\]`
-    )
-    if ($match | is-empty) {
-        if ($content | str contains "config-conventional") { return $WORK_CONVENTIONAL_DEFAULTS }
-        print $"⚠️  ($config_file) — type-enum niewykryty. Użyj --type aby wymusić prefix."
-        return []
-    }
-    $match.capture0.0 | parse --regex `["']([^"']+)["']` | get capture0
 }
 
 # Resolve repo info from parent or worktree.
@@ -253,27 +196,6 @@ def "work _checkout-path" [repo_root: path, branch: string]: nothing -> string {
     $found
 }
 
-# Ask what to do when checking out an existing branch. Enter = full worktree, so
-# the common case stays zero-friction. Returns "full" | "light" | "diff".
-# ONE caller: `work new`'s `[c] checkout existing` branch (whose "diff" case runs
-# `git diff $base_ref...$ref`). `work pr` used to call it too; the workpr.nu
-# registry replaced that, and the registry cannot be reached from here (workpr.nu
-# loads later), so this def stays.
-def "work _pick-mode" [what: string]: nothing -> string {
-    print $"\n($what) — what do you want?"
-    print "  [1] 🌱 full worktree     seed .env + node_modules, ready to run   (default, Enter)"
-    print "  [2] 👀 light worktree    no seed — just read the code / diff"
-    print "  [3] 📄 diff only         no worktree at all, straight to the pager"
-    print "  [a] abort"
-    let choice = (input "Choice [1/2/3/a]: " | str trim)
-    match $choice {
-        "" | "1" => "full"
-        "2" => "light"
-        "3" => "diff"
-        _ => { error make { msg: "Aborted." } }
-    }
-}
-
 # Seed a fresh worktree with untracked env files + node_modules from the parent
 # checkout. git worktrees carry only tracked files, so a new tree has no `.env`
 # and no deps. We clone them via APFS clonefile (`cp -c`: instant, no extra disk,
@@ -306,158 +228,16 @@ def "work _seed-untracked" [parent: path, wt_path: path]: nothing -> nothing {
     if $copied > 0 { print -e $"🌱 seeded ($copied) untracked path\(s\) \(env + node_modules)" }
 }
 
-# Create a new worktree + herdr workspace, focus it.
-def "work new" [
-    name: string@"work _complete-branches-no-wt" = ""
-    --from: string = ""
-    --type: string = ""
-    --pick-from
-    --no-prefix
-    --no-focus
-    --no-seed  # skip copying .env + node_modules from the parent checkout
-]: nothing -> any {
-    work deps-preflight
-    let info = (work repo-info)
-    let repo = $info.name
-    let parent = $info.root
-    let default_branch = $info.default_branch
-
-    # --- Branch name (picker when empty) ---
-    mut effective_name = $name
-    if ($name | is-empty) {
-        if (which fzf | is-empty) { error make { msg: "Pass a branch name (fzf not installed for picker)." } }
-        let local_r = (do { ^git -C $parent for-each-ref --format='%(refname:short)' refs/heads/ } | complete)
-        let local_b = (if $local_r.exit_code == 0 { $local_r.stdout | lines } else { [] })
-        let remote_r = (do { ^git -C $parent for-each-ref --format='%(refname:short)' refs/remotes/origin/ } | complete)
-        let remote_b = (if $remote_r.exit_code == 0 { $remote_r.stdout | lines | where { |b| $b != "HEAD" } } else { [] })
-        let cands = ($local_b ++ $remote_b ++ ["+ Create new branch..."])
-        let picked = ($cands | str join "\n" | ^fzf --prompt "Branch: " | str trim)
-        if ($picked | is-empty) { error make { msg: "No branch selected." } }
-        if $picked == "+ Create new branch..." {
-            let new_name = (input "New branch name: ")
-            if ($new_name | is-empty) { error make { msg: "No name given." } }
-            $effective_name = $new_name
-        } else if ($picked | str starts-with "origin/") {
-            $effective_name = ($picked | str replace "origin/" "")
-        } else {
-            $effective_name = $picked
-        }
-    }
-    let input_name = $effective_name
-
-    # --- Base ref ---
-    let base_ref = (
-        if $pick_from {
-            if (which fzf | is-empty) { error make { msg: "--pick-from needs fzf." } }
-            let cands_r = (do { ^git -C $parent for-each-ref --format='%(refname:short)' refs/remotes/origin/ refs/heads/ } | complete)
-            let candidates = (if $cands_r.exit_code == 0 { $cands_r.stdout | lines } else { [] })
-            let picked = ($candidates | str join "\n" | ^fzf --prompt "Base ref: " | str trim)
-            if ($picked | is-empty) { error make { msg: "No base ref selected." } }
-            $picked
-        } else if ($from | is-empty) { $"origin/($default_branch)" } else { $from }
-    )
-
-    # --- Commitlint type enforcement ---
-    let allowed_types = (work load-commitlint-types $parent)
-    let has_enforcement = (not ($allowed_types | is-empty))
-    let has_slash = ($input_name | str contains "/")
-    mut final_name = $input_name
-
-    if $has_enforcement and not $has_slash and not $no_prefix {
-        if not ($type | is-empty) {
-            if not ($type in $allowed_types) {
-                error make { msg: $"Type '($type)' not allowed: ($allowed_types | str join ', ')" }
-            }
-            $final_name = $"($type)/($input_name)"
-        } else {
-            print $"\n⚠️  Repo '($repo)' uses commitlint — choose branch type:"
-            for row in ($allowed_types | enumerate) {
-                let emoji = ($WORK_PREFIX_EMOJI | get --optional $row.item | default "  ")
-                let desc = ($WORK_PREFIX_DESC | get --optional $row.item | default "")
-                print $"  [($row.index + 1)] ($emoji) ($row.item)      ($desc)"
-            }
-            print "  [a] abort"
-            let choice = (input "Choice: ")
-            if $choice == "a" or ($choice | is-empty) { error make { msg: "Aborted." } }
-            let idx = (try { ($choice | into int) - 1 } catch { error make { msg: $"Invalid choice: ($choice)" } })
-            if $idx < 0 or $idx >= ($allowed_types | length) { error make { msg: "Out of range." } }
-            $final_name = $"(($allowed_types | get $idx))/($input_name)"
-            print $"→ branch: ($final_name)"
-        }
-    }
-    let branch_name = $final_name
-    let wt_path = (work worktree-path $repo $branch_name)
-    let label = (work _label $repo $branch_name)
-    let focus_flag = (if $no_focus { "--no-focus" } else { "--focus" })
-
-    # Branch already checked out anywhere on disk → open that checkout (git won't
-    # check a branch out twice), don't try to re-create at the canonical path.
-    let existing_co = (work _checkout-path $parent $branch_name)
-    if ($existing_co | is-not-empty) {
-        print -e $"Worktree exists, opening ($label)"
-        let r = (do { ^herdr worktree open --cwd $parent --path $existing_co --label $label $focus_flag --json } | complete)
-        if $r.exit_code != 0 { error make { msg: $"herdr worktree open failed: ($r.stderr)" } }
-        let ws = (try { $r.stdout | from json | get -o result.root_pane.workspace_id } catch { "" })
-        work _apply-layout $ws $existing_co
-        return { repo: $repo, branch: $branch_name, path: $existing_co, label: $label, created: false }
-    }
-
-    # Fresh fetch (best-effort).
-    let fetch_ref = ($base_ref | str replace "origin/" "")
-    do { ^git -C $parent fetch origin $fetch_ref } | complete | ignore
-
-    # Collision check.
-    let exists_local = ((do { ^git -C $parent rev-parse --verify --quiet $"refs/heads/($branch_name)" } | complete | get exit_code) == 0)
-    let exists_remote = ((do { ^git -C $parent rev-parse --verify --quiet $"refs/remotes/origin/($branch_name)" } | complete | get exit_code) == 0)
-    mut checkout_existing = false
-    mut mode = "full"
-    if ($exists_local or $exists_remote) {
-        print $"\n⚠️  Branch '($branch_name)' already exists — local=($exists_local) remote=($exists_remote)."
-        print "  [c] checkout existing into worktree   [n] new name   [a] abort"
-        let choice = (input "Choice [c/n/a]: ")
-        match $choice {
-            "c" => {
-                $checkout_existing = true
-                $mode = (if $no_seed { "light" } else { work _pick-mode $"Branch ($branch_name)" })
-                if $mode == "diff" {
-                    let ref = (if $exists_local { $branch_name } else { $"origin/($branch_name)" })
-                    ^git -C $parent diff $"($base_ref)...($ref)"
-                    return
-                }
-            }
-            "n" => {
-                let nn = (input "New branch name: ")
-                if ($nn | is-empty) { error make { msg: "Aborted." } }
-                return (work new $nn --from $base_ref)
-            }
-            _ => { error make { msg: "Aborted." } }
-        }
-    }
-
-    # herdr creates the checkout at --path + opens it as a workspace.
-    # Existing branch → omit --base (herdr checks it out); new branch → --base.
-    let r = (
-        if $checkout_existing {
-            do { ^herdr worktree create --cwd $parent --branch $branch_name --path $wt_path --label $label $focus_flag --json } | complete
-        } else {
-            do { ^herdr worktree create --cwd $parent --branch $branch_name --base $base_ref --path $wt_path --label $label $focus_flag --json } | complete
-        }
-    )
-    if $r.exit_code != 0 { error make { msg: $"herdr worktree create failed: ($r.stderr)" } }
-    # `worktree add -b X origin/main` makes git track origin/main (autoSetupMerge), so
-    # lazygit/herdr arrows count against main forever. Drop it; the first push sets
-    # origin/<branch> via push.autoSetupRemote.
-    if not $checkout_existing {
-        ^git -C $wt_path branch --unset-upstream $branch_name
-    }
-    let ws = (try { $r.stdout | from json | get -o result.root_pane.workspace_id } catch { "" })
-    if $mode == "full" and not $no_seed {
-        work _seed-untracked $parent $wt_path
-    }
-    work _apply-layout $ws $wt_path
-
-    print -e $"✅ ($branch_name) → ($wt_path)"
-    { repo: $repo, branch: $branch_name, path: $wt_path, label: $label, workspace_id: $ws, base: $base_ref, created: true }
+# `work new` is a THIN WRAPPER over `workctl` (scriptc/workctl.ts).
+#
+# The four prompts this def used to fire in sequence — fzf branch picker, the
+# commitlint type menu, "branch exists [c/n/a]", and full/light/diff — are two
+# screens there: pick the target (a branch, a PR, a worktree, or "create X from
+# origin/main | from HEAD"), then pick what to do with it from the same action
+# registry `work pr` had. Same flow from herdr, gh-dash and lazygit, which
+# cannot see this autoload dir at all. `workctl --help` lists the flags.
+def --wrapped "work new" [...rest]: nothing -> nothing {
+    ^workctl ...$rest
 }
 
 # `work pr` lives in workpr.nu — autoload visibility is one-directional (a file
@@ -471,28 +251,11 @@ def "work ls" []: nothing -> list<record> {
     work _scan-worktrees | select repo branch status head path
 }
 
-# Picker over disk worktrees → open/focus that workspace in herdr.
+# `work switch` is the same picker with the other repos' worktrees folded in —
+# switching to a worktree and checking one out were never different actions, only
+# different rows.
 def "work switch" []: nothing -> nothing {
-    let wts = (work _scan-worktrees)
-    if ($wts | is-empty) {
-        print "No worktrees on disk. Use `work new <branch>` to create one."
-        return
-    }
-    if (which fzf | is-empty) { error make { msg: "fzf not installed for the picker." } }
-    # line: repo\tbranch\tstatus\tpath\troot  (display first 3)
-    let picked = (
-        $wts | each { |w| $"($w.repo)\t($w.branch)\t($w.status)\t($w.path)\t($w.root)" }
-        | str join "\n"
-        | ^fzf --delimiter "\t" --with-nth=1,2,3 --prompt "Switch to worktree: "
-        | str trim
-    )
-    if ($picked | is-empty) { return }
-    let f = ($picked | split row "\t")
-    let label = (work _label ($f | get 0) ($f | get 1))
-    let r = (do { ^herdr worktree open --cwd ($f | get 4) --path ($f | get 3) --label $label --focus --json } | complete)
-    if $r.exit_code != 0 { error make { msg: $"herdr worktree open failed: ($r.stderr)" } }
-    let ws = (try { $r.stdout | from json | get -o result.root_pane.workspace_id } catch { "" })
-    work _apply-layout $ws ($f | get 3)
+    ^workctl --all
 }
 
 def "work sw" []: nothing -> nothing { work switch }
@@ -625,12 +388,19 @@ def baz []: nothing -> nothing {
     ^nvim $dir
 }
 
-# Bare `work` — apply the layout (claude tab) to the current herdr workspace.
-# Outside herdr, or with --help, show the cheatsheet.
-def work [--help (-h)]: nothing -> nothing {
+# Bare `work` IS the picker — `work`, `work new`, `work switch`, `work pr` are
+# one command with four openings. A positional target (branch name, PR number)
+# skips straight to that target's action menu.
+def --wrapped work [--help (-h), ...rest]: nothing -> nothing {
     if $help { work help; return }
+    ^workctl ...$rest
+}
+
+# What bare `work` used to do: apply the layout (claude tab) to the current
+# herdr workspace.
+def "work layout" []: nothing -> nothing {
     let ws = ($env.HERDR_WORKSPACE_ID? | default "")
-    if ($ws | is-empty) { work help; return }
+    if ($ws | is-empty) { print -e "not inside a herdr workspace"; return }
     work _apply-layout $ws $env.PWD
     print -e "layout applied (claude tab)"
 }
@@ -640,38 +410,27 @@ def "work help" []: nothing -> nothing {
     print "📖 Work — git worktree workflow on herdr"
     print ""
     print "WORKFLOW"
-    print "  work new <name>  →  praca  →  commit / push  →  work rm <name>"
-    print "  przełącz:  work switch   (albo prefix+w / prefix+g / sidebar)"
-    print "  PR:        work pr <n>   (menu: agent / gh / worktree)"
+    print "  work             →  wybierz cel (branch / PR / worktree / nowy z maina lub HEAD)"
+    print "                   →  wybierz akcję (TAB = kilka)  →  menu wraca, aż Esc"
+    print "  work <branch>    work <#pr>    prosto do menu akcji tego celu"
+    print ""
+    print "MENU AKCJI (rejestr work pr + worktree)"
+    print "  → sugestie na górze wg stanu PR: resolve / fix CI / logs / update / merge …"
+    print "  🌱 worktree + .env/node_modules   👓 goły   🚀 secrets.sh && install (własny tab)"
+    print "  👀💬🔧🤖📣 agenci (claude z briefem)   🏷 labele   🥞 stack   📄 diff   🗑 rm   🌐 web"
+    print "  te same wejścia: prefix+shift+g / +o (herdr) · T i w (gh-dash) · w (lazygit)"
     print ""
     print "KOMENDY"
-    print "  work new [name]    worktree + workspace (picker / <name> / --from / --type / --no-prefix)"
-    print "  work pr [number]   PR command center — menu: agent / gh / worktree (--action headless)"
+    print "  work [target]      picker → menu akcji (--all: worktree z innych repo)"
+    print "  work new / switch / pr [n]   to samo, inne otwarcie (kompatybilność)"
     print "  work ls            lista worktree (nu data; `| to json`)"
-    print "  work switch (sw)   picker → focus workspace"
+    print "  work layout        tab claude w bieżącym workspace (dawne gołe `work`)"
     print "  work rm [branch]   usuń worktree + workspace + branch (--force / --keep-branch)"
     print "  work prune         batch usuń merged + clean (--dry-run)"
     print "  work reset         przywróć poprawny label bieżącego workspace herdr"
     print "  baz                nvim w bazgroly tego repo"
     print ""
     print "NAWIGACJA herdr:  prefix=ctrl+space · prefix w workspace · prefix g goto · prefix b sidebar · prefix ? help"
-}
-
-# Completer: local branches without a worktree (for `work new`).
-def "work _complete-branches-no-wt" []: nothing -> list<string> {
-    let root_r = (do { ^git rev-parse --show-toplevel } | complete)
-    if $root_r.exit_code != 0 { return [] }
-    let root = ($root_r.stdout | str trim)
-    let wt_r = (do { ^git -C $root worktree list --porcelain } | complete)
-    let active = (
-        if $wt_r.exit_code == 0 {
-            $wt_r.stdout | lines | where ($it | str starts-with "branch ")
-            | each { |l| $l | str replace "branch refs/heads/" "" }
-        } else { [] }
-    )
-    let refs_r = (do { ^git -C $root for-each-ref --format='%(refname:short)' refs/heads/ } | complete)
-    if $refs_r.exit_code != 0 { return [] }
-    $refs_r.stdout | lines | where { |b| not ($b in $active) }
 }
 
 # Completer: branches that have a worktree on disk (for `work rm`).

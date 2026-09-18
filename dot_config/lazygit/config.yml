@@ -1,3 +1,27 @@
+# `w` on a branch opens the SAME command as herdr's prefix+shift+g, `work` and
+# gh-dash's `w`/`T` — workctl, straight into that branch's action menu. `output: terminal` suspends
+# lazygit and hands over the real TTY, which fzf needs; `log` or `popup` would
+# give it a pipe and it would refuse to draw.
+#
+# lazygit is always run from inside the repo, so workctl resolves it from
+# cwd — no --repo-path needed. The selected branch pre-fills the query.
+customCommands:
+  - key: w
+    context: localBranches
+    description: "branch / worktree picker (workctl)"
+    command: workctl --branch '{{.SelectedLocalBranch.Name}}'
+    output: terminal
+  - key: w
+    context: remoteBranches
+    description: "branch / worktree picker (workctl)"
+    command: workctl --branch '{{.SelectedRemoteBranch.Name}}'
+    output: terminal
+  - key: w
+    context: worktrees
+    description: "branch / worktree picker (workctl)"
+    command: workctl --all
+    output: terminal
+
 gui:
   # Mocha Neon (Dracula REPLACED — kept for reference)
   # theme:

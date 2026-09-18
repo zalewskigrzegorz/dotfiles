@@ -37,12 +37,51 @@ still reachable at `git tag pre-herdr` / branch `pre-herdr-backup` if ever neede
 | `prefix+b` | toggle sidebar |
 | `prefix+w` / `prefix+g` | workspace picker / goto |
 | `prefix+a` | agent cycle · `prefix+0` jump to waiting agent |
-| `prefix+shift+g` | **new worktree in the focused repo** (`bin/herdr-worktree-new` → `work new`; native popup disabled, it hit the wrong repo — herdr 0.7.1 bug) |
-| `prefix+shift+o` / `prefix+d` | open worktree picker / remove worktree |
+| `prefix+shift+g` | **branch / worktree picker** in the focused repo (`bin/herdr-worktree-new` → `workctl`) |
+| `prefix+shift+o` | the same picker `--all` — other repos' worktrees are rows too (was `work switch`) |
+| `prefix+d` | remove worktree (native) |
 | `prefix+h/j/k/l` | focus pane · `prefix+[` copy mode · `prefix+q` detach |
 | `prefix+u` / `prefix+f` | pick URL → browser / file → nvim (our `greg.herdr-pick` plugin) |
 | `prefix+t` | picker-plus: workspaces / ssh / zoxide / agent panes |
 | `prefix+r` | reviewr code-review sidebar · `prefix+m` tokscale usage |
+
+## The branch picker — one flow, four triggers
+
+`bin/workctl` (source: `scriptc/workctl.ts`) is the single entry point
+for "get me onto a branch". One fzf window: every branch and worktree of the
+repo is a row, Enter does the obvious thing for that row, and the alternatives
+sit on keys.
+
+| Key | What it does |
+|---|---|
+| `enter` | check out into a worktree, cloning `.env` + `node_modules` from the parent checkout (APFS `cp -c`) |
+| `ctrl-l` | check out bare — no seeding |
+| `ctrl-s` | check out, then run the repo's own bootstrap (`utils/secrets.sh` if present, then the lockfile's install) in its own tab |
+| `ctrl-n` | create a branch named exactly what was typed, skipping the commitlint type prefix |
+| `ctrl-d` | diff against the base ref → pager |
+| `ctrl-x` | remove the worktree and the branch |
+| `ctrl-p` | hand the branch's PR to `work pr` |
+| `ctrl-o` | open the PR (or the branch) in the browser |
+
+Triggers, all landing on the same binary:
+
+| From | How |
+|---|---|
+| shell | `work new` / `work switch` / `work sw` (thin wrappers in `work.nu`) |
+| herdr | `prefix+shift+g`, `prefix+shift+o` |
+| gh-dash | `w` in the branches view |
+| lazygit | `w` on a local branch, remote branch or worktree |
+
+What it replaced: four sequential prompts inside `work new` (branch picker →
+commitlint type menu → "branch exists [c/n/a]" → full/light/diff), herdr's two
+native worktree popups, and two Television channels bound to the same commands.
+The commitlint types are rows now — typing `billing-page` in a repo that
+enforces them offers `feat/billing-page`, `fix/billing-page` and the rest, with
+`create` in the row text so real branches always outrank them.
+
+It is a compiled binary rather than more nushell because gh-dash and lazygit
+cannot see nushell's autoload dir, and because fzf re-runs the row generator on
+every keystroke — ~10 ms per keystroke over 2800 branches.
 
 ## Peek
 
