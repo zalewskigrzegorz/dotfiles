@@ -81,10 +81,24 @@ często staje się 2-5 world-facts.
 ### Recall — semantic search
 
 ```
-mcp__hindsight__recall(query="memory layer pivot history")
+mcp__hindsight__recall(query="memory layer pivot history", max_tokens=512)
 ```
 
 Response: `{results: [{id, text, fact_type, entities, context, mentioned_at, ...}]}`.
+
+**`max_tokens` jest obowiązkowy.** Default 4096 liczy tylko tekst pamięci, nie
+JSON wokół rekordu — szerokie query wróciło 114 wyników / 82 KB (2026-09-18) i
+przekroczyło limit klienta MCP, więc wynik poszedł do pliku zamiast do
+odpowiedzi. Na tym samym query: `max_tokens=512` → 10.8 KB, default → 81.8 KB.
+`budget` nie jest dźwignią (low 80.1 KB vs high 82.2 KB), a bloku `entities`
+(~15 KB) nie wyłączysz przez MCP — narzędzie nie wystawia `include`, robi to
+tylko REST. Zaczynaj od 512, podnoś tylko gdy odpowiedź jest za chuda.
+
+Przez REST dochodzi jeszcze `include`:
+
+```
+curl ... -d '{"query":"...","max_tokens":512,"include":{"entities":null}}'   # 7.5 KB
+```
 
 Recall robi 4 strategies w parallel: semantic vectors (BAAI/bge-small-en-v1.5),
 keyword BM25, graph traversal (entity links), temporal filtering. Plus

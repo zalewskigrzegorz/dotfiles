@@ -63,11 +63,20 @@ what's used now.
 ## How to recall
 
 ```
-mcp__hindsight__recall(query="...")        # semantic search, raw records
+mcp__hindsight__recall(query="...", max_tokens=512)  # raw records — ALWAYS cap
 mcp__hindsight__reflect(query="...")       # narrative answer instead
 mcp__hindsight__list_memories()            # paginated listing
 mcp__hindsight__get_memory(memory_id="...")  # single record by id
 ```
+
+**Always pass `max_tokens` to `recall`.** Its default of 4096 counts only memory
+text, not the JSON envelope around each record — a broad query came back with
+114 results / **82 KB** (2026-09-18) and overflowed the MCP client limit, so the
+result landed in a file that never reached the answer. Measured on the same
+query: `max_tokens=512` → 10.8 KB, default → 81.8 KB. `budget` is **not** the
+lever (low 80.1 KB vs high 82.2 KB); the MCP tool also can't disable the
+`entities` block (~15 KB) because it doesn't expose `include`, so the cap is the
+only control you have. Start at 512 and only raise it if the answer is thin.
 
 The `memory` skill (formerly `hindsight`) triggers automatically on phrases
 like "remember", "recall", "co wiem o X", "zapisz", "sprawdź pamięć" — follow
@@ -114,6 +123,18 @@ przebiegu zwykle nie wystarcza, żeby podjąć pracę.
   ustalone. Najpierw `mempalace_search`, dopiero potem przyznaj się do luki.
 
 CLI fallback, gdy MCP nie wstał: `mempalace search "<query>"`.
+
+**Szukasz rzadkiego, dosłownego tokenu — użyj `bin/mp-search`, nie
+`mempalace_search`.** MCP i CLI jadą domyślnym `candidate_strategy="vector"`,
+czyli rankują wyłącznie po cosine; rzadki token nie ma sensownego embeddingu, więc
+`mempalace_search("dagr")` zwraca DataGrip, węzły drogowe w Gliwicach i McDonald's
+w Nysie — każdy trafiony wynik z `bm25_score: 0.0`, podczas gdy dosłowny ciąg leży
+w zaindeksowanym transkrypcie (2026-09-18). `searcher.py` ma na to
+`candidate_strategy="union"` (dociąga kandydatów BM25 z indeksu FTS5 sqlite), ale
+jest opt-in i nieosiągalny ani z CLI, ani z MCP — tylko z Pythona, co opakowuje
+`bin/mp-search`. Druga połowa fixa to `max_distance=0`: kandydaci BM25-only nie
+mają dystansu wektorowego, więc każdy dodatni próg (MCP defaultuje 1.5) wycina ich
+z powrotem. Ta sama fraza przez `mp-search` → bm25 0.74 i trafienie w punkt.
 
 `~/.claude/projects/-Users-greg-Code-home-lab/memory.legacy-2026-06-03/` —
 archived old auto-memory (z czasu przed Hindsightem). Read-only audit trail,

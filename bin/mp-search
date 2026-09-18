@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# mp-search — MemPalace search that actually finds rare literal tokens.
+#
+# Why this exists: `mempalace_search` (MCP) and `mempalace search` (CLI) both run
+# MemPalace's default `candidate_strategy="vector"`, which ranks purely on cosine
+# distance. A rare token has no useful embedding, so searching "dagr" returns
+# DataGrip, Gliwice road junctions and a McDonald's in Nysa — every hit scoring
+# bm25=0.0 while the literal string sits in an indexed transcript.
+#
+# searcher.py already ships the fix as `candidate_strategy="union"`, which pulls
+# BM25 candidates from the sqlite FTS5 index and merges them into the rerank
+# pool. It is opt-in, and reachable from neither the CLI nor the MCP tool — only
+# from the Python API, which is what this wraps. The second half of the fix is
+# `max_distance=0`: BM25-only candidates carry no vector distance, so any
+# positive threshold (the MCP tool defaults to 1.5) silently drops them again.
+set -euo pipefail
+
+PY="${MEMPALACE_PYTHON:-$HOME/.local/share/uv/tools/mempalace/bin/python}"
+[ -x "$PY" ] || PY=$(command -v python3)
+
+usage() {
+  cat <<'USAGE'
+mp-search <query> [options]
+
+  -n, --limit N    max results (default 10)
+  -w, --wing W     filter by wing
+  -r, --room R     filter by room
+      --vector     use the stock vector-only strategy (for comparison)
+USAGE
+  exit "${1:-0}"
+}
+
+query=""; limit=10; wing=""; room=""; strategy="union"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h|--help) usage 0 ;;
+    -n|--limit) limit="$2"; shift 2 ;;
+    -w|--wing)  wing="$2";  shift 2 ;;
+    -r|--room)  room="$2";  shift 2 ;;
+    --vector)   strategy="vector"; shift ;;
+    -*) echo "mp-search: unknown flag $1" >&2; usage 2 ;;
+    *)  query="${query:+$query }$1"; shift ;;
+  esac
+done
+[ -n "$query" ] || usage 2
+
+MP_QUERY="$query" MP_LIMIT="$limit" MP_WING="$wing" MP_ROOM="$room" \
+MP_STRATEGY="$strategy" "$PY" - <<'PYEOF'
+import os, sys, textwrap
+from mempalace.searcher import search_memories
+
+palace = os.path.expanduser("~/.mempalace/palace")
+strategy = os.environ["MP_STRATEGY"]
+res = search_memories(
+    os.environ["MP_QUERY"],
+    palace,
+    wing=os.environ["MP_WING"] or None,
+    room=os.environ["MP_ROOM"] or None,
+    n_results=int(os.environ["MP_LIMIT"]),
+    # A positive threshold drops every BM25-only candidate, so union needs 0.
+    max_distance=1.5 if strategy == "vector" else 0.0,
+    candidate_strategy=strategy,
+)
+
+if "error" in res:
+    print(f"mp-search: {res['error']} — {res.get('hint','')}", file=sys.stderr)
+    sys.exit(1)
+
+hits = res.get("results", [])
+if not hits:
+    print("no matches")
+    sys.exit(0)
+
+for i, h in enumerate(hits, 1):
+    when = (h.get("created_at") or "")[:16].replace("T", " ")
+    src = os.path.basename(h.get("source_file") or "?")
+    bm25 = h.get("bm25_score")
+    dist = h.get("effective_distance")
+    score = f"bm25={bm25}" if dist is None else f"bm25={bm25} dist={dist}"
+    print(f"\n\033[1m{i}. {when}\033[0m  {h.get('wing','?')}/{h.get('room','?')}  {score}")
+    print(f"   \033[2m{src}\033[0m")
+    text = " ".join((h.get("text") or "").split())
+    print(textwrap.fill(text[:600], width=96, initial_indent="   ", subsequent_indent="   "))
+PYEOF
