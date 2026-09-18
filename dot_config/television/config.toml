@@ -256,9 +256,10 @@ fallback_channel = "files"
   "git push",
 ]
 "git-log" = ["git log", "git show"]
-"worktrees" = ["work switch", "work sw"]
+# `work new` / `work switch` are NOT wired to a tv channel any more: they open
+# the workctl picker themselves, and a tv channel firing first meant two
+# pickers for one action. `work rm` is still nushell-driven, so it keeps its.
 "work-worktrees" = ["work rm"]
-"work-branches" = ["work new"]
 "docker-images" = ["docker run"]
 "git-repos" = ["nvim", "code", "hx", "git clone"]
 "pnpm" = ["pnpm", "p"]

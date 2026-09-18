@@ -103,20 +103,22 @@ keybindings:
   prs:
     - key: T
       name: pr menu
-      # One key for the whole PR command center: `work pr` reads the PR's state
-      # once, then offers agent / gh / worktree intents in a single fzf picker
-      # (it also creates + focuses the worktree workspace itself — gh-dash runs
-      # inside a herdr pane, so the socket call lands on the server).
-      # `work pr` lives in workpr.nu but leans on work.nu's worktree primitives,
-      # and `nu -c` does NOT read ~/.config/nushell/autoload — source both.
-      # The `cd` into RepoPath stays load-bearing: the worktree + agent intents
-      # resolve the local checkout from cwd (`work repo-info`). An empty RepoPath
-      # is a no-op cd, so gh-only intents still work from wherever gh-dash sits.
-      # --repo/--pr explicitly, so it also works for repos absent from repoPaths.
-      # --pause holds the output; gh-dash repaints the moment the child exits.
+      # The `workctl` action menu for the PR under the cursor — the same menu
+      # `work pr` opens. --repo/--pr explicitly, so it also works for repos
+      # absent from repoPaths (zero git calls on the gh path). The `cd` keeps
+      # the worktree/agent rows able to find the local checkout when there is
+      # one; an empty RepoPath is a no-op cd. --pause holds the output because
+      # gh-dash repaints the moment the child exits.
       command: >
-        nu -c 'cd {{ `{{.RepoPath}}` }}; source ~/.config/nushell/autoload/work.nu; source ~/.config/nushell/autoload/workpr.nu; work pr --pr {{ `{{.PrNumber}}` }} --repo {{ `{{.RepoName}}` }} --pause'
-  branches: []
+        cd '{{ `{{.RepoPath}}` }}' 2>/dev/null; workctl --repo {{ `{{.RepoName}}` }} --pr {{ `{{.PrNumber}}` }} --pause
+  branches:
+    - key: w
+      name: branch picker
+      # The SAME picker herdr's prefix+shift+g and lazygit's `w` open — one
+      # command, four triggers. RepoPath (from repoPaths below) scopes it to
+      # this repo; HeadRefName jumps straight to that branch's action menu.
+      command: >
+        workctl --repo-path '{{ `{{.RepoPath}}` }}' --branch '{{ `{{.HeadRefName}}` }}'
 repoPaths:
   "zalewskigrzegorz/dotfiles": "/Users/greg/Code/dotfiles"
   "zalewskigrzegorz/home-lab": "/Users/greg/Code/home-lab"

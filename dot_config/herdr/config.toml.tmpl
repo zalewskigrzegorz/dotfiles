@@ -79,8 +79,11 @@ prefix = "ctrl+space"
 # Cycle the agent sidebar (priority-sorted: blocked first) — the core nav. ✅ works.
 next_agent = "prefix+a"
 previous_agent = "prefix+shift+a"
-# Open an existing worktree via herdr's native picker (work switch also does this). ✅
-open_worktree = "prefix+shift+o"
+# Native open-worktree picker DISABLED — "open an existing worktree" and "check
+# one out" were two popups for one action, and the native one cannot show branch
+# state, PR number or seed modes. prefix+shift+o is rebound below to the same
+# picker prefix+shift+g uses, with `--all` so other repos' worktrees are rows too.
+open_worktree = ""
 # Toggle to the last pane.
 last_pane = "prefix+backtick"
 # Cycle workspaces. period = next ✅; comma = prev.
@@ -90,7 +93,7 @@ next_workspace = "prefix+period"
 remove_worktree = "prefix+d"
 # Native new-worktree popup DISABLED — herdr 0.7.1 targets the wrong workspace
 # (always ws_idx=1) instead of the focused one, so worktrees land under the wrong
-# repo. prefix+shift+g is rebound below to bin/herdr-worktree-new (→ `work new`).
+# repo. prefix+shift+g is rebound below to bin/herdr-worktree-new (→ workctl).
 new_worktree = ""
 # resize lives on shift+r; reload → hd-reload CLI. (Plain prefix+r was reviewr's,
 # free again since that plugin went in 2026-09.)
@@ -146,13 +149,23 @@ type = "shell"
 command = "/Users/greg/Code/dotfiles/bin/herdr-focus-waiting"
 description = "Focus the agent that needs attention (blocked first)"
 
-# New worktree in the FOCUSED workspace's repo (replaces the buggy native popup
-# above). Opens a tab in the current repo and runs `work new` (fzf branch picker).
+# The branch/worktree picker in the FOCUSED workspace's repo, replacing BOTH
+# native popups above. One fzf window: every branch and worktree is a row, Enter
+# opens that target's action menu (the `work pr` registry: worktree seeds,
+# resolve, fix CI, labels, merge, …). gh-dash and lazygit open the same thing.
 [[keys.command]]
 key = "prefix+shift+g"
 type = "shell"
 command = "/Users/greg/Code/dotfiles/bin/herdr-worktree-new"
-description = "New worktree in the focused repo (work new)"
+description = "workctl — branch / PR / worktree picker in the focused repo"
+
+# Same picker, plus the worktrees of every OTHER repo — what `work switch` and
+# the native open_worktree popup used to be.
+[[keys.command]]
+key = "prefix+shift+o"
+type = "shell"
+command = "/Users/greg/Code/dotfiles/bin/herdr-worktree-new --all"
+description = "workctl --all — same picker, other repos' worktrees too"
 
 # URL / file picker — our own greg.herdr-pick plugin (dot_config/herdr/plugins-src).
 # type="shell" calls `herdr plugin pane open` to spawn the picker overlay (real TTY →
