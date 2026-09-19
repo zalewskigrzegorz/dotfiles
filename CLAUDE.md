@@ -151,7 +151,15 @@ Live drift in `~/.claude/skills/<name>/` is **overwritten** on the next apply un
 
 Also: `process.cwd()` resolves symlinks, bash's `$PWD` does not. On macOS `/tmp` is a symlink, so a helper that defaults to "the current directory" needs `process.env.PWD` to match its bash original.
 
-The pattern behind all four: **a port changes the mechanics, not just the language.** Diff the binary against the bash original on every path you can exercise, and look hardest where bash got something implicitly — file modes, `$PWD`, inherited env.
+**Three more from the same port, surfaced by `/retro` (2026-09-18):**
+
+- **`.toString()` on a number pulls in the dynamic engine.** `scriptc coverage` drops from 100% to 93% and the site is marked "runs with --dynamic" — a ~620 KB embedded JS engine the static build does not include, so the binary fails at that line. Use `String(n)` or template literals.
+- **`JSON.stringify` leaves non-ASCII as-is.** Python's `json.dump` (the bash original's writer) uses `ensure_ascii=True` and emits `\uXXXX` for every non-ASCII code unit, surrogate pairs included. A byte-identical rewrite needs a manual escape pass after stringify.
+- **`spawnSync` has no `env`, `cwd` or fd options.** Bash's `exec 9>lock; flock -w 10 9` has no direct port. `claude-mcp-defaults.ts` locks by re-invoking itself under `flock -w 10 -E 2 <lock> <self> <same args>` and exiting on the child's status.
+
+**Probe before you port.** Each of those was caught in a throwaway `probeN.ts` under `/tmp/scriptc-probe/`, one semantic question per file, compiled and run in isolation before the real port touched `~/.claude.json`. Do the same for any construct you have not seen scriptc handle — `scriptc coverage` tells you *whether* it compiles statically, a probe tells you *what it does*.
+
+The pattern behind all of these: **a port changes the mechanics, not just the language.** Diff the binary against the bash original on every path you can exercise, and look hardest where bash got something implicitly — file modes, `$PWD`, inherited env.
 
 **Porting a helper that already exists in `bin/`:** the compiled binary lands on the same path as the tracked bash script, so stage 29 silently overwrites it on the next run. Do the swap deliberately — build, diff the binary against the bash original on every code path you can exercise without side effects, then `git rm --cached` the bash file (the `.gitignore` line makes the binary invisible to git, and the bash source stays in history).
 
@@ -159,7 +167,7 @@ The pattern behind all four: **a port changes the mechanics, not just the langua
 
 Global Claude config lives in `dot_claude/` → `~/.claude/`:
 
-- `settings.json.tmpl` — main settings (templated for secrets)
+- `modify_settings.json.tmpl` — a chezmoi `modify_` script that merges the managed keys into the live `~/.claude/settings.json`; the settings themselves live in `.chezmoitemplates/claude-settings.json` — edit that, there is no `dot_claude/settings.json.tmpl`
 - `keybindings.json` — key bindings
 - `hooks/` — SessionStart, Stop, etc.
 - `output-styles/` — custom response styles

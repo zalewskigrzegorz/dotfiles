@@ -426,6 +426,16 @@
             "timeout": 5000
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/retro-pending.sh start",
+            "timeout": 10
+          }
+        ],
+        "matcher": "^(startup|resume)$"
       }
     ],
     "UserPromptSubmit": [
@@ -473,6 +483,17 @@
           {
             "type": "command",
             "command": "mempalace-hook precompact"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/retro-pending.sh end",
+            "timeout": 20
           }
         ]
       }
