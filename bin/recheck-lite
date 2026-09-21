@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# recheck-lite — local stand-in for the monorepo's recheck CI on Markdown docs.
+#
+# The dist under packages/recheck is usually months behind the rules CI runs,
+# and building it inside a worktree aborts (pnpm without a TTY), so this script
+# checks the rules that keep failing PRs, with the same thresholds:
+#   sentence-length      > 25 words (CI: warning)
+#   paragraph-length     > 6 sentences, list items included (CI: error)
+#   oxford-comma         "a, b and c." (CI: error)
+#   us-spelling          British words, list read from recheck.yaml (CI: error)
+#   no-gerund-headings   "## Signing in" (CI: error)
+#   inclusion            he / his / him / she / her (CI: error)
+#   semicolons           Greg's own rule for prose
+#   relative links       target file must exist
+#   optimize-images      PNG/JPG > 100 KB (CI: error); --fix quantizes PNGs with Pillow
+#
+# Usage: recheck-lite [--fix] <file-or-dir>...
+# Run from the monorepo root so recheck.yaml is found for the spelling list.
+set -u
+
+fix=0
+paths=()
+for a in "$@"; do
+  case "$a" in
+    --fix) fix=1 ;;
+    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
+    *) paths+=("$a") ;;
+  esac
+done
+[ "${#paths[@]}" -gt 0 ] || { echo "usage: recheck-lite [--fix] <file-or-dir>..." >&2; exit 2; }
+
+root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+british="$(mktemp)"
+trap 'rm -f "$british"' EXIT
+if [ -f "$root/recheck.yaml" ]; then
+  awk '/^recheck\/us-spelling:/{p=1;next} p&&/^recheck\//{exit} p&&/^        [a-z]+: [a-z]+$/{gsub(/^ +/,""); sub(/:.*/,""); print}' "$root/recheck.yaml" > "$british"
+fi
+
+files=()
+for p in "${paths[@]}"; do
+  if [ -d "$p" ]; then
+    while IFS= read -r f; do files+=("$f"); done < <(find "$p" -name '*.md' | sort)
+  else
+    files+=("$p")
+  fi
+done
+
+issues=0
+note() { issues=$((issues + 1)); printf '%s\n' "$1"; }
+
+for f in "${files[@]}"; do
+  [ -f "$f" ] || { note "$f: missing"; continue; }
+
+  # sentence-length: one sentence per line is the house style, so split each line on . ? !
+  while IFS= read -r line; do
+    note "$f:$line"
+  done < <(awk -v F="$f" '
+    /^```/ {c=!c; next} c {next}
+    /^(#|\{%|\||!\[|- \*\*\[)/ {next}
+    { l=$0; sub(/^[- ]+/,"",l); n=split(l,s,/[.?!]( |$)/)
+      for(i=1;i<=n;i++){ w=split(s[i],t,/[ ]+/); if(w>25) printf "%d sentence-length (%d words): %s\n",NR,w,substr(s[i],1,60) } }' "$f")
+
+  # paragraph-length: blank line ends a paragraph, a "- " item starts one, "  " continues it
+  while IFS= read -r line; do note "$f:$line"; done < <(awk '
+    BEGIN{n=0}
+    /^```/ {c=!c; n=0; next} c {next}
+    /^$/ { if(n>6) printf "%d paragraph-length (%d sentences)\n", NR-1, n; n=0; next }
+    /^(#|!|\{%|\|)/ {n=0; next}
+    /^- / {n=1; next}
+    /^  / {n++; next}
+    {n++}' "$f")
+
+  tag() { sed "s|^|$f:|; s|:\([0-9]*\):|:\1 $1: |"; }
+  while IFS= read -r line; do note "$line"; done < <(rg -n '[^\s,]+, \w+ (and|or) \w+[.?!]' "$f" | tag oxford-comma)
+  while IFS= read -r line; do note "$line"; done < <(rg -n '^#+ \w+ing\b' "$f" | tag gerund-heading)
+  while IFS= read -r line; do note "$line"; done < <(rg -n -i -w 'he|his|him|she|her' "$f" | tag inclusion)
+  while IFS= read -r line; do note "$line"; done < <(rg -n ';' "$f" | rg -v '```' | tag semicolon)
+  if [ -s "$british" ]; then
+    while IFS= read -r line; do note "$line"; done < <(rg -n -i -w -f "$british" "$f" | tag us-spelling)
+  fi
+
+  d="$(dirname "$f")"
+  while IFS= read -r p; do
+    [ -z "$p" ] || [ -e "$d/$p" ] || note "$f: missing link target $p"
+  done < <(rg -o '\]\((\./|\.\./)[^)#]+' "$f" | sed 's/^](//' | sort -u)
+
+  while IFS= read -r img; do
+    [ -n "$img" ] || continue
+    size=$(wc -c < "$img")
+    if [ "$size" -gt 102400 ]; then
+      if [ "$fix" -eq 1 ] && [[ "$img" == *.png ]]; then
+        python3 - "$img" <<'EOF'
+import sys
+from PIL import Image
+p = sys.argv[1]
+Image.open(p).convert('RGB').quantize(colors=128, method=Image.Quantize.MEDIANCUT).save(p, optimize=True)
+EOF
+        note "$img: was $size bytes, quantized to $(wc -c < "$img")"
+      else
+        note "$img: $size bytes over 100 KB (use --fix for PNG)"
+      fi
+    fi
+  done < <(find "$d" -maxdepth 1 \( -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' \) 2>/dev/null)
+done
+
+if [ "$issues" -eq 0 ]; then
+  echo "recheck-lite: clean (${#files[@]} file(s))"
+else
+  echo "recheck-lite: $issues issue(s)"
+  exit 1
+fi
