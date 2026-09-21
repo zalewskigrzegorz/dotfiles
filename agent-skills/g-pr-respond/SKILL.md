@@ -91,7 +91,7 @@ When a comment mixes a type label and a color badge, prefer the **badge/explicit
 
 **Do NOT emit per-thread fix plans or replies here.** Those come after the user picks.
 
-## A4. Batched questions (≤4 per call)
+## A4. Batched questions (≤4 per call) — fast path only, see A4a
 
 For each batch of up to 4 live threads, **one** `AskUserQuestion` call with 4 questions:
 
@@ -121,6 +121,19 @@ Recommendation per thread (P3-default first):
 | `Keep my code, reply explaining` | Taste/style/nit, out-of-scope, existing code is right |
 | `Different approach — I'll describe` | Valid concern, but reviewer's specific fix is wrong |
 | `Skip / already handled` | Outdated, duplicate, done in a later commit |
+
+### A4a. Default: one thread at a time
+
+The ≤4-per-call batching in A4 is the **fast path**, not the default. Use it only when Greg asks for it ("szybko", "hurtem", "ogarnij wszystko", "just fix them") or when every live thread is a nit (typo, formatting, rename) with an obvious answer. Everything else, and always on docs, pitch and design PRs, runs like this:
+
+* **Summary table once (A3), with a Polish "o co chodzi" column** — one line per thread saying what the reviewer means, not what they wrote.
+* **One thread per `AskUserQuestion`**, in the order that unblocks the rest: the thread that changes the pitch/design scope first (the one others depend on), then the rest.
+* **Explain before asking.** The prompt above the popup carries 2–4 sentences of context in Polish: what the reviewer is pointing at, what the code/pitch says today, what each option costs. Verify claims in the code before stating them (Greg: "zobacz jak to teraz działa żeby nie pisać głupot").
+* **Decision forks before drafts.** A thread that changes what we build (scope in/out, keep vs replace, window vs no window) gets its own decision popup first; the reply is drafted only after the decision, so the reply describes what was decided.
+* **When Greg rejects a popup to clarify**, answer his question in prose, then re-ask the same popup with the new context — do not move on.
+* Replies still go through greg-voice and the A8 per-reply confirmation, but the confirmation can carry 4 replies per popup once the decisions are made — that part is not what he wants slowed down.
+
+Observed 2026-09-17 on PR #27522: 19 threads handled this way took 8 popups for decisions and 5 for posting, and every reply matched a change already in the pitch.
 
 ## A5. After answers, emit plan + reply per thread
 
