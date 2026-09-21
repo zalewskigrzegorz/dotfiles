@@ -158,10 +158,15 @@ function err(s: string): void {
   console.error(s);
 }
 
-// spawnSync's default stdio is a pipe, so `[ -t 0 ]` in a child would always be
-// false; inherit makes the test see the real stdin.
+// The gate is the CONTROLLING TERMINAL, not stdin: fzf draws and reads on
+// /dev/tty and `ask` reads from /dev/tty, so a piped stdin is harmless. gh-dash
+// (bubbletea's exec hand-off) gives the child a non-file stdin, which made the
+// old `[ -t 0 ]` test fail with a real terminal right there. spawnSync's default
+// stdio is a pipe, so `inherit` is still needed for the `-t 0` fast path.
 function isTty(): boolean {
-  const r = spawnSync("sh", ["-c", "[ -t 0 ]"], { stdio: "inherit" });
+  const r = spawnSync("sh", ["-c", "[ -t 0 ] || exec 3</dev/tty"], {
+    stdio: ["inherit", "inherit", "ignore"],
+  });
   return r.status === 0;
 }
 
