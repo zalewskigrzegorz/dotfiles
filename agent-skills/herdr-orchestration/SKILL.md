@@ -7,7 +7,34 @@ description: Use when spawning, briefing, monitoring, auditing, or cleaning up c
 
 Drive parallel coding agents in herdr (Greg's terminal workspace manager) from the CLI. Most `herdr` subcommands return JSON — parse it, don't grep blindly. **Exception: `herdr agent read` returns raw terminal scrollback, not JSON** — pipe it to `tail`, never to a JSON parser.
 
+## Read-only or analysis task: a Sonnet agent in the current worktree, no new branch
+
+Not every brief needs a worktree. An analysis that only reads (a code review, a naming study, a
+comparison) runs in a second tab of the workspace you are already in, on a cheaper model, and
+leaves no branch behind. Verified 2026-09-21: the whole loop took 5 minutes of agent time.
+
+```bash
+herdr agent list | jq -r '.result.agents[] | "\(.pane_id)\t\(.workspace_id)\t\(.cwd)"'   # find your workspace id
+herdr tab create --workspace <ws> --cwd "$PWD" --label "naming analysis" | jq -c '.result.root_pane.pane_id'
+herdr agent start naming-analysis --kind claude --pane <ws>:p<N> -- --model sonnet   # args after -- go to claude
+herdr agent prompt <ws>:p<N> "$(cat brief.md)"     # pastes only (mine 1)
+herdr agent send-keys <ws>:p<N> Enter
+herdr agent read <ws>:p<N> | tail -12               # confirm it is working, not sitting on the paste
+herdr agent wait <ws>:p<N> --until blocked --until done --timeout 1500000
+```
+
+`herdr agent list` returns `{"result":{"agents":[…]}}`, not a bare array. `--model sonnet` after `--`
+is how the Fable-session rule ("subagents run on Sonnet") is honoured here, since `work new` starts
+`claude` with the default model. Tell the brief to write its report to bazgroly, not into the repo,
+and to touch no branch.
+
 ## Create worktrees with `work new`, never raw `herdr worktree create`
+
+**2026-09-21: `work new` is now a thin wrapper over `workctl`** (`def --wrapped "work new" [...rest] { ^workctl ...$rest }`),
+so the `--from` / `--type` / `--no-seed` flags below no longer exist and `work new <branch> --from origin/main`
+fails with `unknown flag --from`. `workctl [target] --action wt-full|wt-light|wt-bootstrap --yes --no-focus`
+is the current surface (`workctl --help`). Until this section is rewritten against workctl, check
+`workctl --help` before scripting a worktree, or use the tab-in-place pattern above when no branch is needed.
 
 `work` is Greg's nushell wrapper (`dot_config/nushell/autoload/work.nu`). It calls `herdr worktree create` and then does three things the raw call skips:
 
