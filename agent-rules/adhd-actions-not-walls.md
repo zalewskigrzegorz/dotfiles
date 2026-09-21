@@ -49,6 +49,13 @@ default *inside* the popup by marking it `(Recommended)` and putting it first.
   is why a popup is never worse than prose.
 - **Use `preview`** when the options are concrete artifacts to compare — layouts,
   snippets, config shapes. Single-select only.
+- **The popup covers the message above it.** If the decision is *about* a text
+  (a Slack draft, a PR body, a commit message, a snippet), that text goes into
+  the `preview` of the options — not into the prose before the popup. Seen
+  2026-09-20: a Slack draft printed above a send/don't-send popup was invisible
+  to Greg, he chose blind and then asked where the text was. When he declines
+  and needs the text, print it as plain paragraphs and end the turn with no
+  popup so it stays on screen.
 
 ## When NOT to popup
 
