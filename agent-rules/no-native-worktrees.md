@@ -22,3 +22,25 @@ clutter to him and must not be produced.
    (his tooling), or ask him — do not reach for native worktree isolation.
 4. This is about *Claude-created* worktrees only. Greg's own `work`/herdr
    worktrees, and reading/searching inside them, are entirely fine.
+
+## `work` is not callable from the Bash tool
+
+`work` is a herdr-native shell function, not a binary on `PATH`. The Bash tool
+runs zsh and reports `command not found: work`; the nushell MCP fails the same
+way (`Command \`work\` not found`). Don't retry it and don't ask Greg to install
+anything — his own shell has it, yours doesn't.
+
+When a task needs a worktree and `work` is unreachable, create it with plain git
+**in his layout**, which is `~/Code/tree/wt-<repo>/<branch>`:
+
+```bash
+git worktree add -b <branch> ~/Code/tree/wt-<repo>/<branch> origin/main
+```
+
+Read the exact layout off `git worktree list` in the repo first rather than
+assuming it — that command shows where his existing worktrees live. Branch from
+`origin/main`, never from the current HEAD, and say in one line that you used
+git directly because `work` was not reachable.
+
+A worktree made this way is one of Greg's, not a Claude-managed one, so rule 4
+covers it: leave it in place when the task ends unless he asks otherwise.
