@@ -388,16 +388,16 @@ def baz []: nothing -> nothing {
     ^nvim $dir
 }
 
-# Bare `work` IS the picker — `work`, `work new`, `work switch`, `work pr` are
-# one command with four openings. A positional target (branch name, PR number)
-# skips straight to that target's action menu.
+# Bare `work` applies the layout (claude tab) to the current herdr workspace —
+# that's what it always did. The picker lives behind `work new` / `work switch` /
+# `work pr`, plus `work <branch|#pr>` which goes straight to that target's menu.
 def --wrapped work [--help (-h), ...rest]: nothing -> nothing {
     if $help { work help; return }
+    if ($rest | is-empty) { work layout; return }
     ^workctl ...$rest
 }
 
-# What bare `work` used to do: apply the layout (claude tab) to the current
-# herdr workspace.
+# Apply the layout (claude tab) to the current herdr workspace.
 def "work layout" []: nothing -> nothing {
     let ws = ($env.HERDR_WORKSPACE_ID? | default "")
     if ($ws | is-empty) { print -e "not inside a herdr workspace"; return }
@@ -410,7 +410,8 @@ def "work help" []: nothing -> nothing {
     print "📖 Work — git worktree workflow on herdr"
     print ""
     print "WORKFLOW"
-    print "  work             →  wybierz cel (branch / PR / worktree / nowy z maina lub HEAD)"
+    print "  work             →  tab claude w bieżącym workspace (layout)"
+    print "  work new/switch  →  wybierz cel (branch / PR / worktree / nowy z maina lub HEAD)"
     print "                   →  wybierz akcję (TAB = kilka)  →  menu wraca, aż Esc"
     print "  work <branch>    work <#pr>    prosto do menu akcji tego celu"
     print ""
@@ -421,10 +422,11 @@ def "work help" []: nothing -> nothing {
     print "  te same wejścia: prefix+shift+g / +o (herdr) · T i w (gh-dash) · w (lazygit)"
     print ""
     print "KOMENDY"
-    print "  work [target]      picker → menu akcji (--all: worktree z innych repo)"
-    print "  work new / switch / pr [n]   to samo, inne otwarcie (kompatybilność)"
+    print "  work               tab claude w bieżącym workspace (= work layout)"
+    print "  work <target>      picker → menu akcji (--all: worktree z innych repo)"
+    print "  work new / switch / pr [n]   picker bez argumentu"
     print "  work ls            lista worktree (nu data; `| to json`)"
-    print "  work layout        tab claude w bieżącym workspace (dawne gołe `work`)"
+    print "  work layout        to samo co gołe `work`"
     print "  work rm [branch]   usuń worktree + workspace + branch (--force / --keep-branch)"
     print "  work prune         batch usuń merged + clean (--dry-run)"
     print "  work reset         przywróć poprawny label bieżącego workspace herdr"
