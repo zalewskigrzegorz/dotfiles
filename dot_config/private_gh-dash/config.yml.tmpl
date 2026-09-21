@@ -105,12 +105,17 @@ keybindings:
       name: pr menu
       # The `workctl` action menu for the PR under the cursor — the same menu
       # `work pr` opens. --repo/--pr explicitly, so it also works for repos
-      # absent from repoPaths (zero git calls on the gh path). The `cd` keeps
+      # absent from repoPaths (zero git calls on the gh path). --repo-path keeps
       # the worktree/agent rows able to find the local checkout when there is
-      # one; an empty RepoPath is a no-op cd. --pause holds the output because
-      # gh-dash repaints the moment the child exits.
+      # one; an empty one is ignored. --pause holds the output because gh-dash
+      # repaints the moment the child exits.
+      #
+      # ONE command, no `cd`, no `;`, no `2>/dev/null`: gh-dash runs custom
+      # commands through `$SHELL -c`, and in a herdr pane $SHELL is nushell,
+      # which rejects POSIX redirection and sequencing outright (exit 1 before
+      # workctl ever starts). Keep this line shell-agnostic.
       command: >
-        cd '{{ `{{.RepoPath}}` }}' 2>/dev/null; workctl --repo {{ `{{.RepoName}}` }} --pr {{ `{{.PrNumber}}` }} --pause
+        workctl --repo {{ `{{.RepoName}}` }} --pr {{ `{{.PrNumber}}` }} --repo-path '{{ `{{.RepoPath}}` }}' --pause
   branches:
     - key: w
       name: branch picker

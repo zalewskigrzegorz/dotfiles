@@ -120,6 +120,8 @@ bin/claude-mcp-defaults
 bin/place-work-skills
 bin/workctl
 bin/herdr-worktree-new
+# LLVM IR scriptc drops next to the binary when invoked by hand.
+bin/*.ll
 .scriptc/
 
 # Stream Deck raw profile snapshots embed plugin OAuth tokens (Slack xoxp) — keep out of git
