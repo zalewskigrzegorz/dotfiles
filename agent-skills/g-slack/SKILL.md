@@ -92,6 +92,19 @@ answers what's there:
 ToolSearch("select:mcp__claude_ai_Slack__slack_read_thread,mcp__claude_ai_Slack__slack_read_channel")
 ```
 
+Two limits on those reads, both hit on 2026-09-20:
+
+- **Cap the result.** `slack_read_channel` / `slack_search_*` with the default
+  `limit` return 60–96k characters and the harness rejects the result
+  ("exceeds maximum allowed tokens"), four times in one session. Pass
+  `limit: 20` (or less) and `response_format: "concise"`; widen only if the
+  answer is not in the first page.
+- **`slack_read_thread` requires `message_ts`** — it fails with
+  `initialization_failed: Missing value for parameter message_ts` otherwise.
+  Get the parent's ts from `slack_read_channel` or a search hit first. A DM
+  message with no replies returns only the parent; read the DM as a channel
+  (`channel_id` = the `D…` id) to see the surrounding conversation.
+
 ### 3. Draft the reply
 
 Write what Greg would say — point first, just the meat.
@@ -104,8 +117,18 @@ specifics intact, AI tells gone). This is not optional and not a second
 
 ### 5. Confirm
 
-Show the final text (and where it's going — channel + thread). Wait for Greg's
-explicit yes. He can trim/redirect here.
+Confirm with one `AskUserQuestion` (single-select: send / don't send) and put
+the **full drafted text in the `preview` of every option**, plus the target
+(channel + thread) in the question. Wait for Greg's explicit yes. He can
+trim/redirect here.
+
+**Never rely on text printed above the popup.** The dialog covers the assistant
+message that precedes it, so a draft shown "in the reply, then a popup" is a
+draft Greg never sees — on 2026-09-20 this happened twice in one session, he
+picked "don't send, I'll paste it myself" blind and then asked where the text
+was. The preview is the only place that stays visible while he decides. If the
+answer is "don't send", repeat the text as plain paragraphs (no fence, no
+blockquote) and **end the turn without another popup**, so it stays on screen.
 
 ### 6. Send as Greg
 
