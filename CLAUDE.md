@@ -270,11 +270,22 @@ Kolizje nazw z teamem **nie** są przykrywane — project scope nie shadowuje us
 
 - **`hd` / `herdr` is the launcher** (`dot_config/nushell/autoload/herdr.nu` → `hd`, `hd-restart`, `hd-stop`, `hd-lab`). Prefix = `ctrl+space`. The priority-sorted **agent sidebar** (blocked-first) is the core — it replaces the old `claude-agent-presence` stack and the window-wrappers. Worktrees via the herdr-native `work` CLI (`new`/`ls`/`switch`/`rm`/`pr`); `work new` / `work switch` are thin wrappers over **`bin/workctl`** (`scriptc/workctl.ts`), the one branch / PR command that `prefix+shift+g`, `prefix+shift+o`, gh-dash's `w` and lazygit's `w` all open — see `docs/herdr.md`. Nav: `prefix+w` workspace picker · `prefix+g` goto · `prefix+a` agent-cycle · `prefix+0` jump-to-waiting-agent · `prefix+h/j/k/l` panes. Config: `dot_config/herdr/config.toml`. Full reference: `docs/herdr.md`.
 - **tmux removed** (2026-08-18). herdr is the only multiplexer on Mac and lab; the old `dot_config/tmux/`, `brew "tmux"`, TPM install script and tmux statusline scripts are gone. Pre-herdr state remains reachable at git tag `pre-herdr` / branch `pre-herdr-backup` if ever needed.
+- **Every gh-dash `command:` must be one shell-agnostic command.** gh-dash runs custom keybinding commands through `$SHELL -c`, and in a herdr pane `$SHELL` is nushell — `cd …`, `;`, `&&`, `2>/dev/null` and other POSIX-only syntax parse-error and exit 1 *before* the command runs. Pass paths as flags instead (`workctl --repo-path …`, not `cd <path>; workctl`). Broke the `T` keybinding in `dot_config/private_gh-dash/config.yml.tmpl` (fixed 2026-09-22).
 
 ## Shell history (nushell)
 
 - **`Ctrl+R` = fzf** over the nushell sqlite history (`dot_config/nushell/autoload/fzf-history.nu`). `Alt+T` = Television smart-autocomplete (`tv.nu`). TV's `nu-history` channel is **not** wired to Ctrl+R — its filter quality is too weak.
 - **Do not propose Atuin** until upstream nushell issues close: [atuinsh/atuin#2900](https://github.com/atuinsh/atuin/issues/2900) (executehostcommand pastes literal text) + [#2820](https://github.com/atuinsh/atuin/issues/2820) (nu integration broken). Both still open as of 2026-05-16. Re-verify with `gh issue view` before recommending.
+
+## Nushell autoload gotchas (`dot_config/nushell/autoload/`)
+
+Three of these cost a debug loop each while writing `firefly.nu` (nu 0.115.1):
+
+- **`$nu.home-path` does not exist** — use `$env.HOME`. `$nu` has no home field.
+- **`mktemp -d -t <name>` needs an `-XXXXXX` suffix in the template**, e.g. `mktemp -d -t "firefly-import-XXXXXX"`.
+- **Watch string interpolation around `(ansi …)`** — `print $"...(ansi green)..."` parses the parenthesised call, so any stray parenthesis in the literal breaks the whole string.
+- **A newly added autoload file does not load in an already-open session.** `bin/sync` copies it, but you need a fresh terminal (or `source` it by hand) before the command exists.
+- Interactive pickers inside a command: `input list --multi` works and is the house pattern (see `firefly.nu`).
 
 ## Lab (`minis`, Debian) — connect & cold-start
 

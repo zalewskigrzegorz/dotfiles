@@ -57,6 +57,15 @@ Greg-reply through the claude.ai Slack MCP (`slack_send_message`) — it stamps
   (`g-pr-bump`), scheduled notifications, daily-brief drops — keeps the Claude
   footer and stays on its own flow. That footer is correct there, not a bug.
 
+## Telling a customer to trace an email — search criteria, not our ID
+
+When the outward-facing text asks someone (a customer, their IT, a partner's
+admin) to check whether an email arrived, give them **sender address + subject +
+timestamp window** — the fields an Exchange or Google message trace actually
+searches on. **Never hand over our internal SES `Message-ID`**: it is opaque
+outside our system and useless until they already hold the message. Caught on a
+draft to a customer's admin, 2026-09-22 ("id mu przecież nic nie da").
+
 ## When `humanizer` is still the right skill
 
 `humanizer` remains a standalone tool for text that is **not** in Greg's voice —

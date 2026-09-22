@@ -66,6 +66,10 @@ not belong in the main context.
 Group by the **leading display name** — the `From` column is truncated at ~30 chars, so
 the domain is not readable there. Get the real address from `spark thread <id>`.
 
+**Blind spot: this scan is Gmail-only.** Marketing addressed to
+`zalewski.grzegorz@icloud.com` (Apple, NestJS, tellmeGen, MediClub, Elegear, …) never
+shows up here. Say so in the report rather than implying the sweep was exhaustive.
+
 ## Step 2 — classify each sender
 
 | Signal | Bucket |
@@ -126,6 +130,11 @@ The landing page states the outcome in plain text — `YOU'VE BLOCKED THIS DOMAI
 counters. That text is the confirmation to record; do not verify any other way.
 
 `/ba/` and `/bd/` share the same per-message token. Prefer `/ba/`.
+
+**Gmail filters: do not try the XML import.** Settings → "Importuj filtry" never surfaces
+a file input under automation — the click registers, the picker never appears. Create
+filters one at a time instead: navigate to `#create-filter/has=<query>`, focus the
+checkboxes and toggle them with `Space` (a JS `.click()` on them is ignored).
 
 **Do not try the member console at `members.bulc.club`.** Its `Block Domain` /
 `Block Address` buttons never fire under automation — measured 2026-08-31, no POST in
@@ -195,7 +204,15 @@ gets smarter between runs.
   member, not just Greg. At 50% it only holds for him until the rating climbs.
 - Never block `shared.klaviyomail.com` (rating 91) or any other shared ESP relay —
   legitimate senders ride the same infrastructure. Block the address, not the domain.
-- AliExpress splits cleanly: promo on `selections.` / `mail.` / `newarrival.aliexpress.com`
-  plus `promotion@aliexpress.com`; orders and parcels on `transaction@notice.aliexpress.com`.
+- AliExpress **no longer splits cleanly** (corrected 2026-09-21). Promo still rides
+  `selections.` / `mail.` / `newarrival.aliexpress.com` plus `promotion@aliexpress.com`,
+  but `notice.aliexpress.com` is no longer transactional-only — member-benefit promo
+  (`aeug-member-benefits@notice.aliexpress.com`) now shares the subdomain with parcels.
+  The filter that works: `from:(aliexpress.com) -from:(transaction@notice.aliexpress.com)`
+  → Blocked.
+- **Greg's DNS blocklist resolves tracking domains to NXDOMAIN locally.**
+  `click.revolut.com`, `campaign.synerise.com` and friends look dead from his machine but
+  are alive on `1.1.1.1`. A "dead unsubscribe link" is a false alarm until it also fails
+  against a public resolver — check before recording one.
 - Mail sent to `*@mrglaszki.com` is Greg's own Cloudflare Email Routing setup — he manages
   those aliases himself at `mail.mrglaszki.com`. Report them, do not touch them.
