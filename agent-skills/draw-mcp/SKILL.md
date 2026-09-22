@@ -13,6 +13,10 @@ The `draw` MCP server keeps the scene server-side. Elements you create with `cre
 2. Load schemas with one `ToolSearch`: `select:mcp__draw__batch_create_elements,mcp__draw__describe_scene,mcp__draw__clear_canvas,mcp__draw__export_to_excalidraw_url`.
 3. Skip `create_from_mermaid`. It only converts when the MCP frontend is open in a browser at that moment, and `describe_scene` stays empty otherwise. `agent-browser` opening `draw.mrglaszki.com` does not help, wrong app. Build elements directly, the layout is yours anyway.
 
+## Mermaid source in markdown (not this MCP)
+
+When the diagram is mermaid written into a `.md` file — a pitch, a design doc, a PR body — **a dotted link with inline text needs spaces inside the markers**: `A -. label .-> B`, never `A -.label.-> B`. The compact form parses locally but the AI reviewer bot flags it as invalid syntax (caught on a pitch PR, 2026-09-21).
+
 ## Building elements
 
 - **One batch call.** Give shapes an `id` and bind arrows with `startElementId` / `endElementId`. Arrows still need `x` and `y` (any point near the start shape), the schema requires them.
