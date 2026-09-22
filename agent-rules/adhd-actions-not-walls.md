@@ -56,6 +56,12 @@ default *inside* the popup by marking it `(Recommended)` and putting it first.
   to Greg, he chose blind and then asked where the text was. When he declines
   and needs the text, print it as plain paragraphs and end the turn with no
   popup so it stays on screen.
+- **A draft longer than ~15 lines skips the popup entirely — decide that up
+  front, don't wait for it to fail.** A `preview` that big renders badly in
+  Ghostty and Greg can't read it, so the fallback above kicks in only after a
+  screenshot round-trip, an interrupt and a "nie potwierdzę!" (2026-09-22).
+  Print the long draft as plain paragraphs, end the turn with "powiedz wyślij",
+  and offer no options at all.
 
 ## When NOT to popup
 
