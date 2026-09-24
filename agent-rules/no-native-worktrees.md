@@ -44,3 +44,27 @@ git directly because `work` was not reachable.
 
 A worktree made this way is one of Greg's, not a Claude-managed one, so rule 4
 covers it: leave it in place when the task ends unless he asks otherwise.
+
+## A worktree `work` did not seed is missing two things
+
+`work` seeds every worktree it opens: `place-work-skills <path>` copies the
+work-scoped skills (`g-pr`, `g-pr-review`, `g-github-issue`, …) into
+`<path>/.claude/skills/`, and `work _seed-untracked` clones the gitignored
+`.env*` files and `node_modules` from the parent checkout. A worktree made with
+plain git — or a bare one Greg opened without seeding — has neither. On
+2026-09-23 that meant `/g-pr` was not in the picker (the team's `pr` skill ran
+instead and Greg had to stop it) and `pnpm start` died on a missing
+`local/.env`.
+
+So in the work monorepo, when `g-pr` is missing from the skill list or a
+`.env` the task needs is missing, seed the worktree before going on:
+
+```bash
+place-work-skills <worktree>          # no-op outside the work monorepo
+bash <worktree>/.claude/skills/worktree-dev/scripts/copy-env-from-main.sh
+```
+
+The second script is part of the `worktree-dev` skill that the first one places;
+it copies only missing `.env` files from the main checkout and never prints them.
+Then invoke the work skill — never fall back to the team's same-purpose skill
+(`pr` instead of `g-pr`).
