@@ -97,6 +97,15 @@ gh api -X DELETE repos/<owner>/<repo>/pulls/<number>/requested_reviewers -f 'tea
 
 Caveat: removing a request does NOT waive a ruleset `require_code_owner_review` on `main`-based PRs — a required team still has to approve to merge. Removal only cleans up noise for teams that are not hard-required.
 
+3b. **E2e on the PR (work monorepo).** E2e never runs on its own for a PR — `e2e.yml` fires only on `pull_request: labeled`. When Greg wants to "see e2e on CI", add the label and watch the run:
+
+```bash
+gh pr edit <number> --add-label run_e2e
+gh run list --branch "$(git branch --show-current)" --workflow e2e.yml --limit 1 --json databaseId,url
+```
+
+The affected matrix picks which suites run (Reunite e2e, API contract tests, …). To re-run after a push, remove and re-add the label (see `g-pr-fix-checks`). The `reunite-e2e-dispatch` skill is a manual test of dispatched jobs on a lab, not PR e2e — do not use it for this.
+
 4. **If PR exists:** refresh title/body from the template and current understanding of the diff:
 
 ```bash

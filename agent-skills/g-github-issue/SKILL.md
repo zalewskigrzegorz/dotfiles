@@ -61,6 +61,16 @@ gh issue create -R "$WORK_MAIN_REPO" -t "Title" --body-file /tmp/issue-body.md -
 
 Prefer `--body-file` for multiline content to avoid shell escaping issues.
 
+7. **Sub-issue of an epic** (the epic's protocol asks for it, or the user names a parent): `gh issue create` has no parent flag, so attach it afterwards through GraphQL with the node ids of both issues:
+
+```bash
+parent=$(gh issue view <epic-number> -R "$WORK_MAIN_REPO" --json id --jq .id)
+child=$(gh issue view <new-number> -R "$WORK_MAIN_REPO" --json id --jq .id)
+gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,subIssueId:$c}){issue{number} subIssue{number}}}' -f p="$parent" -f c="$child"
+```
+
+   The team label adds the issue to the team board on its own (status `Pending`); check with `gh issue view <n> --json projectItems` instead of adding it again.
+
 ## When gh is unavailable
 
 If `gh` is missing or not authenticated (`gh auth status`), tell the user to install or log in. Do not switch to MCP unless the user asks.
