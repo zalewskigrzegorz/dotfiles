@@ -425,6 +425,9 @@ function branchesOf(root: string): Branch[] {
   const r = git(root, ["for-each-ref", `--format=${fmt}`, "--sort=-committerdate", "refs/heads/", "refs/remotes/origin/"]);
   if (r.code !== 0) return [];
   const REMOTE = "refs/remotes/origin/";
+  // The root checkout's branch can't get a worktree (git refuses a second
+  // checkout) and worktreesOf skips the root, so drop it here too.
+  const rootBranch = git(root, ["branch", "--show-current"]).out.trim();
   const rows: string[][] = [];
   const localSeen = new Set<string>();
   for (const line of lines(r.out)) {
@@ -441,6 +444,7 @@ function branchesOf(root: string): Branch[] {
     const name = remote ? ref.slice(REMOTE.length) : f[1] ?? "";
     // A branch that exists locally is listed once, as local.
     if (remote && localSeen.has(name)) continue;
+    if (name === rootBranch) continue;
     branches.push({ name, remote, date: f[2] ?? "", subject: (f[3] ?? "").slice(0, 60) });
   }
   return branches;
@@ -487,7 +491,9 @@ function bootstrapCommand(root: string): string {
   else if (existsSync(join(root, "yarn.lock"))) steps.push("yarn install");
   else if (existsSync(join(root, "package-lock.json"))) steps.push("npm ci");
   else if (existsSync(join(root, "package.json"))) steps.push("npm install");
-  return steps.join(" && ");
+  // Typed into the new tab's shell, which is nushell: `&&` is a parse error
+  // there, so hand the chain to sh as one shell-agnostic command.
+  return steps.length === 0 ? "" : `sh -c ${shq(steps.join(" && "))}`;
 }
 
 // Viewer login — one gh call ever, cached; WORK_PR_ME overrides.
@@ -1223,6 +1229,10 @@ function ensureWorktree(st: St, focus: boolean): { ws: string; path: string; cre
     const r = run("herdr", ["worktree", "open", "--cwd", parent, "--path", st.worktree, "--label", lbl, focusFlag, "--json"]);
     if (r.code !== 0) die(`herdr worktree open failed: ${r.err.trim()}`);
     return { ws: herdrWorkspaceId(r.out), path: st.worktree, created: false };
+  }
+
+  if (git(parent, ["branch", "--show-current"]).out.trim() === head) {
+    die(`'${head}' is checked out in ${parent} — type a new branch name to create it from origin/${st.defaultBranch}`);
   }
 
   const wtPath = worktreePathFor(st.repoName, head);
