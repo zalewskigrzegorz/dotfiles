@@ -59,6 +59,26 @@ implement in the Elgato GUI with the Homey Pro plugin once Greg's plugin access 
   (`Office → Living → Bedroom → …`); the keys show the **selected room's** devices.
   (Effectively a page per room; the dial pages through them.)
 - **Principle:** if something is on a dial, it gets **no separate key**.
+
+**Implementation (decided 2026-09-24): plain pages, no folders.** Both navigation dials are
+the built-in **Action Trigger** dial (rotate ← / press / rotate →), the same one the current
+pages dial uses (`page.previous` · `page.indicator` · `page.next`). Page order in `1.Main`:
+
+| # | Page | # | Page |
+|---|---|---|---|
+| 1 | Office (landing) | 8 | Bedroom |
+| 2 | Dev / GitHub | 9 | Bathroom |
+| 3 | Meeting | 10 | Fun room |
+| 4 | Slack | 11 | Kitchen |
+| 5 | Music | 12 | Hall 🔒 |
+| 6 | HomeLab | 13 | Garden |
+| 7 | Living | 14 | Other |
+
+Contexts sit on 1–6 so `Previous/Next Page` just works there; only the wrap-around ends use
+**Go to Page** (Office ← = 6, HomeLab → = 1). Rooms sit on 7–14: the ROOM dial is
+`Previous/Next Page` inside the block, with **Go to Page** at the ends (Office → = 7,
+Office ← = 14, Living ← = 1, Other → = 1). On room pages the PAGES dial is **Go to Page 1**
+both ways (leave the home block). New pages (Gaming, Setup) go **after 14** so no target shifts.
 - **Temp = ONE seasonal dial per room:** summer → AC, winter → thermostat
   (swap mechanism TBD at implementation "so as not to break things"). Rooms with AC
   have **no thermostat key** (temp lives on the dial). Rooms without AC put the
@@ -122,6 +142,9 @@ Dial 4 = `◉ PAGES`.
 
 - **Stream Deck +** (model `20GBD9901`) — **8 keys** (4×2 grid) + **4 dials** + a **touch strip**.
 - The old 15-key MK.2 / XL (`20GAT9901`, "Default Profile") is retired — delete it.
+  The `Experiments` profile goes too, after its slack-status keys move to the Status folder.
+  Their only-there plugins (`analogclock`, `cpu`, Elgato `spotify`) were removed
+  2026-09-24 → `Plugins.removed-2026-09-24/`.
 
 ## Guiding principle: ONE profile, pages switched by a dial
 
@@ -163,9 +186,22 @@ different dials per page).
 ### Slack page
 
 Channel shortcuts + DM avatars. Dials: `Mic` · `Speaker` · `Brightness` · `Spotify`.
-Slack-status shortcuts (Focus / dog-walk / clear) from the old `Experiments`
-profile may be folded in here (plugin `net.ellreka.slack-status`) — **TBD**, only
-if Greg actually uses them.
+
+**Status folder (decided 2026-09-24).** The last DM key (`3,1`) becomes a **`Status →`
+folder** (Create Folder) with `net.ellreka.slack-status` keys:
+
+| Key | Emoji | Text | Expires |
+|---|---|---|---|
+| Focus | `:brain:` | Focus time | 1h |
+| dog walk | `:walking-the-dog:` | With dogs in the woods | 1h |
+| Lunch | `:fork_and_knife:` | Lunch | 1h |
+| Break | `:coffee:` | Back in 30 | 30m |
+| AFK | `:car:` | Away, back later | 2h |
+| clear | — | *(Clear Status action)* | — |
+
+One slot free + the automatic ⬅ back key. Focus / dog walk / clear already exist in the
+`Experiments` profile — **copy those keys over in the GUI** before deleting it, so the Slack
+token in their settings comes along; the new ones can be duplicated from them.
 
 ### Spotify page
 
@@ -296,9 +332,18 @@ hand after a wipe:
 - **MuteDeck** — global mic/cam mute (Meeting page).
 - **Spotify Essentials** — Spotify page controls.
 - **Slack** — Slack channel/DM page.
-- **slack-status** (`net.ellreka.slack-status`) — Focus / dog-walk status (if folded into Slack page).
+- **slack-status** (`net.ellreka.slack-status`) — the Slack page's `Status →` folder.
 - **API Request** (BarRaider / marketplace; alt: `mjbnz/streamdeck-api-request`) —
   live readouts (CO2, and any future PR/health counts) via polling + per-response icon color.
+- **Homey Pro** (`com.zeuz.homey.plus`) — home control keys/dials.
+- **Volume Controller** (`com.elgato.volume-controller`) — Mic / Speaker dials on `1.Main`.
+  ⚠️ Its native addon `macAudioDeviceService.node` races on the CoreAudio device list and
+  crashes the plugin `node` host with heap corruption (`BUG IN CLIENT OF LIBMALLOC`) on
+  audio-device changes (2026-09-23, 2026-09-24). Stream Deck restarts it; fewer virtual
+  audio drivers in `/Library/Audio/Plug-Ins/HAL` = fewer triggers.
+
+`com.elgato.keycreator` and `com.elgato.tutorial` ship inside the app
+(`Contents/Resources/Distributables`) and reinstall themselves — don't bother removing them.
 
 ## Editing the layout — GUI only (streamdeck-mcp DEPRECATED)
 
