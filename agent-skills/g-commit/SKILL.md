@@ -1,57 +1,56 @@
 ---
 name: g-commit
-description: Generates conventional commit messages from `git diff --cached` per commitlint and appends one gitmoji at the end of the subject. In configured work repos it also creates a feature branch off main/master and runs `git commit`; in other repos it only **suggests** the message and the user commits themselves. Pushing is always the user's responsibility. Use when the user asks to commit staged changes, write a commit message, or align with conventional commits / commitlint.
+description: Generates conventional commit messages from `git diff --cached` per commitlint and appends one gitmoji at the end of the subject, then commits and pushes after one confirmation popup (no popup in YOLO). In configured work repos it also runs the deslop gate and creates a feature branch off main/master. Use when the user asks to commit, write a commit message, or align with conventional commits / commitlint — and at the end of every finished task that left changes.
 ---
 
 # g-commit
 
 ## When to use
 
-The user asks to commit staged changes, write a commit message, or align with commitlint / conventional commits.
+- The user asks to commit, write a commit message, or align with commitlint / conventional commits.
+- A logical unit of work is done and verified and left changes — close it here instead of leaving it for Greg (`agent-rules/commit-message-rules.md` → "Commit + push at the end of a task").
 
 ## Language
 
 All **generated** text (commit message subject/body) must be **English**, even if the conversation is in another language.
 
-## Push policy (applies to every mode, no exceptions)
+## Gate (applies to every mode)
 
-This skill never runs `git push`, never opens a PR, never sets upstream. Pushing the branch and opening a PR is the user's job — always. If they want a PR after committing, point them at the `g-pr` skill.
+One `AskUserQuestion` popup approves both the commit and the push. There is no permission prompt on `git commit`; the popup is the review point. In YOLO (`claude-yolo status` prints `YOLO ON`) there is no popup at all. This skill never opens a PR — point at `g-pr` for that.
 
 ## Modes
 
 The skill operates in one of two modes:
 
-- **work mode** — full flow: branch guard on `main`/`master`, then run `git commit`.
-- **suggest-only mode** — print the proposed commit message and stop. No `git add`, no `git commit`, no branch creation.
-
-The point of suggest-only mode is that personal / OSS / scratch repos shouldn't get a Claude-driven commit pipeline imposed on them — the user wants to decide when and how to commit there.
+- **work mode** — deslop gate, branch guard on `main`/`master`, then gate → commit → push.
+- **personal mode** — every other repo: gate → commit → push on the current branch (in dotfiles / home-lab that is `master`).
 
 ### Detecting the mode
 
 The work-org identifier is **not** stored anywhere in this repository. It comes from the runtime environment, which the user's shell loads from a secret manager.
 
-1. Read the work-org marker from `$WORK_COMPANY` (env var). If it's unset, empty, or whitespace → **suggest-only mode** for this repo. Do not warn loudly; one short line is enough.
+1. Read the work-org marker from `$WORK_COMPANY` (env var). If it's unset, empty, or whitespace → **personal mode** for this repo. Do not warn loudly; one short line is enough.
 2. Read the repo's primary remote: `git remote get-url origin` (fallback to the first remote if `origin` is missing). Lowercase it.
-3. If the remote URL contains the value of `$WORK_COMPANY` (case-insensitive substring) → **work mode**. Otherwise → **suggest-only mode**.
-4. Announce the mode in one short line before showing the message, e.g. `mode: work (matched remote)` or `mode: suggest-only`. Do **not** echo the marker value or any other secret env contents back to the user — they're private.
+3. If the remote URL contains the value of `$WORK_COMPANY` (case-insensitive substring) → **work mode**. Otherwise → **personal mode**.
+4. Announce the mode in one short line before showing the message, e.g. `mode: work (matched remote)` or `mode: personal`. Do **not** echo the marker value or any other secret env contents back to the user — they're private.
 
 If `$WORK_COMPANY` is available, `$WORK_MAIN_PROJECT` usually is too — you may use it (case-insensitive) as a hint when guessing scope, but never print it back.
 
 ## Steps
 
-1. Run `git status`. If there are no staged changes, stop and tell the user to stage files first. Do not stage on their behalf.
+1. Run `git status`. If something is already staged, that is the commit. Otherwise stage **only the files this session touched**, by explicit path — never `git add -A` / `git add .`, other agents share the checkout. Dirty files you did not touch stay out; name them in one line. Nothing staged and nothing touched → stop and say so.
 2. Determine the mode (see above).
 3. Analyze the staged diff: `git diff --cached`.
 4. **Work mode, deslop gate (mandatory):** apply the `g-deslop` skill to the staged diff before composing the message. If the repo tracks its own `.claude/skills/deslop`, run that one instead. If the pass edits files, re-stage exactly those files and re-read `git diff --cached` — the message must describe the cleaned diff. The gate passes only by running the pass; "the diff already looks clean" is not a pass. Skipped only when the user explicitly says to skip it.
 5. Build the commit message (rules below).
-6. **Suggest-only mode:**
-   - Print the **raw** commit message exactly as it would be committed (no markdown fences, no commentary around it).
-   - Add one short follow-up line: "Commit and push are up to you."
-   - Stop. Do not run any git mutation command.
-7. **Work mode, branch guard:** if `git rev-parse --abbrev-ref HEAD` is `main` or `master`, create a feature branch first:
+6. **Work mode, branch guard:** if `git rev-parse --abbrev-ref HEAD` is `main` or `master`, create a feature branch first:
    - `git checkout -b <type>/<scope>-<short-slug>` (e.g. `feat/<scope>-short-thing`).
    - Slug: lowercase, hyphens, short. Pick `type`/`scope` consistent with the commit you are about to make.
-8. **Work mode, commit:** run `git commit` **only after the user explicitly asks to commit**. Output the message first for confirmation. Never run `git push`.
+7. **Gate.** Run `claude-yolo status`.
+   - `YOLO ON` → skip to step 8, no popup.
+   - Otherwise → `AskUserQuestion`, header `Commit`. Put the **raw** commit message, a blank line, and `git diff --cached --stat` (max ~10 files, then `+N more`) in the `preview` of the first option — never in prose above the popup. Options: **Commit + push** (Recommended) · **Tylko commit** · **Jeszcze nie** (leave staged, ask again at the end of the next task).
+8. **Commit** (see Execution), then **push** unless "Tylko commit" was picked: `git push`, or `git push -u origin HEAD` when the branch has no upstream.
+9. Report in one line: short sha, branch, pushed or not. A failed push gets its output and a recovery move; never retry with `--force`.
 
 ## Commit message rules
 
@@ -60,7 +59,7 @@ If `$WORK_COMPANY` is available, `$WORK_MAIN_PROJECT` usually is too — you may
 3. Format: `type(scope): subject` plus optional body/footer.
 4. **Subject:** all lowercase, imperative mood ("add endpoint", not "added"), no period at the end, no leading capital, ~72 chars max **before** the gitmoji.
 5. **Compound scopes** (e.g. `a,b`) are allowed only if the project's `scope-enum` lists that combination. Otherwise pick one scope or split the work — never invent scopes that fail commitlint.
-6. When outputting the final message for copy-paste, output **only** the raw message (no fences, no commentary around it). One blank line then the "commit and push are up to you" reminder in suggest-only mode is fine; nothing extra in work mode.
+6. When the user asks only for a message (not a commit), output **only** the raw message — no fences, no commentary around it.
 7. Never append `Co-Authored-By:` trailers, "🤖 Generated with Claude Code" footers, or any other AI signature. The commit body — if any — only carries actual change context.
 
 ## Gitmoji (end of subject line)
@@ -85,7 +84,7 @@ Example first line: `fix(api): resolve session handling 🐛`
 
 If the repo's commitlint or CI rejects non-ASCII characters, say so and offer the same message **without** the emoji.
 
-## Execution (work mode only)
+## Execution
 
 ```bash
 git commit -m "<type>(<scope>): <subject> <emoji>"
@@ -93,4 +92,4 @@ git commit -m "<type>(<scope>): <subject> <emoji>"
 git commit -m "<type>(<scope>): <subject> <emoji>" -m "<body>"
 ```
 
-Never run `git push`, never `--no-verify`, never bypass hooks. If a commit hook fails, surface the failure and let the user decide.
+Never `--no-verify`, never `--force` push, never bypass hooks. If a commit or push hook fails, surface the failure and let the user decide.

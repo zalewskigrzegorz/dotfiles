@@ -96,7 +96,7 @@ trwałości prowadzi przez repo:
 cp -r <temp-dir>/<skill> ~/Code/dotfiles/agent-skills/<skill>
 ```
 
-Potem commit w dotfiles (Greg commituje sam) i przy następnym `chezmoi apply`
+Potem commit w dotfiles (popup commit + push na koniec tasku) i przy następnym `chezmoi apply`
 skill jest na stałe, zarządzany jak każdy inny.
 
 ## Never

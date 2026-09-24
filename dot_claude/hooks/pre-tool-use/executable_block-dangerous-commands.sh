@@ -17,8 +17,11 @@
 # Configurable via env:
 #   CLAUDE_PROTECTED_BRANCHES   comma list (default: main,master + git default)
 #   CLAUDE_PUSH_ALLOWLIST       repos where push to a protected branch is allowed
+#                               (default: the COMMIT_ALLOWLIST — master is the
+#                               working branch there)
 #   CLAUDE_COMMIT_ALLOWLIST     repos where commit on a protected branch is allowed
-#   CLAUDE_MANUAL_PUSH_REPOS    repos where push is always blocked (Greg pushes)
+#   CLAUDE_PUSH_OWNER           GitHub owner whose repos may push to a protected
+#                               branch too (default: zalewskigrzegorz)
 
 set -uo pipefail
 
@@ -121,19 +124,26 @@ PROTECTED_BRANCHES="${CLAUDE_PROTECTED_BRANCHES:-$DEFAULT_BRANCHES}"
 BR_REGEX=$(printf '%s' "$PROTECTED_BRANCHES" | tr ',' '\n' | awk 'NF{printf "%s%s",sep,$0; sep="|"}')
 
 # ── Repo allowlists ──────────────────────────────────────────────────────
-PUSH_ALLOWLIST="${CLAUDE_PUSH_ALLOWLIST:-$HOME/Code/personal/bazgroly}"
 COMMIT_ALLOWLIST="${CLAUDE_COMMIT_ALLOWLIST:-$HOME/Code/personal/bazgroly,$HOME/Code/dotfiles,$HOME/Code/home-lab,/opt/homelab}"
-MANUAL_PUSH_REPOS="${CLAUDE_MANUAL_PUSH_REPOS:-$HOME/Code/dotfiles,$HOME/Code/home-lab,/opt/homelab}"
+PUSH_ALLOWLIST="${CLAUDE_PUSH_ALLOWLIST:-$COMMIT_ALLOWLIST}"
+PUSH_OWNER="${CLAUDE_PUSH_OWNER:-zalewskigrzegorz}"
+
+own_repo() {
+  # own_repo "/repo/root" — exit 0 if origin lives under github.com/$PUSH_OWNER/.
+  local url
+  url=$(git -C "$1" remote get-url origin 2>/dev/null) || return 1
+  printf '%s' "$url" | grep -qiE "github\.com[:/]$PUSH_OWNER/"
+}
 
 # ── git push ─────────────────────────────────────────────────────────────
-# Policy: push→protected = DENY; push→feature = ASK; bazgroly = allowed (autopush);
-# manual-push repos (dotfiles, home-lab) = DENY (Greg pushes those himself).
+# Policy: push→feature = allowed; push→protected = ASK, except PUSH_ALLOWLIST
+# repos and repos under github.com/$PUSH_OWNER/ (master is the working branch).
+# The commit+push popup (agent-rules/commit-message-rules.md) is the gate since
+# 2026-09-24 — the old manual-push list for dotfiles/home-lab is gone.
 if contains_git '(^|[;&|()]+[[:space:]]*)git[[:space:]]+push'; then
   PUSH_REPO_ROOT=$(resolve_target_repo "$COMMAND")
-  if [ -n "$PUSH_REPO_ROOT" ] && path_in_list "$PUSH_REPO_ROOT" "$PUSH_ALLOWLIST"; then
-    :  # push allowed in this repo — fall through (e.g. bazgroly autopush)
-  elif [ -n "$PUSH_REPO_ROOT" ] && path_in_list "$PUSH_REPO_ROOT" "$MANUAL_PUSH_REPOS"; then
-    emit_guard "Push in a manual-push repo (Greg normally pushes these himself)."
+  if [ -n "$PUSH_REPO_ROOT" ] && { path_in_list "$PUSH_REPO_ROOT" "$PUSH_ALLOWLIST" || own_repo "$PUSH_REPO_ROOT"; }; then
+    :  # push allowed in this repo — fall through (force push is still checked below)
   else
     PROT=0
     contains_git "git[[:space:]]+push[[:space:]]+[^[:space:]]+[[:space:]]+([^[:space:]]*:)?($BR_REGEX)(\$|[[:space:]])" && PROT=1
@@ -146,8 +156,7 @@ if contains_git '(^|[;&|()]+[[:space:]]*)git[[:space:]]+push'; then
       emit_guard "Push to protected branch ($PROTECTED_BRANCHES)."
     else
       # Feature-branch push allowed silently in all modes (Greg, 2026-06-13).
-      # Protected-branch push (above), manual-push repos (above), and force
-      # push (below) are still blocked.
+      # Protected-branch push (above) and force push (below) still ask.
       :
     fi
   fi
@@ -160,24 +169,20 @@ if contains_git '(^|[;&|()]+[[:space:]]*)git[[:space:]]+push' \
 fi
 
 # ── git commit on a protected branch ─────────────────────────────────────
-# Policy: commit→protected = DENY, except COMMIT_ALLOWLIST repos (master is the
-# working branch there). commit→feature = allowed (no emit; allowlisted in settings).
+# Policy: commit→protected = ASK, except COMMIT_ALLOWLIST repos and repos under
+# github.com/$PUSH_OWNER/ (master is the working branch there). commit→feature = allowed (no emit; allowlisted in settings).
+# The per-commit review gate was dropped 2026-09-24: the commit+push popup
+# (agent-rules/commit-message-rules.md) is the review point now.
 if contains_git '(^|[;&|()]+[[:space:]]*)git[[:space:]]+commit'; then
   COMMIT_REPO_ROOT=$(resolve_target_repo "$COMMAND")
   if [ -n "$COMMIT_REPO_ROOT" ]; then
     COMMIT_BRANCH=$(git -C "$COMMIT_REPO_ROOT" branch --show-current 2>/dev/null || true)
     if [ -n "$COMMIT_BRANCH" ] && printf '%s' ",$PROTECTED_BRANCHES," | grep -q ",$COMMIT_BRANCH,"; then
-      if ! path_in_list "$COMMIT_REPO_ROOT" "$COMMIT_ALLOWLIST"; then
+      if ! path_in_list "$COMMIT_REPO_ROOT" "$COMMIT_ALLOWLIST" && ! own_repo "$COMMIT_REPO_ROOT"; then
         emit_guard "Commit on protected branch '$COMMIT_BRANCH' — usually a feature branch is wanted (\`git checkout -b <branch>\`)."
       fi
     fi
   fi
-  # ── Review gate (Greg, 2026-06-23; hunk dropped 2026-06-29 → reviewr) ────
-  # `git commit` is intentionally NOT in settings.json allow, so EVERY commit
-  # stops here. This is a deliberate signal, not friction: the prompt is your
-  # cue to review the diff (herdr reviewr, prefix+r) BEFORE the commit lands.
-  # Approving = "I've reviewed the diff." Asks in every interactive mode.
-  emit_guard "📋 Review gate — przejrzyj diff (reviewr: prefix+r) ZANIM zatwierdzisz. Approve = diff przejrzany."
 fi
 
 # ── GitHub PR ops ────────────────────────────────────────────────────────
