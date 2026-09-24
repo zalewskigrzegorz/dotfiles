@@ -68,3 +68,4 @@ Before writing any plan / spec / brainstorm / analysis / design / audit file:
 - Never silently relocate without telling the user where the artifact went.
 - Never bypass the autopush hook (`--no-verify`, etc.). If it fails, fix it.
 - Never re-introduce a `docs/superpowers/` directory anywhere.
+- Never write a connection string with credentials (`postgres://user:pass@host/…`) into a plan or spec, even the repo's local dev defaults. bazgroly is pushed to GitHub, and the secret-scan hook blocks the whole write — on 2026-09-23 it cost a switch to YOLO mode. Point at the file instead: "`DATABASE_URL` from `packages/database/.env.example`", or use `$DATABASE_URL` in commands.
