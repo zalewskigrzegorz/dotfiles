@@ -35,8 +35,8 @@ After materializing, run `bin/sync` so the change reaches the rendered targets.
 
 ## No PR flow in dotfiles
 
-Leave edits **uncommitted** in `~/Code/dotfiles`. Greg reviews the diff and
-commits via `g-commit`. Do not create a `feat/retro-*` branch, do not `git
+Commit on `master` through `g-commit` and its end-of-task commit + push popup,
+like any other finished task. Do not create a `feat/retro-*` branch, do not `git
 commit -s` (no DCO), do not add `Learning-Id:` or any other trailer — the
 commit-message rules forbid trailers and bodies. The `Learning-Id` may live in
 the rule or skill text itself if provenance is wanted.
@@ -59,9 +59,10 @@ Verified on three dotfiles sessions (2026-09-18):
   `nie, `, `nie rób`, `nie tak`, `przestań`, `źle`, `miałem na myśli`,
   `chodziło mi o`, `mówiłem`, `już mówiłem`.
 - **A18 (permission re-approval)** counts repeated command *shapes*, not actual
-  prompts. `bsk click|fill|press|select|evaluate` and `git commit` prompt **by
-  design** (see the BrowserSkill and commit rules) — never propose allowlisting
-  them. Real allowlist candidates go through `/g-allow-add`.
+  prompts. `bsk click|fill|press|select|evaluate` prompt **by design** (see the
+  BrowserSkill rule) — never propose allowlisting them. `git commit` no longer
+  prompts at all; its gate is the commit + push popup. Real allowlist
+  candidates go through `/g-allow-add`.
 - **A9 (tool n-grams)** is noise here; skip it.
 - **A10 (skill mentioned, not invoked)** is the signal that maps to "a skill
   didn't fire" — always surface it.

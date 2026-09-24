@@ -166,6 +166,7 @@
       "Bash(gh issue:*)",
       "Bash(gh search:*)",
       "Bash(git add:*)",
+      "Bash(git commit:*)",
       "Bash(git checkout:*)",
       "Bash(git switch:*)",
       "Bash(git restore:*)",

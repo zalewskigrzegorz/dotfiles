@@ -179,24 +179,23 @@ If `originalLine` (from the thread) differs from the current line by more than ~
 
 ## A7. Confirm + commit
 
-Ask: "Diff looks good? Ready to commit (you push)?"
-
-If yes, commit using **g-commit style** — conventional commits, lowercase imperative subject, one trailing gitmoji, single line by default, **no co-author trailer, no Generated-with-Claude footer**:
+Gate the commit and push through the **g-commit** popup (preview = message + `git diff --cached --stat`; no popup in YOLO). On **Commit + push**, commit using **g-commit style** — conventional commits, lowercase imperative subject, one trailing gitmoji, single line by default, **no co-author trailer, no Generated-with-Claude footer**:
 
 ```bash
 git add <changed files>
 git commit -m "fix(<scope>): <subject> <gitmoji>"
+git push
 ```
 
 Pick `<scope>` from modified paths (e.g., `auth`, `api`, package name from repo's `commitlint.config.js`). For multi-area changes use the broadest sensible scope or omit. Match repo convention via `git log --oneline -20` if unsure.
 
 If no fixes (everyone picked `Keep my code` / `Skip`), skip A6–A7.
 
-Tell the user: "Committed. Push when ready, then say `pushed` (or `go`) to continue."
+If Greg picked **Tylko commit**, say "Committed, not pushed — say `pushed` (or `go`) once it's on the remote." and wait. Otherwise go straight on.
 
-## A8. Wait for push, then post replies (batched)
+## A8. Post replies once the fix is on the remote (batched)
 
-Wait for: `pushed`, `go`, `ready`, `ok`, `done`.
+After the push (or once Greg says `pushed`, `go`, `ready`, `ok`, `done`).
 
 Then batch up to 4 prepared replies per `AskUserQuestion` (per P3). Each question:
 
@@ -260,8 +259,7 @@ Remind: **resolve threads on GitHub manually** — API replies don't auto-resolv
 
 * Never post a reply or comment without explicit Yes (batched or single).
 * Never surface or post a GitHub-bound body that has not passed greg-voice (P5.5) — except `Modify` text Greg typed himself.
-* Never commit before user confirms diff (A7).
-* Never push — push is always the user's job.
+* Never commit or push without the A7 popup (skipped only in YOLO).
 * Never post anything in a language other than English on GitHub.
 * Never emit per-thread fix plans or replies before asking the question (A4 before A5).
 * Never repeat the summary table after first emission.

@@ -5,7 +5,7 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 ## Hard rules
 
 1. **All settings live here.** Every plugin, MCP server, skill, hook, permission, keybinding, brew formula, and tool config must be mirrored into this repo. If something only exists in `~/` and not under `~/Code/dotfiles/`, it is invisible to `chezmoi apply` and will not survive a reinstall.
-2. **Commit directly to `master`.** No feature branches, no PRs — this is a personal repo. Push when ready.
+2. **Commit directly to `master`.** No feature branches, no PRs — this is a personal repo. Finished work is committed and pushed through the end-of-task popup (`agent-rules/commit-message-rules.md`).
 3. **Add via chezmoi, not manual copy.** Use `chezmoi add ~/<path>` so the source naming (`dot_*`, `private_*`, `executable_*`, `.tmpl`) is correct.
 4. **Don't edit synced output.** When a source exists under `agent-skills/`, `agent-rules/`, `agent-mcp/`, `agent-plugins/`, or `dot_*`, edit the source — `chezmoi apply` overwrites the target.
 5. **Claude skills go in `agent-skills/`, NOT `dot_claude/skills/`.** `run_onchange_after_30` does `rsync --delete agent-skills/ → ~/.claude/skills/` — anything in `~/.claude/skills/` that isn't in `agent-skills/` is wiped on every apply. If you run `chezmoi add ~/.claude/skills/<x>` you'll create `dot_claude/skills/<x>` that never reaches the target — always `cp -r ~/.claude/skills/<x> agent-skills/<x>` instead.
@@ -123,7 +123,7 @@ The Brewfile is templated, so a raw grep misses entries behind `{{ if }}` — re
 5. `gh` extension → append `owner/repo` to the `EXTENSIONS` array in `run_onchange_after_35-gh-extensions.sh` (never `gh extension install` alone — extensions live in untracked `~/.local/share/gh/`)
 6. Any other dotfile → `chezmoi add <path>`, then check the source name got the right prefix
 
-Finish with `chezmoi diff` to confirm the change was captured. Don't commit until asked.
+Finish with `chezmoi diff` to confirm the change was captured, then close the task with the commit + push popup.
 
 **Template-aware re-sync (live → `.tmpl`).** When the source is a `.tmpl`, live drifted, and live is the truth: `chezmoi re-add` is a no-op, so rewrite by hand. Inventory every `{{ ... }}` token in the existing template first — `.chezmoi.*`, `if eq .chezmoi.os` branches, `includeTemplate`, secret functions — copy live in verbatim, then put each token back. Verify byte-identity with `bin/render-and-diff <source.tmpl>` (exit 0 = match, 1 = diff, 2 = bad invocation). Mentally render the *other* OS branch before committing; nothing checks it automatically. Decide once whether live or the template is canonical and stop oscillating.
 

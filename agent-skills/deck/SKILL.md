@@ -168,4 +168,4 @@ If the talk shows off hosted plans or recaps, export them to static HTML first (
 | Hosting service | `~/Code/home-lab/services/deck/` (deployed to the lab) |
 | `deck` CLI, `deck-serve` fallback | `~/Code/dotfiles/bin/` (tracked) |
 
-Never put the deck in a work repo. Never commit for him.
+Never put the deck in a work repo.
