@@ -5,7 +5,7 @@ argument-hint: "[optional PR number or filter]"
 
 Use the `babysit-prs` skill for this task and follow it exactly.
 
-The skill is work-scoped (placed only into the work monorepo and its worktrees by
+The skill is work-scoped (placed only into work repos and their worktrees by
 `bin/place-work-skills`), so this command exists to invoke it by name from
 anywhere. If the skill is not available in the current repo, say so plainly
 rather than improvising a substitute flow.

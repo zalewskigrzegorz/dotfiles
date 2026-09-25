@@ -56,11 +56,12 @@ plain git — or a bare one Greg opened without seeding — has neither. On
 instead and Greg had to stop it) and `pnpm start` died on a missing
 `local/.env`.
 
-So in the work monorepo, when `g-pr` is missing from the skill list or a
-`.env` the task needs is missing, seed the worktree before going on:
+So in any work repo (`~/Code/<Org>/*` or a remote in the work org), when `g-pr`
+is missing from the skill list or a `.env` the task needs is missing, seed the
+worktree before going on:
 
 ```bash
-place-work-skills <worktree>          # no-op outside the work monorepo
+place-work-skills <worktree>          # no-op outside work repos
 bash <worktree>/.claude/skills/worktree-dev/scripts/copy-env-from-main.sh
 ```
 

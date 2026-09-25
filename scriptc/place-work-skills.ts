@@ -1,6 +1,7 @@
-// Place Greg's WORK-SCOPED skills (g-pr*, PR/issue helpers, …) into a
-// work-monorepo worktree's .claude/skills/ — the per-worktree half of the
-// agent-skills sync.
+// Place Greg's WORK-SCOPED skills (g-pr*, PR/issue helpers, …) into the
+// .claude/skills/ of any checkout or worktree of a WORK repo — anything in
+// ~/Code/<Org>/ or with a remote in $WORK_GITHUB_ORG — the per-worktree half
+// of the agent-skills sync.
 //
 // WHY THIS EXISTS: run_onchange_after_30-agent-skills-sync.sh only fires on
 // `chezmoi apply` and only knows about worktrees that exist AT apply time. A
@@ -18,10 +19,14 @@
 // Usage:
 //   place-work-skills [<repo-or-worktree-path>]   # default: git repo of CWD
 //   place-work-skills --list                      # print skill names, one per line
+//   place-work-skills --list-repos                # print every work checkout + worktree
 //
-// No-ops unless the target's parent repo is $WORK_MONOREPO_DIR, so it is
-// safe to call from `work new` in ANY repo (dotfiles, home-lab, …) or on the
-// lab.
+// No-ops unless the target is a work repo — its parent repo lives in the org
+// checkout dir (the monorepo's parent, ~/Code/<Org>/) or one of its remotes is
+// owned by $WORK_GITHUB_ORG — so it is safe to call from `work new` in ANY
+// repo (dotfiles, home-lab, …) or on the lab. `--list-repos` prints every
+// repo in the org checkout dir plus its worktrees; run_onchange_after_30
+// places into each.
 //
 // Ported from bash. child_process is still doing real subprocess work here
 // (git ×3, chezmoi, rsync per skill) — that's inherent to the task, not
@@ -93,6 +98,84 @@ function loadWorkSkills(): string[] {
   return skills;
 }
 
+interface WorkEnv {
+  monorepo: string;
+  org: string;
+}
+
+function loadWorkEnv(secretDir: string): WorkEnv {
+  const workEnvFile = join(secretDir, "work.env");
+  if (existsSync(workEnvFile)) {
+    return {
+      monorepo: sourceEnvVar(workEnvFile, "WORK_MONOREPO_DIR"),
+      org: sourceEnvVar(workEnvFile, "WORK_GITHUB_ORG").toLowerCase(),
+    };
+  }
+  return {
+    monorepo: process.env.WORK_MONOREPO_DIR || "",
+    org: (process.env.WORK_GITHUB_ORG || "").toLowerCase(),
+  };
+}
+
+// Lowercased owner of every remote: `git@host:o/n.git`, `https://host/o/n`
+// and `ssh://git@host/o/n` all give `o` (same split as workctl's
+// remoteRepoIds). --local keeps a stray global remote.*.url out.
+function remoteOwners(repo: string): string[] {
+  const r = git(["-C", repo, "config", "--local", "--get-regexp", "^remote\\..+\\.url$"]);
+  if (r.status !== 0) return [];
+  const owners: string[] = [];
+  for (const l of r.stdout.split("\n")) {
+    const sp = l.indexOf(" ");
+    if (sp === -1) continue;
+    let url = l.slice(sp + 1).trim();
+    if (url.endsWith(".git")) url = url.slice(0, url.length - 4);
+    const segs = url.split(/[/:]/).filter((s) => s !== "");
+    if (segs.length >= 2) owners.push(segs[segs.length - 2].toLowerCase());
+  }
+  return owners;
+}
+
+function isWorkRepo(target: string, env: WorkEnv): boolean {
+  const commonDirRes = git(["-C", target, "rev-parse", "--path-format=absolute", "--git-common-dir"]);
+  const commonDir = commonDirRes.status === 0 ? commonDirRes.stdout : "";
+  if (commonDir === "") return false;
+
+  const parentRoot = commonDir.endsWith("/.git")
+    ? commonDir.slice(0, -"/.git".length)
+    : dirname(commonDir);
+
+  // Anything checked out next to the monorepo counts, whoever owns the remote:
+  // a teammate's fork or Greg's own repo in ~/Code/<Org>/ is still work.
+  const root = norm(parentRoot);
+  if (root === norm(env.monorepo) || dirname(root) === orgDir(env)) return true;
+  return env.org !== "" && remoteOwners(target).includes(env.org);
+}
+
+function orgDir(env: WorkEnv): string {
+  return dirname(norm(env.monorepo));
+}
+
+// Every checkout + linked worktree of each work repo in the org checkout dir,
+// one path per line. Stale worktree entries are listed too; the stage script
+// skips paths without a .git.
+function listRepos(env: WorkEnv): void {
+  const found = spawnSync("find", [orgDir(env), "-mindepth", "2", "-maxdepth", "2", "-name", ".git"], {
+    encoding: "utf8",
+  });
+  const out: string[] = [];
+  for (const g of (found.stdout ?? "").split("\n")) {
+    if (g === "") continue;
+    const repo = dirname(g);
+    const wts = git(["-C", repo, "worktree", "list", "--porcelain"]);
+    for (const l of wts.stdout.split("\n")) {
+      if (!l.startsWith("worktree ")) continue;
+      const p = l.slice("worktree ".length);
+      if (!out.includes(p)) out.push(p);
+    }
+  }
+  if (out.length > 0) console.log(out.join("\n"));
+}
+
 function main(): void {
   const args = process.argv.slice(2);
   const workSkills = loadWorkSkills();
@@ -103,6 +186,14 @@ function main(): void {
   }
 
   const secretDir = process.env.DOTFILES_SECRET_DIR || join(home(), ".local/state/dotfiles/secrets");
+  const env = loadWorkEnv(secretDir);
+  if (env.monorepo === "") return; // no work configured (e.g. lab)
+
+  if (args[0] === "--list-repos") {
+    listRepos(env);
+    return;
+  }
+
   const raw = args[0] ?? ".";
   const toplevel = git(["-C", raw, "rev-parse", "--show-toplevel"]);
   const target = toplevel.status === 0 ? toplevel.stdout : "";
@@ -111,24 +202,7 @@ function main(): void {
     return;
   }
 
-  const workEnvFile = join(secretDir, "work.env");
-  let workMonorepoDir = "";
-  if (existsSync(workEnvFile)) {
-    workMonorepoDir = sourceEnvVar(workEnvFile, "WORK_MONOREPO_DIR");
-  } else {
-    workMonorepoDir = process.env.WORK_MONOREPO_DIR || "";
-  }
-  if (workMonorepoDir === "") return; // no work monorepo configured (e.g. lab)
-
-  const commonDirRes = git(["-C", target, "rev-parse", "--path-format=absolute", "--git-common-dir"]);
-  const commonDir = commonDirRes.status === 0 ? commonDirRes.stdout : "";
-  if (commonDir === "") return;
-
-  const parentRoot = commonDir.endsWith("/.git")
-    ? commonDir.slice(0, -"/.git".length)
-    : dirname(commonDir);
-
-  if (norm(parentRoot) !== norm(workMonorepoDir)) return;
+  if (!isWorkRepo(target, env)) return;
 
   // --- Sources: public agent-skills + private overlay. ---
   let dotfilesSrc = "";
