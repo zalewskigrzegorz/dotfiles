@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # Reclaim disk from the caches that worktree-heavy work keeps growing.
 #
-#   disk-sweep   → prune Docker, npm, uv, mise and the pnpm store, print the gain
+#   disk-sweep   → prune worktrees (picker), Docker, npm, uv, mise and the pnpm
+#                  store, print the gain
 #
 # First run (2026-09-25) took free space from 20 GiB to 59 GiB: Docker build
 # cache + unused images (~35G — every worktree's `pnpm start` builds its own
 # layers), the npm cache (16G) and packages no project references any more in
-# the pnpm store (38G → 15G). Worktrees themselves were clean — `work rm`
-# deletes the whole checkout.
+# the pnpm store (38G → 15G). Worktrees go first, through `workctl prune`
+# (merged/closed PR, clean tree), so the pnpm prune after them can drop what
+# only they referenced. `du` overstates a worktree: its node_modules are APFS
+# clones and store hardlinks, the real gain is mostly built output.
 #
 # Docker is shared with other herdr agents (agent-rules/shared-local-docker.md),
 # so that step is skipped while a build, compose, pg_dump or pg_restore runs.
@@ -43,6 +46,12 @@ uv_prune() { UV_LOCK_TIMEOUT=10 uv cache prune; }
 
 start=$(avail_k)
 echo "free: $(gib "$start")"
+
+if command -v workctl >/dev/null; then
+  before=$(avail_k)
+  workctl prune # fzf picker; without a TTY it only lists the candidates
+  echo "✅ worktrees: $(gain $(($(avail_k) - before)))"
+fi
 
 if ! command -v docker >/dev/null || ! docker info >/dev/null 2>&1; then
   echo "⏭️  docker: not running"
