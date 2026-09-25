@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Reclaim disk from the caches that worktree-heavy work keeps growing.
+#
+#   disk-sweep   → prune Docker, npm, uv, mise and the pnpm store, print the gain
+#
+# First run (2026-09-25) took free space from 20 GiB to 59 GiB: Docker build
+# cache + unused images (~35G — every worktree's `pnpm start` builds its own
+# layers), the npm cache (16G) and packages no project references any more in
+# the pnpm store (38G → 15G). Worktrees themselves were clean — `work rm`
+# deletes the whole checkout.
+#
+# Docker is shared with other herdr agents (agent-rules/shared-local-docker.md),
+# so that step is skipped while a build, compose, pg_dump or pg_restore runs.
+# The pnpm store is skipped while a pnpm install runs, uv while another uv
+# process holds its cache lock. ~/.npm/_npx stays: running MCP servers live there.
+set -uo pipefail
+
+avail_k() { df -k "$HOME" | awk 'NR == 2 { print $4 }'; }
+gib() { awk -v k="$1" 'BEGIN { printf "%.1fG", k / 1048576 }'; }
+# Freed space; other processes write meanwhile, so a tiny negative reads as 0.
+gain() { awk -v k="$1" 'BEGIN { if (k < 0) k = 0; printf "+%.1fG", k / 1048576 }'; }
+
+step() { # step <label> <cmd...>
+  local label=$1 before out
+  shift
+  before=$(avail_k)
+  if out=$("$@" 2>&1); then
+    echo "✅ $label: $(gain $(($(avail_k) - before)))"
+  else
+    echo "⚠️  $label: failed — $(printf '%s\n' "$out" | tail -1)"
+  fi
+}
+
+skip_if_busy() { # skip_if_busy <label> <pgrep ERE>
+  local busy
+  busy=$(pgrep -fl "$2") || return 1
+  echo "⏭️  $1: skipped — in use:"
+  echo "$busy" | sed 's/^/     /'
+}
+
+docker_prune() { docker builder prune -af && docker image prune -af; }
+uv_prune() { UV_LOCK_TIMEOUT=10 uv cache prune; }
+
+start=$(avail_k)
+echo "free: $(gib "$start")"
+
+if ! command -v docker >/dev/null || ! docker info >/dev/null 2>&1; then
+  echo "⏭️  docker: not running"
+elif ! skip_if_busy docker 'docker (build|buildx|compose)|pg_dump|pg_restore'; then
+  step docker docker_prune
+fi
+
+command -v npm >/dev/null && step npm npm cache clean --force
+command -v uv >/dev/null && step uv uv_prune
+command -v mise >/dev/null && step mise mise prune --yes
+
+if command -v pnpm >/dev/null && ! skip_if_busy "pnpm store" 'pnpm (i|install|add|update|up)( |$)'; then
+  step "pnpm store" pnpm store prune
+fi
+
+echo "free: $(gib "$(avail_k)") ($(gain $(($(avail_k) - start))))"
+echo "   Docker hands space back to macOS with a delay — df may grow for a few more minutes."
