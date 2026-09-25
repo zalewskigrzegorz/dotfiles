@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Sync agent-skills/ -> BOTH ~/.cursor/skills and ~/.claude/skills via rsync.
-# Re-runs whenever the fingerprint below changes (i.e. anything in agent-skills/)
-# OR whenever this script's body changes (the scope arrays below live here, so
+# Re-runs whenever the fingerprint below changes (i.e. anything in agent-skills/),
+# the set of work checkouts/worktrees changes, OR whenever this script's body changes (the scope arrays below live here, so
 # editing a bucket re-triggers the run_onchange hash).
 #
+# work repos: {{ output "bash" "-c" (printf "%q/bin/place-work-skills --list-repos 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
 # fingerprint: {{ output "bash" "-c" (printf "cd %q && { find agent-skills -type f -print0 2>/dev/null; find \"${DOTFILES_SECRET_DIR:-$HOME/.local/state/dotfiles/secrets}/agent-skills\" -type f -print0 2>/dev/null; } | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
 
 set -e
@@ -183,17 +184,14 @@ place_scope() {
   rmdir "$sk_dir" 2>/dev/null || true
 }
 
-# Work skills go into the main monorepo checkout AND every linked worktree, so
-# PR/review skills are available wherever Greg is actually working. New worktrees
-# created later pick them up on the next `chezmoi apply` (or a manual bin/sync).
-WORK_MONOREPO="{{ index (index . "work" | default dict) "monorepoDir" | default "" }}"
-if [[ -n "$WORK_MONOREPO" && -e "$WORK_MONOREPO/.git" ]]; then
-  while IFS= read -r wt; do
-    [[ -n "$wt" ]] && place_scope "$wt" "${WORK_SKILLS[@]}"
-  done < <(git -C "$WORK_MONOREPO" worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2}')
-else
-  place_scope "$WORK_MONOREPO" "${WORK_SKILLS[@]}"
-fi
+# Work skills go into every work repo (monorepo and satellites in ~/Code/<Org>/)
+# AND every linked worktree of each, so PR/review skills are available wherever
+# Greg is actually working. The list comes from the same binary `work new` uses,
+# and it is part of the fingerprint above, so a fresh clone or a worktree made
+# with plain git is placed on the next bin/sync.
+while IFS= read -r wt; do
+  [[ -n "$wt" ]] && place_scope "$wt" "${WORK_SKILLS[@]}"
+done < <("{{ .chezmoi.sourceDir }}/bin/place-work-skills" --list-repos)
 
 place_scope "${HOME}/Code/dotfiles" "${DOTFILES_SKILLS[@]}"
 place_scope "${HOME}/Code/home-lab" "${HOMELAB_SKILLS[@]}"

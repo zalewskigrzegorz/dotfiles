@@ -155,7 +155,7 @@ def "work _herdr-ws-for" [repo_root: path, wt_path: path]: nothing -> string {
 def "work _apply-layout" [workspace_id: string, cwd: path]: nothing -> nothing {
     # Every worktree open/create funnels through here, so this is where we ensure
     # the work-scoped skills (g-pr-review, …) exist in the worktree's .claude/skills.
-    # The script no-ops outside the work monorepo, so it's safe on any repo.
+    # The script no-ops outside work repos, so it's safe on any repo.
     if (which place-work-skills | is-not-empty) {
         do { ^place-work-skills $cwd } | complete | ignore
     }
