@@ -1777,9 +1777,15 @@ function doRemove(st: St, ctx: Ctx): number {
     out(`[dry-run] remove worktree ${st.worktree} + branch ${st.headRefName}`);
     return 0;
   }
+  return removeWorktree(st.root, st.worktree, st.headRefName, false);
+}
+
+// If the worktree is open as a herdr workspace, herdr removes checkout + closes
+// it; otherwise plain git removes the checkout. git keeps the branch either way.
+function removeWorktree(root: string, path: string, branch: string, keepBranch: boolean): number {
   // Stop the fsmonitor daemon first: deleting the tree under a live one segfaults it (git bug).
-  git(st.worktree, ["fsmonitor--daemon", "stop"]);
-  const ws = herdrWsFor(st.root, st.worktree);
+  git(path, ["fsmonitor--daemon", "stop"]);
+  const ws = herdrWsFor(root, path);
   if (ws !== "") {
     const r = run("herdr", ["worktree", "remove", "--workspace", ws, "--force"]);
     if (r.code !== 0) {
@@ -1787,16 +1793,68 @@ function doRemove(st: St, ctx: Ctx): number {
       return 1;
     }
   } else {
-    const r = git(st.root, ["worktree", "remove", st.worktree, "--force"]);
+    const r = git(root, ["worktree", "remove", path, "--force"]);
     if (r.code !== 0) {
       err(`git worktree remove failed: ${r.err.trim()}`);
       return 1;
     }
   }
-  if (git(st.root, ["branch", "-d", st.headRefName]).code !== 0)
-    err(`⚠️  branch ${st.headRefName} not fully merged — \`git -C ${st.root} branch -D ${st.headRefName}\` to force.`);
-  err(`✅ removed ${st.headRefName}`);
+  if (!keepBranch && git(root, ["branch", "-d", branch]).code !== 0)
+    err(`⚠️  branch ${branch} not fully merged — \`git -C ${root} branch -D ${branch}\` to force.`);
+  err(`✅ removed ${branch}`);
+  // herdr closes + refocuses its own workspaces; a plain-git worktree leaves the
+  // caller's shell in a deleted dir, and a child process cannot cd its parent.
+  const here = trimSlash(process.env.PWD ?? "");
+  if (ws === "" && (here === path || here.startsWith(`${path}/`))) err(`↩️  you were inside it — \`cd ${root}\``);
   return 0;
+}
+
+// `workctl rm` — the body of `work rm`. The nu def is a thin wrapper because a
+// def is frozen into every shell that loaded work.nu, so a fix there never
+// reached tabs already open (the fsmonitor crash, 2026-09-25); a binary is
+// re-read on every call. Cross-repo: every worktree under both pools.
+function rmCmd(args: string[]): number {
+  let branch = "";
+  let self = false;
+  let force = false;
+  let keepBranch = false;
+  for (const a of args) {
+    if (a === "--self" || a === "-s") self = true;
+    else if (a === "--force") force = true;
+    else if (a === "--keep-branch") keepBranch = true;
+    else if (a.startsWith("-")) die(`unknown flag ${a}`);
+    else if (branch === "") branch = a;
+  }
+  const wts = foreignWorktrees("");
+  let t: Worktree | undefined;
+  if (branch !== "") {
+    const m = wts.filter((w) => w.branch === branch);
+    if (m.length === 0) die(`no worktree for branch '${branch}'`);
+    if (m.length > 1) die(`ambiguous '${branch}' — in: ${m.map((w) => w.repo).join(", ")}. Use the picker (\`work rm\`).`);
+    t = m[0];
+  } else if (self) {
+    // `-s` removes the worktree cwd sits inside — kept explicit so a bare
+    // `work rm` never nukes the current tree by surprise.
+    const here = trimSlash(process.env.PWD ?? "");
+    t = wts.find((w) => here === w.path || here.startsWith(`${w.path}/`));
+    if (t === undefined) die("not inside a worktree — `-s` has nothing to remove");
+    err(`🎯 current worktree: ${t.branch} (${t.repo})`);
+  } else {
+    if (wts.length === 0) die("no worktrees");
+    if (!isTty()) die("the picker needs a TTY — pass a branch or --self");
+    const keys = fzfPick(wts.map((w) => `${w.path}\t${w.repo}/${w.branch}\t${w.path}`), "Remove worktree: ", "enter → remove worktree + branch", false);
+    t = wts.find((w) => w.path === (keys[0] ?? ""));
+  }
+  if (t === undefined) return 0;
+  const dirty = git(t.path, ["status", "--porcelain"]);
+  if (!force && dirty.code === 0 && lines(dirty.out).length > 0) {
+    if (!isTty()) die(`${t.branch} has uncommitted changes — pass --force to remove it anyway`);
+    if (!confirm(`⚠️  ${t.branch} has uncommitted changes — remove anyway?`, false)) {
+      err("aborted");
+      return 1;
+    }
+  }
+  return removeWorktree(t.root, t.path, t.branch, keepBranch);
 }
 
 function doCreatePr(st: St, ctx: Ctx): number {
@@ -2223,6 +2281,7 @@ function directTarget(rs: RepoState, q: string): Target | null {
 function usage(): void {
   out("workctl [target] [--repo owner/name] [--pr N] [--branch NAME] [--all]");
   out("        [--action ID [--drop a,b]] [--yes] [--dry-run] [--json] [--pause] [--no-focus]");
+  out("workctl rm [branch] [--self] [--force] [--keep-branch]");
   out("");
   out("No target → picker over worktrees, PRs, branches and 'create …' rows; enter → actions.");
   out("target = a branch name, a worktree, or a PR number (#123 / 123).");
@@ -2251,6 +2310,11 @@ function main(): void {
     const st = prSt(rs.ghRepo, Number(argv[1] ?? "0"), true, process.env.PWD ?? ".");
     out(menuHeader(st));
     out(menuRows(st, registry()).join("\n"));
+    return;
+  }
+  if (a0 === "rm") {
+    const code = rmCmd(argv.slice(1));
+    if (code !== 0) process.exit(code);
     return;
   }
 
