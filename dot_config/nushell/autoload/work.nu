@@ -260,74 +260,21 @@ def "work switch" []: nothing -> nothing {
 
 def "work sw" []: nothing -> nothing { work switch }
 
-# Remove worktree + workspace + git branch.
+# Remove worktree + workspace + git branch. A THIN WRAPPER over `workctl rm`
+# (scriptc/workctl.ts): a def is frozen into every shell that loaded this file,
+# so a fix here never reached the tabs already open — the binary is re-read on
+# every call.
 def "work rm" [
     branch?: string@"work _complete-worktrees"
     --self (-s)   # remove the worktree you are standing in (no picker)
     --force
     --keep-branch
-]: nothing -> record {
-    work deps-preflight
-    let wts = (work _scan-worktrees)
-
-    # `-s` removes the worktree cwd sits inside — the common "kill this one" case,
-    # kept explicit so a bare `work rm` never nukes the current tree by surprise.
-    let here = (pwd | path expand)
-    let cur = ($wts | where {|w| let p = ($w.path | path expand); ($here == $p) or ($here | str starts-with $"($p)/") } | get -o 0)
-
-    let target = (
-        if ($branch | is-not-empty) {
-            let m = ($wts | where branch == $branch)
-            if ($m | is-empty) { error make { msg: $"No worktree for branch '($branch)'." } }
-            if ($m | length) > 1 {
-                error make { msg: $"Ambiguous '($branch)' — in: (($m | get repo) | str join ', '). Use the picker (`work rm`)." }
-            }
-            ($m | first)
-        } else if $self {
-            if ($cur == null) { error make { msg: "Not inside a worktree — `-s` has nothing to remove." } }
-            print -e $"🎯 current worktree: ($cur.branch) \(($cur.repo)\)"
-            $cur
-        } else if (which fzf | is-not-empty) {
-            if ($wts | is-empty) { error make { msg: "No worktrees." } }
-            let picked = ($wts | each { |w| $"($w.repo)\t($w.branch)\t($w.status)\t($w.path)" } | str join "\n" | ^fzf --delimiter "\t" --with-nth=1,2,3 --prompt "Remove worktree: " | str trim)
-            if ($picked | is-empty) { error make { msg: "Nothing picked." } }
-            let p = ($picked | split row "\t" | get 3)
-            ($wts | where path == $p | first)
-        } else { error make { msg: "Pass a branch name (fzf not installed)." } }
+]: nothing -> nothing {
+    let flags = (
+        [[on flag]; [$self "--self"] [$force "--force"] [$keep_branch "--keep-branch"]]
+        | where on | get flag
     )
-
-    if $target.status == "dirty" and (not $force) {
-        let yn = (input $"⚠️  ($target.branch) has uncommitted changes. Force remove? [y/N]: ")
-        if $yn != "y" { error make { msg: "Aborted." } }
-    }
-
-    # Stop the worktree's fsmonitor daemon first: deleting the tree under a live one
-    # segfaults it (git bug — fsmonitor_publish after shutdown NULLs its token data).
-    do { ^git -C $target.path fsmonitor--daemon stop } | complete | ignore
-
-    # If the worktree is open as a herdr workspace, herdr removes checkout + closes it;
-    # otherwise plain git removes the checkout. git keeps the branch either way.
-    let ws = (work _herdr-ws-for $target.root $target.path)
-    if ($ws | is-not-empty) {
-        let r = (do { ^herdr worktree remove --workspace $ws --force } | complete)
-        if $r.exit_code != 0 { error make { msg: $"herdr worktree remove failed: ($r.stderr)" } }
-    } else {
-        ^git -C $target.root worktree remove $target.path --force
-    }
-    if not $keep_branch {
-        let r = (do { ^git -C $target.root branch -d $target.branch } | complete)
-        if $r.exit_code != 0 {
-            print -e $"⚠️  Branch ($target.branch) not fully merged — `git branch -D ($target.branch)` to force."
-        }
-    }
-    print -e $"✅ Removed: ($target.branch)"
-    # Removing the worktree you were standing in leaves the shell in a deleted dir.
-    # herdr closes+refocuses its own workspaces; a plain-git worktree does not, so
-    # nudge the caller out (a def cannot change the caller's cwd).
-    if (($here == ($target.path | path expand)) or ($here | str starts-with $"(($target.path | path expand))/")) and ($ws | is-empty) {
-        print -e $"↩️  you were inside it — `cd ($target.root)`"
-    }
-    { removed: $target.branch, path: $target.path }
+    ^workctl rm ...([$branch] | compact) ...$flags
 }
 
 # Batch-remove merged + clean worktrees (cross-repo; each checked vs its own default).
