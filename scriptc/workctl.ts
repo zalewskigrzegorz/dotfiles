@@ -1777,12 +1777,13 @@ function doRemove(st: St, ctx: Ctx): number {
     out(`[dry-run] remove worktree ${st.worktree} + branch ${st.headRefName}`);
     return 0;
   }
-  return removeWorktree(st.root, st.worktree, st.headRefName, false);
+  return removeWorktree(st.root, st.worktree, st.headRefName, "-d");
 }
 
 // If the worktree is open as a herdr workspace, herdr removes checkout + closes
-// it; otherwise plain git removes the checkout. git keeps the branch either way.
-function removeWorktree(root: string, path: string, branch: string, keepBranch: boolean): number {
+// it; otherwise plain git removes the checkout. git keeps the branch either way,
+// so it is deleted after with `branchDel` ("-d", "-D", or "" to keep it).
+function removeWorktree(root: string, path: string, branch: string, branchDel: string): number {
   // Stop the fsmonitor daemon first: deleting the tree under a live one segfaults it (git bug).
   git(path, ["fsmonitor--daemon", "stop"]);
   const ws = herdrWsFor(root, path);
@@ -1799,7 +1800,7 @@ function removeWorktree(root: string, path: string, branch: string, keepBranch: 
       return 1;
     }
   }
-  if (!keepBranch && git(root, ["branch", "-d", branch]).code !== 0)
+  if (branchDel !== "" && git(root, ["branch", branchDel, branch]).code !== 0)
     err(`⚠️  branch ${branch} not fully merged — \`git -C ${root} branch -D ${branch}\` to force.`);
   err(`✅ removed ${branch}`);
   // herdr closes + refocuses its own workspaces; a plain-git worktree leaves the
@@ -1854,7 +1855,82 @@ function rmCmd(args: string[]): number {
       return 1;
     }
   }
-  return removeWorktree(t.root, t.path, t.branch, keepBranch);
+  return removeWorktree(t.root, t.path, t.branch, keepBranch ? "" : "-d");
+}
+
+interface PruneCand {
+  w: Worktree;
+  branchDel: string;
+}
+
+// `workctl prune` — the body of `work prune` (a thin wrapper, same reason as
+// rm). Offers clean worktrees whose PR is MERGED or CLOSED, or whose branch
+// sits in origin/<default> untouched for 7 days (so a fresh branch cut from
+// main is not mistaken for a merged one). `git branch --merged` alone found
+// nothing: a squash merge never makes the branch an ancestor. Dirty trees are
+// reported, never offered. Without a TTY it only lists the candidates.
+function pruneCmd(args: string[]): number {
+  let dry = false;
+  for (const a of args) {
+    if (a === "--dry-run") dry = true;
+    else die(`unknown flag ${a}`);
+  }
+  const defs = new Map<string, string>();
+  const slugs = new Map<string, string>();
+  const cands = new Map<string, PruneCand>();
+  const rows: string[] = [];
+  const weekAgo = Math.floor(Date.now() / 1000) - 7 * 86400;
+  for (const w of foreignWorktrees("")) {
+    const dirty = lines(git(w.path, ["status", "--porcelain"]).out).length;
+    if (dirty > 0) {
+      err(`ℹ️  ${w.repo}/${w.branch}: ${String(dirty)} uncommitted change(s) — not offered`);
+      continue;
+    }
+    if (!defs.has(w.root)) {
+      defs.set(w.root, repoInfo(w.root).def);
+      slugs.set(w.root, remoteRepoIds(w.root)[0] ?? "");
+    }
+    const def = defs.get(w.root) ?? "master";
+    const slug = slugs.get(w.root) ?? "";
+    let why = "";
+    let branchDel = "-d";
+    if (slug !== "") {
+      const pr = run("gh", ["pr", "list", "--repo", slug, "--head", w.branch, "--state", "all", "--limit", "1", "--json", "number,state", "--jq", '.[0] | "\\(.number) \\(.state)"']);
+      const f = pr.out.trim().split(" ");
+      const state = f[1] ?? "";
+      if (state === "MERGED" || state === "CLOSED") {
+        why = `PR #${f[0] ?? ""} ${state.toLowerCase()}`;
+        // squash-merged: the work is in main, but -d would call it unmerged
+        if (state === "MERGED") branchDel = "-D";
+      }
+    }
+    if (why === "") {
+      const inDef = git(w.path, ["merge-base", "--is-ancestor", "HEAD", `origin/${def}`]).code === 0;
+      const ts = Number(git(w.path, ["log", "-1", "--format=%ct"]).out.trim());
+      if (inDef && ts < weekAgo) why = `in origin/${def}`;
+    }
+    if (why === "") continue;
+    if (herdrWsFor(w.root, w.path) !== "") why = `${why} · open in herdr`;
+    cands.set(w.path, { w, branchDel });
+    rows.push(`${w.path}\t${w.repo}/${w.branch}\t${why}`);
+  }
+  if (rows.length === 0) {
+    err("nothing to prune — no clean worktree with a merged/closed PR or a merged branch");
+    return 0;
+  }
+  if (dry || !isTty()) {
+    for (const r of rows) out(r.split("\t").slice(1).join("\t"));
+    return 0;
+  }
+  const picked = fzfPick(rows, "Prune (Tab = several): ", "enter → remove worktree + branch", true);
+  let failed = 0;
+  for (const p of picked) {
+    const c = cands.get(p);
+    if (c === undefined) continue;
+    if (removeWorktree(c.w.root, c.w.path, c.w.branch, c.branchDel) !== 0) failed += 1;
+  }
+  if (picked.length > 0) err(`✅ pruned ${String(picked.length - failed)} worktree(s)`);
+  return failed > 0 ? 1 : 0;
 }
 
 function doCreatePr(st: St, ctx: Ctx): number {
@@ -2282,6 +2358,7 @@ function usage(): void {
   out("workctl [target] [--repo owner/name] [--pr N] [--branch NAME] [--all]");
   out("        [--action ID [--drop a,b]] [--yes] [--dry-run] [--json] [--pause] [--no-focus]");
   out("workctl rm [branch] [--self] [--force] [--keep-branch]");
+  out("workctl prune [--dry-run]");
   out("");
   out("No target → picker over worktrees, PRs, branches and 'create …' rows; enter → actions.");
   out("target = a branch name, a worktree, or a PR number (#123 / 123).");
@@ -2312,8 +2389,8 @@ function main(): void {
     out(menuRows(st, registry()).join("\n"));
     return;
   }
-  if (a0 === "rm") {
-    const code = rmCmd(argv.slice(1));
+  if (a0 === "rm" || a0 === "prune") {
+    const code = a0 === "rm" ? rmCmd(argv.slice(1)) : pruneCmd(argv.slice(1));
     if (code !== 0) process.exit(code);
     return;
   }

@@ -277,38 +277,11 @@ def "work rm" [
     ^workctl rm ...([$branch] | compact) ...$flags
 }
 
-# Batch-remove merged + clean worktrees (cross-repo; each checked vs its own default).
-def "work prune" [--dry-run]: nothing -> any {
-    work deps-preflight
-    let candidates = (
-        work _scan-worktrees
-        | where status == "clean"
-        | each { |w|
-            let head_ref = (do { ^git -C $w.root symbolic-ref refs/remotes/origin/HEAD } | complete)
-            let def = (if $head_ref.exit_code == 0 { $head_ref.stdout | str trim | str replace "refs/remotes/origin/" "" } else { "master" })
-            let merged_r = (do { ^git -C $w.root branch --merged $def } | complete)
-            let merged = (if $merged_r.exit_code == 0 { $merged_r.stdout | lines | each { |l| $l | str trim | str replace "* " "" } } else { [] })
-            if ($w.branch in $merged) { $w } else { null }
-        }
-        | where { |it| $it != null }
-    )
-    if ($candidates | is-empty) { print -e "Nothing to prune (no merged + clean worktrees)."; return [] }
-    if $dry_run { return ($candidates | select repo branch path) }
-
-    let picked = (
-        if (which fzf | is-not-empty) {
-            $candidates | each { |c| $"($c.repo)/($c.branch)\t($c.path)" } | str join "\n"
-            | ^fzf --multi --prompt "Prune (Tab=multi): " --delimiter "\t" --with-nth=1 | lines
-        } else { $candidates | each { |c| $"($c.repo)/($c.branch)\t($c.path)" } }
-    )
-    if ($picked | is-empty) { return [] }
-    for line in $picked {
-        let p = ($line | split row "\t" | get 1)
-        let w = ($candidates | where path == $p | first)
-        work rm $w.branch --force
-    }
-    print -e $"✅ Pruned ($picked | length) worktrees."
-    { pruned: ($picked | each { |l| $l | split row "\t" | first }) }
+# Batch-remove clean worktrees whose PR is merged/closed or whose branch is in
+# the default branch (cross-repo). A THIN WRAPPER over `workctl prune`, same
+# reason as `work rm`.
+def "work prune" [--dry-run]: nothing -> nothing {
+    ^workctl prune ...(if $dry_run { ["--dry-run"] } else { [] })
 }
 
 # Recompute the correct label for the CURRENT herdr workspace and rename it back.
