@@ -1777,6 +1777,8 @@ function doRemove(st: St, ctx: Ctx): number {
     out(`[dry-run] remove worktree ${st.worktree} + branch ${st.headRefName}`);
     return 0;
   }
+  // Stop the fsmonitor daemon first: deleting the tree under a live one segfaults it (git bug).
+  git(st.worktree, ["fsmonitor--daemon", "stop"]);
   const ws = herdrWsFor(st.root, st.worktree);
   if (ws !== "") {
     const r = run("herdr", ["worktree", "remove", "--workspace", ws, "--force"]);
