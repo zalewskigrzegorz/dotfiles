@@ -301,6 +301,10 @@ def "work rm" [
         if $yn != "y" { error make { msg: "Aborted." } }
     }
 
+    # Stop the worktree's fsmonitor daemon first: deleting the tree under a live one
+    # segfaults it (git bug — fsmonitor_publish after shutdown NULLs its token data).
+    do { ^git -C $target.path fsmonitor--daemon stop } | complete | ignore
+
     # If the worktree is open as a herdr workspace, herdr removes checkout + closes it;
     # otherwise plain git removes the checkout. git keeps the branch either way.
     let ws = (work _herdr-ws-for $target.root $target.path)

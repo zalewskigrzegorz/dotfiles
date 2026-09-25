@@ -9,6 +9,15 @@
     fsmonitor = true
     untrackedCache = true
 
+# No fsmonitor daemon where nobody runs `git status` by hand and trees get
+# deleted wholesale: lazy.nvim touches ~60 plugin repos (one idle daemon each),
+# and deleting a repo under a live daemon segfaults it (git bug in
+# fsmonitor_publish after shutdown).
+[includeIf "gitdir:~/.local/share/nvim/lazy/"]
+    path = ~/.config/git/no-fsmonitor
+[includeIf "gitdir:/private/tmp/"]
+    path = ~/.config/git/no-fsmonitor
+
 [interactive]
     diffFilter = delta --color-only
 
