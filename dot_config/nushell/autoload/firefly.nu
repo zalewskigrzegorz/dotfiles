@@ -99,10 +99,36 @@ def firefly [
     print $"(ansi cyan)→ wysyłka na lab(ansi reset)"
     ^scp $config ...$payload $"lab:($remote)/"
 
+    # Importer kończy się kodem 1 przy każdym duplikacie (a115), a przy
+    # zachodzących na siebie eksportach duplikaty to norma. Nie przerywamy więc
+    # pętli na kodzie wyjścia — log DEBUG ląduje w pliku na labie, a tu idzie
+    # jedna linia na konto: nowe / duplikaty / inne błędy.
+    let remote_import = r#'
+f="$1"; log="/tmp/firefly-import-${f%.csv}.log"
+docker exec firefly-importer php artisan importer:import /import/ing-pl.json "/import/$f" > "$log" 2>&1
+new=$(grep -oE 'Actually imported and not duplicate: [0-9]+' "$log" | grep -oE '[0-9]+$' | tail -1)
+dup=$(grep 'Add error on index' "$log" | grep -c '\[a115\]')
+other=$(grep 'Add error on index' "$log" | grep -vc '\[a115\]')
+echo "${new:-0} $dup $other $log"
+grep 'Add error on index' "$log" | grep -v '\[a115\]' | sed -E 's/.*\): //' | cut -c1-200 | head -5
+'#
+
     print $"(ansi cyan)→ import(ansi reset)"
     for it in $chosen {
-        print $"    ($it.konto) — ($it.transakcje) transakcji"
-        ^ssh lab $"docker exec firefly-importer php artisan importer:import /import/ing-pl.json /import/($it.plik)"
+        let res = ($remote_import | ^ssh lab bash -s -- $it.plik | complete)
+        let out = ($res.stdout | lines)
+        if ($out | is-empty) {
+            print $"    (ansi red)($it.konto) — import nie ruszył(ansi reset) ($res.stderr | str trim)"
+            continue
+        }
+        let s = ($out | first | split row " ")
+        let other = ($s.2 | into int)
+        let color = if $other > 0 { ansi red } else { ansi reset }
+        print $"    ($it.konto) — nowe: (ansi green)($s.0)(ansi reset), duplikaty: ($s.1), ($color)inne błędy: ($other)(ansi reset)"
+        if $other > 0 {
+            for l in ($out | skip 1) { print $"        ($l)" }
+            print $"        pełny log: lab:($s.3)"
+        }
     }
 
     print $"(ansi green)gotowe(ansi reset) → https://firefly.mrglaszki.com/"
