@@ -49,10 +49,8 @@
     "mempalace": {
       "command": "mempalace-mcp"
     },
-    "jetbrains": {
-      "command": "npx",
-      "args": ["-y", "@jetbrains/mcp-proxy"]
-    },
+    {{/* jetbrains MCP REMOVED 2026-09-28 — DataGrip uninstalled (JamSQL covers
+         SQL), no JetBrains IDE left for @jetbrains/mcp-proxy to talk to. */}}
     {{/* grafana + grafana-dashboards + cloudwatch are now project-scoped to the
          work monorepo's own team-tracked .mcp.json, so they no longer load in
          every repo via the global user scope. */}}
