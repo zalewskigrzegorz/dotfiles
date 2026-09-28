@@ -1,0 +1,234 @@
+#!/usr/bin/env bash
+# cycle-daily — state and day-over-day delta of a Shape Up cycle epic. Feeds the
+# /g-cycle-daily command (dot_claude/exact_commands/g-cycle-daily.md), which turns
+# the delta into the daily Slack summary.
+#
+#   cycle-daily fetch <args>                               current state as JSON
+#   cycle-daily diff  <args> [--since ISO]                 delta vs the saved snapshot,
+#                                                          plus comments/reviews since it
+#   cycle-daily save  <args> [--at ISO] [--slack-ts TS]    promote the state `diff` just
+#                                                          fetched to the new baseline
+#
+#   <args> = --repo OWNER/NAME --epic N --project N --branch NAME --start YYYY-MM-DD --weeks N
+#
+# Public file: the org, repo, issue numbers and channel come from the private
+# work-context through the command, never from here.
+#
+# Snapshots: $CYCLE_DAILY_DIR (default ~/.local/state/dotfiles/cycle-daily)/<epic>.json.
+# `diff` also writes <epic>.pending.json, which `save` promotes, so the baseline is
+# the state the summary described and not whatever changed while Greg read it.
+set -euo pipefail
+
+die() { echo "cycle-daily: $*" >&2; exit 2; }
+
+cmd="${1:-}"
+[[ "$cmd" =~ ^(fetch|diff|save)$ ]] || die "usage: cycle-daily fetch|diff|save --repo O/N --epic N --project N --branch B --start YYYY-MM-DD --weeks N"
+shift
+
+repo="" epic="" project="" branch="" start="" weeks="" since="" at="" slack_ts=""
+while (($#)); do
+  (($# >= 2)) || die "missing value for $1"
+  case "$1" in
+    --repo) repo="$2" ;;
+    --epic) epic="$2" ;;
+    --project) project="$2" ;;
+    --branch) branch="$2" ;;
+    --start) start="$2" ;;
+    --weeks) weeks="$2" ;;
+    --since) since="$2" ;;
+    --at) at="$2" ;;
+    --slack-ts) slack_ts="$2" ;;
+    *) die "unknown argument: $1" ;;
+  esac
+  shift 2
+done
+for v in repo epic project branch start weeks; do
+  [[ -n "${!v}" ]] || die "--$v is required"
+done
+[[ "$repo" == */* ]] || die "--repo must be OWNER/NAME"
+[[ "$epic$project$weeks" =~ ^[0-9]+$ ]] || die "--epic, --project and --weeks must be numbers"
+
+dir="${CYCLE_DAILY_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/cycle-daily}"
+snapshot="$dir/$epic.json"
+pending="$dir/$epic.pending.json"
+mkdir -p "$dir"
+
+read -r -d '' QUERY <<'GRAPHQL' || true
+fragment PR on PullRequest {
+  number title state isDraft reviewDecision baseRefName createdAt mergedAt
+  repository { nameWithOwner }
+  author { login }
+  reviews(last: 10) {
+    nodes { state submittedAt body url author { login __typename } comments(first: 5) { nodes { path body } } }
+  }
+  comments(last: 10) { nodes { createdAt body url author { login __typename } } }
+}
+query($owner: String!, $name: String!, $epic: Int!, $branch: String!) {
+  repository(owner: $owner, name: $name) {
+    issue(number: $epic) {
+      number title
+      comments(last: 20) { nodes { createdAt body url author { login __typename } } }
+      subIssues(first: 100) {
+        pageInfo { hasNextPage }
+        nodes {
+          number title state closedAt
+          assignees(first: 10) { nodes { login } }
+          projectItems(first: 10) {
+            nodes {
+              project { number }
+              status: fieldValueByName(name: "Status") { ... on ProjectV2ItemFieldSingleSelectValue { name } }
+            }
+          }
+          comments(last: 20) { nodes { createdAt body url author { login __typename } } }
+          closedByPullRequestsReferences(first: 10, includeClosedPrs: true) { nodes { ...PR } }
+          timelineItems(first: 30, itemTypes: [CROSS_REFERENCED_EVENT, CONNECTED_EVENT]) {
+            nodes {
+              ... on CrossReferencedEvent { source { ... on PullRequest { ...PR } } }
+              ... on ConnectedEvent { subject { ... on PullRequest { ...PR } } }
+            }
+          }
+        }
+      }
+    }
+    pullRequests(baseRefName: $branch, first: 100, orderBy: {field: UPDATED_AT, direction: DESC}) {
+      nodes { ...PR }
+    }
+  }
+}
+GRAPHQL
+
+promote() {
+  local tmp
+  tmp="$(mktemp "$dir/.$epic.XXXXXX")"
+  jq --arg at "$at" --arg ts "$slack_ts" \
+    '(if $at != "" then .taken_at = $at else . end) | (if $ts != "" then .slack_ts = $ts else . end)' \
+    <<<"$1" >"$tmp"
+  mv "$tmp" "$snapshot"
+  rm -f "$pending"
+  jq -r '"saved baseline \(.taken_at): \(.totals.closed)/\(.totals.total) closed, \(.prs | length) PRs"' "$snapshot"
+}
+
+if [[ "$cmd" == save && -f "$pending" ]]; then
+  promote "$(cat "$pending")"
+  exit 0
+fi
+
+raw="$(mktemp -t cycle-daily-XXXXXX)"
+trap 'rm -f "$raw"' EXIT
+
+gh api graphql -f query="$QUERY" -f owner="${repo%%/*}" -f name="${repo#*/}" \
+  -F epic="$epic" -f branch="$branch" >"$raw"
+jq -e '.data.repository.issue != null' "$raw" >/dev/null || die "epic #$epic not found in $repo"
+if jq -e '.data.repository.issue.subIssues.pageInfo.hasNextPage' "$raw" >/dev/null; then
+  echo "cycle-daily: warning: epic has more than 100 sub-issues, only the first 100 are counted" >&2
+fi
+
+# Linked PRs of a sub-issue: closing references + cross-references + manual links,
+# same repo only (a cross-reference can come from anywhere).
+JQ_DEFS='
+def prs_of: [ .closedByPullRequestsReferences.nodes[],
+              (.timelineItems.nodes[] | (.source // .subject // empty)) ]
+            | map(select(.number != null and .repository.nameWithOwner == $repo));
+def all_prs: [ (.issue.subIssues.nodes[] | prs_of[]), .pullRequests.nodes[] ] | unique_by(.number);
+def human: select((.author.__typename // "User") != "Bot");
+def excerpt: (if (.body // "") != "" then .body
+               else [.comments.nodes[]? | "\(.path): \(.body)"] | join(" | ") end)
+             | gsub("\\s+"; " ") | .[0:400];
+'
+
+now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+today="$(date +%F)"
+
+state="$(jq --arg repo "$repo" --argjson project "$project" --arg now "$now" \
+  --arg start "$start" --argjson weeks "$weeks" --arg today "$today" "$JQ_DEFS"'
+  .data.repository as $r
+  | (($start + "T00:00:00Z" | fromdateiso8601) as $s
+     | ($today + "T00:00:00Z" | fromdateiso8601) as $t
+     | ((($t - $s) / 86400 | floor) + 1) as $day
+     | { start: $start, weeks: $weeks, today: $today, day: $day,
+         week: ((($day - 1) / 7 | floor) + 1), days_left: ($weeks * 7 - $day) }) as $cycle
+  | ($r.issue.subIssues.nodes
+     | map({ key: (.number | tostring),
+             value: { title, state, closed_at: .closedAt,
+                      status: ([.projectItems.nodes[] | select(.project.number == $project) | .status.name] | first),
+                      assignees: [.assignees.nodes[].login],
+                      prs: (prs_of | map(.number) | unique) } })
+     | from_entries) as $issues
+  | { taken_at: $now, repo: $repo,
+      epic: { number: $r.issue.number, title: $r.issue.title },
+      cycle: $cycle,
+      totals: ([$issues[]] | {
+        total: length,
+        closed: map(select(.state == "CLOSED")) | length,
+        open_unassigned: map(select(.state == "OPEN" and (.assignees | length) == 0)) | length,
+        by_status: (group_by(.status) | map({ key: (.[0].status // "none"), value: length }) | from_entries) }),
+      issues: $issues,
+      prs: ($r | all_prs
+            | map({ key: (.number | tostring),
+                    value: { title, state, draft: .isDraft, review: (.reviewDecision // ""),
+                             base: .baseRefName, author: .author.login,
+                             created_at: .createdAt, merged_at: .mergedAt } })
+            | from_entries) }
+' "$raw")"
+
+case "$cmd" in
+  fetch)
+    printf '%s\n' "$state"
+    ;;
+
+  diff)
+    printf '%s\n' "$state" >"$pending"
+    base='null'
+    [[ -f "$snapshot" ]] && base="$(cat "$snapshot")"
+    [[ -n "$since" ]] || since="$(jq -r --arg start "$start" '.taken_at // ($start + "T00:00:00Z")' <<<"$base")"
+
+    activity="$(jq --arg repo "$repo" --arg since "$since" "$JQ_DEFS"'
+      .data.repository as $r
+      | [ ($r.issue | { on: .number, kind: "epic", c: .comments.nodes, rv: [] }),
+          ($r.issue.subIssues.nodes[] | { on: .number, kind: "issue", c: .comments.nodes, rv: [] }),
+          ($r | all_prs[] | { on: .number, kind: "pr", c: .comments.nodes, rv: .reviews.nodes }) ]
+      | map(. as $x
+            | ($x.c[] | human | { on: $x.on, kind: $x.kind, type: "comment",
+                                  author: .author.login, at: .createdAt, url, excerpt: excerpt }),
+              ($x.rv[] | human | { on: $x.on, kind: $x.kind, type: ("review " + .state),
+                                   author: .author.login, at: .submittedAt, url, excerpt: excerpt }))
+      | map(select(.at > $since)) | unique_by(.url) | sort_by(.at)
+    ' "$raw")"
+
+    jq -n --argjson new "$state" --argjson old "$base" --argjson activity "$activity" --arg since "$since" '
+      if $old == null then
+        { first_run: true, since: $since, activity: $activity, state: $new }
+      else
+        ($new.issues | keys) as $nk | ($old.issues | keys) as $ok
+        | ($new.prs | keys) as $npk
+        | def row($n): { n: ($n | tonumber), title: $new.issues[$n].title };
+          def prow($n): { n: ($n | tonumber) } + $new.prs[$n];
+        { first_run: false, since: $since, baseline_slack_ts: $old.slack_ts,
+          totals_before: $old.totals,
+          closed: [ $nk[] | select($old.issues[.].state == "OPEN" and $new.issues[.].state == "CLOSED")
+                    | row(.) + { assignees: $new.issues[.].assignees, prs: $new.issues[.].prs } ],
+          reopened: [ $nk[] | select($old.issues[.].state == "CLOSED" and $new.issues[.].state == "OPEN") | row(.) ],
+          added: [ $nk[] | select($old.issues[.] == null) | row(.) + { state: $new.issues[.].state } ],
+          removed: [ $ok[] | select($new.issues[.] == null) | { n: tonumber, title: $old.issues[.].title } ],
+          status_moves: [ $nk[] | select($old.issues[.] != null and $old.issues[.].status != $new.issues[.].status)
+                          | row(.) + { from: $old.issues[.].status, to: $new.issues[.].status } ],
+          assignee_changes: [ $nk[] | select($old.issues[.] != null)
+                              | ($new.issues[.].assignees - $old.issues[.].assignees) as $in
+                              | ($old.issues[.].assignees - $new.issues[.].assignees) as $out
+                              | select(($in + $out) | length > 0)
+                              | row(.) + { added: $in, removed: $out } ],
+          prs_new: [ $npk[] | select($old.prs[.] == null) | prow(.) ],
+          prs_merged: [ $npk[] | select($new.prs[.].state == "MERGED" and ($old.prs[.].state // "") != "MERGED") | prow(.) ],
+          prs_closed_unmerged: [ $npk[] | select($new.prs[.].state == "CLOSED" and ($old.prs[.].state // "") == "OPEN") | prow(.) ],
+          prs_ready: [ $npk[] | select($old.prs[.].draft == true and $new.prs[.].draft == false and $new.prs[.].state == "OPEN") | prow(.) ],
+          prs_review: [ $npk[] | select($old.prs[.] != null and $old.prs[.].review != $new.prs[.].review)
+                        | prow(.) + { review_before: $old.prs[.].review } ],
+          activity: $activity,
+          state: $new }
+      end'
+    ;;
+
+  save)
+    promote "$state"
+    ;;
+esac
