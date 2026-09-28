@@ -8,6 +8,8 @@
 # longer sitting in. `pm2 log` can't see them; they're scattered across dirs.
 # reaper gathers every heavy dev process (sampled *current* CPU, not lifetime avg),
 # shows CPU% / RSS / uptime / working dir, and lets you multi-select what to kill.
+# It also lists 👻 orphans: anything left on a pty after its herdr pane died
+# (see reap-orphans), whatever the binary — a stray lazygit steals keys.
 #
 #   reaper                 scan → fzf checklist (Tab marks, Enter kills) → SIGTERM
 #   reaper --min-cpu 5     only rows over 5% CPU
@@ -33,9 +35,28 @@ const DEV_PATTERN = '(?i)(\bnode\b|\bdeno\b|\bbun\b|vite|esbuild|rollup|webpack|
 const CODEINDEX_PATTERN = '(?i)(serena-agent|serena.*start-mcp)'
 
 # classify a matched process for the KIND column.
-def reap-kind [args: string]: nothing -> string {
-    if $args =~ '(?i)(serena)' { "🧭 serena"
+def reap-kind [args: string, orphan: bool]: nothing -> string {
+    if $orphan { "👻 orphan"
+    } else if $args =~ '(?i)(serena)' { "🧭 serena"
     } else { "dev" }
+}
+
+# pids stranded on a pseudo-terminal after their multiplexer died: parent is
+# init (pid 1) but they still hold a pty — plus everything under them, since
+# killing only the `nu -c` root leaves its TUI child running. Seen 2026-09-28: a
+# lazygit from a dead herdr pane kept /dev/tty for 3 days, macOS handed the same
+# ttys001 to a new pane, and it stole keys and painted over gh-dash. Only ptys
+# (ttysNNN / pts/N) count, so a getty on tty1 is spared.
+def reap-orphans [meta: table]: nothing -> list<string> {
+    mut found = ($meta | where ppid == "1" and tty =~ '^(ttys\d+|pts/\d+)$' | get pid)
+    mut frontier = $found
+    while ($frontier | is-not-empty) {
+        let parents = $frontier
+        let kids = ($meta | where {|m| $m.ppid in $parents } | get pid)
+        $found = ($found | append $kids)
+        $frontier = $kids
+    }
+    $found
 }
 
 # ~/foo instead of /Users/greg/foo, then keep it short enough for the column.
@@ -83,11 +104,12 @@ export def reaper [
     # --- processes: current CPU + RSS from nu's sampled ps, args + uptime from system ps
     let procs = (ps | select pid ppid name cpu mem)
     let meta = (
-        ^ps -Ao pid=,etime=,args=
+        ^ps -Ao pid=,ppid=,tty=,etime=,args=
         | lines
         | each {|l| $l | str trim }
-        | parse -r '(?<pid>\d+)\s+(?<etime>\S+)\s+(?<args>.+)'
+        | parse -r '(?<pid>\d+)\s+(?<ppid>\d+)\s+(?<tty>\S+)\s+(?<etime>\S+)\s+(?<args>.+)'
     )
+    let orphans = (reap-orphans $meta)
 
     let matched = (
         $procs
@@ -95,9 +117,10 @@ export def reaper [
             let m = ($meta | where pid == ($p.pid | into string))
             let args = (if ($m | is-empty) { $p.name } else { ($m | first | get args) })
             let etime = (if ($m | is-empty) { "?" } else { ($m | first | get etime) })
-            { pid: $p.pid, cpu: $p.cpu, mem: $p.mem, etime: $etime, args: $args }
+            let orphan = (($p.pid | into string) in $orphans)
+            { pid: $p.pid, cpu: $p.cpu, mem: $p.mem, etime: $etime, args: $args, orphan: $orphan }
         }
-        | where {|r| $r.args =~ $DEV_PATTERN or $r.args =~ $CODEINDEX_PATTERN }
+        | where {|r| $r.orphan or $r.args =~ $DEV_PATTERN or $r.args =~ $CODEINDEX_PATTERN }
         | where cpu >= $min_cpu
         | sort-by cpu --reverse
     )
@@ -109,7 +132,7 @@ export def reaper [
             let dir = ($cwds | get -o ($r.pid | into string) | default "?")
             {
                 key: $"p:($r.pid)"
-                kind: (reap-kind $r.args)
+                kind: (reap-kind $r.args $r.orphan)
                 cpu_disp: $"($r.cpu | math round --precision 1)%"
                 mem_disp: ($r.mem | into string)
                 etime: $r.etime
