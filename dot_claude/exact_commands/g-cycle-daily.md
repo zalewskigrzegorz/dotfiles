@@ -1,13 +1,13 @@
 ---
-description: Draft and post the daily Shape Up cycle summary to the cycle's Slack channel — the overall status of the project (what's deployed, what works, what's decided), what's in flight, blockers and the next milestone, built from the day's delta — as Greg, through g-slack. Explicit-invoke command, stays out of context until /g-cycle-daily.
+description: Draft and post the daily Shape Up cycle summary to the cycle's Slack channel — a few short lines on where the project stands (what's deployed, what works, what's decided), what's in flight and the next milestone, in the format the requester set — as Greg, through g-slack. Explicit-invoke command, stays out of context until /g-cycle-daily.
 argument-hint: "[cycle name] [--since YYYY-MM-DDTHH:MM:SSZ]"
 ---
 
 # /g-cycle-daily — daily cycle summary
 
-One message a day in the cycle channel: where the project stands, what's moving,
-what's blocked, how close the next milestone is. The live dashboard shows the tickets;
-this message tells the story around them. Greg runs it by hand once a day.
+One short message a day in the cycle channel: where the project stands, what's
+moving, the next milestone. The live dashboard shows the tickets; this message never
+repeats them. Greg runs it by hand once a day.
 
 > **All identifiers are private.** Read
 > `~/.local/state/dotfiles/secrets/work-context.md` → **§ "Slack — cycle daily"** for
@@ -21,16 +21,16 @@ this message tells the story around them. Greg runs it by hand once a day.
 - **Nothing is posted without Greg's explicit "wyślij"** on the final text.
 - **Send through `g-slack`** (user token, no footer). Don't reimplement the send;
   follow its steps 6–7 with the payload built in step 6 below.
-- **No preview popup.** Print the draft as plain paragraphs and end the turn with
+- **No preview popup.** Print the draft as plain lines and end the turn with
   "powiedz wyślij". This replaces g-slack's step-5 popup for this command.
 - **Top-level message in the channel.** No `thread_ts`, unless Greg points at a thread.
 - **`cycle-daily save` runs only after Slack returned `ok:true`.** A declined or failed
   draft leaves the old baseline, so the next run's delta still covers today.
-- **English, Slack mrkdwn:** single `*bold*`, `•` bullets, backticks for code, no `#`
-  headers, no `**`.
-- **Draft with bare `#n`.** Step 6 escapes the text and turns every `#n` into a link
-  mechanically; never hand-write `<url|#n>`.
-- **Names, not logins.** First names from work-context § Roster. Greg's own work is "I".
+- **English, plain lines:** one fact per line, no bullets, no `*bold*`, no `#`
+  headers, backticks only for code.
+- **No ticket or PR numbers, no week counter, no blockers block, no names.** The
+  requester doesn't want them (Greg, 2026-09-29: blockers built from ticket counts
+  were noise).
 - Testing or changing this command: produce the draft only, never post.
 
 ## Workflow
@@ -73,70 +73,60 @@ off, read the whole comment: `gh issue view <n> --repo "$WORK_MAIN_REPO" --comme
 
 **Nothing changed** (every delta list empty and no `activity`): tell Greg in one line
 that nothing moved since `since`, and ask in a popup whether to post a one-liner
-(`Quiet day: nothing moved, X of Y still done.`) or skip today.
+(`Quiet day, nothing moved.`) or skip today.
 
 ### 3. Draft
 
-**Overall status, not a ticket list.** The reader wants to know where the project
-stands; a list of closed tickets is hard to read in isolation (feedback from the
-person who asked for these posts, 2026-09-29). Every post is a full, self-contained
-status that makes sense to someone who skipped yesterday's. The delta tells you what
-to update; it is not the content.
+**Copy the requester's example line for line** (work-context § "Format … asked
+for"). Three blocks, a handful of short lines, readable in five seconds. Three drafts
+on 2026-09-29 missed it: paragraphs, review details, names, ticket numbers, a week
+counter, a blockers block built from ticket counts. The delta tells you what changed;
+the post only says where the project is.
 
-1. **Status, 2–4 short sentences, no bullets, no `#n`.** Open with the cycle position
-   (`Week N of <weeks>.`), then the state of the system in product terms: what's
-   deployed where, what works end to end, which decisions are settled. Group by
-   capability ("SCIM, support and OAuth work"), never one sentence per ticket. When
-   something moved since yesterday, say it here in plain words.
-2. `*In progress*`: 1–3 bullets, the work being finished now and what it unblocks.
-   A `#n` only for a PR or issue someone would act on (review, merge), one per bullet.
-3. `*Blockers*`, only when there are any: what's stuck and on what. Numbers, not
-   adjectives: unowned open work against `days_left`, PRs waiting on review 2+ days,
-   changes requested, blockers from `activity`.
-4. **Closing line: the next milestone and how close it is**, with a day when there's
-   an estimate. Never "soon".
+1. **Status, 2–4 lines**, one short sentence each (≤ ~10 words): what's deployed
+   where, what works, what's settled. Cumulative, so someone who skipped every
+   earlier post gets the whole picture. Group by capability ("SCIM, support and
+   OAuth work").
+2. `In progress:`, then 1–3 lines, each the work itself in a few words ("Merge the
+   schema PR", "Mount the new auth in the auth server").
+3. **Last line: the next milestone**, one short sentence.
 
-Leave out a section that has nothing in it. The whole post stays under ~10 lines.
+A blank line between blocks, nothing else. Under ~8 lines.
 
 Shape (anonymized; the requester's own example is in work-context):
 
 ```text
-Week 2 of 4. The test env is up with seed data and the new schema is in. The big decisions are settled: OAuth clients move 1:1, passwords stay as they are so nobody resets, support keeps its current role, and SCIM sets roles from groups the same way SSO does.
+The test env is up with seed accounts.
+The member split is on main.
+Passwords and OAuth clients move over as they are.
 
-*In progress*
-• wiring the new provider into the auth server, the last piece before the first milestone
-• review fixes on the schema PR #1100: billing permissions, plain-text tokens, DB tests in CI
+In progress:
+Merge the schema PR
+Mount the new auth in the auth server
+Bulk migration of users and passwords
 
-*Blockers*
-• 24 of 31 tasks open with 12 days left and only 3 have an owner. The OAuth provider and the bulk migration haven't started
-
-First milestone (one migrated person signs in with their old password and the app loads): expecting it Thursday.
+First milestone after the schema merge and the mount.
 ```
 
 ### 4. Voice it
 
-Run the draft through `greg-voice`. Keep numbers, `#n`, backticks and the section
-labels intact.
+Run the draft through `greg-voice`. Keep the line structure intact: the voice may
+swap words, never merge lines into sentences or add detail.
 
 ### 5. Show it and wait
 
-Print the voiced draft as plain paragraphs (no fence, no popup), then one line:
+Print the voiced draft as plain lines (no fence, no popup), then one line:
 target channel from work-context, "powiedz wyślij". Greg may trim or redirect; loop
 on 3–5 until he says "wyślij".
 
 ### 6. Build the payload
 
 Write the approved text to `<scratchpad>/cycle-daily-<YYYY-MM-DD>.txt`, then escape it
-for Slack and link every `#n` (`/pull/` for PRs the snapshot knows, `/issues/`
-otherwise):
+for Slack:
 
 ```bash
-TEXT=$(jq -Rrs --slurpfile d "<scratchpad>/cycle-diff.json" --arg repo "$WORK_MAIN_REPO" '
-  ($d[0].state.prs | keys) as $prs
-  | gsub("&"; "&amp;") | gsub("<"; "&lt;") | gsub(">"; "&gt;")
-  | gsub("#(?<n>[0-9]+)"; .n as $n
-      | "<https://github.com/\($repo)/\(if any($prs[]; . == $n) then "pull" else "issues" end)/\($n)|#\($n)>")
-' "<scratchpad>/cycle-daily-<YYYY-MM-DD>.txt")
+TEXT=$(jq -Rrs 'gsub("&"; "&amp;") | gsub("<"; "&lt;") | gsub(">"; "&gt;")' \
+  "<scratchpad>/cycle-daily-<YYYY-MM-DD>.txt")
 ```
 
 ### 7. Send, then save the baseline
