@@ -66,6 +66,20 @@ searches on. **Never hand over our internal SES `Message-ID`**: it is opaque
 outside our system and useless until they already hold the message. Caught on a
 draft to a customer's admin, 2026-09-22 ("id mu przecież nic nie da").
 
+## A reader's example is the spec
+
+When the person who reads the output gives an example of the format they want
+("e.g. …"), copy it line for line: same blocks, same line length, same labels,
+same markup or lack of it. Don't carry over sections, bullets, bold, ticket
+numbers, counters or estimates from the old format, and don't "improve" it. What
+the example doesn't show stays out unless Greg asks for it.
+
+After changing a skill or command that produces that output, run it once
+draft-only on real data and put the draft next to the example before committing.
+
+Caught 2026-09-29 on `g-cycle-daily`: the rewrite kept bold, bullets, `#n`, a
+week counter and blockers; stripping them took 3 drafts.
+
 ## When `humanizer` is still the right skill
 
 `humanizer` remains a standalone tool for text that is **not** in Greg's voice —
