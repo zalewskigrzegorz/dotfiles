@@ -63,6 +63,34 @@ default *inside* the popup by marking it `(Recommended)` and putting it first.
   Print the long draft as plain paragraphs, end the turn with "powiedz wyślij",
   and offer no options at all.
 
+## Popup hygiene — what a rejected popup taught (retro over 7 sessions, 2026-09-29)
+
+About 15 popups were rejected in one week. Every one broke one of these:
+
+- **`question` is one sentence, no numbers.** Prices, counts, estimates go into
+  `description` or `preview`. A question that carries "60 Selection z Advanced
+  kosztuje 201 350 zł…" is a wall with buttons under it (fc3cd4a8).
+- **Options stand on their own.** No label like "ADR 11" or "5. worktree-dev"
+  that only makes sense from the prose above — the popup covers that prose.
+  Each `description` says what changes and why in one sentence (72ff3ae5).
+- **"Clarify" means Greg has something more important.** Do not re-ask the
+  same popup. Answer his next message; come back to the fork only if it is
+  still live. With ≥3 items that need separate decisions, explain them one by
+  one first, then ask one at a time (ba0bc1ce, 72ff3ae5).
+- **No approve/send/do-it on something he has not read.** A new idea, a plan,
+  a snippet, a reply to a reviewer: explain it in plain paragraphs, end the
+  turn, and only then offer the popup. A question that fires right after the
+  idea is premature (fe835b87).
+- **A constraint he already gave is applied, not re-asked.** "pomiń wpłatę
+  własną", "max 3k", "w razie czego pytaj" — use it, don't confirm it (fc3cd4a8).
+- **No gate on a step he already chose.** "Domykamy PR?" after he picked
+  "daj PR do review" one popup earlier is a meta-question. Do it, or end the
+  turn with a one-line status (7cd3bd57, 5a4b92b0).
+- **Commit popup after a diagnosis starts with the human line.** When the
+  session was a hunt or several small fixes, the `preview` opens with 1–2 lines
+  of what was fixed and why ("audio dopełnione ciszą do okna pyatv; CO₂ max
+  raz na 3 h"), then the commit message and `--stat` (1e73dc71).
+
 ## When NOT to popup
 
 - Factual question with one true answer ("gdzie leży ten plik") → just answer.
@@ -70,7 +98,12 @@ default *inside* the popup by marking it `(Recommended)` and putting it first.
 - Meta-questions — "czy plan gotowy", "mam kontynuować". Those are `ExitPlanMode`
   or just proceeding, not a popup.
 - One path is obviously right and the others are strawmen → take it, say in one
-  line that you did.
+  line that you did. Options that are out of scope or would touch shared
+  infrastructure for no gain are strawmen (5a4b92b0: two of three options were
+  "critical workflow, out of scope", the popup cost a round-trip and changed nothing).
+- A "co dalej?" gets a next-action line within the first few tool calls, not a
+  90-call silent run that ends in a popup.
+- Reviewers already assigned by CODEOWNERS → report them in one line, no popup.
 
 ## Forgiveness & recovery framing
 

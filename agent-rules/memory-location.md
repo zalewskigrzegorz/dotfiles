@@ -116,7 +116,11 @@ przebiegu zwykle nie wystarcza, żeby podjąć pracę.
 **Odpytaj MP (`mempalace_search`) ZAMIAST mówić, że nie masz kontekstu**, gdy:
 
 - Greg odwołuje się do wcześniejszej roboty, której nie masz w oknie — „wróćmy do",
-  „co ustaliliśmy", „kontynuuj", „jak to wtedy zrobiliśmy", „czemu tak zdecydowaliśmy".
+  „co ustaliliśmy", „kontynuuj", „jak to wtedy zrobiliśmy", „czemu tak zdecydowaliśmy",
+  a także gołe „resume", „continue", „wracamy". Przy takim prompcie najpierw
+  `mempalace_search` i `recall` (max_tokens=512) po repo i tematach z ostatnich
+  dni. `ls -lt` po `.jsonl` i `jq` po transkryptach tylko dla sesji wskazanej
+  treścią, nigdy po mtime (2026-09-28: 5 wywołań zgadywania, do której sesji wrócić).
 - Wchodzisz w zadanie w repo, w którym widać świeżą historię sesji, a `recall`
   zwrócił same fakty bez przebiegu.
 - Masz powiedzieć „nie wiem" / „nie mam kontekstu" o czymś, co Greg traktuje jak

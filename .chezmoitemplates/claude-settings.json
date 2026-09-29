@@ -271,7 +271,11 @@
     ],
     "deny": [
       "Read(**/.env)",
-      "Read(**/.env.*)",
+      "Read(**/.env.local)",
+      "Read(**/.env.*.local)",
+      "Read(**/.env.development)",
+      "Read(**/.env.staging)",
+      "Read(**/.env.production)",
       "Read(**/secrets/**)",
       "Read(**/*.pem)",
       "Read(**/*.key)",
@@ -317,6 +321,11 @@
           },
           {
             "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/pre-tool-use/scan-private-identifiers.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/pre-tool-use/scan-secrets.sh",
             "timeout": 5000
           }
@@ -329,6 +338,16 @@
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/pre-tool-use/block-dangerous-commands.sh",
             "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/pre-tool-use/block-credential-files.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/pre-tool-use/actionlint-workflows.sh",
+            "timeout": 15000
           },
           {
             "type": "command",

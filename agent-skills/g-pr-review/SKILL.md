@@ -43,7 +43,9 @@ MY_REVIEWS="$(gh api "repos/$OWNER/$REPO/pulls/$NUMBER/reviews" --jq "[.[] | sel
 
 **Guard first:**
 
-* `MINE=true` → **wrong skill.** This is your PR — answering reviewers is `g-pr-respond`'s job (and GitHub rejects self-approve). Tell the user: "This PR is yours — use `g-pr-respond` to answer reviewers." Stop unless the user explicitly overrides.
+* `MINE=true` → **wrong skill** for answering reviewers — that is `g-pr-respond`'s job (and GitHub rejects self-approve). Tell the user: "This PR is yours — use `g-pr-respond` to answer reviewers." Two overrides exist, both stated in one line before proceeding:
+  * **Own-branch analysis** ("to mój branch, ale przejrzyj i przeanalizuj zmiany"): run B1 and B1.5, analyse (B2) and **skip B3–B5 entirely** — nothing is posted, no verdict. For a large diff fan out Sonnet agents per package and say the count and model first (`subagents-on-sonnet` rule). Findings become fixes committed on the branch through `g-commit`, plus a report in `~/Code/personal/bazgroly/<repo>/analysis/`. Reviewers are answered afterwards with `g-pr-respond`.
+  * **Author away, fix on their branch** ("Kuby nie będzie, leci samolotem"): after a normal Flow B, when Greg asks to apply the review himself. Push to someone else's branch only after a popup. Seed the worktree first (`place-work-skills`, `copy-env-from-main.sh`), name any throwaway DB container with a session prefix (`<branch>-review-pg`) and remove it at the end, treat a stale `index.lock` as "check running git processes and the file's mtime first, then remove". After the fixes, offer `/loop babysit-prs` with an explicit end condition.
 * `MINE=false` → proceed, then pick the flow by whether you already reviewed:
 
 ```bash
@@ -105,6 +107,12 @@ Then one `AskUserQuestion`, `multiSelect: true`, header `Fokus`:
 Picked areas become priority targets in B2: dig into them first, follow call sites beyond the diff if needed, and make sure each picked area yields either a finding or an explicit "checked, clean" line in the B3 batch context. Free text from `Other` is treated the same way.
 
 Skip the popup only when the PR is trivial (≤ 3 files, one obvious change) — the summary still prints.
+
+**Pending reviews of mine on linked PRs.** If the body links a pitch, design or parent PR, check those for a review of mine stuck in `PENDING` (never submitted). On 2026-09-29 one sat on pitch #27110 with two comments that decided the direction of #27820, found by accident. Show it in a popup with the comments in `preview` (send / leave / delete) before the findings:
+
+```bash
+gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviews(first:20,states:PENDING){nodes{author{login} comments(first:20){nodes{path line body}}}}}}}' -F o="$OWNER" -F r="$REPO" -F n=<linked-pr>
+```
 
 ## B2. Analyze silently
 

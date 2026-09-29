@@ -71,6 +71,15 @@ gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,s
 
    The team label adds the issue to the team board on its own (status `Pending`); check with `gh issue view <n> --json projectItems` instead of adding it again.
 
+## Epic / cycle tracker with sub-issues
+
+An epic (a cycle tracker like #27854, built on 2026-09-25 from raw `gh` calls because this section did not exist) is a normal issue plus N sub-issues:
+
+1. **Body = the previous epic's body, headings untouched.** `gh issue view <last-epic> --json body` and keep every heading verbatim: a GitHub Action parses them 1:1. Only the content under them changes.
+2. **Sub-issues** each through the flow above, labels `"$WORK_TEAM_LABEL"` plus a `size:*`, then step 7's `addSubIssue` with the epic as parent. The GraphQL call needs the header `-H "GraphQL-Features: sub_issues"` on older `gh` versions.
+3. **No `--assignee` unless Greg names a person.** A "Kto" column in his table is a plan, not an assignment; six sub-issues went out assigned to him and he had to say "nie przypisuj do nich ludzi".
+4. End with the epic number and the list of sub-issue numbers on one line.
+
 ## When gh is unavailable
 
 If `gh` is missing or not authenticated (`gh auth status`), tell the user to install or log in. Do not switch to MCP unless the user asks.

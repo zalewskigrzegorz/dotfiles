@@ -40,3 +40,7 @@ Patterns written to the rules above are portable to both.
 **The lab has no `rg`.** Rule 3 is Mac-only: inside `ssh lab '…'` or
 `docker exec` on the lab, `rg` fails with `rg: command not found` (2026-09-29).
 Use `grep -E` / `grep -F` there.
+
+**`rg -E` is not ERE.** In ripgrep the regex is extended by default and `-E`
+means `--encoding`, so a pattern ported from `grep -E` dies with
+`error parsing flag -E: unknown encoding` (2026-09-27). Write `rg 'a|b'`.

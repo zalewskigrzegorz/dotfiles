@@ -38,10 +38,17 @@ If `$WORK_COMPANY` is available, `$WORK_MAIN_PROJECT` usually is too — you may
 
 ## Steps
 
-1. Run `git status`. If something is already staged, that is the commit. Otherwise stage **only the files this session touched**, by explicit path — never `git add -A` / `git add .`, other agents share the checkout. Dirty files you did not touch stay out; name them in one line. Nothing staged and nothing touched → stop and say so.
+1. Run `git status`. Stage **only the files this session touched**, by explicit path — never `git add -A` / `git add .`, other agents share the checkout. Staged files this session touched are the commit. **Staged files from someone else stay out**: the index of a shared checkout can already hold another agent's hunks (2026-09-25: `scriptc/workctl.ts` and a `work.nu` hunk were staged by a sibling session). A plain `git commit` would sweep them in. Build a temporary index with only your paths and commit with it:
+   ```bash
+   GIT_INDEX_FILE=<scratchpad>/idx git read-tree HEAD
+   GIT_INDEX_FILE=<scratchpad>/idx git add <your paths>
+   GIT_INDEX_FILE=<scratchpad>/idx git commit -m "…"
+   git reset -q            # resync the real index to the new HEAD; their staged hunks are re-staged by them
+   ```
+   Name the foreign dirty or staged files in one line. Nothing staged and nothing touched → stop and say so.
 2. Determine the mode (see above).
 3. Analyze the staged diff: `git diff --cached`.
-4. **Work mode, deslop gate (mandatory):** apply the `g-deslop` skill to the staged diff before composing the message. If the repo tracks its own `.claude/skills/deslop`, run that one instead. If the pass edits files, re-stage exactly those files and re-read `git diff --cached` — the message must describe the cleaned diff. The gate passes only by running the pass; "the diff already looks clean" is not a pass. Skipped only when the user explicitly says to skip it.
+4. **Work mode, deslop gate (mandatory):** invoke `Skill(g-deslop)` on the staged diff before composing the message. Never `deslop` — that is the team's shorter prompt in the monorepo and it won once by name collision (2026-09-25), skipping the full gate. If the pass edits files, re-stage exactly those files and re-read `git diff --cached` — the message must describe the cleaned diff. The gate passes only by running the pass; "the diff already looks clean" is not a pass. Skipped only when the user explicitly says to skip it.
 5. Build the commit message (rules below).
 6. **Work mode, branch guard:** if `git rev-parse --abbrev-ref HEAD` is `main` or `master`, create a feature branch first:
    - `git checkout -b <type>/<scope>-<short-slug>` (e.g. `feat/<scope>-short-thing`).
@@ -87,9 +94,11 @@ If the repo's commitlint or CI rejects non-ASCII characters, say so and offer th
 ## Execution
 
 ```bash
-git commit -m "<type>(<scope>): <subject> <emoji>"
+git commit -m "<type>(<scope>): <subject> <emoji>" && git push
 # or with body:
-git commit -m "<type>(<scope>): <subject> <emoji>" -m "<body>"
+git commit -m "<type>(<scope>): <subject> <emoji>" -m "<body>" && git push
 ```
+
+Commit and push are one `&&` chain, so a hook failure stops the push. **Never pipe `git commit` through `tail` or `head`**: the pipe swallows the exit code, and a push on the next line then ships whatever was already on the branch (2026-09-28: husky failed, nothing was committed, `git push` ran anyway). Check `git log -1` before reporting.
 
 Never `--no-verify`, never `--force` push, never bypass hooks. If a commit or push hook fails, surface the failure and let the user decide.

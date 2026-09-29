@@ -222,6 +222,14 @@ What changes:
   "uprzejmie informuję", "w nawiązaniu do", "pragnę zapytać", no rule of
   three, no signposting, no hedging. Short sentences, real numbers, one
   question per paragraph.
+- **Negotiating: the other side offers first.** When Greg wants to negotiate
+  (or says he can't and someone told him to), the mail names **no budget, no
+  instalment limit, no chosen variant as final, no arithmetic from our model**.
+  It asks for the documents and for what they can offer. On 2026-09-28 a draft
+  to a dealer laid out his decision, the picked variant and the sums; Greg:
+  "matko, ale żeś to napisał… niech sama zaproponuje". Hard facts he gave
+  (model, variant, buyout percent) stay in — a rewrite that dropped "85 z
+  wykupem 15%" had to be reverted.
 
 What stays Greg:
 

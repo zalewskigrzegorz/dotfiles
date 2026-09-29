@@ -1,0 +1,80 @@
+#!/bin/zsh
+# retro-backlog — sweep every pending session in retro-pending.tsv with /retro,
+# off the interactive model: one `claude -p --model sonnet` per session, PROPOSE
+# ONLY, N in parallel. Each child session's SessionEnd hook clears its own id.
+#
+#   retro-backlog            # run the batch, print a status table and the output dir
+#   retro-backlog --list     # show what is pending, run nothing
+#   retro-backlog --jobs 4   # parallelism (default 6)
+#
+# Outputs: $XDG_STATE_HOME/dotfiles/retro-backlog/<YYYY-MM-DD-HHMM>/<id>.md (+ .err)
+# The interactive session then reads them, merges, and asks one popup.
+set -u
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
+TSV="$STATE/retro-pending.tsv"
+SELF="${0:A}"
+
+worker() {
+  local date=$1 id=$2 cwd=$3 tp mode start rc
+  tp=$(find ~/.claude/projects -maxdepth 2 -name "$id.jsonl" | head -1)
+  [ -z "$tp" ] && { echo "$id NO-TRANSCRIPT" >> "$OUT/status.log"; return; }
+  [ -d "$cwd" ] || cwd=$HOME
+  if [ "$date" = "$(date +%F)" ]; then
+    mode="This session is younger than 24h, so run it as a Sweep over the transcript (not Outcome)."
+  else
+    mode="Run Outcome mode."
+  fi
+  start=$(date +%s)
+  (cd "$cwd" && claude -p --model sonnet --max-turns 60 \
+      --allowedTools "Read" "Grep" "Glob" "Bash" \
+      --disallowedTools "Write" "Edit" "NotebookEdit" "Agent" \
+      --output-format text \
+      "/retro outcome $id — PROPOSE ONLY. Transcript file: $tp (cwd of that session: $cwd). $mode Run the mechanical pre-pass on that transcript file, do the LLM enrichment, classify, and PRINT the proposals as a markdown list: for each proposal give destination, target file, a one-paragraph Why, and How-to-apply. Drop proposals whose target is a team-owned file (the work monorepo's CLAUDE.md or its tracked .claude/skills). Write nothing, edit nothing, materialize nothing, ask no questions. Skip A6 hits unless confirmed (Polish 'no' = 'well'), skip A9, skip A18 for bsk click/fill/press/select/evaluate. End with a line 'PROPOSALS: <n>'." \
+    > "$OUT/$id.md" 2> "$OUT/$id.err")
+  rc=$?
+  echo "$id exit=$rc $(( $(date +%s) - start ))s $(command rg -o 'PROPOSALS: [0-9]+' "$OUT/$id.md" 2>/dev/null | tail -1)" >> "$OUT/status.log"
+}
+
+# xargs entry point: retro-backlog --worker <date> <id> <cwd>   (OUT inherited from env)
+if [ "${1:-}" = "--worker" ]; then
+  worker "$2" "$3" "$4"
+  exit 0
+fi
+
+JOBS=6
+LIST=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --list) LIST=1 ;;
+    --jobs) shift; JOBS=$1 ;;
+    *) echo "usage: retro-backlog [--list] [--jobs N]" >&2; exit 2 ;;
+  esac
+  shift
+done
+
+[ -s "$TSV" ] || { echo "retro-backlog: nothing pending"; exit 0; }
+if [ "$LIST" = 1 ]; then
+  awk -F'\t' '{printf "%s  %s  %-28s %s\n", $1, $2, $3, $4}' "$TSV"
+  exit 0
+fi
+
+export OUT="$STATE/retro-backlog/$(date +%F-%H%M)"
+mkdir -p "$OUT"
+: > "$OUT/status.log"
+awk -F'\t' '{print $1"\t"$2"\t"$4}' "$TSV" > "$OUT/queue.tsv"
+n=$(wc -l < "$OUT/queue.tsv" | tr -d ' ')
+echo "retro-backlog: $n session(s), sonnet, $JOBS parallel → $OUT"
+xargs -P "$JOBS" -L 1 "$SELF" --worker < "$OUT/queue.tsv"
+echo "ALL DONE $(date +%T)" >> "$OUT/status.log"
+
+# stubs: re-run anything under 1 KB once
+while IFS=$'\t' read -r date id cwd; do
+  f="$OUT/$id.md"
+  if [ -f "$f" ] && [ "$(wc -c < "$f")" -lt 1024 ]; then
+    echo "$id STUB ($(wc -c < "$f") bytes) → re-running" >> "$OUT/status.log"
+    worker "$date" "$id" "$cwd"
+  fi
+done < "$OUT/queue.tsv"
+
+cat "$OUT/status.log"
+echo "outputs: $OUT"

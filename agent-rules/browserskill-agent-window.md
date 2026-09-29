@@ -48,6 +48,17 @@ Slack — are one command away. Treat it accordingly.
 Rule of thumb: **needs Greg's eyes, his login, or gets bot-blocked → `bsk`;
 otherwise → `agent-browser`.**
 
+**Minting a token or API key on a site behind his login is a `bsk` job, not a
+step list.** On 2026-09-28 Greg got the Docker Hub PAT instructions twice and
+answered "to co mam zrobić? ogarnij przez bsk". The flow that worked: `bsk`
+to the token page, `request-help` for the login, a click to generate,
+`request-help` for Greg to copy the token, `session stop`. The token then goes
+from the clipboard straight into the consumer (`pbpaste | docker login
+--password-stdin`, or `op item create`), never echoed, never in a file, and
+`pbcopy < /dev/null` clears the clipboard afterwards. Offer to store it in
+1Password and say plainly if the consumer keeps it in plaintext
+(`~/.docker/config.json` without a credential helper does).
+
 **`claude-in-chrome` is retired (2026-08-23).** It kept hanging, and `bsk` +
 `agent-browser` cover everything it did. `mcp__claude-in-chrome__*` is in
 `permissions.deny`. If those tools still show up in a session's registry, the

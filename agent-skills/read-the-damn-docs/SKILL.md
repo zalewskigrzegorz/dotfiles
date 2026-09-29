@@ -6,7 +6,11 @@ description: >-
   services, SDKs, fast-moving product behavior, requests for latest/current/
   official behavior, unfamiliar repo docs/specs, errors that may indicate API
   drift, or high-stakes auth, security, billing, data, migration, deployment,
-  compliance, or privacy behavior. Forces a web-search for current official
+  compliance, or privacy behavior. Also GitHub Actions workflow syntax: `on:`
+  trigger events, activity types, `permissions:`, token scopes — confirm an
+  event exists on the events-that-trigger-workflows page before writing it
+  (`projects_v2_item` from memory cost three failing runs, 2026-09-25).
+  Forces a web-search for current official
   docs and reading primary docs before assuming from memory. Ported from
   BuilderIO/skills → skills/read-the-damn-docs (standalone rewrite).
 ---

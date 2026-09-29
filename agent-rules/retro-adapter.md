@@ -14,7 +14,7 @@ skill's default destinations.
 | retro destination | retro default | Here |
 |---|---|---|
 | `personal-rule` | append to `~/.claude/CLAUDE.md` | new or extended file in `~/Code/dotfiles/agent-rules/<slug>.md` with `alwaysApply: true` frontmatter |
-| `project-rule` | append to `<project>/AGENTS.md` | the rules file the repo **already** uses — `CLAUDE.md` in Greg's repos (dotfiles, home-lab). Create `AGENTS.md` only if neither exists. In the work monorepo propose only; that file belongs to the team |
+| `project-rule` | append to `<project>/AGENTS.md` | the rules file the repo **already** uses — `CLAUDE.md` in Greg's repos (dotfiles, home-lab). Create `AGENTS.md` only if neither exists. **Team-owned targets are dropped at classification**: the work monorepo's `CLAUDE.md` and its tracked `.claude/skills/*` (create-changeset, lde-dev, worktree-dev, troubleshoot-labs, shape-pitch, …) never become a proposal or a popup option. Greg (2026-09-23): "zmiany z retro tylko w dotfiles, nic do monorepo". A real learning that only fits a team file gets one line "not materialized (team-owned)" in the report |
 | `skill-update` | PR to the skill's source repo | edit `~/Code/dotfiles/agent-skills/<name>/` in the working tree. For a plugin skill (superpowers, skill-creator, …) the upstream PR path applies, after confirming |
 | `new-skill` | scaffold a new repo | new dir `~/Code/dotfiles/agent-skills/<name>/SKILL.md`; no repo, no marketplace listing |
 | `checkpoint` | `checkpoints.yaml` in the skill | same file, but inside `agent-skills/<name>/` |
@@ -67,15 +67,25 @@ Verified on three dotfiles sessions (2026-09-18):
 - **A10 (skill mentioned, not invoked)** is the signal that maps to "a skill
   didn't fire" — always surface it.
 
-## The nudge
+## The nudge and `/retro-backlog`
 
 Nothing runs `/retro` automatically. `dot_claude/hooks/retro-pending.sh` records
-non-trivial sessions on SessionEnd (≥6 prompts or ≥40 tool calls) and the next
-SessionStart in the same repo prints up to three `/retro outcome <id>` lines
-into context. When you see that block, mention it in one line and let Greg
-decide. A session that ran `/retro` clears every pending id it named after
-`outcome` or touched in a tool call (reading `<id>.jsonl` counts), so a sweep
-over a pending transcript clears it too.
+non-trivial sessions on SessionEnd (≥6 prompts or ≥40 tool calls) in
+`~/.local/state/dotfiles/retro-pending.tsv`, across every repo. SessionStart
+prints **one line** with the total ("retro-pending: N session(s) in M repos
+never got a /retro — `/retro-backlog` sweeps them all"). Mention it in one line
+and let Greg decide; never list ids per repo — he asked for one sweep, not a
+nudge in every session (2026-09-29). A session that ran `/retro` clears every
+pending id it named after `outcome` or touched in a tool call (reading
+`<id>.jsonl` counts), so a sweep over a pending transcript clears it too.
+
+`/retro-backlog` (`dot_claude/exact_commands/retro-backlog.md` → `bin/retro-backlog`)
+is the bulk path: one `claude -p --model sonnet` per pending session, 6 in
+parallel, PROPOSE ONLY, outputs under `~/.local/state/dotfiles/retro-backlog/<date>/`.
+Each child session's SessionEnd clears its own id. Verified 2026-09-29 on 29
+sessions: ~40–100 s each, ~15 min wall clock, the tsv was empty afterwards.
+Then the interactive session (Fable) reads the outputs, merges duplicates
+into clusters, writes the report to bazgroly and asks **one** popup with tiers.
 
 ## Which mode, when
 
@@ -87,11 +97,14 @@ over a pending transcript clears it too.
   look at); the nudge prints `outcome` only because that is the shape the
   hook clears. Locate the transcript by an exact phrase Greg typed in it
   (`grep -qF`), never by mtime.
-- **Backlog in bulk, off Fable:**
-  `claude -p --model sonnet "/retro outcome <id> — PROPOSE ONLY: print the
-  proposals, write nothing"` — ~5 min per session, output to the scratchpad,
-  Greg picks from a popup afterwards. Same reason as the subagent rule: Sonnet
-  does the transcript pass, Fable decides.
+- **Backlog in bulk, off Fable → `/retro-backlog`.** It runs
+  `claude -p --model sonnet --max-turns 60 --disallowedTools Write Edit
+  "/retro outcome <id> — PROPOSE ONLY. Transcript file: <path>. … ask no
+  questions. End with 'PROPOSALS: <n>'"` per session. Same reason as the
+  subagent rule: Sonnet does the transcript pass, Fable decides. After the
+  batch, check every output with `wc -c`: a file under ~1 KB is a stub (seen
+  2026-09-23, 254 bytes with an empty `.err`) → re-run that id before
+  summarizing. A session younger than 24h gets "run as Sweep" in its prompt.
 - **Slash commands render as `<command-name>/retro:retro</command-name>` +
   `<command-args>…</command-args>` in transcripts**, not as the typed text —
   anything grepping a transcript for a command must match that shape.

@@ -54,16 +54,26 @@ fall back.
 A worktree made either way is one of Greg's, not a Claude-managed one, so rule 4
 covers it: leave it in place when the task ends unless he asks otherwise.
 
-## A worktree `work` did not seed is missing two things
+## A worktree `work` did not seed is missing three things
 
 `work` seeds every worktree it opens: `place-work-skills <path>` copies the
 work-scoped skills (`g-pr`, `g-pr-review`, `g-github-issue`, …) into
-`<path>/.claude/skills/`, and `work _seed-untracked` clones the gitignored
-`.env*` files and `node_modules` from the parent checkout. A worktree made with
-plain git — or a bare one Greg opened without seeding — has neither. On
+`<path>/.claude/skills/`, and the seed step clones the gitignored `.env*`
+files, `node_modules` and `.husky/_` from the parent checkout. A worktree made
+with plain git — or a bare one Greg opened without seeding — has none. On
 2026-09-23 that meant `/g-pr` was not in the picker (the team's `pr` skill ran
 instead and Greg had to stop it) and `pnpm start` died on a missing
-`local/.env`.
+`local/.env`. On 2026-09-25 and 09-28 a missing `.husky/_` made every commit
+fail on `.husky/_/husky.sh: No such file or directory`; earlier commits on the
+branch had skipped lint-staged, which surfaced later as a red `oxfmt --check`
+in CI. The fix is `pnpm install` in the worktree (~40 s, no `./install.sh`),
+never `--no-verify`.
+
+**Check the worktree at the start of the session, not when a skill misfires.**
+In any `~/Code/tree/wt-*` path: `.claude/skills/g-pr` missing → run
+`place-work-skills <worktree>` before any PR skill. Skills placed while a
+session is already running may not show up in the picker; if `/g-pr*` still
+says "Unknown command", `/exit` and `claude --continue`.
 
 So in any work repo (`~/Code/<Org>/*` or a remote in the work org), when `g-pr`
 is missing from the skill list or a `.env` the task needs is missing, seed the

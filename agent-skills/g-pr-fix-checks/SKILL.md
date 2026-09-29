@@ -68,6 +68,16 @@ Keep the prompt terse. Do not lecture, do not list clean PRs, do not dump raw TS
 
 ### 3. For each selected PR, run the update
 
+**Only the Project preview (intranet / docs build) is red, everything else green?** Check how far behind the base the branch is before restarting builds or reading logs:
+
+```bash
+git fetch -q origin && git rev-list --count HEAD..origin/<base>
+```
+
+More than ~50 commits → the preview fails on a stale dependency (`realm-plus` 625 commits old, 2026-09-28), and the rebase below fixes it. A restart, a redeploy and a `bsk` trip through the build log cost ~40 turns before that count was checked.
+
+To wait for the rerun without a `sleep`/`gh run list` loop: `gh-run-wait <workflow> --sha HEAD` (in `bin/`) blocks until the run for that SHA finishes and prints one line plus the failed step's log tail.
+
 For each chosen PR number:
 
 ```bash

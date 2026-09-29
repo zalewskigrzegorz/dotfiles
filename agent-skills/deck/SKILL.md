@@ -150,6 +150,23 @@ Write it as a separate `deck-artifact.html` so the served copy keeps its remote.
 
 If the talk shows off hosted plans or recaps, export them to static HTML first (`mcp__plan__export-visual-plan` → the `html` field) and serve them from the deck's own directory. Greg asked for this so the demo showed no third-party service. A small `recaps/index.html` of cards makes a credible local dashboard.
 
+## Shared page, not a talk (`deck push` as a living document)
+
+Greg also uses `deck push` for pages someone else keeps open — `budzet-2027`,
+`elroq-leasing-podatki`, read by Estera while the numbers are still moving
+(14 pushes in one session, 2026-09-25). Two things he had to ask for twice:
+
+- **Every change to the model ends with a `deck push` of the same slug.** A table
+  recomputed in chat and not pushed is invisible to her ("wyślij to na deck, żeby
+  było aktualne, bo Estera już patrzy").
+- **Every table shown in chat as a key result lands on the page too** (net income
+  at a weak and a strong dollar, instalment comparison). "Ta tabelka jest istotna,
+  powinna być na tym decku."
+- Finish with the URL and the push time in one line, so he can tell her "odśwież".
+
+No teleprompter, no `## Slajd N` contract for these; a single-page HTML with the
+same palette is enough.
+
 ## Gotchas that already cost time
 
 - **Never add a `prefers-reduced-motion` blanket rule.** Greg has macOS Reduce Motion **on**, so `*{animation:none !important}` silently kills every animation and the deck looks static. The template has no such rule; `body.calm` on the `C` key is the opt-out instead.

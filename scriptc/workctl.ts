@@ -1164,7 +1164,8 @@ function seedClone(parent: string, wt: string): number {
   for (const raw of lines(r.out)) {
     const rel = trimSlash(raw);
     const base = basename(rel);
-    if (base !== "node_modules" && base !== ".env" && !base.startsWith(".env.")) continue;
+    const huskyState = base === "_" && basename(dirname(rel)) === ".husky";
+    if (base !== "node_modules" && base !== ".env" && !base.startsWith(".env.") && !huskyState) continue;
     const src = join(parent, rel);
     const dst = join(wt, rel);
     if (!existsSync(src) || existsSync(dst)) continue;
