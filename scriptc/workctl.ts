@@ -1142,6 +1142,19 @@ function worktreePathFor(repoName: string, branch: string): string {
   return join(TREE_ROOT, `wt-${repoName}`, branch);
 }
 
+// A branch stacked on another one seeds from the base's worktree when there is
+// one: the base's lockfile, not the default branch's, decides node_modules.
+function seedSource(st: St): string {
+  const base = st.baseRef.startsWith("origin/") ? st.baseRef.slice("origin/".length) : st.baseRef;
+  if (base === "" || base === st.defaultBranch) return st.root;
+  let path = "";
+  for (const l of lines(git(st.root, ["worktree", "list", "--porcelain"]).out)) {
+    if (l.startsWith("worktree ")) path = l.slice("worktree ".length);
+    else if (l === `branch refs/heads/${base}` && path !== "") return path;
+  }
+  return st.root;
+}
+
 // .env + node_modules from the parent checkout via APFS clonefile (`cp -c`):
 // instant, no extra disk, keeps pnpm's symlink farm. Linux has no -c → retry.
 function seedClone(parent: string, wt: string): number {
@@ -1749,7 +1762,7 @@ function doWorktree(st: St, seed: string, ctx: Ctx): number {
   }
   const wt = ensureWorktree(st, ctx.focus);
   if (wt.created && seed === "clone") {
-    const n = seedClone(st.root, wt.path);
+    const n = seedClone(seedSource(st), wt.path);
     if (n > 0) err(`🌱 seeded ${n} untracked path(s) (env + node_modules)`);
   }
   applyLayout(wt.ws, wt.path);
@@ -2287,6 +2300,26 @@ function headless(repo: string, num: number, act: string, o: Opts): void {
   if (d.failures > 0) die(`workctl: ${d.failures} action(s) failed`);
 }
 
+// `--branch X --action wt-*` without a PR: open its worktree, check out the
+// existing branch, or create it from `base` (default origin/<default>). A branch
+// that turns out to have a PR goes through the PR path.
+function branchHeadless(rs: RepoState, name: string, base: string, act: string, o: Opts): void {
+  const reg = registry();
+  const t = directTarget(rs, name) ?? { kind: "new", branch: name, path: "", prNum: 0, base, root: "" };
+  if (t.prNum > 0 && rs.ghRepo !== "") {
+    headless(rs.ghRepo, t.prNum, act, o);
+    return;
+  }
+  const wtIds = reg.filter((r) => r.group === "worktree").map((r) => r.id);
+  if (!wtIds.includes(act)) die(`--action ${act} needs a PR; a branch without one takes ${wtIds.join(", ")}`);
+  if (base !== "" && t.kind !== "new") err(`${name} already exists — ignoring --base ${base}`);
+  const st = branchSt(rs, t);
+  const d = dispatch(st, [act], reg, ctxFor(st, o));
+  if (o.json) out(stateJson(st, d.results));
+  if (o.pause) hold();
+  if (d.failures > 0) die(`workctl: ${d.failures} action(s) failed`);
+}
+
 // ── stage 1 ─────────────────────────────────────────────────────────────────
 
 function selfPath(): string {
@@ -2355,7 +2388,7 @@ function directTarget(rs: RepoState, q: string): Target | null {
 // ── main ────────────────────────────────────────────────────────────────────
 
 function usage(): void {
-  out("workctl [target] [--repo owner/name] [--pr N] [--branch NAME] [--all]");
+  out("workctl [target] [--repo owner/name] [--pr N] [--branch NAME [--base REF]] [--all]");
   out("        [--action ID [--drop a,b]] [--yes] [--dry-run] [--json] [--pause] [--no-focus]");
   out("workctl rm [branch] [--self] [--force] [--keep-branch]");
   out("workctl prune [--dry-run]");
@@ -2402,6 +2435,7 @@ function main(): void {
   let all = false;
   let action = "";
   let repoPath = "";
+  let base = "";
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i] ?? "";
     const next = (): string => {
@@ -2411,6 +2445,7 @@ function main(): void {
     if (a === "--repo") repo = next();
     else if (a === "--pr") pr = Number(next());
     else if (a === "--branch") query = next();
+    else if (a === "--base") base = next();
     else if (a === "--repo-path") repoPath = next();
     else if (a === "--action") action = next();
     else if (a === "--drop") o.drop = next();
@@ -2450,7 +2485,11 @@ function main(): void {
     // --action against the cwd branch's PR, or a named target
     const t = query === "" ? prByHead(rs, rs.currentBranch) : undefined;
     const num = t !== undefined ? t.num : query !== "" && /^#?\d+$/.test(query) ? Number(query.startsWith("#") ? query.slice(1) : query) : 0;
-    if (num === 0 || rs.ghRepo === "") die("--action needs a PR: pass --pr N (or sit on a branch that has one)");
+    if (num === 0 && query !== "") {
+      branchHeadless(rs, query, base, action, o);
+      return;
+    }
+    if (num === 0 || rs.ghRepo === "") die("--action needs a PR: pass --pr N, --branch NAME for a worktree action, or sit on a branch that has one");
     headless(rs.ghRepo, num, action, o);
     return;
   }

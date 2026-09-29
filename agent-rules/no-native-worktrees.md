@@ -18,8 +18,8 @@ clutter to him and must not be produced.
 2. **Never call `EnterWorktree`** or otherwise spin up a Claude-managed worktree.
    Dynamic workflows are already disabled globally (`disableWorkflows: true` in
    settings) — do not try to route around that.
-3. **If a task genuinely needs an isolated checkout, use `work new <branch>`**
-   (his tooling), or ask him — do not reach for native worktree isolation.
+3. **If a task genuinely needs an isolated checkout, use `workctl`** (his
+   tooling, below), or ask him — do not reach for native worktree isolation.
 4. This is about *Claude-created* worktrees only. Greg's own `work`/herdr
    worktrees, and reading/searching inside them, are entirely fine.
 
@@ -30,19 +30,28 @@ runs zsh and reports `command not found: work`; the nushell MCP fails the same
 way (`Command \`work\` not found`). Don't retry it and don't ask Greg to install
 anything — his own shell has it, yours doesn't.
 
-When a task needs a worktree and `work` is unreachable, create it with plain git
-**in his layout**, which is `~/Code/tree/wt-<repo>/<branch>`:
+`work new` is a thin wrapper over **`workctl`**, and `workctl` is a binary on
+`PATH`. Call it directly, from inside the repo:
 
 ```bash
-git worktree add -b <branch> ~/Code/tree/wt-<repo>/<branch> origin/main
+workctl --branch <branch> [--base origin/<ref>] --action wt-full --yes --no-focus
 ```
 
-Read the exact layout off `git worktree list` in the repo first rather than
-assuming it — that command shows where his existing worktrees live. Branch from
-`origin/main`, never from the current HEAD, and say in one line that you used
-git directly because `work` was not reachable.
+That is the same path `work new` takes: the worktree in his layout
+(`~/Code/tree/wt-<repo>/<branch>`), a herdr workspace with the `nu` and `claude`
+tabs, `node_modules` and `.env*` cloned (from the base's worktree for a stacked
+branch), and the work skills placed. It works for a new branch, an existing
+branch and an existing worktree, with or without a PR. `--base` defaults to
+`origin/<default>`; pass it for a stacked branch.
 
-A worktree made this way is one of Greg's, not a Claude-managed one, so rule 4
+Plain `git worktree add -b <branch> ~/Code/tree/wt-<repo>/<branch> origin/main`
+is the fallback only where herdr is missing (the lab). It leaves a bare checkout
+with no workspace, no agent tab and no `node_modules`. On 2026-09-29 a worktree
+made that way had to be reopened by hand through `herdr worktree open`, the
+layout and the seed, and Greg asked for the herdr path. Say in one line when you
+fall back.
+
+A worktree made either way is one of Greg's, not a Claude-managed one, so rule 4
 covers it: leave it in place when the task ends unless he asks otherwise.
 
 ## A worktree `work` did not seed is missing two things

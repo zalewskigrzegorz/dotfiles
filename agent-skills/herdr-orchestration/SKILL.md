@@ -24,33 +24,38 @@ herdr agent wait <ws>:p<N> --until blocked --until done --timeout 1500000
 ```
 
 `herdr agent list` returns `{"result":{"agents":[…]}}`, not a bare array. `--model sonnet` after `--`
-is how the Fable-session rule ("subagents run on Sonnet") is honoured here, since `work new` starts
+is how the Fable-session rule ("subagents run on Sonnet") is honoured here, since `wt-full` starts
 `claude` with the default model. Tell the brief to write its report to bazgroly, not into the repo,
 and to touch no branch.
 
-## Create worktrees with `work new`, never raw `herdr worktree create`
+## Create worktrees with `workctl`, never raw `herdr worktree create` or plain git
 
-**2026-09-21: `work new` is now a thin wrapper over `workctl`** (`def --wrapped "work new" [...rest] { ^workctl ...$rest }`),
-so the `--from` / `--type` / `--no-seed` flags below no longer exist and `work new <branch> --from origin/main`
-fails with `unknown flag --from`. `workctl [target] --action wt-full|wt-light|wt-bootstrap --yes --no-focus`
-is the current surface (`workctl --help`). Until this section is rewritten against workctl, check
-`workctl --help` before scripting a worktree, or use the tab-in-place pattern above when no branch is needed.
-
-`work` is Greg's nushell wrapper (`dot_config/nushell/autoload/work.nu`). It calls `herdr worktree create` and then does three things the raw call skips:
-
-- **applies the pane layout** — renames the bare shell tab, opens a dedicated `claude` tab and runs `claude` in it,
-- **seeds untracked state** — APFS-clones (`cp -c`, instant) `node_modules` and every `.env` from the parent checkout,
-- runs a deps preflight.
-
-Skip it and you get a bare pane with no agent, no `node_modules` and no env files — then you waste minutes on `pnpm install` and env-copy scripts that `work` would have cloned for free.
-
-`work` is nu-only and not on PATH from the Bash tool, so source it explicitly and run from inside the repo (`$WORK_PROJECT_DIR` is the work monorepo; for any other repo `cd` there instead):
+`work new` is a thin wrapper over `workctl` (`def --wrapped "work new" [...rest] { ^workctl ...$rest }`),
+and `workctl` is a binary on `PATH`, so the Bash tool calls it directly from inside the repo
+(`$WORK_PROJECT_DIR` is the work monorepo; for any other repo `cd` there instead):
 
 ```bash
-cd "$WORK_PROJECT_DIR" && nu -c 'source /Users/greg/Code/dotfiles/dot_config/nushell/autoload/work.nu; work new <branch> --from origin/main'
+cd "$WORK_PROJECT_DIR" && workctl --branch <branch> [--base origin/<ref>] --action wt-full --yes --no-focus
 ```
 
-Flags: `--from <ref>` (base, NOT `--base`), `--type <t>` (conventional prefix), `--no-prefix`, `--no-focus`, `--no-seed`. Removal: `work rm <branch> [--force] [--keep-branch]`. Everything after creation (start/prompt/read/wait) uses `herdr` subcommands directly.
+- **A new branch** is created from `--base` (default `origin/<default>`). A stacked branch passes its base.
+- **An existing branch or worktree** is checked out or reopened; `--base` is ignored with a warning.
+- **A branch with a PR** goes through the PR path, the same as `workctl --pr <n> --action …`.
+- A branch without a PR takes only the worktree actions (`wt-full`, `wt-light`, `wt-bootstrap`, `rm`);
+  anything else dies with `--action <id> needs a PR`.
+
+`wt-full` does what the raw calls skip:
+
+- **applies the pane layout** — renames the bare shell tab, opens a dedicated `claude` tab and runs `claude` in it,
+- **seeds untracked state** — APFS-clones (`cp -c`, instant) `node_modules` and every `.env`, from the base's worktree
+  when the base is a branch that has one (its lockfile decides `node_modules`), otherwise from the main checkout,
+- places the work skills and the MCP defaults.
+
+Skip it and you get a bare pane with no agent, no `node_modules` and no env files — then you waste minutes on
+`pnpm install` and env-copy scripts. On 2026-09-29 a worktree made with plain `git worktree add` had to be rebuilt by
+hand (`herdr worktree open`, the layout, the seed) after Greg asked for this path. `--dry-run` prints what would run.
+Removal: `workctl rm <branch> [--force] [--keep-branch]`. Everything after creation (start/prompt/read/wait) uses
+`herdr` subcommands directly.
 
 ## Quick reference — these exact commands, nothing else
 
@@ -59,39 +64,41 @@ Flags: `--from <ref>` (base, NOT `--base`), `--type <t>` (conventional prefix), 
 | List all agents + statuses | `herdr agent list` |
 | One agent's state | `herdr agent get <name\|pane_id>` |
 | Read agent scrollback (**raw text, not JSON**) | `herdr agent read <target> \| tail -20` |
-| Create worktree + workspace | `work new` — see above |
+| Create worktree + workspace | `workctl --branch <b> [--base <ref>] --action wt-full --yes --no-focus` — see above |
 | Start agent in a pane | `herdr agent start <name> --kind claude --pane <pane_id>` |
 | Send a task brief | `herdr agent prompt <target> "<text>"` |
 | Press keys (e.g. submit) | `herdr agent send-keys <target> Enter` |
 | Block until state | `herdr agent wait <target> --until blocked --until done --timeout <ms>` |
-| Remove worktree workspace | `work rm <branch>`, or `herdr worktree remove --workspace <id> [--force]` |
+| Remove worktree workspace | `workctl rm <branch>`, or `herdr worktree remove --workspace <id> [--force]` |
 
-Checkout lands in `~/.herdr/worktrees/<repo>/<branch-slug>`. If you do fall back to raw `herdr worktree create`, capture `workspace_id` and `root_pane.pane_id` from its JSON — but expect both to shift once the layout is applied (mine 2).
+Checkout lands in `~/Code/tree/wt-<repo>/<branch>`. If you do fall back to raw `herdr worktree create`, capture `workspace_id` and `root_pane.pane_id` from its JSON — but expect both to shift once the layout is applied (mine 2).
 
 ## The four mines
 
 1. **`agent prompt` pastes but does NOT submit.** A multi-line brief lands in the input box as `[Pasted text #1 +45 lines]` and just sits there. ALWAYS follow up: `herdr agent read <target> | tail -20` — if the text is still in the input box, `herdr agent send-keys <target> Enter`, then read again and confirm the agent is actually working. This fires nearly every time, not occasionally.
-2. **Applying the layout renumbers everything and drops agent names.** After `work new`'s layout step (or any tab/pane change), the agent is on a different `pane_id` and a different `tab_id` than `worktree create` reported — e.g. `w10:p1` becomes `w10:p3` on `w10:t2` — and a name you registered with `agent start` no longer resolves. Re-run `herdr agent list` and target by `pane_id` after any layout change.
-3. **`idle` is ambiguous** — it means "not typing": could be finished, could be waiting for a permission prompt. `blocked` sorts first in Greg's sidebar and is the real "needs input" signal. For "did it actually do the work", the terminal is NOT the source of truth — check the worktree: `git -C ~/.herdr/worktrees/<repo>/<slug> log --oneline origin/<base>..HEAD` and `gh pr list --head <branch>`.
+2. **Applying the layout renumbers everything and drops agent names.** After `wt-full`'s layout step (or any tab/pane change), the agent is on a different `pane_id` and a different `tab_id` than `worktree create` reported — e.g. `w10:p1` becomes `w10:p3` on `w10:t2` — and a name you registered with `agent start` no longer resolves. Re-run `herdr agent list` and target by `pane_id` after any layout change.
+3. **`idle` is ambiguous** — it means "not typing": could be finished, could be waiting for a permission prompt. `blocked` sorts first in Greg's sidebar and is the real "needs input" signal. For "did it actually do the work", the terminal is NOT the source of truth — check the worktree: `git -C ~/Code/tree/wt-<repo>/<branch> log --oneline origin/<base>..HEAD` and `gh pr list --head <branch>`.
 4. **The parent session's permission mode does NOT propagate.** Yolo mode is session-scoped: a spawned agent does NOT inherit it regardless of how permissive your own session is. A spawned agent starts in the global `defaultMode` from `~/.claude/settings.json` — currently `acceptEdits`, so it auto-accepts file edits but still prompts (and surfaces as `blocked`) on Bash commands and MCP writes that aren't allow-listed. So it can edit unattended but will stall on the first non-allow-listed shell command; don't brief it as if it could run shell steps unattended, and don't read that first Bash stall as a failure.
 
 ## Lifecycle pattern
 
 ```bash
-cd "$WORK_PROJECT_DIR" && nu -c 'source /Users/greg/Code/dotfiles/dot_config/nushell/autoload/work.nu; work new feat/demo --from origin/main'
+cd "$WORK_PROJECT_DIR" && workctl --branch feat/demo --action wt-full --yes --no-focus
 herdr agent list                           # find the claude pane in the new workspace (mine 2)
-herdr agent prompt w12:p3 "<brief>"        # if work already ran claude, skip `agent start`
+herdr agent prompt w12:p3 "<brief>"        # wt-full already ran claude, skip `agent start`
 herdr agent read w12:p3 | tail -20         # verify submitted; else send-keys Enter (mine 1)
 herdr agent send-keys w12:p3 Enter
 herdr agent wait w12:p3 --until blocked --until done --timeout 1800000
 herdr agent read w12:p3 | tail -30         # what does it need / what did it produce
 # audit: git log + gh pr in the worktree (see mine 3)
-nu -c 'source /Users/greg/Code/dotfiles/dot_config/nushell/autoload/work.nu; work rm feat/demo'   # only after merge
+workctl rm feat/demo                       # only after merge
 ```
 
 ## Writing the brief
 
 The brief is the child's ONLY context. Include: the task + its issue/PR number; the **base branch** (stacked-PR repos: naming the wrong base creates a PR against main — the worktree-dev skill's #1 landmine, tell the agent to use it for bootstrap); pattern files to imitate; where the PR should point (`base <branch>`, `Fixes #<n>`); which branches/worktrees other agents own and must be left alone; and "present a plan before coding" if Greg should gate it.
+
+**A base that is an open PR will merge under the agent.** When the branch is stacked on someone else's open PR, say what to do when that PR merges: rebase onto the PR's own base (`git rebase --onto origin/<pr-base> origin/<old-base>`) and retarget its PR there. On 2026-09-29 the schema PR under ▸13 merged about 2 hours after the brief, and the brief still named it as the base.
 
 ## Stacked PRs: one worktree per stack, not per branch
 
