@@ -105,6 +105,12 @@ Two limits on those reads, both hit on 2026-09-20:
   message with no replies returns only the parent; read the DM as a channel
   (`channel_id` = the `D…` id) to see the surrounding conversation.
 
+When a read fails with `permission_error` ("Connector access could not be
+verified"), the connector needs a new sign-in. Tell Greg to run `/mcp` and
+reconnect Slack, or to paste the message. Don't try `$WORK_SLACK_POSTER_TOKEN`
+instead: it has `chat:write` only, so `conversations.history` answers
+`missing_scope` (2026-09-29). Don't guess the content in a popup either.
+
 ### 3. Draft the reply
 
 Write what Greg would say — point first, just the meat.
