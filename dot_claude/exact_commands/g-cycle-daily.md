@@ -119,6 +119,14 @@ Print the voiced draft as plain lines (no fence, no popup), then one line:
 target channel from work-context, "powiedz wyślij". Greg may trim or redirect; loop
 on 3–5 until he says "wyślij".
 
+**Re-check state before the final draft and before the send.** The delta is a
+snapshot, and the iterations take a while: on 2026-09-29 the diff ran at 12:57, the
+schema PR merged at 13:11, and the draft still said "Merge the schema PR" until
+Greg caught it. Before showing a revised draft and again right before step 6, check
+every PR and issue the draft relies on (`gh pr view <n> --json state,mergedAt`,
+`gh issue view <n> --json state`). When the diff is older than 15 minutes, rerun
+`cycle-daily diff` instead.
+
 ### 6. Build the payload
 
 Write the approved text to `<scratchpad>/cycle-daily-<YYYY-MM-DD>.txt`, then escape it
