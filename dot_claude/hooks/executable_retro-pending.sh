@@ -80,12 +80,14 @@ case "${1:-}" in
     ;;
   start)
     prune
-    # Newest first = reverse append order.
-    rows="$(awk -F'\t' -v c="$cwd" -v s="$sid" '$4 == c && $2 != s' "$FILE" | awk '{ a[NR] = $0 } END { for (i = NR; i > 0; i--) print a[i] }')"
+    # One cross-repo line. Greg asked for a single sweep, not a nudge per repo
+    # (2026-09-29): `/retro-backlog` runs every pending id in one batch.
+    rows="$(awk -F'\t' -v s="$sid" '$2 != s' "$FILE")"
     [[ -n "$rows" ]] || exit 0
     total="$(printf '%s\n' "$rows" | wc -l | tr -d ' ')"
-    echo "retro-pending: $total non-trivial session(s) in this repo never got a /retro. Newest first:"
-    printf '%s\n' "$rows" | head -n "$SHOW" | awk -F'\t' '{ printf "  /retro outcome %s   (%s, %s)\n", $2, $3, $1 }'
+    repos="$(printf '%s\n' "$rows" | awk -F'\t' '{ print $4 }' | sort -u | wc -l | tr -d ' ')"
+    here="$(printf '%s\n' "$rows" | awk -F'\t' -v c="$cwd" '$4 == c' | wc -l | tr -d ' ')"
+    echo "retro-pending: $total session(s) in $repos repo(s) never got a /retro ($here in this repo). \`/retro-backlog\` sweeps them all in one batch (Sonnet, ~1.5 min per session wall clock / 6)."
     ;;
   *)
     echo "usage: retro-pending.sh end|start  (hook JSON on stdin)" >&2

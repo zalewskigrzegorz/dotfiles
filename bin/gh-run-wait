@@ -1,0 +1,43 @@
+#!/bin/zsh
+# gh-run-wait <workflow> [--sha <sha>] [--timeout <s>] [-R owner/repo]
+#
+# Wait for the GitHub Actions run of <workflow> (name or file) on a given commit
+# and watch it to the end. Prints ONE line: `success <url>` or `failure <url>`,
+# and on failure the failed steps' log tail. Replaces the hand-rolled
+# `sleep; gh run list` loops that raced the push and read the previous run
+# (19× list, 14× watch, 17× sleep in one session, 2026-09-25).
+set -u
+WF=""; SHA=""; TIMEOUT=1800; REPO=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --sha) shift; SHA=$1 ;;
+    --timeout) shift; TIMEOUT=$1 ;;
+    -R) shift; REPO=(-R "$1") ;;
+    -*) echo "usage: gh-run-wait <workflow> [--sha <sha>] [--timeout <s>] [-R owner/repo]" >&2; exit 2 ;;
+    *) WF=$1 ;;
+  esac
+  shift
+done
+[ -n "$WF" ] || { echo "usage: gh-run-wait <workflow> [--sha <sha>] [--timeout <s>] [-R owner/repo]" >&2; exit 2; }
+[ -n "$SHA" ] || SHA=$(git rev-parse HEAD)
+SHA=$(git rev-parse "$SHA" 2>/dev/null || echo "$SHA")
+
+deadline=$(( $(date +%s) + TIMEOUT ))
+id=""
+while [ -z "$id" ]; do
+  id=$(gh run list "${REPO[@]}" --workflow "$WF" --commit "$SHA" --limit 1 --json databaseId --jq '.[0].databaseId // empty' 2>/dev/null)
+  [ -n "$id" ] && break
+  [ "$(date +%s)" -ge "$deadline" ] && { echo "timeout: no run of '$WF' for ${SHA:0:10} within ${TIMEOUT}s" >&2; exit 4; }
+  sleep 15
+done
+
+gh run watch "${REPO[@]}" "$id" --exit-status >/dev/null 2>&1
+rc=$?
+url=$(gh run view "${REPO[@]}" "$id" --json url --jq .url)
+if [ $rc -eq 0 ]; then
+  echo "success $url"
+  exit 0
+fi
+echo "failure $url"
+gh run view "${REPO[@]}" "$id" --log-failed 2>/dev/null | tail -40
+exit 1

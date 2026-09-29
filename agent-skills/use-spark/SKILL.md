@@ -541,3 +541,9 @@ Do not check on every session or before every command - this skill is the source
 - Use `comment` to post team chat messages on threads - it auto-shares the thread if needed
 - Use `action` to perform email actions like pin, archive, snooze, move to folder, and more
 - Use `contact-action` to manage contacts - block, accept, change category, toggle auto-summary, and more
+
+## Local notes (Greg's dotfiles — re-add after a `spark skill` refresh)
+
+- **`Spark CLI can't access your Spark Desktop application` → stop after one try.** `spark` is an IPC client; the app is not running or the CLI is off in its settings. One line to Greg ("otwórz Spark Desktop i włącz CLI w ustawieniach"), no retry loop, no guessing the app name with `open -a` (`open -a "Spark Desktop"` fails, 2026-09-25). Resume only after his "gotowe".
+- **`spark draft` creates a draft, it never sends.** Say so when the task ends ("draft 68908 czeka w Sparku").
+- **Long threads with quoted history and signatures:** `scripts/thread-clean.sh <id>` prints only the new text per message (strips `>` quotes, signatures, NIP/address footers). Reach for it before hand-writing an `rg -v` chain.

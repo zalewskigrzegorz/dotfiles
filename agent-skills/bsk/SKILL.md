@@ -79,6 +79,10 @@ bsk snapshot --session <id>            → again after navigation / DOM change
 
 **Refs invalidate after navigation** — always re-snapshot before clicking, filling, or selecting on a new page.
 
+**Refs also age after any DOM change.** A `click` or `fill` that re-renders part of the page (a configurator step, a dropdown, a modal) renumbers `@eN`. Never chain `click @e4; fill @e2; click @e3` from one snapshot: on 2026-09-24 that produced a misclick and a wrong code typed into a car configurator. One action → snapshot → next action. A value to type (a promo code, an order number) is taken verbatim from Greg's message, never from memory or an earlier result.
+
+**Slack, Notion and other contenteditable editors reject `bsk fill`** ("fill target changed or lost focus"). Click the box, then `bsk evaluate "document.execCommand('insertText', false, <json string>)"`, then click the send button or press Enter. Verify with a snapshot.
+
 Prefer `@eN` refs from the latest snapshot over raw CSS selectors. Use `--ref` / `--selector` when ambiguous (`bsk click --help`).
 
 ## Observation priority
@@ -290,6 +294,9 @@ Human errors print `error:` + `hint:` on stderr; `--json` includes `code`, `mess
 | Before first task in a session | `bsk status` — extension connected? |
 | Any failure you cannot fix in one retry | `bsk doctor` |
 | Multiple browsers / wrong target | `bsk browsers` then `bsk session start --browser <id>` |
+| `decode IPC response: EOF … is the daemon running?` on the first `session start` | One `bsk doctor`, then one retry. If doctor shows `0 browsers connected`, the extension is off in Comet (see the BrowserSkill rule), not a flaky IPC |
+| `session not registered or already stopped` | `bsk session list`; start a new session and use the new id. Don't keep re-using the old one |
+| `Chrome blocked CDP access to another extension's content in this tab` | The tab is owned by another extension's page. `bsk navigate` to a fresh URL (or a new `bsk tab create`), or hand it to Greg with `bsk request-help`. Don't loop `snapshot`/`click` on that tab (23 snapshots, 2026-09-25) |
 
 Always **`bsk session stop <id>`** in a `finally`-style path so the Agent Window closes and borrowed tabs return.
 

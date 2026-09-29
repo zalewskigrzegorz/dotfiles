@@ -156,3 +156,12 @@ null` off the list view and concluding the fetch failed is a trap.
   After editing any of those on the lab: `ssh lab 'cd
   /opt/homelab/services/announce-agent && docker compose up -d --build'` — a
   `docker cp` alone is lost on the next rebuild.
+
+## What the announce pages show (2026-09-27)
+
+`POST /say` also takes `question` and `run_id`. When Tina answers a question
+(bare `tina "…"`), the card on `announce.mrglaszki.com/day` and `/review`
+shows "odpowiedź na: <question>" above what she said, so "o co chodziło Tinie
+z 'jestem, czekam'" is answerable from the page. `/review` shows the last 48 h
+only; older events need `tina history N`. The `hey_jarvis` wake word was
+removed from the satellite the same day.

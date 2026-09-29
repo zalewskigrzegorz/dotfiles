@@ -208,8 +208,9 @@ def "work _seed-untracked" [parent: path, wt_path: path]: nothing -> nothing {
     let entries = (
         $r.stdout | lines
         | where { |e|
-            let base = ($e | str trim --right --char "/" | path basename)
-            $base == "node_modules" or $base == ".env" or ($base | str starts-with ".env.")
+            let rel = ($e | str trim --right --char "/")
+            let base = ($rel | path basename)
+            $base == "node_modules" or $base == ".env" or ($base | str starts-with ".env.") or ($rel | str ends-with ".husky/_")
         }
     )
     if ($entries | is-empty) { return }

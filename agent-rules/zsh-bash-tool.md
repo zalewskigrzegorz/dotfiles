@@ -1,12 +1,12 @@
 ---
-description: The Bash tool runs zsh, not bash — `=word` expands and unquoted $vars do not word-split
+description: The Bash tool runs zsh, not bash — `=word` expands, unquoted $vars do not word-split, `[]` globs; plus pgrep self-match and the nushell side of herdr
 alwaysApply: true
 ---
 
-# The Bash Tool Is zsh — Two Traps
+# The Bash Tool Is zsh — Traps
 
-The Bash tool runs commands in zsh. Two zsh defaults break bash-style one-liners
-and cost three retries in one session (2026-09-23):
+The Bash tool runs commands in zsh. These zsh defaults break bash-style
+one-liners and each cost a retry or more (2026-09-23 … 09-28):
 
 1. **A word that starts with `=` is a command lookup (`EQUALS`).**
    `echo ======` fails with `(eval):1: ===== not found`. Quote it:
@@ -17,5 +17,32 @@ and cost three retries in one session (2026-09-23):
    single path, and the tool reports "no files found". Use `${=files}`, or pipe
    the list: `git diff --name-only | xargs pnpm exec oxfmt --check`.
 
-When a one-liner that works in bash fails with `not found` or "no files", check
-these two before you suspect the tool or the data.
+3. **`[]` in an argument is a glob (`NOMATCH`).** `gh api … -f parents[]=$SHA`
+   dies with `no matches found: parents[]=…`, `gh` gets an empty value and the
+   API answers "At least 40 characters are required". Quote every `[]` arg:
+   `-f 'parents[]'="$SHA"`, `-f 'labels[]=bug'`, `-F 'ids[]=1'`.
+
+When a one-liner that works in bash fails with `not found`, "no files" or
+`no matches found`, check these before you suspect the tool or the data.
+
+## Wait loops: `pgrep -f` matches its own shell
+
+`while pgrep -f "artisan importer:import"; do sleep 10; done` run through
+`ssh lab '…'` never ends: `pgrep -f` matches the remote shell whose command
+line contains the pattern (2026-09-27, cost ~150 turns). Never `pgrep -f
+"<pattern>"` inside a command that contains the pattern itself. Use the bracket
+trick (`pgrep -f "[a]rtisan importer:import"`), `pgrep -x` inside the
+container, or poll a log line or marker file. Every wait loop gets a timeout
+(`timeout 600 …`) and exits on the first actionable state.
+
+## The other side of herdr is nushell
+
+- **Steps Greg runs himself in a herdr pane are written in nushell**, not bash.
+  `read -s PGPASSWORD && export …` fails there ("komenda z 2 nie działa, mam
+  nushell", 2026-09-24). Secrets via `$env.PGPASSWORD = (input -s "hasło: ")`,
+  cleared with `hide-env PGPASSWORD`. One numbered step per line, and one
+  sentence first saying why the step needs him (why you cannot fetch it yourself).
+- **Text sent to a pane (`herdr pane run`, `workctl` bootstrap) is parsed by
+  nushell.** `&&`, `||`, `2>/dev/null` and `$(…)` fail with
+  `nu::parser::shell_andand` and friends. Wrap POSIX syntax as `sh -c '…'`, or
+  write nu syntax with `;`. `workctl` was fixed for this on 2026-09-23.

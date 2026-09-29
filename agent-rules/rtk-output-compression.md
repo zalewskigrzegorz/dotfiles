@@ -45,3 +45,12 @@ trade, not an oversight. Anything that must keep prompting belongs in an explici
 Off, and it stays off — `rtk telemetry status` should report `enabled: no`. Never
 run `rtk telemetry enable`: work identifiers and repo names must not leave the
 machine.
+
+## Existence checks go through `rtk proxy`
+
+A filtered `find … -maxdepth`, `ls <dir>` or `rg -l` can come back as
+`… (N filtered) [+N hidden: rtk recall …]` or empty while the file exists,
+which reads exactly like "not there". On 2026-09-27 that cost 57 re-runs
+through `rtk proxy rg` while hunting an `.npmrc`. When the question is
+**does X exist / which files match**, run it as `rtk proxy <cmd>` the first
+time, or use the `Glob`/`Read` tools, which rtk never touches.
