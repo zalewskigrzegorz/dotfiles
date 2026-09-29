@@ -36,3 +36,7 @@ plus and pass. Same trap for `\?`, `\{n,m\}`, `\|` in default mode.
 
 macOS only — the lab (Debian) has GNU grep, where `\+` works the old way.
 Patterns written to the rules above are portable to both.
+
+**The lab has no `rg`.** Rule 3 is Mac-only: inside `ssh lab '…'` or
+`docker exec` on the lab, `rg` fails with `rg: command not found` (2026-09-29).
+Use `grep -E` / `grep -F` there.
