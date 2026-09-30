@@ -81,31 +81,37 @@ that nothing moved since `since`, and ask in a popup whether to post a one-liner
 for"). Three blocks, a handful of short lines, readable in five seconds. Three drafts
 on 2026-09-29 missed it: paragraphs, review details, names, ticket numbers, a week
 counter, a blockers block built from ticket counts. The delta tells you what changed;
-the post only says where the project is.
+the post says it in plain words, not as tickets.
 
-1. **Status, 2–4 lines**, one short sentence each (≤ ~10 words): what's deployed
-   where, what works, what's settled. Cumulative, so someone who skipped every
-   earlier post gets the whole picture. Group by capability ("SCIM, support and
-   OAuth work").
+**Read the previous post first** (the newest top-level message in the channel).
+Today's post must not repeat its lines. A fact that was already posted and hasn't
+changed stays out; the post says what moved since then. On 2026-09-30 a
+"cumulative" draft repeated the day before almost word for word and Greg rejected it.
+
+1. `Done:`, then **2–4 lines**, one short sentence each (≤ ~10 words): what landed
+   since the previous post: deployed, merged, working, decided. Group by capability
+   ("SCIM, support and OAuth work").
 2. `In progress:`, then 1–3 lines, each the work itself in a few words ("Merge the
-   schema PR", "Mount the new auth in the auth server").
-3. **Last line: the next milestone**, one short sentence.
+   schema PR", "Mount the new auth in the auth server"). An item may carry over only
+   while it is still open; drop it once it lands in `Done:`.
+3. **Last line: the next milestone**, one short sentence. It must change when the
+   thing it waited on landed.
 
-A blank line between blocks, nothing else. Under ~8 lines.
+A blank line between blocks, nothing else. Under ~10 lines.
 
 Shape (anonymized; the requester's own example is in work-context):
 
 ```text
-The test env is up with seed accounts.
-The member split is on main.
+Done:
+The new auth now runs in the auth server.
 Passwords and OAuth clients move over as they are.
+Tested on a copy of prod: all clients and almost all passwords made it.
 
 In progress:
-Merge the schema PR
-Mount the new auth in the auth server
-Bulk migration of users and passwords
+Fix session handling in the app after the mount
+Run the migration on the test env
 
-First milestone after the schema merge and the mount.
+First milestone next: a migrated user signs in with their old password.
 ```
 
 ### 4. Voice it
