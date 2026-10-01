@@ -1,5 +1,13 @@
 {{- $w := index . "work" | default dict -}}{{- $gd := index $w "ghdash" | default dict -}}
 prSections:
+- title: "🔐 better-auth"
+  filters: >-
+    is:open
+    base:feat/better-auth
+{{- with index $w "mainRepo" }}
+    repo:{{ . }}
+{{- end }}
+  type: null
 - title: {{ index $gd "teamTitle" | default "Team" | quote }}
   filters: >-
     is:open
