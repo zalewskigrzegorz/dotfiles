@@ -33,7 +33,11 @@ This holds in **every repo**.
 4. **YOLO off → `AskUserQuestion`.** Preview = the raw commit message, a blank
    line, then `git diff --cached --stat` (max ~10 files, then `+N more`).
    Options: **Commit + push** (Recommended) · **Tylko commit** · **Jeszcze
-   nie**. Greg may check the files with `prefix+o` before answering.
+   nie**. Greg may check the files with `prefix+o` before answering. When the
+   branch or worktree differs from the session's cwd or from the branch Greg
+   last talked about, the preview opens with `branch: <name> (base <ref>
+   <sha>)` and the worktree path; without it a fix split off a review looked
+   like a commit onto someone else's PR (9ce71fca).
 5. **YOLO on → no popup.** Commit, push, report the result in one line.
 6. **"Jeszcze nie"** defers to the end of the next task, with everything
    accumulated by then. Do not re-ask every turn.

@@ -95,7 +95,10 @@ changed stays out; the post says what moved since then. On 2026-09-30 a
    schema PR", "Mount the new auth in the auth server"). An item may carry over only
    while it is still open; drop it once it lands in `Done:`.
 3. **Last line: the next milestone**, one short sentence. It must change when the
-   thing it waited on landed.
+   thing it waited on landed. Before showing the draft, compare it with every
+   `Done:` line and the epic's open sub-issues: a milestone that already sits in
+   `Done:` is a contradiction ("w done jest … a w milestone to samo", 2026-10-02),
+   so rewrite it to what is actually left.
 
 A blank line between blocks, nothing else. Under ~10 lines.
 

@@ -21,10 +21,19 @@ quota in under 20 minutes.
    moment, by name, for that specific spawn. "Odpal agenta" means Sonnet.
 3. **Skills that spawn agents** (`research`, `research-deep`,
    `efficient-frontier`, `superpowers:dispatching-parallel-agents`,
-   `superpowers:subagent-driven-development`, and any skill's prompt template)
+   `superpowers:subagent-driven-development`, `superpowers:executing-plans`,
+   `superpowers:requesting-code-review`, and any skill's prompt template)
    inherit this rule: add `model: "sonnet"` to each spawn even when the skill's
    template does not mention a model. The template's wording is a hard
-   constraint on the *prompt*, not on the *model parameter*.
+   constraint on the *prompt*, not on the *model parameter*. "The most capable
+   available model" in a skill is not an exception (2026-09-30: a final
+   whole-branch review ran on Fable because `executing-plans` said so).
+3a. **A review spawn asks for the model.** A code review, final whole-branch
+   review or any one-off judgement spawn → one `AskUserQuestion` before the
+   dispatch: **Sonnet** (Recommended, cheap) · **Fable** (deeper, costs quota).
+   Greg sometimes wants Fable there, so it is his pick, not a silent default.
+   Bulk work (search, scraping, mechanical edits, fan-outs) stays on Sonnet
+   without asking.
 4. **Before a fan-out, say the count and the model in one line** ("5 agentów,
    Sonnet, ~10 min") so Greg can stop it before it starts.
 5. **The model is not the main cost — context re-reads are.** A

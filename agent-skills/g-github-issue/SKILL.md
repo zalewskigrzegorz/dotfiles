@@ -79,6 +79,7 @@ An epic (a cycle tracker like #27854, built on 2026-09-25 from raw `gh` calls be
 2. **Sub-issues** each through the flow above, labels `"$WORK_TEAM_LABEL"` plus a `size:*`, then step 7's `addSubIssue` with the epic as parent. The GraphQL call needs the header `-H "GraphQL-Features: sub_issues"` on older `gh` versions.
 3. **No `--assignee` unless Greg names a person.** A "Kto" column in his table is a plan, not an assignment; six sub-issues went out assigned to him and he had to say "nie przypisuj do nich ludzi".
 4. End with the epic number and the list of sub-issue numbers on one line.
+5. **Before proposing a new sub-issue, open the related ones with their comments.** Titles are not enough: `gh issue view <n> --comments` on every sub-issue with a neighbouring scope, and look for a "scope note" or "moves to". If the scope already has an owner, propose that issue instead. A popup to create a login sub-issue was rejected because #27880's comments already said login lands there (2026-10-02).
 
 ## When gh is unavailable
 

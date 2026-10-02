@@ -35,6 +35,17 @@ trick (`pgrep -f "[a]rtisan importer:import"`), `pgrep -x` inside the
 container, or poll a log line or marker file. Every wait loop gets a timeout
 (`timeout 600 …`) and exits on the first actionable state.
 
+**A CI run is not a hand-written loop.** `until s=$(gh run view …); do sleep 60;
+done` (2026-09-30, twice, no timeout) → `bin/gh-run-wait <workflow> [--sha
+<sha>]` for the run of a pushed commit, or `timeout 1800 gh run watch <id>
+--exit-status` for a known run; `gh run view <id> --log-failed` only on a
+non-zero exit. A run longer than ~10 min goes through `Monitor` with an `until`
+loop that prints one line per step or job change, so Greg doesn't have to ask
+"jak tam deploy?". Say the ETA in one line at the start ("~40–60 min, next
+step: migrations"). A watcher that exits on a network error is not a failed
+run: on wifi loss `gh run watch` exits 1 too, so check `gh run view <id> --json
+status,conclusion` before reporting a failure (2026-10-01).
+
 ## The other side of herdr is nushell
 
 - **Steps Greg runs himself in a herdr pane are written in nushell**, not bash.

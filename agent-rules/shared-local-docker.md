@@ -46,3 +46,18 @@ rebuilds, and any `pkill`/`killall`.
 - **A full `pnpm start` is heavy and touches every container.** Say so before
   starting it, run it once, and on failure read the log instead of retrying in
   a loop — each retry rebuilds and restarts again.
+- **A stopped container whose network is gone needs a recreate.** `docker
+  start <c>` → `network … not found`, and `docker compose up -d` alone keeps
+  pointing at the old network (3 failed tries, 2026-09-30). After the check
+  above: `docker inspect <c> --format '{{range .Mounts}}{{.Type}} {{.Name}}{{"\n"}}{{end}}'`
+  — data on a named volume means a recreate is safe — then `docker compose -p
+  <project label> up -d --no-deps --force-recreate <service>`.
+
+## Shared lab environments (`lab*`) are the same story, remotely
+
+Before `gh workflow run deploy-env.yml` / `redeploy-env.yml` against a shared
+lab, check who holds it: `gh run list --workflow deploy-env.yml --status
+in_progress`. An active PR deploy → stop and say whose it is. A blind dispatch
+failed twice with "has an active PR deploy" on 2026-10-02, and each one costs a
+CI run and can disturb someone else's deploy. After a failure, read
+`gh run view <id> --log-failed` before dispatching again, never in a loop.

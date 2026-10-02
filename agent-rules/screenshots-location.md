@@ -12,3 +12,7 @@ When Greg references "a screenshot", "the screens", "screeny", or mentions/drags
 CleanShot saves there (`Bazecor_*`, `CleanShot_*`, `X_*`, …). Read directly — don't ask for the path. Google Drive sync can lag, so a just-taken screenshot may take a moment to appear locally.
 
 **macOS only.** That path is a Google Drive mount present on the Mac, not on the lab (Debian) — on the lab there are no screenshots, skip this rule.
+
+## "Na dropie" is a different place
+
+"na dropie jest screenshot", "wrzuciłem na drop", "jest na dropie" mean `drop.mrglaszki.com`, the self-hosted file drop on the lab, not the folder above. Go straight to `curl -s 'https://drop.mrglaszki.com/?ls' | jq …`, take the newest entries by `ts`, download them into the session scratchpad and read them. Don't search local dirs first (2026-10-02: ~8 calls across Screenshots, `~/Downloads` and `find ~` before the listing).

@@ -1,6 +1,6 @@
 ---
 name: g-pr-review
-description: Review SOMEONE ELSE'S pull request as the reviewer. Two modes, auto-picked — a fresh review (orient with a what/why summary + focus popup → analyze the diff → per-finding Post/Skip → submit one APPROVE/REQUEST_CHANGES/COMMENT verdict), or a follow-up when you already reviewed and the author replied (handle their responses, optionally update the verdict). Fetches unresolved threads and bot inline comments, asks per finding/thread in batched AskUserQuestion calls (≤4 at once, recommendation each), drafts English comments/replies, humanizes them, posts via gh. Use whenever you want to review a PR, leave PR comments, approve/request changes, or respond to the author on a PR you're reviewing — current branch, PR number, or PR URL. If the PR is YOURS and you're answering reviewers, use g-pr-respond instead.
+description: Review SOMEONE ELSE'S pull request as the reviewer. Two modes, auto-picked — a fresh review (orient with a what/why summary + focus popup → analyze the diff → per-finding Post/Skip → submit one APPROVE/REQUEST_CHANGES/COMMENT verdict), or a follow-up when you already reviewed and the author replied (handle their responses, optionally update the verdict). Fetches unresolved threads and bot inline comments, asks per finding/thread in one AskUserQuestion each, chained (recommendation each), drafts English comments/replies, humanizes them, posts via gh. Use whenever you want to review a PR, leave PR comments, approve/request changes, or respond to the author on a PR you're reviewing — current branch, PR number, or PR URL. If the PR is YOURS and you're answering reviewers, use g-pr-respond instead.
 ---
 
 # g-pr-review
@@ -129,9 +129,9 @@ Per finding, record: `severity` (Critical / Suggestion / Nit), `path`, `line`, o
 
 Cluster duplicates (P4).
 
-## B3. Per-finding batched questions
+## B3. Per-finding questions
 
-`AskUserQuestion`, **batch up to 4** (P3). Per finding:
+`AskUserQuestion`, **one finding per popup, chained** (P3). Per finding:
 
 * **header:** severity (`Critical`, `Suggestion`, `Nit`).
 * **question:** `<path>:<line> — <title>`.
@@ -215,9 +215,9 @@ Plus: scan `fetch-reviews.sh` output for **new** findings from other reviewers s
 * `Mine?` = `yes` if the thread's opening comment is mine.
 * Cluster (P4) duplicates into one row.
 
-## C3. Batched questions per follow-up
+## C3. Questions per follow-up
 
-`AskUserQuestion`, batch up to 4 (P3). Options shift to the reviewer's stance:
+`AskUserQuestion`, one thread per popup, chained (P3). Options shift to the reviewer's stance:
 
 | Option | When |
 |--------|------|
@@ -226,9 +226,9 @@ Plus: scan `fetch-reviews.sh` output for **new** findings from other reviewers s
 | `Ask for clarification` | Author's reply is ambiguous |
 | `Skip` | Already resolved in spirit, no reply needed |
 
-## C4. Post replies (batched)
+## C4. Post replies
 
-Batched `AskUserQuestion` per prepared reply, then post via `gh api`. Drafted replies pass through greg-voice (P5.5) before the batch is surfaced.
+One `AskUserQuestion` per prepared reply, chained, then post via `gh api`. Drafted replies pass through greg-voice (P5.5) before the first popup.
 
 ```
 Title: Post reply <n>/<total> · <path>:<line> → @<author>
@@ -248,7 +248,7 @@ Post `Yes` ones via `gh api` in order; **the `Yes` is the confirmation — no ex
 gh api "repos/$OWNER/$REPO/pulls/$NUMBER/comments/$COMMENT_ID/replies" -X POST -f body="$REPLY_BODY"
 ```
 
-`$COMMENT_ID` = `databaseId` of `.comments[-1]` from `fetch-comments.sh`. On success: `✅ Posted: <html_url>`. On 422/404/403: print verbatim, ask user (retry / modify / skip). If `Modify`: "Paste the new reply text", read next message as body, post verbatim (already human — no voice pass).
+`$COMMENT_ID` = `databaseId` of `.comments[0]` (the thread's first comment) from `fetch-comments.sh`; 5xx and fallback per P9. On success: `✅ Posted: <html_url>`. On 422/404/403: print verbatim, ask user (retry / modify / skip). If `Modify`: "Paste the new reply text", read next message as body, post verbatim (already human — no voice pass).
 
 ## C5. Optional updated verdict
 
@@ -323,7 +323,7 @@ If user picks a verdict, submit via B5 (pending review, then event).
 * [ ] P0: `$G_PR_ME` cached for the session
 * [ ] P1: PR resolved (`OWNER`, `REPO`, `NUMBER`, `SHA`, URL)
 * [ ] P2: `MINE=false` confirmed; redirected to `g-pr-respond` if true; `MODE` (`fresh` / `followup`) detected and stated
-* [ ] P3 batching applied (≤4 per `AskUserQuestion`, `(Recommended)` on default)
+* [ ] P3 applied (one finding per `AskUserQuestion`, chained, `(Recommended)` on default)
 * [ ] P5 comment-writing rules followed; English only on GitHub
 * [ ] P5.5 greg-voice gate: every GitHub-bound body voiced (full voice, batched); `Modify` text exempt
 * [ ] P6 blob links pinned to `SHA`

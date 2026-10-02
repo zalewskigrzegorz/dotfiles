@@ -92,7 +92,7 @@ If no PR exists for HEAD and the user gave no number/URL → stop and ask for on
 
 ## P3. `AskUserQuestion` conventions
 
-* **Batch up to 4 questions per call.** One question per finding/thread, all four in the same `AskUserQuestion`. Never loop one-by-one when 2+ items are pending — that's the doubled-up feel to avoid.
+* **One finding or thread reply per `AskUserQuestion`, chained.** Ask, get the answer, ask the next. The draft comment or reply goes in the `preview` of the options. Never put two drafts in one call: two batched reply popups were both rejected as "clarify" while the one-per-popup ones went through (2026-10-01, `adhd-actions-not-walls`). The only exception is the `g-pr-respond` A4 fast path, when Greg asks for it ("hurtem", "szybko").
 * **Recommended option first**, with ` (Recommended)` appended to its label. Claude Code defaults to option 1.
 * Each option's `description` carries the **why** and (where applicable) the exact comment/reply body, so the user decides from the question alone — no code dumped in chat.
 * Severity order: CRITICAL → HIGH → MEDIUM → LOW (or Critical → Suggestion → Nit for fresh reviews).
@@ -114,6 +114,8 @@ Write like a senior engineer leaving a quick review note, not like an AI assista
 * **Match length to weight.** Nit = one line. Real bug = 1–3 lines max. Never a paragraph for a small thing.
 * **No semicolons in prose.** New sentences, commas, or em dashes. Literal code may use `;`.
 * Plain technical English. No emoji unless mirroring the reviewer's own.
+* **"False alarm" only after a test.** Before replying that a bot's or reviewer's finding is wrong, reproduce it with a control run that shows the check can fail. The reply's first line says it was tested and how ("False alarm, tested 4.0 and 4.2 against a fake floci"). If you only read the code, say "read the code, didn't run it". Greg asked "skąd mamy pewność że to false alarm?" when the verdict came from config inspection alone (2026-10-01).
+* **"It's missing / do it separately" only after searching issues.** Before a comment or reply claims something is missing, duplicated or belongs in a follow-up, run `gh search issues --repo <owner/repo> "<term>" --json number,title,state` (epics included) and put the issue numbers in the draft. A "nie ma, trzeba zrobić" turned into "planned in #26530" only after Greg said "zobacz w issues na naszym boardzie" (2026-10-01).
 
 ## P5.5. Voice gate (mandatory)
 
@@ -122,7 +124,7 @@ P5 is how you write the first draft. The `greg-voice` skill is the net that catc
 How to run it without burning the whole turn:
 
 * **Load the `greg-voice` skill once per run** (Skill tool), the first time you draft any GitHub-bound text. It stays loaded for the rest of the flow — don't re-invoke per comment.
-* **Humanize per batch, not per comment.** Once you've drafted the ≤4 bodies for an `AskUserQuestion` batch, run all of them through greg-voice together, then put the *voiced* versions into the question. The user should only ever see post-voice text.
+* **Humanize per batch, not per comment.** Once you've drafted the bodies for the run, run all of them through greg-voice together, then put the *voiced* versions into the question. The user should only ever see post-voice text.
 * **Full voice, including here.** A review comment is not an exception — it should read like Greg typed it in the PR: point first, casual, plainly owned. Keep every exact path, line number, version and limit; drop the stiff register around them. "It appears that this implementation may not correctly handle…" becomes "this breaks when the list is empty — line 42". Never flatten it into a neutral senior-engineer note.
 * **Don't re-humanize `Modify` text.** When Greg pastes a reply himself, it's already human — post it verbatim.
 
@@ -153,5 +155,14 @@ SCRIPTS="${G_PR_REVIEW_SCRIPTS:-$HOME/.claude/skills/g-pr-review/scripts}"
 ## P8. Rate limits
 
 `gh api` can hit secondary rate limits on large PRs with many bot reviews. On `403` with `secondary rate limit` in the body: wait ~30s, retry **once**. On second failure, surface the error and ask the user.
+
+## P9. Posting a thread reply
+
+1. `POST repos/<o>/<r>/pulls/<n>/comments/<id>/replies` takes the `databaseId` of the thread's **first** comment (`.comments[0]`). GitHub: "This must be the ID of a top-level review comment, not a reply to that comment." The id of the latest reply gives 404, or a 500 that looks like an outage (2026-10-01).
+2. On a 5xx, one try through GraphQL with the thread's node `id`:
+   ```bash
+   gh api graphql -f query='mutation($t:ID!,$b:String!){addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$t,body:$b}){comment{url}}}' -f t="$THREAD_ID" -f b="$REPLY_BODY"
+   ```
+3. If that fails too, print the voiced reply as plain paragraphs with the thread URL and end the turn ("wklej ręcznie albo powiedz wyślij"). No further REST variants.
 
 ---

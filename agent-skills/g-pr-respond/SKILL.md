@@ -1,6 +1,6 @@
 ---
 name: g-pr-respond
-description: Answer reviewers on YOUR OWN pull request. Fetches unresolved review threads and bot inline comments on a PR you authored, triages each by severity, asks per-thread in batched AskUserQuestion calls (≤4 at once, recommendation each), drafts English replies and fix plans, applies fixes, commits with g-commit style (you push), then posts thread replies one by one via gh. Never submits an APPROVE/REQUEST_CHANGES verdict — you can't review your own PR. Use whenever you want to respond to review feedback, answer reviewers, reply to review threads, or address comments on a PR you opened — current branch, PR number, or PR URL. If the PR is someone else's and you're the reviewer, use g-pr-review instead.
+description: Answer reviewers on YOUR OWN pull request. Fetches unresolved review threads and bot inline comments on a PR you authored, triages each by severity, asks per thread in one AskUserQuestion each, chained (batched only on request; recommendation each), drafts English replies and fix plans, applies fixes, commits with g-commit style (you push), then posts thread replies one by one via gh. Never submits an APPROVE/REQUEST_CHANGES verdict — you can't review your own PR. Use whenever you want to respond to review feedback, answer reviewers, reply to review threads, or address comments on a PR you opened — current branch, PR number, or PR URL. If the PR is someone else's and you're the reviewer, use g-pr-review instead.
 ---
 
 # g-pr-respond
@@ -57,7 +57,7 @@ bash "$SCRIPTS/fetch-comments.sh" "$OWNER" "$REPO" "$NUMBER"  # unresolved threa
 bash "$SCRIPTS/fetch-reviews.sh"  "$OWNER" "$REPO" "$NUMBER"  # PR-level review bodies + top-level inline
 ```
 
-Each thread: `comments[]` flat. `comments[0]` = opening, `comments[-1]` = latest. Reply to `comments[-1].databaseId`.
+Each thread: `comments[]` flat. `comments[0]` = opening, `comments[-1]` = latest. Reply to `comments[0].databaseId` — `/replies` rejects the id of a reply (P9).
 
 ### Filter live vs already-replied
 
@@ -197,7 +197,7 @@ If Greg picked **Tylko commit**, say "Committed, not pushed — say `pushed` (or
 
 After the push (or once Greg says `pushed`, `go`, `ready`, `ok`, `done`).
 
-Then batch up to 4 prepared replies per `AskUserQuestion` (per P3). Each question:
+Then one prepared reply per `AskUserQuestion`, chained (per P3). Each question:
 
 ```
 Title: Post reply <n>/<total> · <path>:<line> → @<reviewer>
@@ -228,7 +228,7 @@ gh api "repos/$OWNER/$REPO/pulls/$NUMBER/comments/$COMMENT_ID/replies" \
   -f body="$REPLY_BODY"
 ```
 
-`$COMMENT_ID` = `databaseId` of `.comments[-1]` from `fetch-comments.sh`.
+`$COMMENT_ID` = `databaseId` of `.comments[0]` (the thread's first comment) from `fetch-comments.sh`; 5xx and fallback per P9.
 
 On success: `✅ Posted: <html_url>`.
 On 422 / 404 / 403: print verbatim, ask user (retry / modify / skip). Never auto-retry except the P8 rate-limit case.
@@ -293,7 +293,7 @@ Remind: **resolve threads on GitHub manually** — API replies don't auto-resolv
 * [ ] P0: `$G_PR_ME` cached for the session
 * [ ] P1: PR resolved (`OWNER`, `REPO`, `NUMBER`, `SHA`, URL)
 * [ ] P2: `MINE=true` confirmed and stated; redirected to `g-pr-review` if false
-* [ ] P3 batching applied (≤4 per `AskUserQuestion`, `(Recommended)` on default)
+* [ ] P3 applied (one reply per `AskUserQuestion`, chained, `(Recommended)` on default)
 * [ ] P5 comment-writing rules followed; English only on GitHub
 * [ ] P5.5 greg-voice gate: every GitHub-bound body voiced (full voice, batched); `Modify` text exempt
 * [ ] P6 blob links pinned to `SHA`

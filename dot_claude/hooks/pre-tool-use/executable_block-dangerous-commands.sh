@@ -225,8 +225,10 @@ fi
 if contains_cmd '(curl|wget)[[:space:]].*\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh|zsh|ksh|fish|dash|csh)([[:space:]]|$)'; then
   emit_deny "Piping downloaded content directly into a shell — classic attack vector."
 fi
-if printf '%s' "$COMMAND" | grep -qE '(^|[^0-9&])>[[:space:]]*/dev/[a-zA-Z][a-zA-Z0-9]*' \
-   && ! printf '%s' "$COMMAND" | grep -qE '>[[:space:]]*/dev/(null|stdout|stderr|tty|zero|random|urandom)([^a-zA-Z0-9_/]|$)' ; then
+# Strip the harmless redirects first, then look for any device left: testing
+# for "a safe one exists somewhere" let `> /dev/null; … > /dev/disk2` through.
+SAFE_DEV_STRIPPED=$(printf '%s' "$COMMAND" | sed -E 's#>[[:space:]]*/dev/(null|stdout|stderr|tty|zero|random|urandom)([^a-zA-Z0-9_/]|$)#\2#g')
+if printf '%s' "$SAFE_DEV_STRIPPED" | grep -qE '(^|[^0-9&])>[[:space:]]*/dev/[a-zA-Z][a-zA-Z0-9]*'; then
   emit_deny "Redirection into a raw device file can destroy data."
 fi
 if contains_cmd '(^|[;&|[:space:]])(mkfs|mkfs\.[a-z0-9]+)([[:space:]]|$)' \

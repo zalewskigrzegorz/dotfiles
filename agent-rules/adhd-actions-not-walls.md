@@ -90,6 +90,16 @@ About 15 popups were rejected in one week. Every one broke one of these:
   session was a hunt or several small fixes, the `preview` opens with 1–2 lines
   of what was fixed and why ("audio dopełnione ciszą do okna pyatv; CO₂ max
   raz na 3 h"), then the commit message and `--stat` (1e73dc71).
+- **A technical result opens with one plain sentence.** When Greg has to
+  decide on a result or forward it: what was checked, what came out, what it
+  means for his question. Function, table and column names come after it or
+  not at all, and this happens before any popup or draft. "jaśniej" or "nie
+  rozumiem" means the first version skipped this step (c3fad0c2).
+- **A step that touches a database, a dump or a deploy names its target
+  first.** Host, database, env, and whether anything leaves the machine:
+  "lokalnie, `prod_rehearsal` w `<co>-postgres-1`, nic nie wychodzi". The
+  same goes for status lines during a long run. Greg: "Pisz takie rzeczy żeby
+  się nie okazało że nagle coś leci na proda" (a261ac7f).
 
 ## When NOT to popup
 
