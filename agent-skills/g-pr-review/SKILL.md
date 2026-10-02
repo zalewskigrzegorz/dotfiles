@@ -183,7 +183,7 @@ gh api --method POST "repos/$OWNER/$REPO/pulls/$NUMBER/reviews/$REVIEW_ID/events
 If you genuinely need a file: `PAYLOAD=$(mktemp -t g-pr-review.XXXXXX.json)` — never a fixed `/tmp/g-pr-review.json`.
 
 * Multi-line anchors: add `"start_line": <n>` alongside `"line"`.
-* Empty `comments` is fine (clean approve / verdict-only).
+* Empty `comments` works for `APPROVE` only. `COMMENT` or `REQUEST_CHANGES` with no inline comment and no body fails on step 2 with 422 `You need to leave a comment indicating the requested changes` (2026-10-02, #28392), and step 1 has already left an empty `PENDING` review behind. With zero comments: never offer `COMMENT`, and `REQUEST_CHANGES` takes a one-line body naming the open thread (the API-required exception). If step 2 fails anyway, delete the pending review: `gh api -X DELETE "repos/$OWNER/$REPO/pulls/$NUMBER/reviews/$REVIEW_ID"`.
 
 Report the review URL (from `html_url` in the response). One line. Don't re-print comments.
 
@@ -274,10 +274,12 @@ Recommendation:
 |------------|------|
 | `APPROVE` | All my prior Criticals resolved, only nits left |
 | `REQUEST_CHANGES` | Unresolved Criticals remain |
-| `COMMENT` | Mixed/uncertain |
-| `Skip` | No material change since my last review |
+| `COMMENT` | Mixed/uncertain, and there is at least one new inline comment |
+| `Skip` | No material change since my last review, or only thread replies this round — they already carry the feedback |
 
-If user picks a verdict, submit via B5 (single `gh api ... /reviews` call, `comments: []` if no new findings).
+With no new inline comment, `COMMENT` is not an option (see the B5 note on empty `comments`).
+
+If user picks a verdict, submit via B5 (pending review, then event).
 
 ---
 
@@ -334,7 +336,7 @@ If user picks a verdict, submit via B5 (single `gh api ... /reviews` call, `comm
 * [ ] Findings recorded with severity, anchor, body, recommendation
 * [ ] B3 batched per-finding questions with `(Recommended)`
 * [ ] B4 verdict question with recommendation
-* [ ] B5 submits via stdin heredoc, single `gh api` call
+* [ ] B5 submits via stdin heredoc, pending review then event
 * [ ] Review URL reported
 
 ## Flow C (`followup`)
