@@ -1794,33 +1794,37 @@ function doRemove(st: St, ctx: Ctx): number {
   return removeWorktree(st.root, st.worktree, st.headRefName, "-d");
 }
 
-// If the worktree is open as a herdr workspace, herdr removes checkout + closes
-// it; otherwise plain git removes the checkout. git keeps the branch either way,
-// so it is deleted after with `branchDel` ("-d", "-D", or "" to keep it).
+// Plain git removes the checkout, then the branch goes with `branchDel` ("-d",
+// "-D", or "" to keep it), and an open herdr workspace is closed LAST. Not
+// `herdr worktree remove`: it closes the workspace first, which kills this
+// process inside `rm --self` before the branch is deleted (2026-10-02, three
+// merged branches survived their worktrees).
 function removeWorktree(root: string, path: string, branch: string, branchDel: string): number {
   // Stop the fsmonitor daemon first: deleting the tree under a live one segfaults it (git bug).
   git(path, ["fsmonitor--daemon", "stop"]);
   const ws = herdrWsFor(root, path);
-  if (ws !== "") {
-    const r = run("herdr", ["worktree", "remove", "--workspace", ws, "--force"]);
-    if (r.code !== 0) {
-      err(`herdr worktree remove failed: ${r.err.trim()}`);
-      return 1;
-    }
-  } else {
-    const r = git(root, ["worktree", "remove", path, "--force"]);
-    if (r.code !== 0) {
-      err(`git worktree remove failed: ${r.err.trim()}`);
-      return 1;
-    }
+  const r = git(root, ["worktree", "remove", path, "--force"]);
+  // git drops the worktree entry even when the tree survives: a concurrent
+  // bin/sync re-placing .claude/skills/ refills it mid-delete (git fails) or
+  // `mkdir -p`s it back afterwards (git succeeds). Both left a husk that
+  // `rm --self` no longer recognised (2026-10-02). --force already chose to
+  // delete everything, so finish the job unless git still tracks it.
+  if (lines(git(root, ["worktree", "list", "--porcelain"]).out).includes(`worktree ${path}`)) {
+    err(`git worktree remove failed: ${r.err.trim()}`);
+    return 1;
+  }
+  if (existsSync(path) && run("rm", ["-rf", path]).code !== 0) {
+    err(`⚠️  could not delete the leftover ${path}`);
+    return 1;
   }
   if (branchDel !== "" && git(root, ["branch", branchDel, branch]).code !== 0)
     err(`⚠️  branch ${branch} not fully merged — \`git -C ${root} branch -D ${branch}\` to force.`);
   err(`✅ removed ${branch}`);
-  // herdr closes + refocuses its own workspaces; a plain-git worktree leaves the
-  // caller's shell in a deleted dir, and a child process cannot cd its parent.
+  // A plain-git worktree leaves the caller's shell in a deleted dir, and a
+  // child process cannot cd its parent.
   const here = trimSlash(process.env.PWD ?? "");
   if (ws === "" && (here === path || here.startsWith(`${path}/`))) err(`↩️  you were inside it — \`cd ${root}\``);
+  if (ws !== "") run("herdr", ["workspace", "close", ws]);
   return 0;
 }
 
