@@ -1959,23 +1959,31 @@ function doCreatePr(st: St, ctx: Ctx): number {
   return ghOk(["pr", "create", "--repo", st.repo, "--head", st.headRefName, "--web"], "gh pr create failed");
 }
 
-// Brief cache keyed on repo AND number: PR #5 exists in every repo.
+// Brief cache keyed on repo AND number: PR #5 exists in every repo. A branch
+// without a PR is keyed on its name, or every such branch shares `-0.md`.
 function briefPath(st: St): string {
-  return join(CACHE_DIR, `pr-brief-${st.repo.split("/").join("-")}-${st.num}.md`);
+  const key = st.hasPr ? String(st.num) : st.headRefName.split("/").join("-");
+  return join(CACHE_DIR, `pr-brief-${st.repo.split("/").join("-")}-${key}.md`);
 }
 
 // pr-brief's stdout, cached so the pane only needs a path. --repo is mandatory:
 // pr-brief's own default is WORK_MAIN_REPO and ignores cwd.
+// A branch without a PR has nothing to fetch: `pr-brief 0` opened the session
+// with "Pracujesz nad PR #0 … no pull requests found" (2026-10-01).
 function writeBrief(st: St, intent: string): string {
   const p = briefPath(st);
-  const r = run("pr-brief", [String(st.num), "--repo", st.repo, "--intent", intent]);
-  if (r.code !== 0) {
-    err(`pr-brief failed: ${r.err.trim()}`);
-    return "";
+  let body = `Pracujesz na branchu ${st.headRefName} w ${st.repo}. Ten branch nie ma jeszcze PR, więc nie ma briefu CI ani wątków review.\n`;
+  if (st.hasPr) {
+    const r = run("pr-brief", [String(st.num), "--repo", st.repo, "--intent", intent]);
+    if (r.code !== 0) {
+      err(`pr-brief failed: ${r.err.trim()}`);
+      return "";
+    }
+    body = r.out;
   }
   try {
     mkdirSync(dirname(p), { recursive: true });
-    writeFileSync(p, r.out, { mode: 0o600 });
+    writeFileSync(p, body, { mode: 0o600 });
   } catch {
     err(`brief not written to ${p}`);
     return "";
@@ -2022,7 +2030,7 @@ function doAgent(st: St, intent: string, mode: string, ctx: Ctx): number {
   const brief = writeBrief(st, intent);
   if (brief === "") return 1;
   const rc = agentTab(wt.ws, wt.path, intent, brief);
-  err(`✅ #${st.num} → ${st.headRefName} · claude ${intent}`);
+  err(`✅ ${st.hasPr ? `#${st.num}` : "no PR"} → ${st.headRefName} · claude ${intent}`);
   return rc;
 }
 

@@ -125,6 +125,12 @@ przebiegu zwykle nie wystarcza, żeby podjąć pracę.
   zwrócił same fakty bez przebiegu.
 - Masz powiedzieć „nie wiem" / „nie mam kontekstu" o czymś, co Greg traktuje jak
   ustalone. Najpierw `mempalace_search`, dopiero potem przyznaj się do luki.
+- Greg mówi, że coś już dostał: „podawałeś mi", „mówiłeś że", „gdzie to
+  zapisałeś", „ten plik / ta komenda, co dałeś". Najpierw `mp-search` na
+  dosłowny token (nazwa pliku, `password`, nazwa komendy), potem `recall`
+  (max_tokens=512). **Nigdy `rg` po wszystkich `~/.claude/projects/*/*.jsonl`**:
+  2026-10-01 taki skan poszedł w tło, padł na timeout i nic nie zwrócił, a
+  ścieżka wyszła dopiero po ~25 wywołaniach.
 
 CLI fallback, gdy MCP nie wstał: `mempalace search "<query>"`.
 

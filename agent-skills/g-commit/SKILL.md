@@ -55,7 +55,7 @@ If `$WORK_COMPANY` is available, `$WORK_MAIN_PROJECT` usually is too — you may
    - Slug: lowercase, hyphens, short. Pick `type`/`scope` consistent with the commit you are about to make.
 7. **Gate.** Run `claude-yolo status`.
    - `YOLO ON` → skip to step 8, no popup.
-   - Otherwise → `AskUserQuestion`, header `Commit`. Put the **raw** commit message, a blank line, and `git diff --cached --stat` (max ~10 files, then `+N more`) in the `preview` of the first option — never in prose above the popup. Options: **Commit + push** (Recommended) · **Tylko commit** · **Jeszcze nie** (leave staged, ask again at the end of the next task).
+   - Otherwise → `AskUserQuestion`, header `Commit`. Put the **raw** commit message, a blank line, and `git diff --cached --stat` (max ~10 files, then `+N more`) in the `preview` of the first option — never in prose above the popup. If the branch or worktree differs from the session's cwd or the branch last discussed, the preview opens with `branch: <name> (base <ref> <sha>)` and the worktree path. Options: **Commit + push** (Recommended) · **Tylko commit** · **Jeszcze nie** (leave staged, ask again at the end of the next task).
 8. **Commit** (see Execution), then **push** unless "Tylko commit" was picked: `git push`, or `git push -u origin HEAD` when the branch has no upstream.
 9. Report in one line: short sha, branch, pushed or not. A failed push gets its output and a recovery move; never retry with `--force`.
 

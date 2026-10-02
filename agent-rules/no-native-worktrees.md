@@ -54,7 +54,7 @@ fall back.
 A worktree made either way is one of Greg's, not a Claude-managed one, so rule 4
 covers it: leave it in place when the task ends unless he asks otherwise.
 
-## A worktree `work` did not seed is missing three things
+## A worktree `work` did not seed is missing four things
 
 `work` seeds every worktree it opens: `place-work-skills <path>` copies the
 work-scoped skills (`g-pr`, `g-pr-review`, `g-github-issue`, …) into
@@ -66,8 +66,19 @@ instead and Greg had to stop it) and `pnpm start` died on a missing
 `local/.env`. On 2026-09-25 and 09-28 a missing `.husky/_` made every commit
 fail on `.husky/_/husky.sh: No such file or directory`; earlier commits on the
 branch had skipped lint-staged, which surfaced later as a red `oxfmt --check`
-in CI. The fix is `pnpm install` in the worktree (~40 s, no `./install.sh`),
-never `--no-verify`.
+in CI. The fix is `pnpm install --config.confirmModulesPurge=false` in the
+worktree (~40 s, no `./install.sh`), never `--no-verify`. The flag matters:
+pnpm 11 asks before purging modules, the Bash tool has no TTY, and a bare
+`pnpm install` dies with "If you are running pnpm in CI, set …
+confirmModulesPurge to false" (2026-10-01). Don't reach for `CI=true`
+instead, it also changes lockfile behaviour.
+
+A fourth gap: **built workspace packages.** vitest in a fresh worktree failing
+with `ERR_MODULE_NOT_FOUND` / `Cannot find package '@<org>/<pkg>'` means the
+workspace packages it imports were never built there. Run the `nx` target of
+the package under test once (`pnpm exec nx run <project>:ts:check`, 3–6 min,
+in the background) before the first test run. `pnpm install` does not fix it
+(2026-09-30).
 
 **Check the worktree at the start of the session, not when a skill misfires.**
 In any `~/Code/tree/wt-*` path: `.claude/skills/g-pr` missing → run
@@ -88,3 +99,11 @@ The second script is part of the `worktree-dev` skill that the first one places;
 it copies only missing `.env` files from the main checkout and never prints them.
 Then invoke the work skill — never fall back to the team's same-purpose skill
 (`pr` instead of `g-pr`).
+
+## A hotfix found on a feature branch gets its own worktree off `main`
+
+`git fetch origin main`, then `workctl --branch fix/<slug> --base origin/main
+--action wt-full --yes --no-focus`, then test, commit and open the PR from that
+worktree. Don't switch branches in place and don't cherry-pick back: the
+feature branch stays clean (2026-10-01, SCIM hotfix split off `feat/…`, merged
+the same day).
