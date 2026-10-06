@@ -362,6 +362,16 @@
         ]
       },
       {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/pre-tool-use/review-spawn-model.sh",
+            "timeout": 5000
+          }
+        ]
+      },
+      {
         "matcher": "mcp__.*",
         "hooks": [
           {

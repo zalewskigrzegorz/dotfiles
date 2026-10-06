@@ -54,12 +54,12 @@ fall back.
 A worktree made either way is one of Greg's, not a Claude-managed one, so rule 4
 covers it: leave it in place when the task ends unless he asks otherwise.
 
-## A worktree `work` did not seed is missing four things
+## A worktree `work` did not seed is missing five things
 
 `work` seeds every worktree it opens: `place-work-skills <path>` copies the
 work-scoped skills (`g-pr`, `g-pr-review`, `g-github-issue`, …) into
-`<path>/.claude/skills/`, and the seed step clones the gitignored `.env*`
-files, `node_modules` and `.husky/_` from the parent checkout. A worktree made
+`<path>/.claude/skills/`, and the seed step clones the gitignored `.env*` and
+`*.env.json` files, `node_modules` and `.husky/_` from the parent checkout. A worktree made
 with plain git — or a bare one Greg opened without seeding — has none. On
 2026-09-23 that meant `/g-pr` was not in the picker (the team's `pr` skill ran
 instead and Greg had to stop it) and `pnpm start` died on a missing
@@ -79,6 +79,12 @@ workspace packages it imports were never built there. Run the `nx` target of
 the package under test once (`pnpm exec nx run <project>:ts:check`, 3–6 min,
 in the background) before the first test run. `pnpm install` does not fix it
 (2026-09-30).
+
+A fifth gap: **the e2e config `playwright.env.json`.** It is gitignored and
+sits next to the e2e suite (`e2e/*/playwright.env.json`), so an unseeded tree
+fails with `Failed to find .rc file at …/playwright.env.json` (2026-10-04).
+`workctl` clones `*.env.json` since 2026-10-06; for an older worktree, `cp -c
+<main checkout>/<same path> <worktree>/<same path>`, without printing it.
 
 **Check the worktree at the start of the session, not when a skill misfires.**
 In any `~/Code/tree/wt-*` path: `.claude/skills/g-pr` missing → run

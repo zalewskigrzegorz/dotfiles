@@ -52,6 +52,12 @@ rebuilds, and any `pkill`/`killall`.
   above: `docker inspect <c> --format '{{range .Mounts}}{{.Type}} {{.Name}}{{"\n"}}{{end}}'`
   — data on a named volume means a recreate is safe — then `docker compose -p
   <project label> up -d --no-deps --force-recreate <service>`.
+- **`docker build` failing on `Lockfile failed supply-chain policy check` is
+  not flaky.** Two rebuilds of ~17 min each hit the same error (2026-10-04).
+  Don't rebuild: read the pnpm policy line (which package, which rule), report
+  it with the recovery move (pin or bump that dependency, or a build context
+  that does not match the lockfile), and retry only after the lockfile
+  changed. Say the ~17 min cost before any rebuild.
 
 ## Shared lab environments (`lab*`) are the same story, remotely
 

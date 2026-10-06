@@ -73,6 +73,11 @@ About 15 popups were rejected in one week. Every one broke one of these:
 - **Options stand on their own.** No label like "ADR 11" or "5. worktree-dev"
   that only makes sense from the prose above — the popup covers that prose.
   Each `description` says what changes and why in one sentence (72ff3ae5).
+- **A question from a plan file is never introduced by its label.** "Pierwsza
+  decyzja to Q1: kto przenosi stronę logowania" got "co znaczy Kto? jaki PR?"
+  (b90f720d). `Q1`, `Task 3b` mean something only to whoever read the plan.
+  The first sentence says in plain words what the thing is and why Greg
+  decides it; the label comes after, if at all.
 - **"Clarify" means Greg has something more important.** Do not re-ask the
   same popup. Answer his next message; come back to the fork only if it is
   still live. With ≥3 items that need separate decisions, explain them one by

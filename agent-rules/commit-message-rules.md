@@ -38,7 +38,11 @@ This holds in **every repo**.
    last talked about, the preview opens with `branch: <name> (base <ref>
    <sha>)` and the worktree path; without it a fix split off a review looked
    like a commit onto someone else's PR (9ce71fca).
-5. **YOLO on → no popup.** Commit, push, report the result in one line.
+5. **YOLO on → no popup.** Commit, push, report the result in one line. When
+   the repo you committed in differs from the session's cwd, that line starts
+   with `repo: <path>, branch: <name>`, and the first `cd` into that repo
+   already says so ("klipy robię w `<repo>`, commity tam"). Greg had to ask "a
+   gdzie to commitujesz?" (b0af38dc).
 6. **"Jeszcze nie"** defers to the end of the next task, with everything
    accumulated by then. Do not re-ask every turn.
 7. **Push** = `git push`, or `git push -u origin HEAD` for a new branch. A

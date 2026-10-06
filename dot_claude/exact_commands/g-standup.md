@@ -88,7 +88,11 @@ sessions under `~/.claude/projects/*/` if PRs/commits are thin.
 
 **Distill, don't dump.** Collapse many commits on one topic into one bullet.
 Merge a PR and its commits into one line. Merged/open PRs → "did"; open/WIP PRs +
-in-progress issues + today's meetings → "will do today".
+in-progress issues + today's meetings → "will do today". Merged or not comes
+from the PR state in the list above, or `gh pr list --search <sha> --state all
+--json number,state` for a stray commit — not `git branch --contains`: an empty
+`$sha` from `git log --grep` failed four times with `malformed object name`
+(2026-10-06).
 
 ### 4. Confirm what to include (interactive — required)
 

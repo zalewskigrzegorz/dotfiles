@@ -189,9 +189,16 @@ place_scope() {
 # Greg is actually working. The list comes from the same binary `work new` uses,
 # and it is part of the fingerprint above, so a fresh clone or a worktree made
 # with plain git is placed on the next bin/sync.
+# `workctl rm` takes the same lock around `git worktree remove`, so placement
+# never refills a tree that is being deleted (the .claude/skills/-only husk,
+# 2026-10-06). A timeout proceeds anyway: workctl sweeps husks after the fact.
+mkdir -p "${HOME}/.local/state/dotfiles"
+exec 9>"${HOME}/.local/state/dotfiles/worktree-placement.lock"
+if command -v flock >/dev/null 2>&1; then flock -w 30 9 || true; fi
 while IFS= read -r wt; do
   [[ -n "$wt" ]] && place_scope "$wt" "${WORK_SKILLS[@]}"
 done < <("{{ .chezmoi.sourceDir }}/bin/place-work-skills" --list-repos)
+exec 9>&-
 
 place_scope "${HOME}/Code/dotfiles" "${DOTFILES_SKILLS[@]}"
 place_scope "${HOME}/Code/home-lab" "${HOMELAB_SKILLS[@]}"

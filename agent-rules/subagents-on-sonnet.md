@@ -33,7 +33,9 @@ quota in under 20 minutes.
    dispatch: **Sonnet** (Recommended, cheap) · **Fable** (deeper, costs quota).
    Greg sometimes wants Fable there, so it is his pick, not a silent default.
    Bulk work (search, scraping, mechanical edits, fan-outs) stays on Sonnet
-   without asking.
+   without asking. A review spawn without that popup hits the
+   `review-spawn-model.sh` hook, which turns it into a permission prompt naming
+   the model; the popup first is still the way.
 4. **Before a fan-out, say the count and the model in one line** ("5 agentów,
    Sonnet, ~10 min") so Greg can stop it before it starts.
 5. **The model is not the main cost — context re-reads are.** A

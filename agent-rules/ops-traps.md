@@ -1,5 +1,5 @@
 ---
-description: Small operational traps that each cost a session a retry — sudo handoff, probing unknown CLIs, transient index.lock, locating pnpm packages
+description: Small operational traps that each cost a session a retry — sudo handoff, probing unknown CLIs, transient index.lock, locating pnpm packages, empty variables, bulk git mv, removing PR reviewers
 alwaysApply: true
 ---
 
@@ -41,3 +41,29 @@ Many packages have `exports` without that subpath, so `require.resolve` throws
 `rg … $d/dist` runs against `/dist` (2026-09-29, 14× `realpath` later). Use
 `realpath apps/api/node_modules/<pkg>` (pnpm's `node_modules/<pkg>` is a
 symlink). Stop when a path variable is empty, before it reaches `rg`.
+
+## An empty variable stops the chain
+
+`sha=$(git log --grep …)` came back empty four times in a row, and `git branch
+--contains "$sha"` failed with `malformed object name` each time; every retry
+changed the lookup instead of stopping (2026-10-06). The empty `$d` above is
+the same shape. Before a command that takes a ref or a path from `$(…)`:
+`[ -n "$sha" ] || { echo "no match: $s"; continue; }`. After one empty result,
+check the lookup once by hand; don't rerun the loop with a different pipeline.
+
+## A batch of `git mv` is one transaction
+
+A Python loop of `git mv` plus manifest edits died on `index.lock` about
+halfway through ~60 module moves. The manifest was not written yet, so the
+repo sat half-moved and validation failed on ENOENT (2026-10-02). For a bulk
+move: compute the full map first, write the reference files (manifests,
+configs) before the first move, move with plain `mv` (no index), then one
+`git add -A -- <literal paths>` at the end. If it dies anyway: `git status`,
+then resume from the first unfinished item, not from zero.
+
+## `gh api`: removing a requested reviewer
+
+`DELETE …/pulls/<n>/requested_reviewers` wants both keys in the body;
+`-f 'team_reviewers[]=<slug>'` alone answers `"reviewers" wasn't supplied`
+(2026-10-02). Send JSON:
+`printf '{"reviewers":[],"team_reviewers":["<slug>"]}' | gh api -X DELETE repos/<o>/<r>/pulls/<n>/requested_reviewers --input -`.
