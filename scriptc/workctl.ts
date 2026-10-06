@@ -57,6 +57,8 @@ const TREE_ROOT = join(HOME, "Code", "tree");
 const HERDR_TREE_ROOT = join(HOME, ".herdr", "worktrees");
 const CACHE_DIR = join(HOME, ".cache");
 const NU_AUTOLOAD = join(HOME, ".config", "nushell", "autoload");
+// Shared with stage 30 of the dotfiles apply (agent-skills placement).
+const PLACEMENT_LOCK = join(HOME, ".local", "state", "dotfiles", "worktree-placement.lock");
 const PR_LIST_TTL_S = 300;
 const US = "\x1f";
 
@@ -1155,8 +1157,9 @@ function seedSource(st: St): string {
   return st.root;
 }
 
-// .env + node_modules from the parent checkout via APFS clonefile (`cp -c`):
-// instant, no extra disk, keeps pnpm's symlink farm. Linux has no -c → retry.
+// .env, *.env.json (e2e config) + node_modules from the parent checkout via
+// APFS clonefile (`cp -c`): instant, no extra disk, keeps pnpm's symlink farm.
+// Linux has no -c → retry.
 function seedClone(parent: string, wt: string): number {
   const r = git(parent, ["ls-files", "--others", "--ignored", "--exclude-standard", "--directory"]);
   if (r.code !== 0) return 0;
@@ -1165,7 +1168,8 @@ function seedClone(parent: string, wt: string): number {
     const rel = trimSlash(raw);
     const base = basename(rel);
     const huskyState = base === "_" && basename(dirname(rel)) === ".husky";
-    if (base !== "node_modules" && base !== ".env" && !base.startsWith(".env.") && !huskyState) continue;
+    const envFile = base === ".env" || base.startsWith(".env.") || base.endsWith(".env.json");
+    if (base !== "node_modules" && !envFile && !huskyState) continue;
     const src = join(parent, rel);
     const dst = join(wt, rel);
     if (!existsSync(src) || existsSync(dst)) continue;
@@ -1803,7 +1807,19 @@ function removeWorktree(root: string, path: string, branch: string, branchDel: s
   // Stop the fsmonitor daemon first: deleting the tree under a live one segfaults it (git bug).
   git(path, ["fsmonitor--daemon", "stop"]);
   const ws = herdrWsFor(root, path);
-  const r = git(root, ["worktree", "remove", path, "--force"]);
+  // Stage 30 holds this lock while it places skills into worktrees, so a
+  // bin/sync either finishes before the delete or no longer sees the tree.
+  let r: Run;
+  if (have("flock")) {
+    try {
+      mkdirSync(dirname(PLACEMENT_LOCK), { recursive: true });
+    } catch {
+      // flock creates the file; a missing dir only makes it fail like a timeout
+    }
+    r = run("flock", ["-w", "30", PLACEMENT_LOCK, "git", "-C", root, "worktree", "remove", path, "--force"]);
+  } else {
+    r = git(root, ["worktree", "remove", path, "--force"]);
+  }
   // git drops the worktree entry even when the tree survives: a concurrent
   // bin/sync re-placing .claude/skills/ refills it mid-delete (git fails) or
   // `mkdir -p`s it back afterwards (git succeeds). Both left a husk that

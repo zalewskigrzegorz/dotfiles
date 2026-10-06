@@ -40,7 +40,8 @@ fi
 |--------|---------|--------|
 | `USE_LOCAL=true`, `DIRTY` empty | Branch up-to-date with remote, clean worktree | **Use local git for diff/identity. Skip `gh pr diff` in Flow B.** |
 | `USE_LOCAL=true`, `DIRTY` non-empty | Up-to-date but uncommitted changes | Warn user: "Worktree has uncommitted changes — review/triage will use the committed state. Continue?" Then proceed with local. |
-| `USE_LOCAL=false`, branch exists, SHA mismatch | Remote moved (someone pushed) OR local moved (unpushed commits) | Warn explicitly: "Local HEAD `<short>` differs from `origin/<branch>` `<short>` — falling back to `gh` API so review/triage reflects what reviewers see on GitHub." Use `gh pr diff` in Flow B. |
+| `USE_LOCAL=false`, `git merge-base --is-ancestor HEAD "origin/$BRANCH"` true, `DIRTY` empty | Local is only behind, no commits of its own | `git merge --ff-only "origin/$BRANCH"`, then `USE_LOCAL=true`. One line in chat: "fast-forward `<old>` → `<new>`". |
+| `USE_LOCAL=false`, branch exists, SHA mismatch (diverged, or local ahead) | Remote moved (someone pushed) OR local moved (unpushed commits) | Warn explicitly: "Local HEAD `<short>` differs from `origin/<branch>` `<short>` — falling back to `gh` API so review/triage reflects what reviewers see on GitHub." Use `gh pr diff` in Flow B. |
 | `USE_LOCAL=false`, no branch | User passed PR number/URL, not checked out | Silent fallback — `gh pr diff` is the only option. |
 
 State `USE_LOCAL=<true|false>` in one line in chat alongside the `MODE=` line from P2. The user can override ("force fresh API", "trust local").

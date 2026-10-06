@@ -46,6 +46,7 @@ If `$WORK_COMPANY` is available, `$WORK_MAIN_PROJECT` usually is too — you may
    git reset -q            # resync the real index to the new HEAD; their staged hunks are re-staged by them
    ```
    Name the foreign dirty or staged files in one line. Nothing staged and nothing touched → stop and say so.
+   Take the paths from `git status --short`, not from memory. A path removed with `git rm` is gone from disk and from the real index, so `git add <it>` there fails with `pathspec … did not match` and aborts the **whole** `add`; the gate then saw only the deletions (2026-10-06). In the temp index (read from `HEAD`) `git add -A -- <path>` stages the removal. Check `GIT_INDEX_FILE=<scratchpad>/idx git diff --cached --stat` before the popup, and keep mode detection in its own call so a `fatal:` doesn't get lost in the middle of the output.
 2. Determine the mode (see above).
 3. Analyze the staged diff: `git diff --cached`.
 4. **Work mode, deslop gate (mandatory):** invoke `Skill(g-deslop)` on the staged diff before composing the message. Never `deslop` — that is the team's shorter prompt in the monorepo and it won once by name collision (2026-09-25), skipping the full gate. If the pass edits files, re-stage exactly those files and re-read `git diff --cached` — the message must describe the cleaned diff. The gate passes only by running the pass; "the diff already looks clean" is not a pass. Skipped only when the user explicitly says to skip it.

@@ -68,6 +68,8 @@ Removal: `workctl rm <branch> [--force] [--keep-branch]`. Everything after creat
 | Start agent in a pane | `herdr agent start <name> --kind claude --pane <pane_id>` |
 | Send a task brief | `herdr agent prompt <target> "<text>"` |
 | Press keys (e.g. submit) | `herdr agent send-keys <target> Enter` |
+| Pick in the agent's popup | `herdr agent send-keys <target> down down Enter` — several keys per call, `esc` is the canonical Escape |
+| Is it waiting on an answer? | `herdr agent list \| jq -r '.result.agents[] \| select(.pane_id=="<p>") \| .agent_status'`, then `herdr agent read <p> \| grep -v '^\s*$' \| tail -5` |
 | Block until state | `herdr agent wait <target> --until blocked --until done --timeout <ms>` |
 | Remove worktree workspace | `workctl rm <branch>`, or `herdr worktree remove --workspace <id> [--force]` |
 
@@ -114,6 +116,7 @@ Two things to put in a stack agent's brief:
 ## Safety
 
 - Never `send-keys` into a pane you haven't just `read` — you may be typing into Greg's live session (all his agents share the list; check `focused` and `cwd` before touching one you didn't start).
+- No confirmed way to clear a half-typed input: `C-u`, `ctrl+u` and vim `esc d d i` all left the text in place (2026-10-05). If the input box already holds text, don't type a reply over it; tell Greg in one line.
 - Never `worktree remove` a workspace you didn't create without Greg's confirmation; `--force` discards uncommitted work.
 - Agents start in the global `defaultMode` (`acceptEdits`), not your session's mode — a briefed agent that stays `idle`/`blocked` is usually waiting on a Bash/MCP permission prompt (edits auto-accept, shell doesn't); read the pane before assuming failure. See mine 4.
 - Before removing any worktree, audit it: `git status --porcelain`, `git rev-list --left-right --count @{u}...HEAD` for unpushed commits, and `herdr agent list` for agents whose `cwd` is inside it. Ignored files (`node_modules`) don't show in `status` but do make `worktree remove` need `--force` — and removal takes minutes per worktree because it deletes them.

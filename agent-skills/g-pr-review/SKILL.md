@@ -114,6 +114,8 @@ Skip the popup only when the PR is trivial (≤ 3 files, one obvious change) —
 gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviews(first:20,states:PENDING){nodes{author{login} comments(first:20){nodes{path line body}}}}}}}' -F o="$OWNER" -F r="$REPO" -F n=<linked-pr>
 ```
 
+**Red CI: this PR or its base?** Before a red check becomes a finding, look at the same workflow on the base: `gh run list --branch "$BASE_REF" --workflow <workflow> --limit 1 --json conclusion,url`. Base red on the same job → one line "red z base, poza zakresem review" in the summary, then move on. When the job log is needed, pull it once to a file with `rtk proxy gh run view <run> --job <job-id> --log > <scratchpad>/job.log` and `rg -F '##[error]'` it; `--log-failed | tail` came back filtered and cut, and the attribution took ~7 calls (2026-10-06).
+
 ## B2. Analyze silently
 
 Categories — only surface things that genuinely matter:
@@ -122,6 +124,8 @@ Categories — only surface things that genuinely matter:
 * **Performance:** N+1, missing indexes, needless re-renders, memory leaks, blocking async, missing caching.
 * **Quality:** DRY/SRP, deep nesting, magic values, naming, error handling, typing gaps.
 * **Testing:** missing coverage for new behavior, non-asserting tests, flaky patterns, over-mocking.
+
+**A finding that hinges on a dependency.** When it depends on what an external package does, `ls <worktree>/node_modules/<pkg>` first. Missing → don't loop on `realpath`: `cd <scratchpad> && npm pack <pkg>@<version from the lockfile> && tar -xzf <pkg>-*.tgz`, then read `package/dist` (two empty `realpath` tries first on 2026-10-06).
 
 Per finding, record: `severity` (Critical / Suggestion / Nit), `path`, `line`, one-line `title`, one-line `why`, exact `comment_body`, `recommended_action` (Post / Skip).
 
