@@ -72,7 +72,6 @@ const WANTED = [
   "claude.ai Intercom",
   "claude.ai Linear",
   "claude.ai Notion",
-  "claude.ai Sentry",
   "claude.ai monday.com",
 ];
 
