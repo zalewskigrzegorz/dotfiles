@@ -294,6 +294,73 @@ if [ -n "$cwd" ] && git -C "$cwd" rev-parse --is-inside-work-tree >/dev/null 2>&
   [ -n "$g" ] && git_seg="${SEP}${O}󰊢${N} ${g}"
 fi
 
+# PR segment — the current branch's PR number, so an agent that opened a PR (or
+# works on a branch that has one) shows it here AND in the herdr agent sidebar
+# (`$pr` pane token, see [ui.sidebar.agents] in herdr's config.toml). Value is
+# "#N", "#N draft", "#N merged" or "#N closed"; empty = no PR.
+# `gh pr view` hits the network, so it never runs in the render path: the cache
+# (per repo+branch, shared by every pane on it) is refreshed by a detached job,
+# single-flight via a mkdir lock, every 10 min with a PR and every 60 s without
+# one — a fresh `gh pr create` shows up within a minute. The sidebar token is
+# re-sent on change and every 10 min, so a restarted herdr server gets it back.
+pr_seg=""
+pr_val=""
+branch=""
+[ -n "$cwd" ] && branch=$(git -C "$cwd" symbolic-ref --short -q HEAD 2>/dev/null)
+case "$branch" in ""|main|master) branch="" ;; esac
+if [ -n "$branch" ] && command -v gh >/dev/null 2>&1; then
+  top=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)
+  pr_cache="$cache_dir/pr-$(printf '%s|%s' "$top" "$branch" | cksum | cut -d' ' -f1)"
+  pr_age=9999
+  if [ -f "$pr_cache" ]; then
+    pr_val=$(cat "$pr_cache" 2>/dev/null)
+    pr_age=$(( now_ts - $(stat -f %m "$pr_cache" 2>/dev/null || stat -c %Y "$pr_cache" 2>/dev/null || echo 0) ))
+  fi
+  pr_ttl=60; [ -n "$pr_val" ] && pr_ttl=600
+  if [ -d "$pr_cache.lock" ]; then
+    lmtime=$(stat -f %m "$pr_cache.lock" 2>/dev/null || stat -c %Y "$pr_cache.lock" 2>/dev/null || echo 0)
+    [ $(( now_ts - lmtime )) -gt 60 ] && rmdir "$pr_cache.lock" 2>/dev/null
+  fi
+  if [ "$pr_age" -gt "$pr_ttl" ] && mkdir "$pr_cache.lock" 2>/dev/null; then
+    (
+      cd "$cwd" || exit 0
+      if out=$(timeout 20 gh pr view --json number,state,isDraft \
+                 -q 'if .state == "OPEN" then (if .isDraft then "#\(.number) draft" else "#\(.number)" end)
+                     else "#\(.number) \(.state | ascii_downcase)" end' 2>&1); then
+        printf '%s' "$out" > "$pr_cache.tmp" && mv "$pr_cache.tmp" "$pr_cache"
+      elif printf '%s' "$out" | grep -qF 'no pull requests found'; then
+        : > "$pr_cache"
+      else
+        touch "$pr_cache"   # network / auth hiccup: keep the last value, retry after the TTL
+      fi
+      rmdir "$pr_cache.lock"
+    ) </dev/null >/dev/null 2>&1 &
+  fi
+  case "$pr_val" in
+    "")         ;;
+    *" draft")  pr_seg="${SEP}${MUTED}󰘬 ${pr_val}${N}" ;;
+    *" merged") pr_seg="${SEP}${PURPLE}󰘬 ${pr_val}${N}" ;;
+    *" closed") pr_seg="${SEP}${MUTED}󰘬 ${pr_val}${N}" ;;
+    *)          pr_seg="${SEP}${G}${B}󰘬 ${pr_val}${N}" ;;
+  esac
+fi
+if [ -n "$HERDR_PANE_ID" ] && command -v herdr >/dev/null 2>&1; then
+  pr_sent="$cache_dir/prsent-${HERDR_PANE_ID//[^A-Za-z0-9]/_}"
+  sent_val=""; sent_age=9999
+  if [ -f "$pr_sent" ]; then
+    sent_val=$(cat "$pr_sent" 2>/dev/null)
+    sent_age=$(( now_ts - $(stat -f %m "$pr_sent" 2>/dev/null || stat -c %Y "$pr_sent" 2>/dev/null || echo 0) ))
+  fi
+  if [ "$sent_val" != "$pr_val" ] || { [ -n "$pr_val" ] && [ "$sent_age" -gt 600 ]; }; then
+    printf '%s' "$pr_val" > "$pr_sent"
+    if [ -n "$pr_val" ]; then
+      herdr pane report-metadata "$HERDR_PANE_ID" --source greg.pr --token "pr=$pr_val" </dev/null >/dev/null 2>&1 &
+    else
+      herdr pane report-metadata "$HERDR_PANE_ID" --source greg.pr --clear-token pr </dev/null >/dev/null 2>&1 &
+    fi
+  fi
+fi
+
 dur_seg="${SEP}${MINT}${dur_fmt}${N}"
 
 # Tool call counter (count tool_use events in transcript)
@@ -414,8 +481,8 @@ if [ -z "$win_title" ] && [ -n "$transcript" ] && [ -f "$transcript" ]; then
 fi
 [ -n "$win_title" ] && win_seg="${SEP}${sess_c}${B}󰖯 ${win_title}${N}"
 
-printf '%s%s%s%s%s%s%s%s%s%s%s%s%s%s' \
+printf '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' \
   "$num_seg" "$vim_seg" \
-  "$model_seg" "$mode_seg" "$proj_seg" "$git_seg" "$dur_seg" \
+  "$model_seg" "$mode_seg" "$proj_seg" "$git_seg" "$pr_seg" "$dur_seg" \
   "$tool_seg" "$comp_seg" \
   "$wait_seg" "$ctx_seg" "$lines_seg" "$style_seg" "$win_seg"

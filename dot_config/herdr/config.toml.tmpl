@@ -51,10 +51,19 @@ show_agent_labels_on_pane_borders = true
 # description washed out — worse than the spaces list's git branch, which reads
 # fine. NOTE: `dim = false` alone did NOT lift it — herdr keeps a dark base fg for
 # these tokens regardless, so an explicit bright `fg` is what actually fixes it.
+# `$pr` = the branch's PR ("#N", "#N draft|merged|closed"), reported per pane by
+# the Claude statusline (dot_claude/executable_statusline.sh); absent → hidden.
 [ui.sidebar.agents]
 rows = [
   ["state_icon", "workspace", { token = "tab", fg = "#D8D8EC", dim = false }],
-  [{ token = "agent", fg = "#B0B0CC", dim = false }],
+  [
+    { token = "agent", fg = "#B0B0CC", dim = false },
+    { token = "$pr", fg = "#50FA7B", bold = true, dim = false, rules = [
+      { contains = "draft", fg = "#A6ADC8", bold = false },
+      { contains = "merged", fg = "#9580FF", bold = false },
+      { contains = "closed", fg = "#A6ADC8", bold = false },
+    ] },
+  ],
 ]
 
 [ui.toast]
