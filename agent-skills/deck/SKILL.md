@@ -148,7 +148,7 @@ For the room, serve locally — no wifi dependency, no login, and the remote wor
 
 Write it as a separate `deck-artifact.html` so the served copy keeps its remote. **Flag before publishing** that internal material (PR numbers, reviewer counts, meeting quotes, branch names) is leaving the machine — especially when the deck itself recommends local-only tooling.
 
-If the talk shows off hosted plans or recaps, export them to static HTML first (`mcp__plan__export-visual-plan` → the `html` field) and serve them from the deck's own directory. Greg asked for this so the demo showed no third-party service. A small `recaps/index.html` of cards makes a credible local dashboard.
+If the talk shows off diagrams, use `archify` output: it is already a standalone HTML file, so copy it next to the deck and serve it from there. Greg asked for this so the demo showed no third-party service. A small `diagrams/index.html` of cards makes a credible local dashboard.
 
 ## Shared page, not a talk (`deck push` as a living document)
 
@@ -174,7 +174,7 @@ same palette is enough.
 - Don't put `animation` on a direct child of `.slide-content` — the entry `fadeUp` rule wins and your animation vanishes. Animate a descendant instead.
 - Don't pulse `opacity` on anything containing text. Pulse the arrows and rails.
 - **Zero external requests.** No font CDN, no Chart.js, no remote images. It must work with the projector's wifi down, and the Artifact CSP blocks them anyway.
-- Check `git remote`/`npm view` before claiming where something lives. The visual-recap skill looks like a GitHub repo but ships in the npm package `@agent-native/core`; repo is `BuilderIO/agent-native`, package is MIT, repo has no detectable LICENSE.
+- Check `git remote`/`npm view` before claiming where something lives. A skill can look like its own GitHub repo but ship inside an npm package with a different name and license.
 
 ## Where things go
 

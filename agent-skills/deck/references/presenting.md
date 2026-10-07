@@ -116,17 +116,9 @@ Say out loud that internal material — PR numbers, reviewer counts, meeting quo
 names — is leaving the machine. Artifacts start private, but it is still an upload, and it
 contradicts a deck that recommends local-only tooling.
 
-## Hosted plans and recaps in a demo
+## Diagrams in a demo
 
-Greg doesn't want a third-party service on screen. Export first:
-
-```
-mcp__plan__export-visual-plan(planId) → the `html` field is a standalone page
-```
-
-The result blows the token cap, so it lands in a file — pull the field with jq/python and
-push it as its own deck, or drop it next to the deck when using the offline fallback. A
-small card-grid `index.html` over several exports reads as a local dashboard.
-
-Caveat worth saying on stage: a static export can't be commented on. It shows the structure
-of a recap, not the live review workflow.
+Greg doesn't want a third-party service on screen. `archify` writes a standalone HTML file
+(under `~/Code/personal/bazgroly/<repo>/diagrams/`), so copy it next to the deck, or push it
+as its own deck. A small card-grid `index.html` over several diagrams reads as a local
+dashboard.
