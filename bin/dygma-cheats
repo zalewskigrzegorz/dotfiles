@@ -271,6 +271,12 @@ WOOSHY_ACTIONS = [
     ("Wooshy · kopiuj tekst elementu", "Cmd C", "Wooshy picker (po wpisaniu)"),
 ]
 
+# Claude Code prompt bindings Greg added on top of the defaults
+# (source: dot_claude/keybindings.json).
+CLAUDE_ACTIONS = [
+    ("Claude Code · wyślij kolejkowaną wiadomość teraz", "Ctrl Y", "Claude Code (prompt)"),
+]
+
 
 def build_entries():
     d = json.load(open(newest_export()))
@@ -286,6 +292,7 @@ def build_entries():
     entries = []  # (search_label, shortcut, where)
     entries += app_globals          # global hotkeys (fire even off-keyboard)
     entries += WOOSHY_ACTIONS       # Wooshy in-picker actions (not in defaults)
+    entries += CLAUDE_ACTIONS       # Claude Code custom prompt bindings
     if "--no-aero" not in sys.argv:
         entries += aero_entries     # aerospace window-manager bindings
 
