@@ -10,7 +10,7 @@ metadata:
 
 # Archify
 
-Create an interactive HTML diagram from typed JSON. Static output is the default; enable motion only when requested.
+Create an interactive HTML diagram from typed JSON. Local override: always set `meta.animation: "trace"`, so the viewer's Live/Still toggle and Export → WebM are available on every diagram. Use `"none"` only when the user asks for a static diagram. Trace order follows the order of the relationship array (`connections` / transitions / messages), so author it along the main path.
 
 Diagrams are AI artifacts, so they never land in the repo being diagrammed (local override, see `agent-rules/superpowers-artifact-location.md`). The working directory for every command is `~/Code/personal/bazgroly/<repo-basename>/diagrams/`, where `<repo-basename>` is the basename of `git rev-parse --show-toplevel` (`scratch` outside a repo); create it if missing. Run each command as `cd <that dir> && node ~/.claude/skills/archify/bin/archify.mjs …` and pass the diagrammed repo as `--repo-root <absolute repo path>`. Never create `.archify/` inside a project repo. Unless the user names another location, give each new diagram request its own folder `<type>-<slug>-<YYYYMMDD-HHMMSS>/` there (local time, chosen once when the request starts): keep `candidate.json` and `<slug>.html` in it, set `meta.output` to that relative HTML path, and reuse the folder for every repair rerun. A later request gets a new folder, so earlier versions stay intact. Tell the user the absolute HTML path when done. Input and output paths resolve from that working directory.
 
@@ -28,7 +28,7 @@ Use this path for ordinary generation. Read branch references only when their st
 
 1. Choose `architecture`, `workflow`, `sequence`, `dataflow`, or `lifecycle` from the question.
 2. Use the exact schema and example paths in the Type router without listing their directories. Read [Authoring defaults](references/authoring-defaults.md) and the mode's example in a bounded batch separate from project documents and complete schemas so neither is truncated; recover any missing section before writing. For Architecture, use the matching showcase example. For Sequence, Dataflow, and Lifecycle, also read the mode and common schemas. Read the relevant schema definition before choosing any new field, enum, or constrained text, especially boundary kinds. Examples teach shape, not facts. Use fresh IDs, wording, and layout. Go directly to the candidate without preliminary help, doctor, starter validation, temporary diagrams, or output-path listing. Query brands only for an explicitly requested mark; read [Brand marks](references/brand-marks.md) for an unknown mark with a user-provided URL.
-3. Once the requested scope and, for a real codebase, [source evidence](references/repository-authoring.md) are covered, write the complete candidate directly without planning coordinates in prose. Choose Architecture abstraction and connected placement using Authoring defaults before coordinates: show the main user journey and necessary branches, preserve control roles and behavior-changing conditions, and leave enough room for actual relationship labels. No node, relationship, source, view, card, or boundary count is a target or ceiling. Use automatic routes first; add explicit routing only for necessary branch, return, supplied geometry, or measured repair. Set `meta.quality_profile` to `"showcase"` unless the user requests dense `standard`.
+3. Once the requested scope and, for a real codebase, [source evidence](references/repository-authoring.md) are covered, write the complete candidate directly without planning coordinates in prose. Choose Architecture abstraction and connected placement using Authoring defaults before coordinates: show the main user journey and necessary branches, preserve control roles and behavior-changing conditions, and leave enough room for actual relationship labels. No node, relationship, source, view, card, or boundary count is a target or ceiling. Use automatic routes first; add explicit routing only for necessary branch, return, supplied geometry, or measured repair. Set `meta.quality_profile` to `"showcase"` unless the user requests dense `standard`, and `meta.animation` to `"trace"`.
 4. Once the complete first candidate is written, run `finalize` directly. Its first gate is showcase validation; successful first drafts need no separate pre-validation. Keep the candidate unchanged while the command runs:
 
    ```bash
@@ -87,7 +87,7 @@ Report artifact checks, browser evidence, captures, and actual perceptual review
 
 ## Optional viewer capabilities
 
-`meta.animation: "trace"` is opt-in.
+`meta.animation: "trace"` is on by default here (see the top of this file). Re-finalizing an already delivered HTML at the same path fails with `viewer/evidence-path-conflict`: move the old `<stem>.browser-check.json` aside first, or pass `--out-dir`.
 
 Read `references/viewer-runtime.md` only when the user explicitly asks for Share Cards, Route/Reach cards, motion, deep links, presentation, search/focus, or another Viewer Runtime feature.
 
