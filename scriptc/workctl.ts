@@ -1809,6 +1809,12 @@ function removeWorktree(root: string, path: string, branch: string, branchDel: s
   const ws = herdrWsFor(root, path);
   // Stage 30 holds this lock while it places skills into worktrees, so a
   // bin/sync either finishes before the delete or no longer sees the tree.
+  // Only the unregister runs under it: the tree is renamed aside (same fs,
+  // instant) and git drops the now-missing entry. Deleting node_modules under
+  // the lock took ~45 s, so a second `work rm` timed out with an empty reason
+  // (2026-10-08). If the rename fails, git deletes in place as before.
+  const trash = join(dirname(path), `.rm-${basename(path)}-${String(process.pid)}`);
+  const unregister = 'mv "$1" "$2" 2>/dev/null; git -C "$3" worktree remove --force "$1"';
   let r: Run;
   if (have("flock")) {
     try {
@@ -1816,9 +1822,13 @@ function removeWorktree(root: string, path: string, branch: string, branchDel: s
     } catch {
       // flock creates the file; a missing dir only makes it fail like a timeout
     }
-    r = run("flock", ["-w", "30", PLACEMENT_LOCK, "git", "-C", root, "worktree", "remove", path, "--force"]);
+    r = run("flock", ["-w", "30", "-E", "75", PLACEMENT_LOCK, "sh", "-c", unregister, "sh", path, trash, root]);
+    if (r.code === 75) {
+      err(`⏳ lock busy for 30 s (another \`work rm\` or bin/sync) — nothing removed, run it again`);
+      return 1;
+    }
   } else {
-    r = git(root, ["worktree", "remove", path, "--force"]);
+    r = run("sh", ["-c", unregister, "sh", path, trash, root]);
   }
   // git drops the worktree entry even when the tree survives: a concurrent
   // bin/sync re-placing .claude/skills/ refills it mid-delete (git fails) or
@@ -1826,9 +1836,11 @@ function removeWorktree(root: string, path: string, branch: string, branchDel: s
   // `rm --self` no longer recognised (2026-10-02). --force already chose to
   // delete everything, so finish the job unless git still tracks it.
   if (lines(git(root, ["worktree", "list", "--porcelain"]).out).includes(`worktree ${path}`)) {
+    if (existsSync(trash)) run("mv", [trash, path]);
     err(`git worktree remove failed: ${r.err.trim()}`);
     return 1;
   }
+  if (existsSync(trash) && run("rm", ["-rf", trash]).code !== 0) err(`⚠️  could not delete ${trash}`);
   if (existsSync(path) && run("rm", ["-rf", path]).code !== 0) {
     err(`⚠️  could not delete the leftover ${path}`);
     return 1;
