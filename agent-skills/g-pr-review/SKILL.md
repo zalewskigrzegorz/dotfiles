@@ -189,7 +189,16 @@ If you genuinely need a file: `PAYLOAD=$(mktemp -t g-pr-review.XXXXXX.json)` —
 * Multi-line anchors: add `"start_line": <n>` alongside `"line"`.
 * Empty `comments` works for `APPROVE` only. `COMMENT` or `REQUEST_CHANGES` with no inline comment and no body fails on step 2 with 422 `You need to leave a comment indicating the requested changes` (2026-10-02, #28392), and step 1 has already left an empty `PENDING` review behind. With zero comments: never offer `COMMENT`, and `REQUEST_CHANGES` takes a one-line body naming the open thread (the API-required exception). If step 2 fails anyway, delete the pending review: `gh api -X DELETE "repos/$OWNER/$REPO/pulls/$NUMBER/reviews/$REVIEW_ID"`.
 
-Report the review URL (from `html_url` in the response). One line. Don't re-print comments.
+Report the review URL (from `html_url` in the response). One line. Don't re-print comments. Then B6.
+
+## B6. Close the review worktree
+
+The review worktree is opened by `workctl`'s "review this PR" just for this session. Once the verdict is in, it isn't needed any more. This applies only when **all** of these hold: `git rev-parse --show-toplevel` sits under `~/Code/tree/wt-*`, `git branch --show-current` is the PR head, `git status --porcelain` is empty, and nothing was committed or pushed here (the "Author away, fix on their branch" override keeps its tree). If any check fails, there is nothing to do, so say nothing.
+
+* **`APPROVE` submitted → remove it without asking.** The review URL line ends with "zamykam worktree", and then `workctl rm --self` is the **last tool call** of the session. It deletes the tree and the local branch, then closes this herdr workspace together with this agent, so nothing printed after it will be seen.
+* **Anything else** (`REQUEST_CHANGES`, `COMMENT`, Don't submit, Flow C without a new verdict) → one `AskUserQuestion`: **Zamknij worktree** (Recommended): a follow-up "review this PR" opens a fresh tree in seconds · **Zostaw**: keeps it for a follow-up in this session. On Zamknij, same call as above.
+
+Never pass `--force`. A dirty tree makes `workctl rm` exit with "has uncommitted changes". Report that in one line and leave the tree in place.
 
 ---
 
@@ -283,7 +292,7 @@ Recommendation:
 
 With no new inline comment, `COMMENT` is not an option (see the B5 note on empty `comments`).
 
-If user picks a verdict, submit via B5 (pending review, then event).
+If user picks a verdict, submit via B5 (pending review, then event). Either way, finish with B6.
 
 ---
 
@@ -342,6 +351,7 @@ If user picks a verdict, submit via B5 (pending review, then event).
 * [ ] B4 verdict question with recommendation
 * [ ] B5 submits via stdin heredoc, pending review then event
 * [ ] Review URL reported
+* [ ] B6 review worktree closed (auto on `APPROVE`, popup otherwise)
 
 ## Flow C (`followup`)
 
@@ -350,3 +360,4 @@ If user picks a verdict, submit via B5 (pending review, then event).
 * [ ] C3 batched questions with Accept/Push back/Ask/Skip
 * [ ] C4 replies posted via batched flow
 * [ ] C5 verdict offered (or skipped on user request)
+* [ ] B6 review worktree closed (auto on `APPROVE`, popup otherwise)
