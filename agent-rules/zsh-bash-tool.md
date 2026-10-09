@@ -26,7 +26,15 @@ one-liners and each cost a retry or more (2026-09-23 … 09-28):
    API answers "At least 40 characters are required". Quote every `[]` arg:
    `-f 'parents[]'="$SHA"`, `-f 'labels[]=bug'`, `-F 'ids[]=1'`. An unmatched
    `*.zip` is an error, not an empty list: `ls *.zip` dies with `no matches
-   found: *.zip`. Use `*.zip(N)` for an empty list, or `find`.
+   found: *.zip`. Use `*.zip(N)` for an empty list, or `find`. The `*` and
+   `(N)` must sit outside the quotes: `"…/Skaner/Epson_*.pdf"(N)` is a literal
+   and still dies (2026-10-09). Quote only the fixed prefix,
+   `"$dir"/Epson_*.pdf(N)`, or use `find "$dir" -name 'Epson_*.pdf'`.
+4. **`echo` expands `\n` inside JSON.** `echo "$resp" | jq` died with `Invalid
+   string: control characters` on a Slack response, and the exit 1 looked like
+   a failed send after the message was already posted (2026-10-08). Pipe curl
+   straight into `jq`, or use `printf '%s' "$resp" | jq`. A parse error after a
+   send means "check the channel", never "resend".
 
 When a one-liner that works in bash fails with `not found`, "no files" or
 `no matches found`, check these before you suspect the tool or the data.
@@ -70,6 +78,13 @@ step: migrations"). A watcher that exits on a network error is not a failed
 run: on wifi loss `gh run watch` exits 1 too, so check `gh run view <id> --json
 status,conclusion` before reporting a failure (2026-10-01).
 
+**PR checks get one watcher too.** `timeout 3000 gh pr checks <n> --watch
+--interval 90 > <scratch>/checks.log` with `run_in_background`, then one `gh pr
+checks <n> --json name,state,link` after it exits. Never `sleep N;` before a
+poll (the harness blocks it), and never an `until`/`while` around `gh pr
+checks`: one session wrote three of them after the block (2026-10-08). A
+non-zero exit from `--watch` means a failed or pending check, not a tool error.
+
 ## The other side of herdr is nushell
 
 - **Steps Greg runs himself in a herdr pane are written in nushell**, not bash.
@@ -81,3 +96,10 @@ status,conclusion` before reporting a failure (2026-10-01).
   nushell.** `&&`, `||`, `2>/dev/null` and `$(…)` fail with
   `nu::parser::shell_andand` and friends. Wrap POSIX syntax as `sh -c '…'`, or
   write nu syntax with `;`. `workctl` was fixed for this on 2026-09-23.
+
+## Testing a TTY prompt: `pty-run`, not an inline pty script
+
+`read -s`, pinentry and nushell `input -s` need a controlling terminal, which
+the Bash tool lacks. Use `pty-run --input secret -- <cmd>` (prints the
+transcript and `exit=<code>`; `--timeout SEC`, default 30, exit 124). The pty
+script was rewritten twice inline on 2026-10-08.

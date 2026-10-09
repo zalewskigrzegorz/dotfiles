@@ -1,0 +1,70 @@
+#!/usr/bin/env -S python3 -I
+"""pty-run: run a command on a fresh pty (controlling terminal) to test TTY prompts.
+
+usage: pty-run [--input TEXT]... [--timeout SEC] -- <cmd> [args...]
+Each --input is sent with a trailing newline, one per prompt (short delay
+between them). Prints the transcript, then `exit=<code>`. Timeout -> kill, exit 124.
+"""
+import os, pty, sys, time, select, signal
+
+def usage(code):
+    print(__doc__, file=sys.stderr if code else sys.stdout)
+    sys.exit(code)
+
+args = sys.argv[1:]
+inputs, timeout = [], 30.0
+while args and args[0] != "--":
+    a = args.pop(0)
+    if a in ("-h", "--help"):
+        usage(0)
+    elif a == "--input" and args:
+        inputs.append(args.pop(0))
+    elif a == "--timeout" and args:
+        try:
+            timeout = float(args.pop(0))
+        except ValueError:
+            usage(2)
+    else:
+        usage(2)
+if not args or args[0] != "--" or len(args) < 2:
+    usage(2)
+cmd = args[1:]
+
+pid, fd = pty.fork()  # child: setsid + controlling tty
+if pid == 0:
+    try:
+        os.execvp(cmd[0], cmd)
+    except OSError as e:
+        os.write(2, f"pty-run: {e}\n".encode())
+        os._exit(127)
+
+deadline = time.monotonic() + timeout
+out = b""
+last_rx = time.monotonic()
+status = None
+while True:
+    now = time.monotonic()
+    if now >= deadline:
+        os.kill(pid, signal.SIGKILL)
+        os.waitpid(pid, 0)
+        sys.stdout.write(out.decode(errors="replace"))
+        print("\nexit=124")
+        sys.exit(124)
+    r, _, _ = select.select([fd], [], [], 0.1)
+    if r:
+        try:
+            d = os.read(fd, 4096)
+        except OSError:
+            d = b""
+        if not d:
+            break
+        out += d
+        last_rx = time.monotonic()
+    elif inputs and time.monotonic() - last_rx > 0.3:
+        os.write(fd, (inputs.pop(0) + "\n").encode())
+        last_rx = time.monotonic()
+_, st = os.waitpid(pid, 0)
+code = os.waitstatus_to_exitcode(st)
+sys.stdout.write(out.decode(errors="replace").replace("\r\n", "\n"))
+print(f"exit={code}")
+sys.exit(0)

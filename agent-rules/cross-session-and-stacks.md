@@ -29,3 +29,11 @@ wszedł adr 15, weź go pod uwagę, bo teraz tego nie robisz" (a752428e).
 - A second PR that depends on an unmerged first one → propose stacking it on
   that PR up front (`workctl --base origin/<first-branch>`). Don't wait for
   Greg to ask.
+
+## Red check on a stacked branch → compare with the base first
+
+Lint, knip or a spec red on a branch stacked on a non-main base: before
+touching code, run `rg-base-head <pattern> [paths] --base origin/<base>` (or
+the check itself on the base). Same hits on both → report in one line
+("identyczne na base, nie nasze") and leave them. It took ~15 calls twice in
+one session (2026-10-08).

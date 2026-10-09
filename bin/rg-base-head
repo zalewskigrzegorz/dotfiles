@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# rg-base-head: are hits of a pattern inherited from the base of a stacked branch?
+set -u
+usage() {
+  cat <<'U'
+usage: rg-base-head <pattern> [paths...] [--base <ref>]
+  Runs `git grep -n -E <pattern>` on <base> and on HEAD, compares file:content
+  (line numbers ignored). Base default: origin/main, else origin/master.
+  exit 0 identical, 1 differs, 2 bad usage.
+U
+}
+pattern="" base="" paths=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    --base) [ $# -ge 2 ] || { usage >&2; exit 2; }; base="$2"; shift 2 ;;
+    --base=*) base="${1#--base=}"; shift ;;
+    *) if [ -z "$pattern" ]; then pattern="$1"; else paths+=("$1"); fi; shift ;;
+  esac
+done
+[ -n "$pattern" ] || { usage >&2; exit 2; }
+if [ -z "$base" ]; then
+  for c in origin/main origin/master; do
+    git rev-parse --verify -q "$c^{commit}" >/dev/null && { base="$c"; break; }
+  done
+fi
+[ -n "$base" ] || { echo "rg-base-head: no base ref found, pass --base" >&2; exit 2; }
+git rev-parse --verify -q "$base^{commit}" >/dev/null || { echo "rg-base-head: bad ref $base" >&2; exit 2; }
+
+hits() { # ref
+  local ref="$1" out rc
+  out=$(git grep -n -E -e "$pattern" "$ref" -- "${paths[@]+"${paths[@]}"}" 2>&1); rc=$?
+  if [ $rc -gt 1 ]; then echo "rg-base-head: git grep failed: $out" >&2; exit 2; fi
+  # ref:file:NN:content -> file:content
+  printf '%s\n' "$out" | sed -E "s/^[^:]*:([^:]*):[0-9]+:/\1:/" | sed '/^$/d' | sort
+}
+b=$(hits "$base") || exit 2
+h=$(hits HEAD) || exit 2
+only_head=$(comm -13 <(printf '%s\n' "$b") <(printf '%s\n' "$h") | sed '/^$/d')
+only_base=$(comm -23 <(printf '%s\n' "$b") <(printf '%s\n' "$h") | sed '/^$/d')
+if [ -z "$only_head" ] && [ -z "$only_base" ]; then
+  echo "identical on base ($base) and HEAD"; exit 0
+fi
+if [ -n "$only_head" ]; then echo "only on HEAD:"; printf '%s\n' "$only_head" | sed 's/^/  /'; fi
+if [ -n "$only_base" ]; then echo "only on base:"; printf '%s\n' "$only_base" | sed 's/^/  /'; fi
+exit 1

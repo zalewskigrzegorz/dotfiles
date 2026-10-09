@@ -153,7 +153,10 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "Content-type: application/json" \
 
 Never echo `$TOKEN`. `ok:true` = sent; on `ok:false` report the `error`
 (`not_in_channel`, `channel_not_found`, `invalid_auth`) and stop — don't retry
-blind.
+blind. Keep curl piped straight into `jq`: an `echo "$resp" | jq` in zsh broke
+on `\n` after a post that had already gone out, and the exit 1 looked like a
+failed send (2026-10-08). A parse error after the POST means "read the
+channel", never "resend".
 
 ### 7. Verify
 

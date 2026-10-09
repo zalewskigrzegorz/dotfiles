@@ -1,0 +1,54 @@
+#!/bin/bash
+# standup-send <dm-channel> <answer-text>   (or text on stdin when 2nd arg is "-")
+#
+# Post ONE standup answer as Greg (user token, no footer) to the bot DM, then
+# poll conversations.history every 5 s and print the bot's next message as soon
+# as a message newer than the sent ts from someone else arrives.
+# Skips the bot's "give me a minute" sleep line. Exit: 0 ok, 124 timeout (120 s),
+# 1 post failed, 2 usage, 3 posted but cannot read (token lacks im:history).
+# Needs $WORK_SLACK_POSTER_TOKEN (work.env). Never prints the token.
+set -u
+[ $# -eq 2 ] || { echo "usage: standup-send <dm-channel> <text|->" >&2; exit 2; }
+CH=$1; TEXT=$2
+[ "$TEXT" = "-" ] && TEXT=$(cat)
+[ -n "$TEXT" ] || { echo "empty answer" >&2; exit 2; }
+# shellcheck disable=SC1090
+[ -n "${WORK_SLACK_POSTER_TOKEN:-}" ] || . "$HOME/.local/state/dotfiles/secrets/work.env"
+TOKEN=${WORK_SLACK_POSTER_TOKEN:-}
+case "$TOKEN" in xoxp-*) : ;; *) echo "no user token, draft-only" >&2; exit 2 ;; esac
+
+resp=$(curl -s -H "Authorization: Bearer $TOKEN" -H "Content-type: application/json" \
+  -X POST https://slack.com/api/chat.postMessage \
+  -d "$(jq -n --arg c "$CH" --arg t "$TEXT" '{channel:$c,text:$t}')")
+ok=$(printf '%s' "$resp" | jq -r '.ok // false' 2>/dev/null)
+if [ "$ok" != "true" ]; then
+  err=$(printf '%s' "$resp" | jq -r '.error // "unparseable response"' 2>/dev/null)
+  echo "post failed: ${err:-unparseable response}" >&2
+  exit 1
+fi
+SENT=$(printf '%s' "$resp" | jq -r '.ts // empty' 2>/dev/null)
+ME=$(printf '%s' "$resp" | jq -r '.message.user // empty' 2>/dev/null)
+if [ -z "$SENT" ]; then
+  echo "sent, verify in DM, do not resend"; exit 0
+fi
+echo "sent ts=$SENT, waiting for the bot..." >&2
+
+end=$((SECONDS + 120))
+while [ $SECONDS -lt $end ]; do
+  sleep 5
+  h=$(curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://slack.com/api/conversations.history?channel=$CH&oldest=$SENT&inclusive=false&limit=10")
+  if [ "$(printf '%s' "$h" | jq -r '.ok // false' 2>/dev/null)" != "true" ]; then
+    err=$(printf '%s' "$h" | jq -r '.error // "unparseable response"' 2>/dev/null)
+    echo "sent, verify in DM, do not resend (cannot read history: ${err:-unparseable})" >&2
+    [ "$err" = "missing_scope" ] && echo "token needs im:history; add it to the slack-poster app" >&2
+    exit 3
+  fi
+  # oldest-first, drop my own messages and the bot's sleep line
+  msg=$(printf '%s' "$h" | jq -r --arg me "$ME" '
+    [.messages[] | select(.user != $me) | select((.text // "") | test("give me a minute|💤") | not)]
+    | reverse | .[0].text // empty' 2>/dev/null)
+  if [ -n "$msg" ]; then printf '%s\n' "$msg"; exit 0; fi
+done
+echo "timeout: no reply in 120 s (answer was sent, do not resend)" >&2
+exit 124

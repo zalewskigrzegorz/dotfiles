@@ -249,6 +249,14 @@ which refs/selectors matched a live element.
 control. After a `continued` or `completed` result, issue a separate
 observation tool call (usually `bsk snapshot --session <id>`) before using
 new refs or reasoning about the post-help page state.
+
+**A confirm dialog for an irreversible action is Greg's click, trigger
+included.** A modal can close the moment the window loses focus or `bsk`
+returns, before he sees it: a Sentry merge dialog did that and the merge never
+happened (2026-10-08). Don't click the trigger yourself. Select the items, then
+`bsk request-help --target <trigger button>` so he opens and confirms the
+dialog. If it vanished, re-open it only after he says so.
+
 #### Disabling request-help (unattended mode)
 Set `BSK_REQUEST_HELP=off` on unattended servers: `bsk request-help` then
 returns immediately with `outcome="disabled"` (no overlay, no waiting,

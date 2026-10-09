@@ -54,3 +54,10 @@ which reads exactly like "not there". On 2026-09-27 that cost 57 re-runs
 through `rtk proxy rg` while hunting an `.npmrc`. When the question is
 **does X exist / which files match**, run it as `rtk proxy <cmd>` the first
 time, or use the `Glob`/`Read` tools, which rtk never touches.
+
+**Only existence checks.** Three sessions on 2026-10-08 turned this into a
+habit: 163, 321 and 364 `rtk proxy` calls, so most of the search output went
+in unfiltered. Content searches that read lines (`rg -n`, `-B/-A`) use plain
+`rg` or the `Grep` tool, capped with `-m N`. If a filtered result looks
+suspiciously empty or shows `[+N hidden]`, re-run that one command through
+`rtk proxy`, and go back to plain `rg` for the next one.
