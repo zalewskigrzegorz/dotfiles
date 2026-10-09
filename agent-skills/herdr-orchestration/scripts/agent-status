@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# One line per herdr agent: target | state | last 2 output lines | PR + checks.
+# Usage: agent-status [--wait [--timeout SEC]] [<ws>:p<N> ...]   (none = all agents)
+# --wait polls every 15 s, exits 0 on first idle/done/blocked/unknown agent, 124 on timeout.
+set -u
+wait=0; timeout=600; targets=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --wait) wait=1 ;;
+    --timeout) timeout="${2:?--timeout needs seconds}"; shift ;;
+    -h|--help) sed -n '2,4p' "$0"; exit 0 ;;
+    *) targets+=("$1") ;;
+  esac
+  shift
+done
+
+snapshot() { # prints lines, returns 0 if any agent actionable
+  local json rows actionable=1 pane state cwd out tail2 pr br
+  json=$(herdr agent list 2>/dev/null) || { echo "herdr agent list failed" >&2; return 2; }
+  rows=$(printf '%s' "$json" | jq -r '.result.agents[] | [.pane_id, .agent_status, .cwd] | @tsv')
+  [ -n "$rows" ] || { echo "no agents" >&2; return 2; }
+  while IFS=$'\t' read -r pane state cwd; do
+    if [ ${#targets[@]} -gt 0 ]; then
+      case " ${targets[*]} " in *" $pane "*) ;; *) continue ;; esac
+    fi
+    case "$state" in
+      working) label=working ;;
+      idle|done) label=idle; actionable=0 ;;
+      blocked) label=blocked-on-question; actionable=0 ;;
+      *) label="$state"; actionable=0 ;;
+    esac
+    out=$(herdr agent read "$pane" --lines 40 2>/dev/null | grep -v '^[[:space:]]*$' | tail -2 | sed -E 's/^[[:space:]]+//; s/[[:space:]]{2,}/  /g' | cut -c1-140 | paste -sd'|' - | sed 's/|/ | /')
+    pr=""
+    if [ -d "$cwd" ] && command -v gh >/dev/null 2>&1; then
+      br=$(git -C "$cwd" branch --show-current 2>/dev/null)
+      if [ -n "$br" ]; then
+        pr=$(cd "$cwd" && timeout 15 gh pr view "$br" --json number,statusCheckRollup \
+          -q '"#\(.number) checks: \([.statusCheckRollup[]? | ((.conclusion // .state // .status) | if .=="" or .==null then "pending" else ascii_downcase end)] | group_by(.) | map("\(length) \(.[0])") | join(", "))"' 2>/dev/null) || pr=""
+      fi
+    fi
+    printf '%s | %s | %s%s\n' "$pane" "$label" "${out:-<no output>}" "${pr:+ | $pr}"
+  done <<<"$rows"
+  return $actionable
+}
+
+if [ "$wait" -eq 0 ]; then snapshot; exit 0; fi
+
+deadline=$(( $(date +%s) + timeout ))
+while :; do
+  res=$(snapshot); rc=$?
+  [ "$rc" -eq 2 ] && exit 2
+  if [ "$rc" -eq 0 ]; then printf '%s\n' "$res"; exit 0; fi
+  if [ "$(date +%s)" -ge "$deadline" ]; then
+    printf '%s\n' "$res"; echo "timeout after ${timeout}s" >&2; exit 124
+  fi
+  sleep 15
+done

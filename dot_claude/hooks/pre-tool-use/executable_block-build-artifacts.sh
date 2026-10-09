@@ -42,6 +42,12 @@ if [ -z "$FILE_PATH" ]; then
   exit 0
 fi
 
+# Session scratchpads are throwaway copies, e.g. `pnpm patch --edit-dir`, where the
+# file to patch is always dist/ (blocked 3 edits on 2026-10-09).
+case "$FILE_PATH" in
+  /private/tmp/claude-*/*/scratchpad/*|/tmp/claude-*/*/scratchpad/*) exit 0 ;;
+esac
+
 # Block dependency and build directories
 case "$FILE_PATH" in
   node_modules/*|*/node_modules/*)

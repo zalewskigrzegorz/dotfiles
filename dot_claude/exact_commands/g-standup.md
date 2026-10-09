@@ -26,7 +26,8 @@ personal Slack user token.
   publicly on the standup channel, on every line. The user token posts cleanly
   as Greg. **Reads go through the Slack MCP** (`slack_read_channel`, no footer on
   reads) — the standup token is `chat:write` only and **cannot** read history, so
-  don't waste a call trying `conversations.history` with it.
+  don't try `conversations.history` by hand with it (`standup-send` does, and
+  reports `missing_scope` if the scope is still missing).
 - **Blocker answer is `no`, never `-`.** Slack turns a leading `-` into an empty
   bullet (`•  `) on the public post. `no` / `none` render fine.
 - **Plain text only — no link markup.** The bot mangles Slack `<url|text>` links
@@ -34,8 +35,8 @@ personal Slack user token.
 - **Work only.** Exclude personal repos (dotfiles, bazgroly, home-lab, anything
   under `~/Code/personal`). No home/pets/side-project items.
 - **The bot sleeps between messages.** After each send it often replies "Please,
-  give me a minute… 💤" and takes ~40–60 s to post the next question. Poll the DM
-  until the real next question appears; skip the sleep line and the plan-echo.
+  give me a minute… 💤" and takes ~40–60 s to post the next question. `standup-send` waits
+  for the real next question; skip the sleep line and the plan-echo.
 - **Slack MCP tools are DEFERRED — they are absent from the visible tool list
   until loaded.** Do NOT conclude "no Slack MCP in this session". Load them
   first: `ToolSearch("select:mcp__claude_ai_Slack__slack_read_channel")` (add
@@ -110,39 +111,35 @@ Show the full set. Wait for a clear yes. No yes → don't send.
 
 ### 7. Send sequentially with the user token
 
-Fetch once (never echo it):
+One script does send + wait: `standup-send <bot DM channel> <answer>` (`bin/standup-send`,
+reads `$WORK_SLACK_POSTER_TOKEN` itself, never echoes it). It posts the answer as
+Greg, then polls `conversations.history` every 5 s and prints the bot's next
+message (skipping the "give me a minute" sleep line) as soon as it lands.
 
-```bash
-TOKEN=$(op read "<token path from work-context>")
-# sanity: [[ "$TOKEN" == xoxp-* ]] || fall back to draft-only (step 9)
-```
+For each of Q1-Q4, in order:
 
-Loop, one question at a time:
-
-1. Read the bot DM; find the **current** question.
-2. Match it to the drafted answer **by content** (feel / did / will / blockers),
-   not blind position. If a question doesn't match the known four, **pause and
+1. Take the question currently on screen (from step 1, then from the script's
+   output). Match it to the drafted answer **by content** (feel / did / will /
+   blockers), not blind position. If it doesn't match the known four, **pause and
    ask Greg**.
-3. Send the matching answer:
+2. Run `standup-send "$BOT_DM" "$ANSWER"` (Bash timeout 150000). Output = next
+   question text, or "Thank you! Have a nice day" after Q4.
+3. Exit codes: `0` next message printed · `124` no reply in 120 s (answer WAS
+   sent, never resend, check the DM once) · `1` post failed (error printed) ·
+   `3` posted but history unreadable, see below · `2` bad usage / no token.
 
-```bash
-curl -s -H "Authorization: Bearer $TOKEN" -H "Content-type: application/json" \
-  -X POST https://slack.com/api/chat.postMessage \
-  -d "$(jq -n --arg c "$BOT_DM" --arg t "$ANSWER" '{channel:$c,text:$t}')" \
-  | jq '{ok, error}'
-```
+Blocker answer = `no`. Don't hand-poll with `slack_read_channel` + `sleep`; that
+cost 13 reads and 6 sleeps for four answers (2026-10-09).
 
-4. **Poll for the next question**: re-read the DM every ~15–20 s (wait via a
-   `run_in_background` sleep, not foreground). Ignore the "give me a minute" line
-   and the plan-echo. Stop when a new, different question appears — or when the
-   bot says "Thank you! Have a nice day" (done). Up to ~90 s per step before
-   flagging a stall.
-
-Repeat through all four. Blocker answer = `no`.
+**Exit 3 / `missing_scope`:** the `slack-poster` token has `chat:write` only, and
+history needs `im:history` (verified 2026-10-09). Until Greg adds the scope to the
+app, reinstalls it and pastes the new token into 1Password, fall back to reading
+the DM through the Slack MCP once per answer after ~60 s. The answer was already
+sent, so never resend.
 
 ### 8. Verify
 
-Read the public standup channel (id from work-context, newest message); confirm
+Read the public standup channel **once, now** (id from work-context, newest message); confirm
 Greg's update posted with all four sections and **no footer**. Report the
 permalink.
 

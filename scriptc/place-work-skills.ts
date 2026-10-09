@@ -81,6 +81,7 @@ function loadWorkSkills(): string[] {
     "g-pr-respond",
     "g-pr-review",
     "g-github-issue",
+    "g-epic-sync",
     "g-pr-common",
   ];
 

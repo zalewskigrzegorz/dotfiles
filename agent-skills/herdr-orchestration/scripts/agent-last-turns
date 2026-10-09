@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Print the last N assistant turns (text + tool names) of the newest Claude session in a worktree.
+# Usage: agent-last-turns <worktree-path-or-branch> [N=5]
+set -u
+arg="${1:-}"; n="${2:-5}"
+[ -n "$arg" ] || { echo "usage: agent-last-turns <worktree-path-or-branch> [N]" >&2; exit 2; }
+case "$n" in ''|*[!0-9]*) echo "N must be a number" >&2; exit 2 ;; esac
+
+if [ -d "$arg" ]; then
+  wt=$(cd "$arg" && pwd -P)
+elif case "$arg" in /*|./*|../*|~*) true ;; *) false ;; esac; then
+  echo "path not found: $arg" >&2; exit 1
+else
+  wt=$(git worktree list --porcelain 2>/dev/null | awk -v b="refs/heads/$arg" '/^worktree /{p=substr($0,10)} $1=="branch" && $2==b {print p; exit}')
+  [ -n "$wt" ] || { echo "no worktree for branch '$arg' (run inside the repo)" >&2; exit 1; }
+fi
+slug=$(printf '%s' "$wt" | sed 's#[/.]#-#g')
+dir="$HOME/.claude/projects/$slug"
+[ -d "$dir" ] || { echo "no Claude project dir: $dir" >&2; exit 1; }
+f=$(ls -t "$dir"/*.jsonl 2>/dev/null | head -1)
+[ -n "$f" ] && [ -f "$f" ] || { echo "no .jsonl in $dir" >&2; exit 1; }
+echo "# $f" >&2
+jq -rs --argjson n "$n" '
+  [ .[] | select(.type=="assistant") | .message.content
+    | if type=="array" then
+        { text: ([.[] | select(.type=="text") | .text] | join("\n")),
+          tools: ([.[] | select(.type=="tool_use") | .name] | join(", ")) }
+      else { text: ., tools: "" } end
+    | select(.text != "" or .tools != "") ]
+  | .[-$n:][] | "---\n" + .text + (if .tools != "" then "\n[tools: " + .tools + "]" else "" end)' "$f"

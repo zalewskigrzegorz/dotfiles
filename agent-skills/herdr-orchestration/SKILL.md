@@ -96,9 +96,27 @@ herdr agent read w12:p3 | tail -30         # what does it need / what did it pro
 workctl rm feat/demo                       # only after merge
 ```
 
+## Supervising: one wait, not a read/sleep/list loop
+
+A supervisor that polls (`agent read` 34x, `list` 27x, `sleep` 24x in one session) burns its own context.
+Use the helpers in `scripts/` (run by path from this skill's dir):
+
+```bash
+scripts/agent-status                              # one line per agent: target | state | last 2 lines | PR + checks
+scripts/agent-status --wait --timeout 1800 w3N:p2 # blocks (polls 15 s), returns on idle/blocked/unknown, exit 124 on timeout
+scripts/agent-last-turns <worktree-or-branch> 5   # what did the agent actually do / ask (last N assistant turns + tool names)
+```
+
+- Waiting = `agent-status --wait`, or ONE `Monitor` with an `until` loop and a `timeout`. Never a series of
+  background loops: loops without a timeout get killed under memory pressure and leave nothing behind.
+- `agent-last-turns` builds the `~/.claude/projects/<slug>/*.jsonl` path itself and fails loudly on a missing dir;
+  don't hand-roll `f=…; jq …`. A branch name resolves via `git worktree list`, so run it inside the repo.
+
 ## Writing the brief
 
 The brief is the child's ONLY context. Include: the task + its issue/PR number; the **base branch** (stacked-PR repos: naming the wrong base creates a PR against main — the worktree-dev skill's #1 landmine, tell the agent to use it for bootstrap); pattern files to imitate; where the PR should point (`base <branch>`, `Fixes #<n>`); which branches/worktrees other agents own and must be left alone; and "present a plan before coding" if Greg should gate it.
+
+**An agent that runs migrations or DB specs** gets the target database name in the brief, must quote any `*.env` URL that contains `&` (unquoted, the shell cuts it and the migration hits the wrong database: 13 migrations once landed on shared `main`), and must print the resolved database name before `prisma migrate deploy`. When it finishes, the parent checks `select max(finished_at) from prisma._prisma_migrations` on the shared `main` DB before calling it clean.
 
 **A base that is an open PR will merge under the agent.** When the branch is stacked on someone else's open PR, say what to do when that PR merges: rebase onto the PR's own base (`git rebase --onto origin/<pr-base> origin/<old-base>`) and retarget its PR there. On 2026-09-29 the schema PR under ▸13 merged about 2 hours after the brief, and the brief still named it as the base.
 

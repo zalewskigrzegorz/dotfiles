@@ -51,6 +51,22 @@ the same shape. Before a command that takes a ref or a path from `$(…)`:
 `[ -n "$sha" ] || { echo "no match: $s"; continue; }`. After one empty result,
 check the lookup once by hand; don't rerun the loop with a different pipeline.
 
+## `pnpm patch-commit` rewrites more of the lockfile than the patch
+
+After `pnpm patch-commit`, `pnpm-lock.yaml` also had a `(patch_hash=…)` peer
+suffix on `@better-auth/oauth-provider`, which was not patched; undoing it took
+~6 calls (2026-10-09). Right after it: `git diff --stat pnpm-lock.yaml
+pnpm-workspace.yaml patches/`, keep only the patched package's entries and its
+`patchedDependencies` line, and restore the rest from `git show HEAD:<file>`.
+
+## `Read` "exceeds maximum allowed tokens" → stop shrinking `limit`
+
+`limit` counts lines, not tokens. On a flattened HTML, JSON or Slack export
+with very long lines, three smaller `limit`s failed in a row and cost ~90k
+tokens (2026-10-09). After the first error, switch to `rg -n '<term>' <file>`
+or `head -c 60000` chunks; when you write such a file to the scratchpad
+yourself, split it into numbered parts.
+
 ## A batch of `git mv` is one transaction
 
 A Python loop of `git mv` plus manifest edits died on `index.lock` about
