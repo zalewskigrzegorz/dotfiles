@@ -83,3 +83,13 @@ then resume from the first unfinished item, not from zero.
 `-f 'team_reviewers[]=<slug>'` alone answers `"reviewers" wasn't supplied`
 (2026-10-02). Send JSON:
 `printf '{"reviewers":[],"team_reviewers":["<slug>"]}' | gh api -X DELETE repos/<o>/<r>/pulls/<n>/requested_reviewers --input -`.
+
+## Temporal specs are red in the sandbox by design
+
+`libs/temporal-workflows/**/*.spec.ts` download Temporal's test server at
+start, and the sandbox has no network: they fail with `Failed to start
+ephemeral server: error sending request`. A full api `vitest` run where only
+those files are red, on that message, is reported in one sentence ("tylko
+temporal, brak sieci w sandboxie, CI to pokryje"). Don't hunt for a
+regression and don't rerun (2026-10-12). Any other failure in those files is
+a normal failure.

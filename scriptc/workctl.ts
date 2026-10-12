@@ -1159,7 +1159,7 @@ function seedSource(st: St): string {
   return st.root;
 }
 
-// .env, *.env.json (e2e config) + node_modules from the parent checkout via
+// .env, *.env.json (e2e config), current.profile.json + node_modules from the parent checkout via
 // APFS clonefile (`cp -c`): instant, no extra disk, keeps pnpm's symlink farm.
 // Linux has no -c → retry.
 function seedClone(parent: string, wt: string): number {
@@ -1170,7 +1170,9 @@ function seedClone(parent: string, wt: string): number {
     const rel = trimSlash(raw);
     const base = basename(rel);
     const huskyState = base === "_" && basename(dirname(rel)) === ".husky";
-    const envFile = base === ".env" || base.startsWith(".env.") || base.endsWith(".env.json");
+    // current.profile.json: without it `pnpm start` drops the Support allowlist (2026-10-12).
+    const envFile =
+      base === ".env" || base.startsWith(".env.") || base.endsWith(".env.json") || base === "current.profile.json";
     if (base !== "node_modules" && !envFile && !huskyState) continue;
     const src = join(parent, rel);
     const dst = join(wt, rel);

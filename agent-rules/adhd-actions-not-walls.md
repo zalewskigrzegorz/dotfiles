@@ -82,6 +82,12 @@ About 15 popups were rejected in one week. Every one broke one of these:
   same popup. Answer his next message; come back to the fork only if it is
   still live. With ≥3 items that need separate decisions, explain them one by
   one first, then ask one at a time (ba0bc1ce, 72ff3ae5).
+- **A vague opening request gets its reading stated first.** "Kupiliśmy X,
+  zobacz w mailach" → the first reply says in one sentence what you took it to
+  mean ("rozumiem: przyłącze = gniazdo wallboxa w garażu"), then the result. A
+  popup comes only after that. "Przyłącze siły" read as the house connection
+  produced two rejected popups in a row (1734eed7). A "clarify" there means the
+  reading was wrong: restate it, don't re-ask the fork.
 - **No approve/send/do-it on something he has not read.** A new idea, a plan,
   a snippet, a reply to a reviewer: explain it in plain paragraphs, end the
   turn, and only then offer the popup. A question that fires right after the

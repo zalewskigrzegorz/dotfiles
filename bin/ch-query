@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# ch-query for non-nushell callers (the Bash tool, scripts). The nushell function
+# in dot_config/nushell/autoload/grafana-query.nu exists only in an interactive
+# nu, so two agent sessions rewrote it by hand with a hardcoded uid (2026-10-12).
+# This sources that same file, so URL/token resolution stays in one place.
+#
+#   ch-query 'SELECT 1'                         # rows as TSV (header first)
+#   ch-query 'SELECT …' --uid <uid> --start now-30d
+#   ch-query 'SELECT …' --json                  # rows as JSON
+#   ch-query 'SELECT …' --raw                   # Grafana's frames JSON
+set -euo pipefail
+
+[ $# -ge 1 ] || { echo "usage: ch-query '<sql>' [--uid U] [--start S] [--end E] [--json|--raw]" >&2; exit 2; }
+CHQ_SQL=$1; shift
+CHQ_UID="" CHQ_START=now-90d CHQ_END=now CHQ_OUT=tsv
+while [ $# -gt 0 ]; do
+  case $1 in
+    --uid) CHQ_UID=$2; shift 2 ;;
+    --start) CHQ_START=$2; shift 2 ;;
+    --end) CHQ_END=$2; shift 2 ;;
+    --json) CHQ_OUT=json; shift ;;
+    --raw) CHQ_OUT=raw; shift ;;
+    *) echo "unknown arg $1" >&2; exit 2 ;;
+  esac
+done
+export CHQ_SQL CHQ_UID CHQ_START CHQ_END CHQ_OUT
+
+exec nu --no-config-file -c '
+source ~/.config/nushell/autoload/grafana-query.nu
+let r = (ch-query $env.CHQ_SQL --uid $env.CHQ_UID --start $env.CHQ_START --end $env.CHQ_END)
+let res = ($r | get results.A)
+if ($res.error? | is-not-empty) { print -e $"ClickHouse: ($res.error)"; exit 1 }
+if $env.CHQ_OUT == "raw" { $r | to json; exit 0 }
+let frame = ($res.frames | first)
+let names = ($frame.schema.fields | get name)
+let cols = $frame.data.values
+let n = (if ($cols | is-empty) { 0 } else { $cols | first | length })
+let rows = (0..<$n | each {|i| $names | enumerate | reduce -f {} {|c, acc| $acc | insert $c.item ($cols | get $c.index | get $i) } })
+if $env.CHQ_OUT == "json" { $rows | to json } else { $rows | to tsv }
+'

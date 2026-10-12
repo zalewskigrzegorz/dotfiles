@@ -105,6 +105,11 @@ into clusters, writes the report to bazgroly and asks **one** popup with tiers.
   batch, check every output with `wc -c`: a file under ~1 KB is a stub (seen
   2026-09-23, 254 bytes with an empty `.err`) → re-run that id before
   summarizing. A session younger than 24h gets "run as Sweep" in its prompt.
+- **The retro scripts need Python ≥3.10.** `/usr/bin/python3` is 3.9.6 and
+  `detect-mechanical.py` dies on `itertools.pairwise`, which looks like "no
+  signals" (9 of 10 sessions hit it, 2026-10-12). Run them as
+  `/opt/homebrew/bin/python3.14 -I <script>`. `bin/retro-backlog` already puts
+  python@3.14 first on its children's `PATH`.
 - **Slash commands render as `<command-name>/retro:retro</command-name>` +
   `<command-args>…</command-args>` in transcripts**, not as the typed text —
   anything grepping a transcript for a command must match that shape.

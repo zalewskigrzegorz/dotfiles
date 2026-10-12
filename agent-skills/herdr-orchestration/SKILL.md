@@ -96,6 +96,15 @@ herdr agent read w12:p3 | tail -30         # what does it need / what did it pro
 workctl rm feat/demo                       # only after merge
 ```
 
+**A `wt-full` agent on a non-default model** (Greg names it, e.g. "agent Fable w nowym wt"; Fable only on his explicit ask): `wt-full` starts `claude` on the default model, so switch before the brief.
+
+```bash
+herdr agent prompt w12:p3 "/model <model id>"
+herdr agent send-keys w12:p3 Enter          # prompt never submits on its own (mine 1)
+herdr agent read w12:p3 | tail -5            # one read: the model line changed
+herdr agent prompt w12:p3 "<brief>" && herdr agent send-keys w12:p3 Enter
+```
+
 ## Supervising: one wait, not a read/sleep/list loop
 
 A supervisor that polls (`agent read` 34x, `list` 27x, `sleep` 24x in one session) burns its own context.

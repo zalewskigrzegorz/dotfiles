@@ -86,6 +86,11 @@ fails with `Failed to find .rc file at …/playwright.env.json` (2026-10-04).
 `workctl` clones `*.env.json` since 2026-10-06; for an older worktree, `cp -c
 <main checkout>/<same path> <worktree>/<same path>`, without printing it.
 
+A sixth gap: **`local/current.profile.json`.** Without it `pnpm start` does not
+pass the Support allowlist to the API (2026-10-12). `workctl` clones it since
+2026-10-12; in an older tree, `test -f local/current.profile.json || pnpm run
+profile default` before the first `pnpm start`.
+
 **Check the worktree at the start of the session, not when a skill misfires.**
 In any `~/Code/tree/wt-*` path: `.claude/skills/g-pr` missing → run
 `place-work-skills <worktree>` before any PR skill. Skills placed while a

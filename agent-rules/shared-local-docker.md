@@ -59,6 +59,28 @@ rebuilds, and any `pkill`/`killall`.
   that does not match the lockfile), and retry only after the lockfile
   changed. Say the ~17 min cost before any rebuild.
 
+## Reading and seeding the local database
+
+Read-only queries need no check above. Three lookups each cost two or three
+tries (2026-10-09 … 10-12):
+
+- **The Mac has no `psql`.** Always `docker exec "$co-postgres-1" psql -U
+  myuser -d <db> -At -c "…"`, including `create database` for a spec's own
+  database.
+- **Prisma's table is `prisma._prisma_migrations`**, not `_prisma_migrations`:
+  `select migration_name, finished_at from prisma._prisma_migrations order by
+  finished_at desc limit 20`.
+- **A Node check that needs `pg` runs from `apps/api`**; `packages/database`
+  does not resolve it (`Cannot find module 'pg'`). A runner script for DB specs
+  goes in the scratchpad, not the repo.
+- **Postgres stopped by `pnpm stop` comes back with `docker compose -p <co> up
+  -d --wait postgres`**, not `docker start` (`failed to start containers`).
+  Before a `pnpm start`, note `docker ps --format '{{.Names}}'` so you know
+  what to restore afterwards.
+- **The first `pnpm start` in a fresh worktree builds images for ~25 min.**
+  Run it in the background with `timeout 3000` (or none) and a `Monitor` on the
+  log. `exit=124` from a shorter timeout means "read the log", not "retry".
+
 ## Shared lab environments (`lab*`) are the same story, remotely
 
 Before `gh workflow run deploy-env.yml` / `redeploy-env.yml` against a shared

@@ -13,6 +13,15 @@ CleanShot saves there (`Bazecor_*`, `CleanShot_*`, `X_*`, …). Read directly �
 
 **macOS only.** That path is a Google Drive mount present on the Mac, not on the lab (Debian) — on the lab there are no screenshots, skip this rule.
 
+## "Skan" lives in `Dom/Skaner`
+
+"skan", "zeskanowałem", "skaner" mean `…/GoogleDrive-maksim009@gmail.com/My Drive/Dom/Skaner/Epson_DDMMYYYYHHMMSS.pdf`. On 2026-10-12 a scan cost ~18 calls (Screenshots, drop, a broad `find`, a 30 dpi contact sheet nobody could read) and ended in a wrong "nie ma go".
+
+1. List the whole folder and sort **by the date in the name**, not mtime (Drive sync lags).
+2. Read a candidate with `pdftoppm -r 100 -f 1 -l 1 <pdf> <scratch>/p` and `Read` the PNG.
+3. No contact sheets; `magick` is not installed.
+4. Never say "not found" before every file in the folder was listed by name.
+
 ## "Na dropie" is a different place
 
 "na dropie jest screenshot", "wrzuciłem na drop", "jest na dropie" mean `drop.mrglaszki.com`, the self-hosted file drop on the lab, not the folder above. Go straight to `curl -s 'https://drop.mrglaszki.com/?ls' | jq …`, take the newest entries by `ts`, download them into the session scratchpad and read them. Don't search local dirs first (2026-10-02: ~8 calls across Screenshots, `~/Downloads` and `find ~` before the listing).

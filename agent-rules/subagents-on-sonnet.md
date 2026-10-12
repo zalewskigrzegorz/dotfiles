@@ -48,6 +48,10 @@ quota in under 20 minutes.
 6. **Stopping a parent does not stop its children.** After `TaskStop`, run
    `ListAgents` and kill every orphan; repeat until the subagent list is empty.
    Report the count killed.
+7. **A spawn that edits files leaves file modes alone.** One changed the mode
+   of 9 hook files and the change nearly went into a commit (2026-10-12). The
+   brief says "no `chmod`"; after the spawn, before staging, `git diff
+   --summary | rg 'mode change'` must be empty.
 
 ## Why Sonnet
 

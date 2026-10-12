@@ -35,6 +35,13 @@ one-liners and each cost a retry or more (2026-09-23 … 09-28):
    a failed send after the message was already posted (2026-10-08). Pipe curl
    straight into `jq`, or use `printf '%s' "$resp" | jq`. A parse error after a
    send means "check the channel", never "resend".
+5. **An unquoted `&` or `;` in a URL ends the command.** `DATABASE_URL=postgres://…/db?a=1&b=2
+   pnpm prisma migrate deploy` ran the first half in the background, and the
+   migrate fell back to the default database: 13 migrations landed in the
+   shared local `main` (2026-10-12). A URL with `&`, `?` or `;` always goes in
+   single quotes, in a `VAR=… cmd` prefix and in agent briefs alike. Before
+   `migrate`, `reset` or `db push`, print the target host and database (no
+   password) and check it is the one you meant.
 
 When a one-liner that works in bash fails with `not found`, "no files" or
 `no matches found`, check these before you suspect the tool or the data.
@@ -84,6 +91,12 @@ checks <n> --json name,state,link` after it exits. Never `sleep N;` before a
 poll (the harness blocks it), and never an `until`/`while` around `gh pr
 checks`: one session wrote three of them after the block (2026-10-08). A
 non-zero exit from `--watch` means a failed or pending check, not a tool error.
+
+**Waiting for a human is not a loop.** A merge, an approval or a reply from
+Greg or a reviewer ends the turn with one line ("powiedz zmergowane"), or a
+popup if there is a real fork. A background `timeout 43200 … until gh pr view
+<n> … MERGED; sleep 300` (2026-10-12) polled for hours while Greg answered the
+popup anyway. Loops are for machine state: CI, deploys, builds.
 
 ## The other side of herdr is nushell
 
