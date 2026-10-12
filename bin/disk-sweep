@@ -60,7 +60,9 @@ elif ! skip_if_busy docker 'docker (build|buildx|compose)|pg_dump|pg_restore'; t
 fi
 
 command -v npm >/dev/null && step npm npm cache clean --force
-command -v uv >/dev/null && step uv uv_prune
+if command -v uv >/dev/null && ! skip_if_busy uv '(^|/)uv (run|tool run|tool uvx)|(^|/)uvx '; then
+  step uv uv_prune
+fi
 command -v mise >/dev/null && step mise mise prune --yes
 
 if command -v pnpm >/dev/null && ! skip_if_busy "pnpm store" 'pnpm (i|install|add|update|up)( |$)'; then

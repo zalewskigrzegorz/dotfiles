@@ -33,6 +33,12 @@ echo "code-index-tools: installing serena-agent (uv tool)…"
 uv tool install -p 3.13 --reinstall \
   "git+https://github.com/zalewskigrzegorz/serena.git@feat/nushell-language-support"
 
+# repl MCP runs as an installed tool, not `uvx`: every live `uvx` holds a shared
+# lock on ~/.cache/uv, so with one per Claude session `uv cache prune` in
+# disk-sweep always timed out (2026-10-12).
+echo "code-index-tools: installing posit-mcp-repl (uv tool)…"
+uv tool install --upgrade posit-mcp-repl
+
 # Best-effort: drop a previously-installed cocoindex-code tool (removed 2026-08-05).
 uv tool uninstall cocoindex-code >/dev/null 2>&1 || true
 
