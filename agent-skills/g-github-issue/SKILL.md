@@ -71,6 +71,18 @@ gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,s
 
    The team label adds the issue to the team board on its own (status `Pending`); check with `gh issue view <n> --json projectItems` instead of adding it again.
 
+8. **Set board fields** (the user names a status like "This Week" or a custom type like "Maintenance"): the board number is in `work-context.md` (Board line). Look the ids up by name, never from memory files:
+
+```bash
+org=${WORK_MAIN_REPO%%/*}; proj=<board number>
+pid=$(gh project view "$proj" --owner "$org" --format json --jq .id)
+item=$(gh project item-add "$proj" --owner "$org" --url <issue url> --format json --jq .id)  # idempotent
+[ -n "$item" ] || { echo "no item"; exit 1; }
+gh project field-list "$proj" --owner "$org" --format json \
+  --jq '.fields[] | select(.name=="Status") | {id, options}'   # option id by name
+gh project item-edit --project-id "$pid" --id "$item" --field-id <field id> --single-select-option-id <option id>
+```
+
 ## Epic / cycle tracker with sub-issues
 
 An epic (a cycle tracker like #27854, built on 2026-09-25 from raw `gh` calls because this section did not exist) is a normal issue plus N sub-issues:

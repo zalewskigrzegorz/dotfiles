@@ -304,7 +304,8 @@ Human errors print `error:` + `hint:` on stderr; `--json` includes `code`, `mess
 | Multiple browsers / wrong target | `bsk browsers` then `bsk session start --browser <id>` |
 | `decode IPC response: EOF … is the daemon running?` on the first `session start` | One `bsk doctor`, then one retry. If doctor shows `0 browsers connected`, the extension is off in Comet (see the BrowserSkill rule), not a flaky IPC |
 | `session not registered or already stopped` | `bsk session list`; start a new session and use the new id. Don't keep re-using the old one |
-| `Chrome blocked CDP access to another extension's content in this tab` | The tab is owned by another extension's page. `bsk navigate` to a fresh URL (or a new `bsk tab create`), or hand it to Greg with `bsk request-help`. Don't loop `snapshot`/`click` on that tab (23 snapshots, 2026-09-25) |
+| `Chrome blocked CDP access to another extension's content in this tab` | The tab is owned by another extension's page. `bsk navigate` to a fresh URL (or a new `bsk tab create`), or hand it to Greg with `bsk request-help`. Don't loop `snapshot`/`click` on that tab (23 snapshots, 2026-09-25). On a form (`fill` exit 3, e.g. gov.pl with a 1Password frame) don't retry or hunt for another selector: `request-help` with the list of values for Greg to type, then continue (2026-10-12) |
+| `previous session command is still running` | A `request-help` is still open: Greg has not clicked Done/Cancel in the Agent Window panel. Tell him in one sentence and wait. No more `snapshot`/`click` until he answers |
 
 Always **`bsk session stop <id>`** in a `finally`-style path so the Agent Window closes and borrowed tabs return.
 

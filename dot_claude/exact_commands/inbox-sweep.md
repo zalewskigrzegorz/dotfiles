@@ -32,6 +32,14 @@ entry per run with `blocked`, `unsubscribed`, `spared`, `findings`. Every action
 
 Never re-derive the white list from a single run — read it from the top level.
 
+Shapes are mixed, so every `jq` over entries starts defensive (3 probes and a
+false exit 5 after a good write, 2026-10-09):
+
+- The version sits in `version`, not `schema`.
+- `blocked[]` / `unsubscribed[]` hold strings in older runs and objects keyed
+  `sender`, `domain` or `contact` in newer ones → `.blocked[]? | objects`.
+- `verified` is optional → `(.verified // false)`.
+
 ## Step 0 — verify what the last run did
 
 Read the ledger. For every `blocked` / `unsubscribed` entry whose `verify_after` has
@@ -180,6 +188,16 @@ with what confirmation text, who was deliberately spared and why, and a `verify_
 14 days out. Add any new mechanism discovered to `findings` — that is how this command
 gets smarter between runs.
 
+The write, no stdin:
+
+```bash
+f=~/.local/state/inbox-sweep/ledger.json
+cp "$f" "$f.bak-$(date +%F)"
+# the run object goes to <scratch>/run.json first
+jq --slurpfile run <scratch>/run.json '.runs += $run' "$f" > "$f.tmp" && jq empty "$f.tmp" && mv "$f.tmp" "$f"
+jq '.runs | length' "$f"
+```
+
 ## Known facts (measured, do not re-derive)
 
 - `spark action unsubscribe` needs a real `List-Unsubscribe` header. Measured coverage:
@@ -214,5 +232,8 @@ gets smarter between runs.
   `click.revolut.com`, `campaign.synerise.com` and friends look dead from his machine but
   are alive on `1.1.1.1`. A "dead unsubscribe link" is a false alarm until it also fails
   against a public resolver — check before recording one.
+- **Kick unsubscribe is broken.** `link.kick.com/ss/c/u001…` answers with a JSON error;
+  go straight to a bulc `/ba/` block on `***@notifications.kick.com` (rating ~33%, so it
+  holds for Greg only) and record it in the run's `findings` (2026-10-09).
 - Mail sent to `*@mrglaszki.com` is Greg's own Cloudflare Email Routing setup — he manages
   those aliases himself at `mail.mrglaszki.com`. Report them, do not touch them.

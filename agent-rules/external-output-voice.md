@@ -57,6 +57,20 @@ Greg-reply through the claude.ai Slack MCP (`slack_send_message`) — it stamps
   (`g-pr-bump`), scheduled notifications, daily-brief drops — keeps the Claude
   footer and stays on its own flow. That footer is correct there, not a bug.
 
+## A request to another team: one thread, one message per ask
+
+A Slack hand-off to support or another team was corrected three times in one
+session (fba8a1cf, 2026-10-12: "za dużo informacji! 1 wątek na support i
+osobne wiadomości").
+
+- **Top-level = one sentence** saying what this is about. Each ask is its own
+  message in the thread, and each opens with what we are asking for.
+- **Greg owns only the tasks he named himself.** Everything else is written as
+  a request to the reader. If ownership is unclear, ask him before drafting:
+  "nie, ja mogę tylko baner, status page nie jestem w stanie".
+- **Things he will attach himself** (a screenshot, a link) are not mentioned in
+  the text.
+
 ## Telling a customer to trace an email — search criteria, not our ID
 
 When the outward-facing text asks someone (a customer, their IT, a partner's
