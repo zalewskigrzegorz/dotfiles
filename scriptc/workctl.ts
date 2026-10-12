@@ -396,7 +396,9 @@ function worktreesOf(root: string, repo: string): Worktree[] {
 // Other repos' worktrees for `--all`. `find`, not a glob: a branch name carries
 // slashes, so `feat/lde` sits two directories deep. A linked worktree's .git is
 // a FILE, which `-name .git` covers and `[ -d ]` would not.
-function foreignWorktrees(skipRoot: string): Worktree[] {
+// `detached` keeps trees on a detached HEAD (branch ""): `rm` must reach one
+// left mid-rebase, the other callers key on the branch name (2026-10-12).
+function foreignWorktrees(skipRoot: string, detached: boolean): Worktree[] {
   const r = sh(
     `find ${shq(TREE_ROOT)} ${shq(HERDR_TREE_ROOT)} -maxdepth 4 -name .git 2>/dev/null | ` +
       `while read -r g; do d=$(dirname "$g"); ` +
@@ -413,7 +415,7 @@ function foreignWorktrees(skipRoot: string): Worktree[] {
     const path = trimSlash(f[0] ?? "");
     const root = stripGitSuffix(f[1] ?? "");
     const branch = f[2] ?? "";
-    if (branch === "" || path === "" || root === skipRoot || seen.has(path)) continue;
+    if ((branch === "" && !detached) || path === "" || root === skipRoot || seen.has(path)) continue;
     seen.add(path);
     wts.push({ repo: basename(root), root, branch, path });
   }
@@ -583,7 +585,7 @@ function buildRepoState(cwd: string, all: boolean): RepoState {
     me: viewerLogin(),
     types: commitlintTypes(info.root),
     worktrees: worktreesOf(info.root, info.repo),
-    foreign: all ? foreignWorktrees(info.root) : [],
+    foreign: all ? foreignWorktrees(info.root, false) : [],
     branches: branchesOf(info.root),
     prs: prList(ids[0] ?? ""),
   };
@@ -1847,7 +1849,7 @@ function removeWorktree(root: string, path: string, branch: string, branchDel: s
   }
   if (branchDel !== "" && git(root, ["branch", branchDel, branch]).code !== 0)
     err(`⚠️  branch ${branch} not fully merged — \`git -C ${root} branch -D ${branch}\` to force.`);
-  err(`✅ removed ${branch}`);
+  err(`✅ removed ${branch !== "" ? branch : basename(path)}`);
   // A plain-git worktree leaves the caller's shell in a deleted dir, and a
   // child process cannot cd its parent.
   const here = trimSlash(process.env.PWD ?? "");
@@ -1872,7 +1874,8 @@ function rmCmd(args: string[]): number {
     else if (a.startsWith("-")) die(`unknown flag ${a}`);
     else if (branch === "") branch = a;
   }
-  const wts = foreignWorktrees("");
+  const wts = foreignWorktrees("", true);
+  const label = (w: Worktree): string => (w.branch !== "" ? w.branch : `${basename(w.path)} (detached)`);
   let t: Worktree | undefined;
   if (branch !== "") {
     const m = wts.filter((w) => w.branch === branch);
@@ -1885,23 +1888,23 @@ function rmCmd(args: string[]): number {
     const here = trimSlash(process.env.PWD ?? "");
     t = wts.find((w) => here === w.path || here.startsWith(`${w.path}/`));
     if (t === undefined) die("not inside a worktree — `-s` has nothing to remove");
-    err(`🎯 current worktree: ${t.branch} (${t.repo})`);
+    err(`🎯 current worktree: ${label(t)} (${t.repo})`);
   } else {
     if (wts.length === 0) die("no worktrees");
     if (!isTty()) die("the picker needs a TTY — pass a branch or --self");
-    const keys = fzfPick(wts.map((w) => `${w.path}\t${w.repo}/${w.branch}\t${w.path}`), "Remove worktree: ", "enter → remove worktree + branch", false);
+    const keys = fzfPick(wts.map((w) => `${w.path}\t${w.repo}/${label(w)}\t${w.path}`),"Remove worktree: ", "enter → remove worktree + branch", false);
     t = wts.find((w) => w.path === (keys[0] ?? ""));
   }
   if (t === undefined) return 0;
   const dirty = git(t.path, ["status", "--porcelain"]);
   if (!force && dirty.code === 0 && lines(dirty.out).length > 0) {
-    if (!isTty()) die(`${t.branch} has uncommitted changes — pass --force to remove it anyway`);
-    if (!confirm(`⚠️  ${t.branch} has uncommitted changes — remove anyway?`, false)) {
+    if (!isTty()) die(`${label(t)} has uncommitted changes — pass --force to remove it anyway`);
+    if (!confirm(`⚠️  ${label(t)} has uncommitted changes — remove anyway?`, false)) {
       err("aborted");
       return 1;
     }
   }
-  return removeWorktree(t.root, t.path, t.branch, keepBranch ? "" : "-d");
+  return removeWorktree(t.root, t.path, t.branch, keepBranch || t.branch === "" ? "" : "-d");
 }
 
 interface PruneCand {
@@ -1926,7 +1929,7 @@ function pruneCmd(args: string[]): number {
   const cands = new Map<string, PruneCand>();
   const rows: string[] = [];
   const weekAgo = Math.floor(Date.now() / 1000) - 7 * 86400;
-  for (const w of foreignWorktrees("")) {
+  for (const w of foreignWorktrees("", false)) {
     const dirty = lines(git(w.path, ["status", "--porcelain"]).out).length;
     if (dirty > 0) {
       err(`ℹ️  ${w.repo}/${w.branch}: ${String(dirty)} uncommitted change(s) — not offered`);
