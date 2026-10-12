@@ -29,8 +29,8 @@
          JS/Node REPL deliberately skipped 2026-08-05: nothing maintained exists
          (pydantic archived, jupyter-kernel-mcp dead); revisit ~2027-02. */}}
     "repl": {
-      "command": "uvx",
-      "args": ["posit-mcp-repl", "--interpreter", "python"]
+      "command": "{{ .chezmoi.homeDir }}/.local/bin/posit-mcp-repl",
+      "args": ["--interpreter", "python"]
     },
     {{/* playwright MCP REMOVED 2026-07-27 (was commented out since 2026-05-24). agent-browser covered every automation case, so the block went away along with the global @playwright/cli. This says nothing about Playwright as a test framework — the work repo's e2e suite and the `pwt` nushell helper are untouched. To bring the MCP back: "playwright": { "command": "npx", "args": ["@playwright/mcp@latest"] }.
     */}}
