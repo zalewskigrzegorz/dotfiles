@@ -1,0 +1,7 @@
+interface:
+  display_name: "Wallaby"
+  short_description: "Improve test suites with Wallaby evidence"
+  default_prompt: "$wallaby improve"
+
+policy:
+  allow_implicit_invocation: false
