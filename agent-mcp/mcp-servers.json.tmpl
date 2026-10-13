@@ -17,18 +17,10 @@
         "{{ .chezmoi.homeDir }}/.config/nushell/env.nu"
       ]
     },
-    {{/* console-ninja + wallaby MCP back 2026-10-13 (removed 2026-08-05). Both
-         read from the editor extension, so they return data only while Cursor /
-         VS Code has the project open. Headless test work goes through the
-         wallaby-cli skill (`wallaby-skill`), which needs no editor. */}}
-    "console-ninja": {
-      "command": "node",
-      "args": ["{{ .chezmoi.homeDir }}/.console-ninja/mcp/"]
-    },
-    "wallaby": {
-      "command": "node",
-      "args": ["{{ .chezmoi.homeDir }}/.wallaby/mcp/"]
-    },
+    {{/* console-ninja + wallaby MCP stay out (removed 2026-08-05, re-checked
+         2026-10-13): both read from the VS Code / Cursor extension, and Greg's
+         editor is Zed. Wallaby runs headless through the wallaby-cli skill
+         (`wallaby-skill`); Console Ninja has no standalone mode. */}}
     "mcp-debugger": {
       "command": "npx",
       "args": ["-y", "@debugmcp/mcp-debugger", "stdio"]
