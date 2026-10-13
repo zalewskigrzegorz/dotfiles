@@ -24,9 +24,9 @@ tools=(
   "scriptc"  # vercel-labs/scriptc — compiles TS to a native binary (LLVM IR / C backend),
              # no Node or V8 in the output. Needs node 24+ and clang at BUILD time only.
              # Experimental (0.0.x) — pin nothing yet, just track latest.
+  "@wallabyjs/cli@latest"  # `wallaby-skill` for agent-skills/wallaby-cli. Back 2026-10-13: since
+                           # 1.0.x the CLI starts Wallaby in the background, no editor needed.
 )
-# @wallabyjs/cli removed 2026-08-05 — wallaby never worked in Claude sessions;
-# DAP debugging goes through mcp-debugger now (agent-mcp/mcp-servers.json.tmpl).
 
 for tool in "${tools[@]}"; do
   echo "npm install -g $tool"

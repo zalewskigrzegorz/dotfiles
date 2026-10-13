@@ -17,9 +17,18 @@
         "{{ .chezmoi.homeDir }}/.config/nushell/env.nu"
       ]
     },
-    {{/* console-ninja + wallaby MCP REMOVED 2026-08-05 — never worked in Claude
-         Code sessions (Greg's report), sat dead in the registry. Runtime JS
-         debugging is covered by mcp-debugger (DAP) below. */}}
+    {{/* console-ninja + wallaby MCP back 2026-10-13 (removed 2026-08-05). Both
+         read from the editor extension, so they return data only while Cursor /
+         VS Code has the project open. Headless test work goes through the
+         wallaby-cli skill (`wallaby-skill`), which needs no editor. */}}
+    "console-ninja": {
+      "command": "node",
+      "args": ["{{ .chezmoi.homeDir }}/.console-ninja/mcp/"]
+    },
+    "wallaby": {
+      "command": "node",
+      "args": ["{{ .chezmoi.homeDir }}/.wallaby/mcp/"]
+    },
     "mcp-debugger": {
       "command": "npx",
       "args": ["-y", "@debugmcp/mcp-debugger", "stdio"]
