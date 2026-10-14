@@ -2434,7 +2434,7 @@ function directTarget(rs: RepoState, q: string): Target | null {
 // ── main ────────────────────────────────────────────────────────────────────
 
 function usage(): void {
-  out("workctl [target] [--repo owner/name] [--pr N] [--branch NAME [--base REF]] [--all]");
+  out("workctl [target | --self] [--repo owner/name] [--pr N] [--branch NAME [--base REF]] [--all]");
   out("        [--action ID [--drop a,b]] [--yes] [--dry-run] [--json] [--pause] [--no-focus]");
   out("workctl rm [branch] [--self] [--force] [--keep-branch]");
   out("workctl prune [--dry-run]");
@@ -2479,6 +2479,7 @@ function main(): void {
   let pr = 0;
   let query = "";
   let all = false;
+  let self = false;
   let action = "";
   let repoPath = "";
   let base = "";
@@ -2496,6 +2497,7 @@ function main(): void {
     else if (a === "--action") action = next();
     else if (a === "--drop") o.drop = next();
     else if (a === "--all") all = true;
+    else if (a === "--self" || a === "-s") self = true;
     else if (a === "--yes") o.yes = true;
     else if (a === "--dry-run") o.dry = true;
     else if (a === "--json") o.json = true;
@@ -2526,6 +2528,14 @@ function main(): void {
 
   const rs = buildRepoState(o.cwd, all);
   if (pr > 0) query = String(pr);
+  // `--self`: the branch cwd is on (its PR when it has one), no picker.
+  if (self) {
+    if (query !== "") die("--self takes no target");
+    if (rs.currentBranch === "") die("--self: detached HEAD, no branch to act on");
+    // --action already resolves the cwd branch's PR from an empty query
+    if (action === "" || prByHead(rs, rs.currentBranch) === undefined) query = rs.currentBranch;
+    err(`🎯 current branch: ${rs.currentBranch}`);
+  }
 
   if (action !== "") {
     // --action against the cwd branch's PR, or a named target
