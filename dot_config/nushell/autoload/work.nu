@@ -349,6 +349,7 @@ def "work help" []: nothing -> nothing {
     print "KOMENDY"
     print "  work               tab claude w bieżącym workspace (= work layout)"
     print "  work <target>      picker → menu akcji (--all: worktree z innych repo)"
+    print "  work --self / -s   menu akcji bieżącego brancha (jego PR, jeśli jest), bez pickera"
     print "  work new / switch / pr [n]   picker bez argumentu"
     print "  work ls            lista worktree (nu data; `| to json`)"
     print "  work layout        to samo co gołe `work`"
