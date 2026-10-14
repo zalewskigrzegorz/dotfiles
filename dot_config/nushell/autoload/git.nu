@@ -4,40 +4,39 @@
 def parse-codeowners [] {
     open ($env.WORK_PROJECT_DIR | path join ".github/CODEOWNERS")
     | lines
-    | where {|line| not ($line | str trim | str starts-with "#") and not ($line | str trim | is-empty)}
+    | each {|line| $line | split row "#" | first | str trim }
+    | where {|line| not ($line | is-empty)}
     | each {|line|
-        let parts = ($line | str trim | split row -r '\s+')
+        let parts = ($line | split row -r '\s+')
         let pattern = ($parts | first)
         let teams = ($parts | skip 1)
-        {pattern: $pattern, teams: $teams}
+        {pattern: $pattern, regex: (codeowners-regex $pattern), teams: $teams}
     }
 }
 
-# Pattern matching function for CODEOWNERS
-def match-codeowners-pattern [file: string, pattern: string] {
-    # Remove leading slash from pattern for comparison
-    let clean_pattern = if ($pattern | str starts-with "/") {
-        $pattern | str substring 1..
-    } else {
-        $pattern
-    }
+# Gitignore-style CODEOWNERS pattern as a regex: a pattern with a slash is anchored at the
+# repo root, `*` stays inside one path segment, `**` crosses them, a trailing `/` means a directory.
+def codeowners-regex [pattern: string] {
+    let anchored = ($pattern | str starts-with "/") or ($pattern | str trim --right --char "/" | str contains "/")
+    let trimmed = ($pattern | str trim --left --char "/")
+    let dir_only = ($trimmed | str ends-with "/")
+    let body = ($trimmed
+        | str trim --right --char "/"
+        | str replace -a -r '([.+^$(){}\[\]|\\])' '\$1'
+        | str replace -a '**/' '<<ANYDIR>>'
+        | str replace -a '**' '<<ANY>>'
+        | str replace -a '*' '[^/]*'
+        | str replace -a '?' '[^/]'
+        | str replace -a '<<ANYDIR>>' '(?:.*/)?'
+        | str replace -a '<<ANY>>' '.*')
+    let prefix = if $anchored { '^' } else { '^(?:.*/)?' }
+    let suffix = if $dir_only { '/.*$' } else { '(?:/.*)?$' }
+    $prefix + $body + $suffix
+}
 
-    if ($clean_pattern | str ends-with "/**") {
-        # Directory pattern like "apps/api/**"
-        let dir_pattern = ($clean_pattern | str replace "/**" "/")
-        $file | str starts-with $dir_pattern
-    } else if ($clean_pattern | str ends-with "/*") {
-        # Single level wildcard like "apps/api/*"
-        let dir_pattern = ($clean_pattern | str replace "/*" "/")
-        ($file | str starts-with $dir_pattern) and not ($file | str replace $dir_pattern "" | str contains "/")
-    } else if ($clean_pattern | str contains "*") {
-        # Other glob patterns like "*.md" or "apps/ui/**/*.tsx"
-        let base_pattern = ($clean_pattern | str replace -a "*" "")
-        $file | str contains $base_pattern
-    } else {
-        # Exact match or prefix match
-        ($file == $clean_pattern) or ($file | str starts-with ($clean_pattern + "/"))
-    }
+# Pattern matching function for CODEOWNERS
+def match-codeowners-pattern [file: string, regex: string] {
+    $file =~ $regex
 }
 
 # Autocompletion function for PR identifiers
@@ -81,7 +80,7 @@ def check-team-review-files [
     }
 
     # Get PR files  
-    let pr_files = (gh api $"repos/($env.WORK_COMPANY)/($env.WORK_MAIN_PROJECT)/pulls/($pr_num)/files" | from json | get filename)
+    let pr_files = (gh api --paginate $"repos/($env.WORK_COMPANY)/($env.WORK_MAIN_PROJECT)/pulls/($pr_num)/files" --jq '.[].filename' | lines)
 
     # Get CODEOWNERS rules
     let codeowners_rules = (parse-codeowners)
@@ -92,7 +91,7 @@ def check-team-review-files [
     # Find matches for each file
     let matches = ($pr_files | each { |file|
         let file_matches = ($codeowners_rules | each { |rule|
-            if (match-codeowners-pattern $file $rule.pattern) {
+            if (match-codeowners-pattern $file $rule.regex) {
                 {
                     file: $file,
                     pattern: $rule.pattern,
@@ -103,12 +102,11 @@ def check-team-review-files [
             }
         } | where $it != null)
 
-        # Get the most specific match (longest pattern)
+        # The last matching line in CODEOWNERS wins, as on GitHub
         if ($file_matches | is-empty) {
             {file: $file, pattern: "no-match", teams: []}
         } else {
-            # Sort by pattern length to get most specific match
-            $file_matches | sort-by { |x| $x.pattern | str length } | last
+            $file_matches | last
         }
     })
 
