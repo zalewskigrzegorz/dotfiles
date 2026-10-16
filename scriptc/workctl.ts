@@ -2304,11 +2304,40 @@ interface Opts {
   drop: string;
   json: boolean;
   pause: boolean;
+  bg: boolean;
   cwd: string;
 }
 
 function ctxFor(st: St, o: Opts): Ctx {
   return { yes: o.yes, dry: o.dry, focus: o.focus, labels: st.labels, drop: o.drop, cwd: o.cwd };
+}
+
+// The worktree/agent pick dispatch would run (agent wins, as in dispatch), or "".
+function bgPick(ids: string[], reg: Row[]): string {
+  const of = (g: string): string[] => reg.filter((r) => r.group === g && ids.includes(r.id)).map((r) => r.id);
+  return of("agent")[0] ?? of("worktree")[0] ?? "";
+}
+
+// `--bg` (gh-dash `T`): the slow worktree/agent action runs detached as a
+// headless `--action … --no-focus`, so gh-dash is free for the next PR at once.
+// One flock per repo queues them: parallel fetches and `worktree add` in one
+// checkout trip over git's ref locks. A herdr toast reports the end.
+function spawnBg(st: St, id: string, o: Opts): void {
+  const tag = st.hasPr ? `#${st.num}` : st.headRefName;
+  const slug = st.repo === "" ? basename(o.cwd) : st.repo.split("/").join("-");
+  const key = st.hasPr ? String(st.num) : st.headRefName.split("/").join("-");
+  const log = join(CACHE_DIR, `workctl-bg-${slug}-${key}.log`);
+  const lock = join(CACHE_DIR, `workctl-bg-${slug}.lock`);
+  const target = st.hasPr ? ["--repo", st.repo, "--pr", String(st.num)] : ["--branch", st.headRefName];
+  const cmd = [selfPath(), ...target, "--repo-path", o.cwd, "--action", id, "--yes", "--no-focus"].map(shq).join(" ");
+  const queued = have("flock") ? `flock -w 900 ${shq(lock)} ${cmd}` : cmd;
+  const note = (title: string, body: string, sound: string): string =>
+    `herdr notification show ${shq(title)} --body ${shq(body)} --sound ${sound}`;
+  sh(
+    `( ${queued} > ${shq(log)} 2>&1 && ${note(`✅ ${tag} ${id}`, st.headRefName, "done")}` +
+      ` || ${note(`❌ ${tag} ${id}`, log, "request")} ) >/dev/null 2>&1 &`,
+  );
+  run("herdr", ["notification", "show", `⏳ ${tag} ${id}`, "--body", "running in the background", "--sound", "none"]);
 }
 
 // Run the picked actions, re-read, offer the menu again — one target usually
@@ -2321,10 +2350,19 @@ function menuLoop(st: St, o: Opts, rs: RepoState | null, target: Target | null):
   for (;;) {
     const ids = fzfPick(menuRows(cur, reg), cur.hasPr ? "pr> " : "branch> ", menuHeader(cur), true);
     if (ids.length === 0) break;
-    const d = dispatch(cur, ids, reg, ctxFor(cur, o));
-    failures += d.failures;
-    for (const r of d.results) results.push(r);
-    if (d.tookOver) break;
+    const bgId = o.bg && !o.dry ? bgPick(ids, reg) : "";
+    const slow = reg.filter((r) => r.group === "worktree" || r.group === "agent").map((r) => r.id);
+    const now = bgId === "" ? ids : ids.filter((i) => !slow.includes(i));
+    if (now.length > 0) {
+      const d = dispatch(cur, now, reg, ctxFor(cur, o));
+      failures += d.failures;
+      for (const r of d.results) results.push(r);
+      if (d.tookOver) break;
+    }
+    if (bgId !== "") {
+      spawnBg(cur, bgId, o);
+      break;
+    }
     if (cur.hasPr) cur = prSt(cur.repo, cur.num, true, o.cwd);
     else if (rs !== null && target !== null) cur = branchSt(buildRepoState(o.cwd, false), target);
   }
@@ -2435,7 +2473,7 @@ function directTarget(rs: RepoState, q: string): Target | null {
 
 function usage(): void {
   out("workctl [target | --self] [--repo owner/name] [--pr N] [--branch NAME [--base REF]] [--all]");
-  out("        [--action ID [--drop a,b]] [--yes] [--dry-run] [--json] [--pause] [--no-focus]");
+  out("        [--action ID [--drop a,b]] [--yes] [--dry-run] [--json] [--pause] [--no-focus] [--bg]");
   out("workctl rm [branch] [--self] [--force] [--keep-branch]");
   out("workctl prune [--dry-run]");
   out("");
@@ -2474,7 +2512,7 @@ function main(): void {
     return;
   }
 
-  const o: Opts = { yes: false, dry: false, focus: true, drop: "", json: false, pause: false, cwd: process.env.PWD ?? "." };
+  const o: Opts = { yes: false, dry: false, focus: true, drop: "", json: false, pause: false, bg: false, cwd: process.env.PWD ?? "." };
   let repo = "";
   let pr = 0;
   let query = "";
@@ -2502,6 +2540,7 @@ function main(): void {
     else if (a === "--dry-run") o.dry = true;
     else if (a === "--json") o.json = true;
     else if (a === "--pause") o.pause = true;
+    else if (a === "--bg") o.bg = true;
     else if (a === "--no-focus") o.focus = false;
     else if (a === "-h" || a === "--help") {
       usage();
