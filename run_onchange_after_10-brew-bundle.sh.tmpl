@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Re-runs whenever ~/.Brewfile changes (chezmoi hashes the rendered script).
-# Brewfile hash: {{ include "dot_Brewfile.tmpl" | sha256sum }}
+# Brewfile hash (rendered, so profile/setapp flags count): {{ includeTemplate "dot_Brewfile.tmpl" . | sha256sum }}
 set -euo pipefail
 
 export HOMEBREW_NO_ENV_HINTS=1
