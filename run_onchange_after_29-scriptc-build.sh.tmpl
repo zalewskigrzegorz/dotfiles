@@ -61,13 +61,18 @@ for tool in scriptc clang; do
   fi
 done
 
+# scriptc keeps the generated .ll/.c next to the output by default, and bin/ is
+# a PATH dir, not a build tree. 0.3 renamed --no-keep-c to --no-keep-llvm.
+no_keep=--no-keep-c
+scriptc --help 2>&1 | grep -qF -- --no-keep-llvm && no_keep=--no-keep-llvm
+
+failed=0
 for src in "${sources[@]}"; do
   name="$(basename "$src" .ts)"
 
-  # --no-keep-c: scriptc keeps the generated .ll/.c next to the output by
-  # default, and bin/ is a PATH dir, not a build tree.
-  if ! scriptc build "$src" --no-keep-c -o "${SOURCE_BIN}/${name}" >/dev/null; then
+  if ! scriptc build "$src" "$no_keep" -o "${SOURCE_BIN}/${name}" >/dev/null; then
     echo "scriptc build: ${name} failed to compile — leaving the existing binary alone." >&2
+    failed=1
     continue
   fi
 
@@ -75,3 +80,6 @@ for src in "${sources[@]}"; do
   install -m 0755 "${SOURCE_BIN}/${name}" "${TARGET_BIN}/${name}"
   echo "scriptc build: ${name} ok."
 done
+
+# non-zero keeps chezmoi from recording the run, so the next apply retries
+exit "$failed"
