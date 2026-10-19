@@ -136,8 +136,10 @@ if herdr plugin list 2>/dev/null | grep -q 'herdr.collie'; then
     || echo "herdr-plugins: ⚠️  collie start failed — enable HTTPS on the tailnet, then re-run."
   # `start` runs in the herdr server's env, which may not see tailscale either, so
   # raise the front door from here (same mapping `collie serve` sets: :443 → bridge).
-  if command -v tailscale >/dev/null 2>&1 && ! tailscale serve status 2>/dev/null | grep -q '127.0.0.1:8787'; then
-    tailscale serve --bg --https=443 http://127.0.0.1:8787 >/dev/null 2>&1 \
+  co_port="$(grep -s '^COLLIE_PORT=' "$co_cfg_dir/.env" | cut -d= -f2 || true)"
+  co_port="${co_port:-8787}"
+  if command -v tailscale >/dev/null 2>&1 && ! tailscale serve status 2>/dev/null | grep -q "127.0.0.1:${co_port}"; then
+    tailscale serve --bg --https=443 "http://127.0.0.1:${co_port}" >/dev/null 2>&1 \
       && echo "herdr-plugins: tailscale serve :443 → collie." \
       || echo "herdr-plugins: ⚠️  tailscale serve failed — is Tailscale running (not Stopped)?"
   fi
