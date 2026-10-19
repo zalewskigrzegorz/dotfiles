@@ -6,8 +6,6 @@
 #include <sys/select.h>
 #include <sys/sysctl.h>
 
-static char unit_str[3][6] = { { " Bps" }, { "KBps" }, { "MBps" }, };
-
 enum unit {
   UNIT_BPS,
   UNIT_KBPS,
@@ -18,8 +16,8 @@ struct network {
   struct ifmibdata data;
   struct timeval tv_nm1, tv_n, tv_delta;
 
-  int up;
-  int down;
+  double up;
+  double down;
   enum unit up_unit, down_unit;
 };
 
