@@ -1,3 +1,10 @@
 # Homebrew (quiet env hints; auto-update at most once per day)
 export HOMEBREW_NO_ENV_HINTS=1
 export HOMEBREW_AUTO_UPDATE_SECS=86400
+
+# 1Password service account token for `op` and chezmoi's onepasswordRead.
+# Same loader as dot_profile and dot_config/nushell/env.nu.tmpl; zsh reads
+# neither, so without this `chezmoi apply` from Terminal.app fails to sign in.
+if [ -r "$HOME/.config/op/sa-token" ]; then
+    export OP_SERVICE_ACCOUNT_TOKEN="$(cat "$HOME/.config/op/sa-token")"
+fi
