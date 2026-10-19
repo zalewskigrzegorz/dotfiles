@@ -13,6 +13,7 @@ for d in \
   "/home/linuxbrew/.linuxbrew/bin" \
   "${HOME}/.local/bin" \
   "${HOME}/.cargo/bin" \
+  "/Applications/Tailscale.app/Contents/MacOS" \
 ; do
   [[ -d "$d" ]] && PATH="$d:$PATH"
 done
@@ -111,11 +112,14 @@ fi
 # any tailnet device can drive your agents.
 co_cfg_dir="$(herdr plugin config-dir herdr.collie 2>/dev/null || true)"
 if [[ -n "$co_cfg_dir" && ! -f "$co_cfg_dir/.env" ]] && command -v tailscale >/dev/null 2>&1; then
-  ts_login="$(tailscale status --json 2>/dev/null \
-    | jq -r '.User[(.Self.UserID|tostring)].LoginName // empty' 2>/dev/null || true)"
-  if [[ -n "$ts_login" ]]; then
+  ts_json="$(tailscale status --json 2>/dev/null || true)"
+  ts_login="$(printf '%s' "$ts_json" | jq -r '.User[(.Self.UserID|tostring)].LoginName // empty' 2>/dev/null || true)"
+  # The bridge runs under launchd, whose PATH has no tailscale (macOS app only ships it
+  # inside the bundle), so it cannot discover its own host; pin it here.
+  ts_host="$(printf '%s' "$ts_json" | jq -r '.Self.DNSName // empty | rtrimstr(".")' 2>/dev/null || true)"
+  if [[ -n "$ts_login" && -n "$ts_host" ]]; then
     mkdir -p "$co_cfg_dir"
-    printf 'COLLIE_TRUSTED_USER=%s\nCOLLIE_MUX=herdr\n' "$ts_login" > "$co_cfg_dir/.env"
+    printf 'COLLIE_TRUSTED_USER=%s\nCOLLIE_MUX=herdr\nCOLLIE_TAILSCALE_HOSTS=%s\n' "$ts_login" "$ts_host" > "$co_cfg_dir/.env"
     chmod 600 "$co_cfg_dir/.env"
     echo "herdr-plugins: wrote collie .env (trusted user from the tailnet login)."
   else
@@ -130,4 +134,11 @@ if herdr plugin list 2>/dev/null | grep -q 'herdr.collie'; then
   herdr plugin action invoke start --plugin herdr.collie >/dev/null 2>&1 \
     && echo "herdr-plugins: collie bridge up (launchd + tailscale serve)." \
     || echo "herdr-plugins: ⚠️  collie start failed — enable HTTPS on the tailnet, then re-run."
+  # `start` runs in the herdr server's env, which may not see tailscale either, so
+  # raise the front door from here (same mapping `collie serve` sets: :443 → bridge).
+  if command -v tailscale >/dev/null 2>&1 && ! tailscale serve status 2>/dev/null | grep -q '127.0.0.1:8787'; then
+    tailscale serve --bg --https=443 http://127.0.0.1:8787 >/dev/null 2>&1 \
+      && echo "herdr-plugins: tailscale serve :443 → collie." \
+      || echo "herdr-plugins: ⚠️  tailscale serve failed — is Tailscale running (not Stopped)?"
+  fi
 fi
