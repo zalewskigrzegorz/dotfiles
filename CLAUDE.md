@@ -54,6 +54,7 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 | 13 | `run_onchange_after_13-macos-sudo-touchid.sh.tmpl` | Touch ID for `sudo` via `/etc/pam.d/sudo_local` + `pam_reattach`, macOS only |
 | 14 | `run_onchange_after_14-macos-defaults.sh.tmpl` | macOS defaults (Dock, hidden menu bar, Finder) + `brew services start sketchybar`, macOS only |
 | 15 | `run_onchange_after_15-macos-nushell-application-support.sh.tmpl` | macOS-only nushell support |
+| 16 | `run_onchange_after_16-sketchybar-deps.sh.tmpl` | SbarLua + sketchybar-app-font (sketchybar's Lua config is empty without them), macOS only |
 | 20 | `run_onchange_after_20-macos-xdg-launchagent.sh.tmpl` | macOS XDG launch agent |
 | 25 | `run_once_after_25-install-claude.sh.tmpl` | Install Claude Code CLI |
 | 27 | `run_onchange_after_27-browserskill.sh.tmpl` | Install the `bsk` CLI (BrowserSkill), macOS only |

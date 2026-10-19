@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+{{- if eq .chezmoi.os "darwin" }}
+# What dot_config/sketchybar/helpers/install.sh used to do by hand: the SbarLua
+# module that init.lua requires (without it sketchybar runs with an empty bar)
+# and the sketchybar-app-font icon font. Both are skipped once present.
+set -eu
+
+if [[ -x /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+fi
+
+changed=0
+
+if [[ ! -f "$HOME/.local/share/sketchybar_lua/sketchybar.so" ]]; then
+  tmp="$(mktemp -d)"
+  git clone --depth 1 https://github.com/FelixKratz/SbarLua.git "$tmp/SbarLua"
+  (cd "$tmp/SbarLua" && make install)
+  rm -rf "$tmp"
+  changed=1
+fi
+
+font="$HOME/Library/Fonts/sketchybar-app-font.ttf"
+if [[ ! -f "$font" ]]; then
+  curl -fsSL https://github.com/kvndrsslr/sketchybar-app-font/releases/latest/download/sketchybar-app-font.ttf -o "$font"
+  changed=1
+fi
+
+if [[ "$changed" == 1 ]] && command -v brew >/dev/null 2>&1; then
+  brew services restart sketchybar >/dev/null 2>&1 || true
+fi
+echo "sketchybar-deps: ok"
+{{- end }}
