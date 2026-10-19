@@ -1,1 +1,1 @@
-{{ onepasswordRead "op://Dotfiles/Spotify Player Client ID/client_id" }}
+{{ if lookPath "op" }}{{ onepasswordRead "op://Dotfiles/Spotify Player Client ID/client_id" }}{{ end }}
