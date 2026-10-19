@@ -26,6 +26,12 @@ This holds in **every repo**.
 1. **Stage only what this session touched**, by explicit path. Never `git add
    -A` / `git add .` — other herdr agents share the checkout, and their dirty
    files stay out. Mention them in one line if there are any.
+   **The index may already hold another agent's files**, and `git commit -m`
+   commits the whole index: `scriptc/workctl.ts`, staged by someone else, rode
+   along in a sketchybar commit (2026-10-19). Run `git diff --cached
+   --name-only` before every commit; anything not yours → `git commit -- <your
+   paths>`. A path removed with `git rm` is already staged, so don't `git add`
+   it again (`pathspec did not match` aborts the whole chain).
 2. **Compose the message with `g-commit`** (in work repos that includes the
    `g-deslop` gate and a feature branch when on `main`/`master`).
 3. **Check YOLO:** `claude-yolo status`. Ask it at commit time, not from memory

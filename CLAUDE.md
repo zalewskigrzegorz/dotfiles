@@ -271,6 +271,13 @@ Kolizje nazw z teamem **nie** są przykrywane — project scope nie shadowuje us
 - Templated secrets in `*.tmpl` files use chezmoi's secret functions (1Password on Mac, see `docs/secrets.md`)
 - `1Password CLI` on Linux is **not** in homebrew — install via apt (see Linux block in `dot_Brewfile.tmpl`)
 
+## sketchybar (Mac)
+
+- **Verify a change with `bin/sketchybar-restart`**, not `--reload` plus one `--query`. Its probe checks every expected item and fails when sketchybar sits above 20% cpu, which is how an event loop shows (2026-10-19: a `forced` handler calling `--update` held 85% cpu while every item looked fine). Add new items to its `EXPECTED` list.
+- **`--update` fires `forced`.** Never call it (or `--trigger forced`) from a `forced` handler unless a state change guards it, as `items/compact.lua` does.
+- **Per-display questions start with `--query displays`.** An item's `geometry.drawing` is global; which screens show it is `associated_display_mask` (bit n = display n), and `display=2,3` takes a list. "The title still shows on the laptop" was two monitors plugged in, ~6 calls to find.
+- **Laptop vs monitor layout lives in `items/compact.lua`** and is decided per bar, not per display: with the lid open next to monitors, they get the compact layout too (accepted trade-off). Widgets read `settings.compact`.
+
 ## Multiplexer — herdr (Mac)
 
 - **`hd` / `herdr` is the launcher** (`dot_config/nushell/autoload/herdr.nu` → `hd`, `hd-restart`, `hd-stop`, `hd-lab`). Prefix = `ctrl+space`. The priority-sorted **agent sidebar** (blocked-first) is the core — it replaces the old `claude-agent-presence` stack and the window-wrappers. Worktrees via the herdr-native `work` CLI (`new`/`ls`/`switch`/`rm`/`pr`); `work new` / `work switch` are thin wrappers over **`bin/workctl`** (`scriptc/workctl.ts`), the one branch / PR command that `prefix+shift+g`, `prefix+shift+o`, gh-dash's `w` and lazygit's `w` all open — see `docs/herdr.md`. Nav: `prefix+w` workspace picker · `prefix+g` goto · `prefix+a` agent-cycle · `prefix+0` jump-to-waiting-agent · `prefix+h/j/k/l` panes. Config: `dot_config/herdr/config.toml`. Full reference: `docs/herdr.md`.
