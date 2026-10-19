@@ -11,8 +11,12 @@ local watcher = sbar.add("item", "compact.watcher", { drawing = false, updates =
 
 local function apply(compact, big_ids)
     local show = not compact
-    -- battery and calendar read this on their next update, which --update forces below
-    settings.compact = compact
+    -- battery and calendar read this on their next update. --update fires "forced",
+    -- which re-runs check(), so it must only run on a real change or it loops forever.
+    if settings.compact ~= compact then
+        settings.compact = compact
+        sbar.exec("sketchybar --update")
+    end
     -- no room for the app title next to the notch; keep it on the monitors only
     sbar.set("front_app", {
         drawing = show or #big_ids > 0,
@@ -38,7 +42,7 @@ local function apply(compact, big_ids)
     end
     -- spacer items between groups; 5 is the default.lua padding
     local pad = compact and 2 or 5
-    sbar.exec("sketchybar --set '/.*padding/' padding_left=" .. pad .. " padding_right=" .. pad .. " --update")
+    sbar.exec("sketchybar --set '/.*padding/' padding_left=" .. pad .. " padding_right=" .. pad)
 end
 
 local function check()
