@@ -9,8 +9,9 @@
 # LS_COLORS for file styling (using vivid)
 $env.LS_COLORS = (vivid generate dracula)
 
-let carapace_completer = {|spans|
-    carapace $spans.0 nushell ...$spans | from json
+# nu 0.116+: the completer gets a record; `place.command` is the old `spans`.
+let carapace_completer = {|place|
+    carapace $place.command.0 nushell ...$place.command | from json
 }
 
 # Top-level toggles — merge shallowly into the existing config.

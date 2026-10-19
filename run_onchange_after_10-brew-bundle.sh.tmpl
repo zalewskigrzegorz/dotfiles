@@ -34,7 +34,9 @@ brew bundle --global
 # a checksum mismatch. Kept out of the Brewfile; installed best-effort here and
 # pinned so bundle never tries to upgrade it. The tap itself is not in the
 # Brewfile either: since 2026-10 brew rejects it as a whole (casks without Linux
-# stanzas), which failed bundle on a fresh Mac.
+# stanzas), which failed bundle on a fresh Mac. Trusted here because the loop
+# above only sees Brewfile taps; without it every brew command warns.
+brew trust timescam/tap >/dev/null 2>&1 || true
 if ! brew list --versions pay-respects >/dev/null 2>&1; then
   brew install timescam/tap/pay-respects ||
     echo "pay-respects install failed (stale nightly sha256 in tap); retry manually later" >&2
