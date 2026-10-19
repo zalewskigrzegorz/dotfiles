@@ -27,7 +27,7 @@ worker() {
   start=$(date +%s)
   # detect-mechanical.py needs Python ≥3.10 (itertools.pairwise); /usr/bin/python3
   # is 3.9 and every child lost 3–4 calls finding a newer one (2026-10-12).
-  (cd "$cwd" && PATH="/opt/homebrew/opt/python3/libexec/bin:$PATH" claude -p --model sonnet --max-turns 60 \
+  (cd "$cwd" && PATH="/opt/homebrew/opt/python3/bin:$PATH" claude -p --model sonnet --max-turns 60 \
       --allowedTools "Read" "Grep" "Glob" "Bash" \
       --disallowedTools "Write" "Edit" "NotebookEdit" "Agent" \
       --output-format text \

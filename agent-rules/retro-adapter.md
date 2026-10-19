@@ -110,7 +110,8 @@ into clusters, writes the report to bazgroly and asks **one** popup with tiers.
   signals" (9 of 10 sessions hit it, 2026-10-12). Run them as
   `/opt/homebrew/bin/python3 -I <script>`, never a pinned `python3.X`: brew
   bumped 3.14 → 3.15 and the pinned path died with `no such file` (2026-10-19).
-  `bin/retro-backlog` puts brew's `python3` first on its children's `PATH`.
+  `bin/retro-backlog` puts `/opt/homebrew/opt/python3/bin` first on its
+  children's `PATH` (`libexec/bin` has only `python`, not `python3`).
 - **Slash commands render as `<command-name>/retro:retro</command-name>` +
   `<command-args>…</command-args>` in transcripts**, not as the typed text —
   anything grepping a transcript for a command must match that shape.

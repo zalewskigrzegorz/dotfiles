@@ -60,7 +60,7 @@ Steps 1–3 happen on the old Mac, the rest on the new one.
     gets its defaults. Behaviour that must stick goes as a flag in
     `agent-mcp/mcp-servers.json.tmpl` (`--open-web-dashboard false`). After the first
     `claude` start, check that nothing opened in the browser.
-    **Tailscale** from the App Store app has its CLI at
+    **Tailscale** with only the macOS app has its CLI at
     `/Applications/Tailscale.app/Contents/MacOS/Tailscale`, not on a launchd job's
     `PATH` (stage 34 handles it for collie). `up` fails with "requires mentioning all
     non-default flags" → `up --accept-routes`. `status --json | jq .BackendState`
