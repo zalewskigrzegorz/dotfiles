@@ -12,8 +12,6 @@ local watcher = sbar.add("item", "compact.watcher", { drawing = false, updates =
 local function apply(compact)
     local show = not compact
     sbar.set("front_app", { position = compact and "e" or "left" })
-    sbar.set("widgets.wifi1", { drawing = show })
-    sbar.set("widgets.wifi2", { drawing = show })
     -- only the label: volume1/mic1 run the scripts that update the icons, and
     -- updates = "when_shown" would stop them if the whole item were hidden
     sbar.set("widgets.volume1", { label = { drawing = show } })
