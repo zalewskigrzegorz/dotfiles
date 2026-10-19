@@ -51,6 +51,7 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 | 00 | `run_once_before_00-install-homebrew.sh.tmpl` | Install Homebrew (Mac + Linux) |
 | 05 | `run_after_05-restore-private-files.sh.tmpl` | Restore secrets from `private/` |
 | 10 | `run_onchange_after_10-brew-bundle.sh.tmpl` | `brew bundle` against rendered Brewfile |
+| 13 | `run_onchange_after_13-macos-sudo-touchid.sh.tmpl` | Touch ID for `sudo` via `/etc/pam.d/sudo_local` + `pam_reattach`, macOS only |
 | 15 | `run_onchange_after_15-macos-nushell-application-support.sh.tmpl` | macOS-only nushell support |
 | 20 | `run_onchange_after_20-macos-xdg-launchagent.sh.tmpl` | macOS XDG launch agent |
 | 25 | `run_once_after_25-install-claude.sh.tmpl` | Install Claude Code CLI |
