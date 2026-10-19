@@ -31,14 +31,14 @@ for i, workspace in ipairs(workspace_order) do
         icon = {
             font = { family = "JetBrainsMono Nerd Font", size = 16.0 },
             string = workspace_icons[workspace] or workspace,
-            padding_left = 12,
+            padding_left = 8,
             padding_right = 6,
             color = selected and focused_color or workspace_color,
             highlight_color = focused_color,
             highlight = selected
         },
         label = {
-            padding_right = 16,
+            padding_right = 12,
             color = selected and focused_color or workspace_color,
             highlight_color = focused_color,
             font = settings.icons,
