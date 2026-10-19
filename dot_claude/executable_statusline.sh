@@ -433,27 +433,36 @@ fi
 
 # context %
 ctx_seg=""
-if [ -n "$transcript" ] && [ -f "$transcript" ]; then
+# Claude Code reports the live window (1M on Opus 5.5); a hard-coded 200k
+# showed 87% on a fresh session (2026-10-19). The transcript sum is the
+# fallback for builds without `context_window`.
+ctx_pct=$(printf '%s' "$input" | jq -r '.context_window.used_percentage // empty | floor' 2>/dev/null)
+if [ -z "$ctx_pct" ] && [ -n "$transcript" ] && [ -f "$transcript" ]; then
   ctx_tokens=$(tail -50 "$transcript" 2>/dev/null | \
     jq -rs '[.[] | select(.message.usage) | .message.usage | (.input_tokens // 0) + (.cache_read_input_tokens // 0) + (.cache_creation_input_tokens // 0)] | max // 0' 2>/dev/null)
-  if [ -n "$ctx_tokens" ] && [ "$ctx_tokens" != "null" ] && [ "$ctx_tokens" -gt 0 ]; then
+  ctx_max=$(printf '%s' "$input" | jq -r '.context_window.context_window_size // empty' 2>/dev/null)
+  if [ -z "$ctx_max" ]; then
     if [ "$over200k" = "true" ]; then ctx_max=1000000; else ctx_max=200000; fi
+  fi
+  if [ -n "$ctx_tokens" ] && [ "$ctx_tokens" != "null" ] && [ "$ctx_tokens" -gt 0 ]; then
     ctx_pct=$(( ctx_tokens * 100 / ctx_max ))
-    # compaction warning: red ≥85% (compact ~90%), peach ≥60% (warning),
-    # green otherwise. Peach instead of yellow to match the warning-vs-info
-    # convention used elsewhere in the Mocha Neon stack.
-    if   [ "$ctx_pct" -ge 85 ]; then cc="$R"
-    elif [ "$ctx_pct" -ge 60 ]; then cc="$O"
-    else cc="$G"; fi
-    ctx_seg="${SEP}${AMBER}ctx${N} $(bar "$ctx_pct" "$cc") ${cc}${B}${ctx_pct}%${N}"
-    # Auto-compact imminence warning — Claude Code auto-compacts somewhere
-    # between 90–95% of context. Surface this BEFORE it happens so user
-    # knows a compaction is coming, not just "ctx is high".
-    if [ "$ctx_pct" -ge 90 ]; then
-      ctx_seg="${ctx_seg} ${R}${B}󰁪 auto-compact imminent${N}"
-    elif [ "$ctx_pct" -ge 80 ]; then
-      ctx_seg="${ctx_seg} ${O}󰁪 compact soon${N}"
-    fi
+  fi
+fi
+if [ -n "$ctx_pct" ]; then
+  # compaction warning: red ≥85% (compact ~90%), peach ≥60% (warning),
+  # green otherwise. Peach instead of yellow to match the warning-vs-info
+  # convention used elsewhere in the Mocha Neon stack.
+  if   [ "$ctx_pct" -ge 85 ]; then cc="$R"
+  elif [ "$ctx_pct" -ge 60 ]; then cc="$O"
+  else cc="$G"; fi
+  ctx_seg="${SEP}${AMBER}ctx${N} $(bar "$ctx_pct" "$cc") ${cc}${B}${ctx_pct}%${N}"
+  # Auto-compact imminence warning — Claude Code auto-compacts somewhere
+  # between 90–95% of context. Surface this BEFORE it happens so user
+  # knows a compaction is coming, not just "ctx is high".
+  if [ "$ctx_pct" -ge 90 ]; then
+    ctx_seg="${ctx_seg} ${R}${B}󰁪 auto-compact imminent${N}"
+  elif [ "$ctx_pct" -ge 80 ]; then
+    ctx_seg="${ctx_seg} ${O}󰁪 compact soon${N}"
   fi
 fi
 [ -z "$ctx_seg" ] && [ "$over200k" = "true" ] && ctx_seg="${SEP}${R}ctx >200k${N}"
