@@ -6,22 +6,11 @@
 -- Defaults, all under <leader>a: ac = comment line/selection, al = list,
 -- as = paste into the agent's input, aS = paste and submit.
 return {
-    {
-        "ChmaraX/herdr-nvim",
-        -- Outside a herdr pane there is no agent to talk to, so don't load it (the
-        -- lab has herdr too, hence the env check rather than an OS check).
-        cond = function()
-            return vim.env.HERDR_PANE_ID ~= nil
-        end,
-        opts = {},
-    },
-    -- herdr-nvim sets plain keymaps, so which-key showed <leader>a with no name or icon.
-    {
-        "folke/which-key.nvim",
-        opts = {
-            spec = {
-                { "<leader>a", group = "agent", icon = { icon = "󰚩 ", color = "purple" } },
-            },
-        },
-    },
+    "ChmaraX/herdr-nvim",
+    -- Outside a herdr pane there is no agent to talk to, so don't load it (the
+    -- lab has herdr too, hence the env check rather than an OS check).
+    cond = function()
+        return vim.env.HERDR_PANE_ID ~= nil
+    end,
+    opts = {},
 }
