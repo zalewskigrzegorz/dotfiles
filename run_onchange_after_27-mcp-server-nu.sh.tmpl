@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Install mcp-server-nu (crates.io) → ~/.cargo/bin, which the `nushell` MCP entry
+# calls by absolute path. A fresh Mac without it showed
+# `Failed to reconnect to nushell: ENOENT` (2026-10-19).
+#
+# run_onchange: chezmoi re-runs this whenever the rendered content changes.
+
+set -euo pipefail
+
+for d in \
+  "/opt/homebrew/bin" \
+  "/home/linuxbrew/.linuxbrew/bin" \
+  "${HOME}/.cargo/bin" \
+; do
+  [[ -d "$d" ]] && PATH="$d:$PATH"
+done
+export PATH
+
+if ! command -v cargo >/dev/null 2>&1; then
+  echo "mcp-server-nu: cargo not on PATH — skipping (brew bundle installs rust)."
+  exit 0
+fi
+
+if [[ -x "${HOME}/.cargo/bin/mcp-server-nu" ]]; then
+  echo "mcp-server-nu: already installed."
+  exit 0
+fi
+
+echo "mcp-server-nu: installing (cargo, ~2 min)…"
+cargo install --locked mcp-server-nu

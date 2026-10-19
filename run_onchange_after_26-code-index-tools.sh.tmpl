@@ -39,6 +39,11 @@ uv tool install -p 3.13 --reinstall \
 echo "code-index-tools: installing posit-mcp-repl (uv tool)…"
 uv tool install --upgrade posit-mcp-repl
 
+# mempalace + mempalace-mcp: the MCP entry calls `mempalace-mcp` from ~/.local/bin;
+# a fresh Mac without it showed `Failed to reconnect to mempalace: ENOENT` (2026-10-19).
+echo "code-index-tools: installing mempalace (uv tool)…"
+uv tool install --upgrade mempalace
+
 # Best-effort: drop a previously-installed cocoindex-code tool (removed 2026-08-05).
 uv tool uninstall cocoindex-code >/dev/null 2>&1 || true
 
