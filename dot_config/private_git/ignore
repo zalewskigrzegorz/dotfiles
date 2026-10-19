@@ -4,3 +4,7 @@
 
 # CocoIndex local index (LMDB/sqlite) — worktrees clone it, never commit
 .cocoindex_code/
+
+# Serena (--project-from-cwd) writes its project cache into every worktree;
+# untracked, it makes `workctl rm` refuse without --force
+.serena/
