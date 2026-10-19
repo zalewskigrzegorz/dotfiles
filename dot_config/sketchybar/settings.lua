@@ -40,7 +40,9 @@ return {
         colors = {
             background = colors.bg1
         },
-        corner_radius = 6
+        corner_radius = 6,
+        -- workspace items; items/compact.lua shrinks them on the laptop and restores these
+        space = { icon_padding = 12, label_padding = 16, icon_size = 16.0, label_size = 16.0 }
     },
 
     icons = "sketchybar-app-font:Regular:16.0", -- alternatively available: NerdFont

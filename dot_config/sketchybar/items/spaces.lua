@@ -29,16 +29,16 @@ for i, workspace in ipairs(workspace_order) do
 
     local space = sbar.add("item", "item." .. i, {
         icon = {
-            font = { family = "JetBrainsMono Nerd Font", size = 16.0 },
+            font = { family = "JetBrainsMono Nerd Font", size = settings.items.space.icon_size },
             string = workspace_icons[workspace] or workspace,
-            padding_left = 12,
+            padding_left = settings.items.space.icon_padding,
             padding_right = 6,
             color = selected and focused_color or workspace_color,
             highlight_color = focused_color,
             highlight = selected
         },
         label = {
-            padding_right = 16,
+            padding_right = settings.items.space.label_padding,
             color = selected and focused_color or workspace_color,
             highlight_color = focused_color,
             font = settings.icons,
