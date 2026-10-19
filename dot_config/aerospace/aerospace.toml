@@ -551,10 +551,6 @@ if.app-name-regex-substring = 'CleverPDF'
 run = 'move-node-to-workspace misc'
 
 [[on-window-detected]]
-if.app-name-regex-substring = 'reMarkable'
-run = 'move-node-to-workspace misc'
-
-[[on-window-detected]]
 if.app-name-regex-substring = 'Stream Deck'
 run = 'move-node-to-workspace misc'
 
@@ -567,23 +563,11 @@ if.app-name-regex-substring = 'logioptionsplus'
 run = 'move-node-to-workspace misc'
 
 [[on-window-detected]]
-if.app-name-regex-substring = 'Poly Studio'
-run = 'move-node-to-workspace misc'
-
-[[on-window-detected]]
 if.app-name-regex-substring = 'Insta360 Link Controller'
 run = 'move-node-to-workspace misc'
 
 [[on-window-detected]]
-if.app-name-regex-substring = 'Steam Link'
-run = 'move-node-to-workspace misc'
-
-[[on-window-detected]]
 if.app-name-regex-substring = 'WiFi Explorer'
-run = 'move-node-to-workspace misc'
-
-[[on-window-detected]]
-if.app-name-regex-substring = 'iStat Menus'
 run = 'move-node-to-workspace misc'
 
 [[on-window-detected]]

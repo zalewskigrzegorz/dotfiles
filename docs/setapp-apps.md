@@ -31,7 +31,5 @@ On a new Mac, install Setapp with Homebrew, sign in, mark the apps below as favo
 - [ ] OrcaSheets
 - [ ] Proxyman
 - [ ] Spark Mail
-- [ ] TablePlus
 - [ ] Timing
 - [ ] WiFi Explorer
-- [ ] iStat Menus
