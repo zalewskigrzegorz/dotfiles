@@ -80,6 +80,32 @@ searches on. **Never hand over our internal SES `Message-ID`**: it is opaque
 outside our system and useless until they already hold the message. Caught on a
 draft to a customer's admin, 2026-09-22 ("id mu przecież nic nie da").
 
+## Customer-facing text promises only what the source says
+
+Status page, customer mail, banner (805e0816, 2026-10-13, "to jest zle nie
+owinelismy tego tak piosac"):
+
+- **Take only what the source marks as public or what Greg said himself.** An
+  internal technical note is not a promise. "nobody needs to reset anything"
+  was our inference; cut such a sentence or label it `propozycja` before it goes.
+- **"Uprość, bez technicznych detali" swaps jargon for plain words; it does
+  not delete facts.** Every sentence that tells the reader they must act ("orgs
+  using SCIM must update their config") stays. How it works underneath can go.
+
+## Before drafting an issue on someone else's repo
+
+`gh issue list -R <owner/repo> --search "<keywords>" --state all` first. A hit
+→ a comment (+1 with our case) instead of a new issue, and its number goes in
+the first line of the reply. A full draft was thrown away for an open duplicate
+on 2026-10-13 (72209d68).
+
+## UI strings you write
+
+Messages, alerts, empty states, tooltips: short sentences, no `;`, no `—`. Two
+sentences instead of one joined by a semicolon. One look for `[;—]` in the diff
+after writing them. "te copy jest ai generated, ma `;`" (2fcb7035). This is
+product text in code, not replies to Greg.
+
 ## A reader's example is the spec
 
 When the person who reads the output gives an example of the format they want

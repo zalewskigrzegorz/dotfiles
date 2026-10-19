@@ -1,5 +1,5 @@
 ---
-description: Answer a cross-session message straight to the sending agent; on a branch stacked on a non-main base, fetch the base and read what landed before designing, committing or opening the PR
+description: Answer a cross-session message straight to the sending agent; fetch the base (stacked branch or main) and the branch itself and read what landed before designing, committing, asking or opening the PR
 alwaysApply: true
 ---
 
@@ -29,6 +29,31 @@ wszedł adr 15, weź go pod uwagę, bo teraz tego nie robisz" (a752428e).
 - A second PR that depends on an unmerged first one → propose stacking it on
   that PR up front (`workctl --base origin/<first-branch>`). Don't wait for
   Greg to ask.
+
+## `main` moves too — fetch before you commit, ask or open a PR
+
+The stacked-base check above applies to a branch cut from `main` as well. Four
+sessions (2026-10-12 … 10-16) acted on a stale local view: a PR opened into a
+conflict Greg spotted first (02be04c1), two popups built on "the branch has no
+PR" while one existed and had been rebased on the remote (4bf5a457), a prod
+investigation read an old worktree instead of what prod runs (13ddf2cf), and
+a "do decyzji" question that the other open PR already answered (2f5fe621).
+
+- **Before the first commit and before push / `gh pr create`:** `git fetch
+  origin main` and `git log --oneline HEAD..origin/main -- <paths you
+  touched>`. A hit → read that commit and rebase now. Right after opening the
+  PR: `gh pr view <n> --json mergeable,mergeStateStatus`; `CONFLICTING` or
+  `DIRTY` → rebase first, no "co dalej" popup.
+- **Work on a branch that already exists:** `git fetch origin <branch>`, `git
+  rev-list --left-right --count HEAD...origin/<branch>` and `gh pr list --head
+  <branch> --state all` before any fork about PRs, rebase or merge. A brief's
+  "no PR yet" is a claim to check. Remote differs or a PR exists → say so in
+  one line first.
+- **"Why does prod do X":** `git fetch origin main` and read `origin/main`
+  (`git show origin/main:<path>`, `git grep <pat> origin/main`) when the
+  worktree is behind. Say in one line which sha you read.
+- **A question about another open PR:** read its diff first (`git ls-tree`,
+  `git show` on its branch). Only what the diff does not settle goes to Greg.
 
 ## Red check on a stacked branch → compare with the base first
 

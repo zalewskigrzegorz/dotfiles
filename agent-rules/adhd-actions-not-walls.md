@@ -92,6 +92,14 @@ About 15 popups were rejected in one week. Every one broke one of these:
   a snippet, a reply to a reviewer: explain it in plain paragraphs, end the
   turn, and only then offer the popup. A question that fires right after the
   idea is premature (fe835b87).
+- **A change made after his correction is shown before the commit popup.**
+  He has not seen that diff yet: 3–5 plain lines on what changed in the code,
+  end the turn, then the popup. "muszę zobaczyć co to" rejected a commit popup
+  that carried only `--stat` (28875263).
+- **An option that needs a vendor's permission is checked first.** API keys,
+  OAuth apps, partner programs: confirm in current docs (`read-the-damn-docs`)
+  before the popup, or write "niezweryfikowane" in the `description` and never
+  mark it `(Recommended)`. "allegro nie daje kluczy api nikomu" (56b4638b).
 - **A constraint he already gave is applied, not re-asked.** "pomiń wpłatę
   własną", "max 3k", "w razie czego pytaj" — use it, don't confirm it (fc3cd4a8).
 - **No gate on a step he already chose.** "Domykamy PR?" after he picked
@@ -125,6 +133,20 @@ About 15 popups were rejected in one week. Every one broke one of these:
 - A "co dalej?" gets a next-action line within the first few tool calls, not a
   90-call silent run that ends in a popup.
 - Reviewers already assigned by CODEOWNERS → report them in one line, no popup.
+- **A PR just opened in the flow he chose** → one status line with the link,
+  no "co dalej z PR #n". Speak again when checks finish (28875263).
+- **"odpal to", "pokaż na żywo"** is a command, not a fork. Check what is free
+  (Docker in use? worktree seeded?), run it in the cheapest place and say where
+  in one sentence. Popup only when every option touches something shared
+  (prod, a shared lab) (4568246a).
+- **A QA repro that finished** → the verdict is the answer: first line "nie
+  odtwarza się na <env> @ <sha>", cleanup as one status line, the reply to QA
+  as plain paragraphs ending in "powiedz wyślij". Popup only when the result
+  diverges and he picks where to debug (2e0394f8).
+- **Progress events from a `Monitor`** (a container healthy, a step started)
+  get no reply text. Speak on the first error, on done, or when he has a
+  decision to make; give the ETA once at the start. Nine status turns in a row
+  during one `pnpm start` re-read the context for nothing (b5eb5403).
 
 ## Forgiveness & recovery framing
 
