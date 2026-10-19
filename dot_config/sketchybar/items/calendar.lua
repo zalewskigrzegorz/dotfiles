@@ -59,6 +59,10 @@ sbar.add("item", {
 cal:subscribe({"forced", "routine", "system_woke"}, function(env)
     cal:set({
         icon = "",
-        label = os.date("%m/%d %H:%M")
+        -- laptop: time only, the space goes to the widgets
+        label = {
+            string = os.date(settings.compact and "%H:%M" or "%m/%d %H:%M"),
+            width = settings.compact and 40 or 96
+        }
     })
 end)

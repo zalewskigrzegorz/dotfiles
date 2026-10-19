@@ -78,7 +78,10 @@ battery:subscribe({"routine", "power_source_change", "system_woke"}, function()
                 color = color
             },
             label = {
-                string = lead .. label
+                string = lead .. label,
+                -- the laptop layout shows the number only when it is getting low
+                drawing = not settings.compact or (found and charge < 20) or false,
+                color = (settings.compact and found and charge < 20) and colors.red or colors.white
             }
         })
     end)

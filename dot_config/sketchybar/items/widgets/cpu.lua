@@ -45,6 +45,24 @@ local cpu = sbar.add("graph", "widgets.cpu", 42, {
     padding_right = settings.paddings + 6
 })
 
+-- Red for 30 s in a row (15 samples at 2 s) makes the bracket border blink.
+-- Only the cpu tick flips the blink, so two 2 s updates do not cancel each other.
+local hot = { cpu = 0, mem = 0 }
+local blink = false
+local function heat(key, is_red)
+    hot[key] = is_red and hot[key] + 1 or 0
+end
+local function blink_tick()
+    local alarm = hot.cpu >= 15 or hot.mem >= 15
+    blink = alarm and not blink
+    sbar.set("widgets.cpu.bracket", {
+        background = {
+            border_color = blink and colors.red or colors.rainbow[#colors.rainbow - 5],
+            border_width = alarm and 2 or 1
+        }
+    })
+end
+
 cpu:subscribe("cpu_update", function(env)
     -- Also available: env.user_load, env.sys_load
     local load = tonumber(env.total_load)
@@ -67,6 +85,8 @@ cpu:subscribe("cpu_update", function(env)
         },
         label = "cpu " .. env.total_load .. "%"
     })
+    heat("cpu", load >= 80)
+    blink_tick()
 end)
 
 cpu:subscribe("mouse.clicked", function(env)
@@ -107,6 +127,7 @@ mem:subscribe({"routine", "forced", "system_woke"}, function()
         if not used then
             return
         end
+        heat("mem", used >= 85)
         mem:push({used / 100.})
         mem:set({
             graph = { color = used >= 85 and colors.red or used >= 70 and colors.orange or colors.blue },
