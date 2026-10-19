@@ -531,7 +531,7 @@ function viewerLogin(): string {
 // blocking fetch beats a first run with no PR rows at all.
 function prList(ghRepo: string): PrRow[] {
   if (ghRepo === "" || !have("gh")) return [];
-  const cache = join(CACHE_DIR, `workctl-prs-${ghRepo.split("/").join("-")}.tsv`);
+  const cache = prCachePath(ghRepo);
   const jq = `.[] | [(.number|tostring), .title, .headRefName, .author.login, (if .isDraft then "1" else "0" end)] | join("${US}")`;
   const fetchCmd =
     `gh pr list --repo ${shq(ghRepo)} --state open --limit 500 --json number,title,headRefName,author,isDraft ` +
@@ -555,10 +555,20 @@ function prList(ghRepo: string): PrRow[] {
     // scriptc has no detached spawn; `sh -c '… &'` backgrounds and returns.
     sh(`( ${fetchCmd} ) >/dev/null 2>&1 &`);
   }
-  if (!present) return [];
+  return present ? readPrCache(ghRepo) : [];
+}
+
+function prCachePath(ghRepo: string): string {
+  return join(CACHE_DIR, `workctl-prs-${ghRepo.split("/").join("-")}.tsv`);
+}
+
+// Read on every `__rows` reload too: the state file freezes the PR list from
+// picker start, so a PR the background refresh just pulled in would never show.
+function readPrCache(ghRepo: string): PrRow[] {
+  if (ghRepo === "") return [];
   let raw = "";
   try {
-    raw = readFileSync(cache, "utf8");
+    raw = readFileSync(prCachePath(ghRepo), "utf8");
   } catch {
     return [];
   }
@@ -2419,6 +2429,8 @@ function stage1(rs: RepoState, query: string): Target | null {
   const header = `${rs.repo}${rs.ghRepo === "" ? "" : ` · ${rs.ghRepo}`} · base origin/${rs.defaultBranch}${rs.currentBranch === "" ? "" : ` · on ${rs.currentBranch}`}\ntype a branch, a PR number or a title · enter → actions`;
   const args = [
     ...fzfBase("work> ", header),
+    // A PR row shows its head branch in the meta column; match it too.
+    "--nth", "1,2",
     "--query", query,
     "--bind", `start:reload(${self} __rows ${shq(sf)} {q})`,
     "--bind", `change:reload(${self} __rows ${shq(sf)} {q})`,
@@ -2486,12 +2498,11 @@ function main(): void {
   const argv = process.argv.slice(2);
   const a0 = argv[0] ?? "";
 
-  if (a0 === "__rows") {
-    out(stage1Rows(parseRepoState(argv[1] ?? ""), argv[2] ?? "").join("\n"));
-    return;
-  }
-  if (a0 === "__preview") {
-    out(stage1Preview(parseRepoState(argv[1] ?? ""), argv[2] ?? ""));
+  if (a0 === "__rows" || a0 === "__preview") {
+    const st = parseRepoState(argv[1] ?? "");
+    const prs = readPrCache(st.ghRepo);
+    if (prs.length > 0) st.prs = prs;
+    out(a0 === "__rows" ? stage1Rows(st, argv[2] ?? "").join("\n") : stage1Preview(st, argv[2] ?? ""));
     return;
   }
   if (a0 === "__state") {
