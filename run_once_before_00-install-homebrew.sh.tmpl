@@ -17,6 +17,9 @@ if command -v apt-get >/dev/null 2>&1; then
 fi
 {{ end -}}
 
+# NONINTERACTIVE skips the installer's own sudo prompt and fails with
+# "Insufficient permissions" unless sudo is already cached, so cache it first.
+sudo -v
 NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 if [[ -x /opt/homebrew/bin/brew ]]; then
