@@ -310,6 +310,7 @@ Three of these cost a debug loop each while writing `firefly.nu` (nu 0.115.1):
 ## Pointers
 
 - `docs/dotfiles-inventory.md` — full inventory of what's tracked
+- `docs/new-mac.md` — step order for moving to a new Mac, with the traps hit on 2026-10-19
 - `docs/agents-sync.md` — agent-* sync internals
 - `docs/mcp-clients-setup.md` — MCP setup per client
 - `docs/secrets.md` — secret management workflow
