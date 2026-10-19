@@ -18,6 +18,14 @@ metadata:
 
 ## Running spark
 
+**Step 0: `command -v spark`.** The Setapp build of Spark ships no CLI. Missing →
+one line ("brak CLI `spark`, wersja z Setappa go nie ma"), no hunting in the app
+bundle and no `brew install` without asking (2026-10-19).
+
+**"Jaki mam plan / subskrypcję"** → first say which biller you check (Readdle or
+Setapp), look at `Settings → Spark Account` in the app Greg uses (screenshot),
+and only then search mail for invoices.
+
 ```bash
 spark <command> [options]
 ```

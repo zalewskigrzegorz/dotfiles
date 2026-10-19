@@ -52,7 +52,19 @@ Steps 1–3 happen on the old Mac, the rest on the new one.
     `mempalace status` on the new Mac shows the same drawer count; if not, `mempalace repair`.
 16. **Jam SQL Studio** makes a new MCP token on the first launch on the new Mac, so the
     `jamsql` MCP answers 401 with the token from 1Password. Copy the token from the app
-    (Settings → MCP) into `Dotfiles/JAM_SQL`, then `chezmoi apply`.
+    (Settings → MCP) into `Dotfiles/JAM_SQL`, then `chezmoi apply`. The app is the
+    source of truth here: update 1Password, don't paste the old token into the app.
+    `op` on the Mac is a read-only service account, so the edit is done in the
+    1Password app.
+    **Serena** has no tracked config (`~/.serena/serena_config.yml`), so a new Mac
+    gets its defaults. Behaviour that must stick goes as a flag in
+    `agent-mcp/mcp-servers.json.tmpl` (`--open-web-dashboard false`). After the first
+    `claude` start, check that nothing opened in the browser.
+    **Tailscale** from the App Store app has its CLI at
+    `/Applications/Tailscale.app/Contents/MacOS/Tailscale`, not on a launchd job's
+    `PATH` (stage 34 handles it for collie). `up` fails with "requires mentioning all
+    non-default flags" → `up --accept-routes`. `status --json | jq .BackendState`
+    says whether a login is needed.
 17. **Sketchybar** is sized for the 5K (looks like 2560 × 1440) and the 3440 × 1440
     ultrawide. On the laptop screen alone (3024 × 1964, about 1512 pt wide) the items
     overflow and the front-app label covers the CPU widget. Hiding items there is not
