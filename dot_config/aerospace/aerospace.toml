@@ -377,10 +377,6 @@ if.app-name-regex-substring = 'Visual Studio Code'
 run = 'move-node-to-workspace code'
 
 [[on-window-detected]]
-if.app-name-regex-substring = 'Claude'
-run = 'move-node-to-workspace code'
-
-[[on-window-detected]]
 if.app-name-regex-substring = 'Firefox Developer Edition'
 run = 'move-node-to-workspace test'
 
@@ -391,14 +387,6 @@ run = 'move-node-to-workspace term'
 [[on-window-detected]]
 if.app-name-regex-substring = 'Spotify'
 run = 'move-node-to-workspace media'
-
-[[on-window-detected]]
-if.app-name-regex-substring = 'Endel'
-run = 'move-node-to-workspace media'
-
-[[on-window-detected]]
-if.app-name-regex-substring = 'NotePlan'
-run = 'move-node-to-workspace notes'
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'Obsidian'
@@ -557,15 +545,6 @@ run = 'move-node-to-workspace notes'
 if.app-name-regex-substring = 'Expressions'
 run = 'move-node-to-workspace notes'
 
-# media (7) — VLC + Replay (Boom is floating)
-[[on-window-detected]]
-if.app-name-regex-substring = 'VLC'
-run = 'move-node-to-workspace media'
-
-[[on-window-detected]]
-if.app-name-regex-substring = 'Replay'
-run = 'move-node-to-workspace media'
-
 # misc (4) — utilities, peripherals, infrequent apps
 [[on-window-detected]]
 if.app-name-regex-substring = 'CleverPDF'
@@ -588,15 +567,7 @@ if.app-name-regex-substring = 'logioptionsplus'
 run = 'move-node-to-workspace misc'
 
 [[on-window-detected]]
-if.app-name-regex-substring = 'KDE Connect'
-run = 'move-node-to-workspace misc'
-
-[[on-window-detected]]
 if.app-name-regex-substring = 'Poly Studio'
-run = 'move-node-to-workspace misc'
-
-[[on-window-detected]]
-if.app-name-regex-substring = 'qFlipper'
 run = 'move-node-to-workspace misc'
 
 [[on-window-detected]]
@@ -637,14 +608,6 @@ run = 'move-node-to-workspace misc'
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'Google Slides'
-run = 'move-node-to-workspace misc'
-
-[[on-window-detected]]
-if.app-name-regex-substring = 'The Unarchiver'
-run = 'move-node-to-workspace misc'
-
-[[on-window-detected]]
-if.app-name-regex-substring = 'Path Finder'
 run = 'move-node-to-workspace misc'
 
 [[on-window-detected]]

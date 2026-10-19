@@ -76,8 +76,8 @@ resets to default.
   (in `dot_Brewfile.tmpl`). No Nerd Font patch needed (body text only).
 - `JetBrainsMono Nerd Font` — cask `font-jetbrains-mono-nerd-font`.
 - `Verdana` / `SF Pro` — ship with macOS, zero install.
-- OpenDyslexic Nerd Font variants remain installed (cask
-  `font-opendyslexic-nerd-font`) as legacy fallback; safe to drop later.
+- OpenDyslexic Nerd Font (cask `font-opendyslexic-nerd-font`) dropped
+  2026-10-19, together with the unused Hack, Iosevka, Fantasque and Fira Code.
 
 ## Dark mode (Mocha Neon) tuning
 
