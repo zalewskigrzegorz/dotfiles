@@ -15,13 +15,16 @@ local function apply(compact)
     sbar.set("widgets.mic1", { drawing = show })
     sbar.set("widgets.battery", { label = { drawing = show } })
     sbar.set("workspace.dell_ultra_sep", { drawing = show })
-    -- 10 workspaces have to fit left of the notch (~650 pt)
+    -- 10 workspaces have to fit left of the notch (~650 pt); full values mirror spaces.lua
     for i = 1, 10 do
         sbar.set("item." .. i, {
-            icon = { padding_left = compact and 4 or 8 },
-            label = { padding_right = compact and 6 or 12 }
+            icon = { padding_left = compact and 6 or 12, font = { size = compact and 13.0 or 16.0 } },
+            label = { padding_right = compact and 8 or 16, font = { size = compact and 12.0 or 16.0 } }
         })
     end
+    -- spacer items between groups; 5 is the default.lua padding
+    local pad = compact and 2 or 5
+    sbar.exec("sketchybar --set '/.*padding/' padding_left=" .. pad .. " padding_right=" .. pad)
 end
 
 local function check()
