@@ -153,8 +153,8 @@ local function mic_toggle_details(env)
                             string = device,
                             color = color
                         },
-                        click_script = 'SwitchAudioSource -t input -s "' .. device ..
-                            '" && sketchybar --set /mic.device\\.*/ label.color=' .. colors.grey ..
+                        click_script = 'SwitchAudioSource -t input -s ' .. shell_quote(device) ..
+                            ' && sketchybar --set /mic.device\\.*/ label.color=' .. colors.grey ..
                             ' --set $NAME label.color=' .. colors.white
 
                     })

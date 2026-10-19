@@ -19,7 +19,8 @@ os.execute(ready_cmd .. " &")
 
 -- Single-shot delayed --update to nudge items into the render queue after
 -- brew services start (works around init race where items land empty on first launch).
--- --update re-renders without re-running sketchybarrc, so no infinite loop risk.
+-- --update also fires "forced": a "forced" handler must never call --update itself
+-- (items/compact.lua only does it on a real change), or it loops and pegs the cpu.
 os.execute("(sleep 1 && /opt/homebrew/bin/sketchybar --update) >/dev/null 2>&1 &")
 
 -- Run the event loop of the sketchybar module (without this there will be no

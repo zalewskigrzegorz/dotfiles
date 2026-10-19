@@ -81,7 +81,6 @@ These are ignored when `profile = "homelab"`:
 - `nushell-mcp.json.tmpl`
 - `bin/aerospace-flip-window`
 - `bin/sketchybar-watcher`
-- `bin/sketchybar-watcher-bin`
 
 ## Generated Or Removed From Management
 

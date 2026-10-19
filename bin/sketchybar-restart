@@ -28,7 +28,7 @@ for _ in $(seq 1 50); do
     sleep 0.2
 done
 
-# 5. Relaunch watcher (aerospace will not, because we removed the line in Task 5).
+# 5. Relaunch watcher.
 nohup "$HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher" \
     >> "$HOME/Code/dotfiles/logs/sketchybar-watcher.log" 2>&1 &
 WATCHER_PID=$!
@@ -47,7 +47,7 @@ EXPECTED=(
   # widgets. notif_preview and widgets.claude_sessions were deleted in f3fae4c
   # — leaving them here made the probe report "2/22 missing" on every single
   # restart, which trains you to ignore the probe entirely.
-  widgets.battery widgets.cpu widgets.wifi1 widgets.wifi2
+  widgets.battery widgets.cpu widgets.mem widgets.wifi1 widgets.wifi2 widgets.wifi.proxy
   widgets.volume1 widgets.volume2 widgets.mic1 widgets.mic2
   # workspaces (item.1..10 — set up by spaces.lua)
   item.1 item.2 item.3 item.4 item.5 item.6 item.7 item.8 item.9 item.10
@@ -73,4 +73,14 @@ else
         printf "    ${RED}- %s${N}\n" "$m"
     done
     printf "  ${GREEN}✓ %d items present${N}\n" "$PASS"
+fi
+
+# An event loop (a "forced" handler calling --update, 2026-10-19) keeps every item
+# present while the bar burns cpu, so the item check above cannot see it.
+sleep 5
+cpu=$(ps -o %cpu= -p "$(pgrep -x sketchybar | head -n1)" 2>/dev/null | awk '{printf "%d", $1}')
+if (( ${cpu:-0} > 20 )); then
+    printf "  ${RED}✗ sketchybar at %s%% cpu after start — look for an event loop${N}\n" "$cpu"
+else
+    printf "  ${GREEN}✓ sketchybar idle (%s%% cpu)${N}\n" "${cpu:-?}"
 fi

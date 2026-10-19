@@ -79,6 +79,5 @@ raycast-extensions/spam/dist/**
 nushell-mcp.json
 bin/aerospace-flip-window/**
 bin/sketchybar-watcher/**
-bin/sketchybar-watcher-bin
 bin/temp-watch
 {{ end -}}

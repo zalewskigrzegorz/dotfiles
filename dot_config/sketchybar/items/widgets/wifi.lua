@@ -302,15 +302,8 @@ local function toggle_details()
             })
         end)
         vpn:set({ label = current.vpn })
-        if current.kind == "wired" then
-            ssid:set({ label = "Ethernet (" .. current_dev .. ")" })
-        else
-            sbar.exec("ipconfig getsummary " .. current_dev .. " | awk -F ' SSID : '  '/ SSID : / {print $2}'", function(result)
-                ssid:set({
-                    label = result
-                })
-            end)
-        end
+        -- no SSID: macOS 26 returns <redacted> to apps without Location Services
+        ssid:set({ label = (current.kind == "wired" and "Ethernet (" or "Wi-Fi (") .. current_dev .. ")" })
         sbar.exec("ipconfig getoption " .. current_dev .. " subnet_mask", function(result)
             mask:set({
                 label = result
@@ -333,7 +326,7 @@ wifi:subscribe("mouse.exited.global", hide_details)
 
 local function copy_label_to_clipboard(env)
     local label = sbar.query(env.NAME).label.value
-    sbar.exec("echo \"" .. label .. "\" | pbcopy")
+    sbar.exec("printf %s " .. shell_quote(label) .. " | pbcopy")
     sbar.set(env.NAME, {
         label = {
             string = icons.clipboard,
@@ -350,7 +343,6 @@ local function copy_label_to_clipboard(env)
     end)
 end
 
-ssid:subscribe("mouse.clicked", copy_label_to_clipboard)
 hostname:subscribe("mouse.clicked", copy_label_to_clipboard)
 ip:subscribe("mouse.clicked", copy_label_to_clipboard)
 mask:subscribe("mouse.clicked", copy_label_to_clipboard)
