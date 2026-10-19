@@ -36,5 +36,5 @@ $windows | where app-name =~ "(?i)obsidian|^notes$|drafts|reminders|pages creato
 $windows | where app-name =~ "(?i)^firefox$|firefox developer edition|insomnia|rapidapi|proxyman|chipmunk"
 | each { |win| aerospace move-node-to-workspace test --window-id $win.window-id }
 
-$windows | where app-name =~ "(?i)cleverpdf|remarkable|stream deck|bazecor|logioptionsplus|poly studio|insta360|steam link|wifi explorer|istat menus|activity monitor|cleanmymac|google drive|google docs|google sheets|google slides|upscayl"
+$windows | where app-name =~ "(?i)cleverpdf|stream deck|bazecor|logioptionsplus|insta360|wifi explorer|activity monitor|cleanmymac|google drive|google docs|google sheets|google slides|upscayl"
 | each { |win| aerospace move-node-to-workspace misc --window-id $win.window-id }
