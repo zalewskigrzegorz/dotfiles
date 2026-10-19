@@ -4,6 +4,8 @@ local app_icon_size = 16.0
 
 return {
     paddings = 3,
+    compact = false, -- set by items/compact.lua when the laptop screen is on
+
     group_paddings = 5,
     modes = {
         main = {

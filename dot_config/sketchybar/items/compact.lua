@@ -11,6 +11,8 @@ local watcher = sbar.add("item", "compact.watcher", { drawing = false, updates =
 
 local function apply(compact, big_ids)
     local show = not compact
+    -- battery and calendar read this on their next update, which --update forces below
+    settings.compact = compact
     -- no room for the app title next to the notch; keep it on the monitors only
     sbar.set("front_app", {
         drawing = show or #big_ids > 0,
@@ -20,7 +22,6 @@ local function apply(compact, big_ids)
     -- updates = "when_shown" would stop them if the whole item were hidden
     sbar.set("widgets.volume1", { label = { drawing = show } })
     sbar.set("widgets.mic1", { label = { drawing = show } })
-    sbar.set("widgets.battery", { label = { drawing = show } })
     sbar.set("workspace.dell_ultra_sep", { drawing = show })
     -- 10 workspaces have to fit left of the notch (~650 pt)
     for i = 1, 10 do
@@ -37,7 +38,7 @@ local function apply(compact, big_ids)
     end
     -- spacer items between groups; 5 is the default.lua padding
     local pad = compact and 2 or 5
-    sbar.exec("sketchybar --set '/.*padding/' padding_left=" .. pad .. " padding_right=" .. pad)
+    sbar.exec("sketchybar --set '/.*padding/' padding_left=" .. pad .. " padding_right=" .. pad .. " --update")
 end
 
 local function check()

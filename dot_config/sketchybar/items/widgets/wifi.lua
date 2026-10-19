@@ -179,15 +179,40 @@ local router = sbar.add("item", {
     }
 })
 
+local vpn = sbar.add("item", {
+    position = "popup." .. wifi_bracket.name,
+    icon = {
+        align = "left",
+        string = "VPN / proxy:",
+        width = popup_width / 2
+    },
+    label = {
+        string = "?",
+        width = popup_width / 2,
+        align = "right"
+    }
+})
+
 sbar.add("item", {
     position = "right",
     width = settings.group_paddings
 })
 
+-- heat scale on "512B" / "40K" / "1.2M": under 1K/s is background chatter (grey),
+-- then green < 100K < yellow < 1M < orange < 10M < red
+local function speed_color(s)
+    local value, unit = tonumber(s:sub(1, -2)) or 0, s:sub(-1)
+    if unit == "B" then
+        return colors.grey
+    elseif unit == "K" then
+        return value < 100 and colors.green or colors.yellow
+    end
+    return value < 10 and colors.orange or colors.red
+end
+
 wifi_up:subscribe("network_update", function(env)
-    -- under 1K/s is background chatter: grey, like idle
-    local up_color = (env.upload:sub(-1) == "B") and colors.grey or colors.red
-    local down_color = (env.download:sub(-1) == "B") and colors.grey or colors.blue
+    local up_color = speed_color(env.upload)
+    local down_color = speed_color(env.download)
     wifi_up:set({
         icon = {
             color = up_color
@@ -209,6 +234,7 @@ wifi_up:subscribe("network_update", function(env)
 end)
 
 local current_dev = "en0"
+local current = { kind = "wifi", vpn = "off" }
 wifi:subscribe({"routine", "forced", "wifi_change", "system_woke"}, function(env)
     sbar.exec("sh $CONFIG_DIR/helpers/net_status.sh", function(out)
         local kind, dev, sys_proxy, ts = out:match("(%S+) (%S+) (%S+) (%S+)")
@@ -228,13 +254,17 @@ wifi:subscribe({"routine", "forced", "wifi_change", "system_woke"}, function(env
                 color = kind == "none" and colors.red or colors.white
             }
         })
-        local tags = {}
+        local tags, names = {}, {}
         if ts ~= "off" then
             table.insert(tags, "TS")
+            table.insert(names, ts == "exit" and "Tailscale exit" or "Tailscale")
         end
         if sys_proxy == "1" then
             table.insert(tags, "PX")
+            table.insert(names, "proxy")
         end
+        current.kind = kind
+        current.vpn = #names > 0 and table.concat(names, " + ") or "off"
         proxy:set({
             drawing = #tags > 0,
             label = {
@@ -271,17 +301,22 @@ local function toggle_details()
                 label = result
             })
         end)
-        sbar.exec("ipconfig getsummary en0 | awk -F ' SSID : '  '/ SSID : / {print $2}'", function(result)
-            ssid:set({
-                label = result
-            })
-        end)
-        sbar.exec("networksetup -getinfo Wi-Fi | awk -F 'Subnet mask: ' '/^Subnet mask: / {print $2}'", function(result)
+        vpn:set({ label = current.vpn })
+        if current.kind == "wired" then
+            ssid:set({ label = "Ethernet (" .. current_dev .. ")" })
+        else
+            sbar.exec("ipconfig getsummary " .. current_dev .. " | awk -F ' SSID : '  '/ SSID : / {print $2}'", function(result)
+                ssid:set({
+                    label = result
+                })
+            end)
+        end
+        sbar.exec("ipconfig getoption " .. current_dev .. " subnet_mask", function(result)
             mask:set({
                 label = result
             })
         end)
-        sbar.exec("networksetup -getinfo Wi-Fi | awk -F 'Router: ' '/^Router: / {print $2}'", function(result)
+        sbar.exec("ipconfig getoption " .. current_dev .. " router", function(result)
             router:set({
                 label = result
             })
