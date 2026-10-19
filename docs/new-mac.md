@@ -45,6 +45,18 @@ Steps 1–3 happen on the old Mac, the rest on the new one.
 13. Comet: reinstall extensions from the Web Store, import the exports from step 3,
     link sync via `comet://settings/synchronisation` ("Start new sync" / "Join sync").
 14. Clone the repos you work in (bazgroly, home-lab, homeassistant-config, the work monorepo).
+15. **MemPalace archive and Claude transcripts** live only on the old Mac:
+    `~/.mempalace` (3.4 GB, 173k drawers on 2026-10-19) and `~/.claude/projects` (1 GB).
+    Copy both with rsync (step 6) while no Claude session runs on either Mac, because
+    every session's `mempalace-mcp` and the Stop hook write to the palace. Afterwards
+    `mempalace status` on the new Mac shows the same drawer count; if not, `mempalace repair`.
+16. **Jam SQL Studio** makes a new MCP token on the first launch on the new Mac, so the
+    `jamsql` MCP answers 401 with the token from 1Password. Copy the token from the app
+    (Settings → MCP) into `Dotfiles/JAM_SQL`, then `chezmoi apply`.
+17. **Sketchybar** is sized for the 5K (looks like 2560 × 1440) and the 3440 × 1440
+    ultrawide. On the laptop screen alone (3024 × 1964, about 1512 pt wide) the items
+    overflow and the front-app label covers the CPU widget. Hiding items there is not
+    wanted: the bar has to stay usable without monitors, so it needs a laptop layout.
 
 Afterwards: regenerate the 1Password Secret Key if it was typed anywhere, and turn
 Remote Login off.
