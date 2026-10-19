@@ -536,13 +536,7 @@ function prList(ghRepo: string): PrRow[] {
   const fetchCmd =
     `gh pr list --repo ${shq(ghRepo)} --state open --limit 500 --json number,title,headRefName,author,isDraft ` +
     `--jq ${shq(jq)} > ${shq(cache)}.tmp 2>/dev/null && mv ${shq(cache)}.tmp ${shq(cache)}`;
-  let fresh = false;
   let present = existsSync(cache);
-  try {
-    fresh = (Date.now() - statSync(cache).mtimeMs) / 1000 < PR_LIST_TTL_S;
-  } catch {
-    fresh = false;
-  }
   try {
     mkdirSync(CACHE_DIR, { recursive: true });
   } catch {
@@ -551,7 +545,7 @@ function prList(ghRepo: string): PrRow[] {
   if (!present) {
     sh(fetchCmd);
     present = existsSync(cache);
-  } else if (!fresh) {
+  } else if (prCacheStale(ghRepo)) {
     // scriptc has no detached spawn; `sh -c '… &'` backgrounds and returns.
     sh(`( ${fetchCmd} ) >/dev/null 2>&1 &`);
   }
@@ -560,6 +554,15 @@ function prList(ghRepo: string): PrRow[] {
 
 function prCachePath(ghRepo: string): string {
   return join(CACHE_DIR, `workctl-prs-${ghRepo.split("/").join("-")}.tsv`);
+}
+
+// Present and older than the TTL; a missing cache is not stale, it is absent.
+function prCacheStale(ghRepo: string): boolean {
+  try {
+    return ghRepo !== "" && (Date.now() - statSync(prCachePath(ghRepo)).mtimeMs) / 1000 >= PR_LIST_TTL_S;
+  } catch {
+    return false;
+  }
 }
 
 // Read on every `__rows` reload too: the state file freezes the PR list from
@@ -2426,15 +2429,9 @@ function stage1(rs: RepoState, query: string): Target | null {
   const sf = tmpFile("state");
   writeFileSync(sf, serializeRepoState(rs), { mode: 0o600 });
   const self = shq(selfPath());
-  // A stale cache is being refreshed in the background; rows only pick it up on
-  // the next keystroke, so a pasted query needs one more key.
-  let stale = false;
-  try {
-    stale = rs.ghRepo !== "" && (Date.now() - statSync(prCachePath(rs.ghRepo)).mtimeMs) / 1000 >= PR_LIST_TTL_S;
-  } catch {
-    stale = false;
-  }
-  const header = `${rs.repo}${rs.ghRepo === "" ? "" : ` · ${rs.ghRepo}`} · base origin/${rs.defaultBranch}${rs.currentBranch === "" ? "" : ` · on ${rs.currentBranch}`}\ntype a branch, a PR number or a title · enter → actions${stale ? " · refreshing PRs, type again if one is missing" : ""}`;
+  // Rows pick up the background refresh only on the next keystroke, so a pasted
+  // query needs one more key. Own line: fzf cuts long header lines, not wraps.
+  const header = `${rs.repo}${rs.ghRepo === "" ? "" : ` · ${rs.ghRepo}`} · base origin/${rs.defaultBranch}${rs.currentBranch === "" ? "" : ` · on ${rs.currentBranch}`}\ntype a branch, a PR number or a title · enter → actions${prCacheStale(rs.ghRepo) ? "\nPR list may be stale · type again if one is missing" : ""}`;
   const args = [
     ...fzfBase("work> ", header),
     // A PR row shows its head branch in the meta column; match it too.
