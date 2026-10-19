@@ -20,34 +20,3 @@ vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
     vim.opt_local.spell = false
   end,
 })
-
--- <leader>m toggles markdown checkboxes (`- [ ]` <-> `- [x]`) on the current
--- line, or on every line of a visual selection. <leader>x is Trouble, <leader>t is Neotest.
-local function toggle_checkboxes(first, last)
-  for lnum = first, last do
-    local line = vim.fn.getline(lnum)
-    local new = line:gsub("^(%s*[-*+] )%[ %]", "%1[x]", 1)
-    if new == line then
-      new = line:gsub("^(%s*[-*+] )%[[xX]%]", "%1[ ]", 1)
-    end
-    if new ~= line then
-      vim.fn.setline(lnum, new)
-    end
-  end
-end
-
-vim.api.nvim_create_autocmd("FileType", {
-  group = vim.api.nvim_create_augroup("markdown_checkbox_toggle", { clear = true }),
-  pattern = "markdown",
-  callback = function(args)
-    vim.keymap.set("n", "<leader>m", function()
-      local lnum = vim.fn.line(".")
-      toggle_checkboxes(lnum, lnum)
-    end, { buffer = args.buf, desc = "Toggle checkbox" })
-    vim.keymap.set("x", "<leader>m", function()
-      local a, b = vim.fn.line("v"), vim.fn.line(".")
-      toggle_checkboxes(math.min(a, b), math.max(a, b))
-      vim.api.nvim_feedkeys(vim.keycode("<Esc>"), "n", false)
-    end, { buffer = args.buf, desc = "Toggle checkboxes" })
-  end,
-})
