@@ -17,7 +17,8 @@ quota in under 20 minutes.
    the parent is Fable, inheritance means Fable. The only exception is
    `subagent_type: "fork"`, which always inherits and ignores `model`; avoid
    forks for bulk work for the same reason.
-2. **Never launch a subagent on Fable 5.1 or Opus** unless Greg says so in the
+2. **Never launch a subagent on Fable 5.1 or Opus** — a `claude` agent in a
+   herdr pane included, `/model` after `wt-full` too — unless Greg says so in the
    moment, by name, for that specific spawn. "Odpal agenta" means Sonnet.
 3. **Skills that spawn agents** (`research`, `research-deep`,
    `efficient-frontier`, `superpowers:dispatching-parallel-agents`,

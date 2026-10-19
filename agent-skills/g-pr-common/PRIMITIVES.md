@@ -146,9 +146,13 @@ For a range, append `-L<endLine>`. When a comment is anchored to a GraphQL threa
 Bundled scripts live next to this skill:
 
 ```bash
-SCRIPTS="${G_PR_REVIEW_SCRIPTS:-$HOME/.claude/skills/g-pr-review/scripts}"
+SCRIPTS="${G_PR_REVIEW_SCRIPTS:-$(git rev-parse --show-toplevel)/.claude/skills/g-pr-review/scripts}"
+[[ -d "$SCRIPTS" ]] || SCRIPTS="$HOME/.claude/skills/g-pr-review/scripts"
 [[ -d "$SCRIPTS" ]] || SCRIPTS="$HOME/.cursor/skills/g-pr-review/scripts"
+[[ -d "$SCRIPTS" ]] || echo "g-pr-review scripts not found (repo .claude/skills, ~/.claude/skills, ~/.cursor/skills) → place-work-skills $(git rev-parse --show-toplevel)"
 ```
+
+`g-pr-review` is work-scoped, so `bin/sync` places it in the repo's `.claude/skills/` and removes it from `~/.claude/skills/`. The repo path comes first; three blind searches for `fetch-comments.sh` happened before it did (2026-10-15).
 
 * `fetch-comments.sh OWNER REPO NUMBER` — unresolved inline threads (GraphQL, paginated), enriched with `pr_author`, `last_comment_author`, `last_comment_at`, `author_replied_last`, `reviewer_followed_up`.
 * `fetch-reviews.sh OWNER REPO NUMBER` — PR-level review bodies + merged top-level inline comments (humans + bots like CodeRabbit, Gemini, Copilot).

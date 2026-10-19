@@ -96,7 +96,7 @@ herdr agent read w12:p3 | tail -30         # what does it need / what did it pro
 workctl rm feat/demo                       # only after merge
 ```
 
-**A `wt-full` agent on a non-default model** (Greg names it, e.g. "agent Fable w nowym wt"; Fable only on his explicit ask): `wt-full` starts `claude` on the default model, so switch before the brief.
+**A `wt-full` agent on a non-default model** (Greg names it, e.g. "agent Fable w nowym wt"; Fable **and Opus** only on his explicit ask, otherwise `--model sonnet`): `wt-full` starts `claude` on the default model, so switch before the brief. A brief that says "zlecam agentowi na Opusie" when none of his messages named a model is the 2026-09-08 quota burn again (2026-10-15).
 
 ```bash
 herdr agent prompt w12:p3 "/model <model id>"

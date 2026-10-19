@@ -41,7 +41,13 @@ one-liners and each cost a retry or more (2026-09-23 … 09-28):
    shared local `main` (2026-10-12). A URL with `&`, `?` or `;` always goes in
    single quotes, in a `VAR=… cmd` prefix and in agent briefs alike. Before
    `migrate`, `reset` or `db push`, print the target host and database (no
-   password) and check it is the one you meant.
+   password) and check it is the one you meant. **An env file sourced with
+   `. file` is the same trap:** write `DATABASE_URL='…'` in single quotes there
+   too, then print host and database from the loaded variable (2f5fe621).
+6. **`$?` after a pipe is the last command's status.** `git apply x.patch |
+   tail -5; echo "exit=$?"` printed `exit=0` for a patch that did not exist,
+   because `tail` succeeded (2026-10-15). Read `${pipestatus[1]}`, and check a
+   file you produced with `test -s <file>` before using it.
 
 When a one-liner that works in bash fails with `not found`, "no files" or
 `no matches found`, check these before you suspect the tool or the data.
@@ -57,7 +63,11 @@ apps/api/node_modules/<pkg>` from `~` (empty variable, then `ls /dist/…`),
 
 - **Task in a worktree that is not the session's cwd** → first call `cd <wt>
   && git rev-parse --show-toplevel`, then every call starts with `cd <wt> &&`
-  or uses absolute paths.
+  or uses absolute paths. The trigger is a cwd of `~`, or a toplevel that does
+  not match the branch or repo the task names; the path is
+  `~/Code/tree/wt-<repo>/<branch>`. Never run a command bare first "to check"
+  and then again with `cd`: one session did that for ~14 of 28 calls
+  (36b5e3cc, 2026-10-15).
 - **Scratch logs go under an absolute path** (the session scratchpad), never
   `../..`-relative: `L=../../.superpowers/…/tsc.log` broke as soon as the cwd
   moved (2026-10-04).
@@ -91,6 +101,19 @@ checks <n> --json name,state,link` after it exits. Never `sleep N;` before a
 poll (the harness blocks it), and never an `until`/`while` around `gh pr
 checks`: one session wrote three of them after the block (2026-10-08). A
 non-zero exit from `--watch` means a failed or pending check, not a tool error.
+
+**A run retriggered by a label is still a run of a pushed commit.** After
+removing and re-adding a label like `run_e2e`: `bin/gh-run-wait e2e-pr.yml
+--sha <sha>`, not `until gh run list … | grep -q <sha>; do sleep 15; done`
+(4× in one session, ffea8ff9). A required check that reads labels and stayed
+red after the label was added (it ran before the label) is re-evaluated by
+removing and re-adding that label: `gh pr edit <n> --remove-label <l> && gh pr
+edit <n> --add-label <l>` (~10 calls of diagnosis, d3a33909).
+
+**`gh run download` always into a fresh directory.** `-D <scratch>/run-<id>`,
+never reused: a second download into a leftover dir dies with `error
+extracting zip archive … file exists`. After `i/o timeout`, retry once into a
+new dir (01c308cf).
 
 **Waiting for a human is not a loop.** A merge, an approval or a reply from
 Greg or a reviewer ends the turn with one line ("powiedz zmergowane"), or a

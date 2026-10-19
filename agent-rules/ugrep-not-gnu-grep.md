@@ -44,3 +44,13 @@ Use `grep -E` / `grep -F` there.
 **`rg -E` is not ERE.** In ripgrep the regex is extended by default and `-E`
 means `--encoding`, so a pattern ported from `grep -E` dies with
 `error parsing flag -E: unknown encoding` (2026-09-27). Write `rg 'a|b'`.
+
+**Everything after `--` is a path for `rg`.** `rg -n -- "<pat>" src --max-count
+3` failed with `rg: --max-count: No such file or directory` (2026-10-14). Put
+every flag before `--` (`rg -n -m 3 -- '<pat>' <path>`), and use `--` only when
+the pattern starts with `-`.
+
+**`rg` skips gitignored dirs, `node_modules` included.** An empty search there
+means "ignored", not "rtk hid it": `rg --no-ignore -l '<term>'
+"$(realpath apps/<app>/node_modules/<pkg>)" -g '*.d.ts'`, with the empty-variable
+guard. Four empty searches came before that on 2026-10-13 (aaee25fc).

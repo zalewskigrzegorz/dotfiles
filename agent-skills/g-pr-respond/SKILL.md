@@ -233,6 +233,16 @@ gh api "repos/$OWNER/$REPO/pulls/$NUMBER/comments/$COMMENT_ID/replies" \
 On success: `✅ Posted: <html_url>`.
 On 422 / 404 / 403: print verbatim, ask user (retry / modify / skip). Never auto-retry except the P8 rate-limit case.
 
+### A8c. Correcting a reply already posted
+
+Edit it, don't post a "Correction:" under it. Two comments in a row are noise for reviewers; Greg asked "a nie możesz zedytować tego komentarza?" after a correction popup (2026-10-15).
+
+```bash
+gh api -X PATCH "repos/$OWNER/$REPO/pulls/comments/$MY_COMMENT_ID" -f body="$FIXED_BODY"
+```
+
+Run the new body through greg-voice, and say in the popup's first line that it is an edit of the existing comment. A new reply only when someone already answered below yours.
+
 ### A8b. If `Modify`
 
 Plain prompt: "Paste the new reply text." Read the next user message as the body. Then post.

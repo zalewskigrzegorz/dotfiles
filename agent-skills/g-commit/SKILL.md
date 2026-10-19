@@ -60,6 +60,8 @@ If `$WORK_COMPANY` is available, `$WORK_MAIN_PROJECT` usually is too — you may
 8. **Commit** (see Execution), then **push** unless "Tylko commit" was picked: `git push`, or `git push -u origin HEAD` when the branch has no upstream.
 9. Report in one line: short sha, branch, pushed or not. A failed push gets its output and a recovery move; never retry with `--force`.
 
+A commit rejected by a pre-commit hook (lint-staged, a stricter lint config for new code) is fixed in the code, re-staged and committed once more. Never re-run the identical commit: twice in one session the same `no-unnecessary-type-assertion` failure came back because nothing had changed (2026-10-15). When the repo's lint-staged runs a lint config the normal `--fix` pass does not use, run that same command on the staged files before the gate.
+
 ## Commit message rules
 
 1. If `commitlint.config.js` exists in the repo root, read it and honour its `type-enum`, `scope-enum`, and `scope-empty` rules. Do not invent values that would fail commitlint.

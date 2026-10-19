@@ -80,6 +80,31 @@ tries (2026-10-09 … 10-12):
 - **The first `pnpm start` in a fresh worktree builds images for ~25 min.**
   Run it in the background with `timeout 3000` (or none) and a `Monitor` on the
   log. `exit=124` from a shorter timeout means "read the log", not "retry".
+- **DB specs need their own database, never `main`.** Point the spec's
+  database URL at `db_specs` (or `create database` one). The password comes
+  from the container, the URL is built inline in single quotes and never
+  written to a file: `pw=$(docker exec "$co-postgres-1" printenv
+  POSTGRES_PASSWORD)`, then `VAR='postgresql://myuser:'"$pw"'@localhost:5432/db_specs'
+  pnpm exec vitest …`. Don't grep `.env` for it (~8 calls, 2026-10-15).
+- **A fresh database needs the Ory schemas before Prisma.** `create schema
+  kratos; create schema hydra`, the Ory migrations from the `oryd/hydra` image
+  (DSN with `search_path=hydra`, same for kratos), then `prisma migrate
+  deploy`. `P3009` on a fresh database means those schemas are missing, not a
+  broken migration. Drop your own database when done (3 recreate cycles,
+  2026-10-16).
+- **Empty UI after `db:seed` → check Greg's membership first.** The seed only
+  makes memberships for the seed user; Greg's account needs an `OWNER` row in
+  the `default` org. Before any `insert` into `main.*`, one query on
+  `information_schema.columns` (snake_case, users live in `main`, not `auth`).
+  Backfill scripts go in the scratchpad and run with `-v ON_ERROR_STOP=1`.
+- **`prisma migrate reset` on `main` trips on other branches' schemas.** After
+  the `pg_stat_activity` check: `drop schema if exists pgboss, ory_import,
+  ory_revert, partman cascade`, then reset. `already exists` means a leftover
+  schema, not a bad migration (2026-10-14, 2 failed resets).
+- **`PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION` is Greg's own words.** Ask
+  for the go-ahead naming the target ("`localhost:5432/main`, lokalnie, nic nie
+  wychodzi") and pass his reply verbatim. Never invent it; YOLO is not consent
+  to a destructive reset.
 
 ## Shared lab environments (`lab*`) are the same story, remotely
 

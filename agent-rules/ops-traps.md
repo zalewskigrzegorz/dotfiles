@@ -1,5 +1,5 @@
 ---
-description: Small operational traps that each cost a session a retry — sudo handoff, probing unknown CLIs, transient index.lock, locating pnpm packages, empty variables, bulk git mv, removing PR reviewers
+description: Small operational traps that each cost a session a retry — sudo handoff, probing unknown CLIs, transient index.lock, locating pnpm packages, empty variables, bulk git mv, removing PR reviewers, Slack token rotation, uvx cache lock, private overlay sync, e2e tsc, single spec runs
 alwaysApply: true
 ---
 
@@ -65,7 +65,54 @@ pnpm-workspace.yaml patches/`, keep only the patched package's entries and its
 with very long lines, three smaller `limit`s failed in a row and cost ~90k
 tokens (2026-10-09). After the first error, switch to `rg -n '<term>' <file>`
 or `head -c 60000` chunks; when you write such a file to the scratchpad
-yourself, split it into numbered parts.
+yourself, split it into numbered parts. A big MCP result saved to
+`tool-results/*.txt` is the same case: `slack_read_file` on a scenarios doc
+came back as 1.3 M chars (2026-10-14). Grep it for headings (`^####`) or ids
+instead of reading it whole.
+
+## Slack poster token rotation: env var beats the file
+
+After rotating `WORK_SLACK_POSTER_TOKEN` the first send failed on
+`token_revoked`: sessions and shells started earlier still held the old token,
+and the scripts read the env var before `work.env` (2026-10-13). Rotation =
+update the `slack-poster-user-token` item **and** the line in the `WORK_ENV`
+document (`bin/sync` restores `work.env` from that document, not from the
+item). Test with `env -u WORK_SLACK_POSTER_TOKEN <script>`, and restart shells
+and sessions opened before the rotation (`/exit`, `claude --continue`). The
+token goes clipboard → consumer → `pbcopy < /dev/null`, never to stdout.
+
+## A `uvx` MCP server locks the uv cache
+
+Every running `uvx <server>` holds the lock on `~/.cache/uv`, so `uv cache
+prune` in `disk-sweep` timed out with one lock per Claude session
+(2026-10-13). An MCP server is installed with `uv tool install` in stage 26 and
+started by its binary name, never through `uvx`. Diagnose with `ps -axo
+pid,etime,command | rg '[u]vx '`; sessions started before the change keep the
+lock until restarted.
+
+## Private overlay edits: vault first, then `bin/sync`
+
+A skill or rule from the `PRIVATE_AGENT_ASSETS_TAR` overlay lives in
+1Password. `bin/sync` restores it from the vault, so a local edit vanishes
+unless the tar was pushed first (`op document edit … --vault Dotfiles`, then
+`op document get` to scratch and `cmp`). The push needs Greg's 1Password
+approval; when he is away from the Mac, don't run `op` or `bin/sync`: leave
+the `*.pending.tar` and end with "powiedz zatwierdzę". Don't re-fire the
+approval prompt (2026-10-13, two `authorization timeout`s).
+
+## Type-checking an e2e suite: `tsc -p`
+
+`tsc <file>.ts` next to a `tsconfig.json` dies with `TS5112: tsconfig.json is
+present but will not be loaded if files are specified on commandline`. Use
+`pnpm exec tsc -p e2e/<suite>/tsconfig.json --noEmit`; not every suite has one,
+so `test -f` first. No `--ignoreConfig`: it drops `paths` and the Playwright
+types (2026-10-14).
+
+## One spec file: `vitest run`, not `pnpm test --`
+
+`pnpm test -- <file>` in an app runs the whole `nx` target (4 tasks, ~50 s) and
+buries the file's result in the tail. For one file: `cd apps/<app> && pnpm exec
+vitest run <file>`. The full target only before a PR (2026-10-14).
 
 ## A batch of `git mv` is one transaction
 
