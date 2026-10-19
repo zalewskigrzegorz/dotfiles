@@ -73,8 +73,44 @@ cpu:subscribe("mouse.clicked", function(env)
     sbar.exec("open -a 'Activity Monitor'")
 end)
 
+-- memory in use, as macOS counts it for memory pressure (100 - "free percentage")
+local mem = sbar.add("item", "widgets.mem", {
+    position = "right",
+    update_freq = 10,
+    padding_left = 6,
+    padding_right = 0,
+    icon = { drawing = false },
+    label = {
+        string = "mem ??%",
+        font = {
+            family = settings.font.numbers,
+            style = settings.font.style_map["Bold"],
+            size = 9.0
+        }
+    }
+})
+
+mem:subscribe({"routine", "forced", "system_woke"}, function()
+    sbar.exec("memory_pressure -Q | awk '/free percentage/{print 100 - $NF}'", function(out)
+        local used = tonumber(out)
+        if not used then
+            return
+        end
+        mem:set({
+            label = {
+                string = string.format("mem %02d%%", used),
+                color = used >= 85 and colors.red or used >= 70 and colors.orange or colors.white
+            }
+        })
+    end)
+end)
+
+mem:subscribe("mouse.clicked", function()
+    sbar.exec("open -a 'Activity Monitor'")
+end)
+
 -- Background around the cpu item
-sbar.add("bracket", "widgets.cpu.bracket", {cpu.name}, {
+sbar.add("bracket", "widgets.cpu.bracket", {cpu.name, mem.name}, {
     background = {
         color = colors.bg1,
         border_color = colors.rainbow[#colors.rainbow - 5],

@@ -61,13 +61,29 @@ local wifi_down = sbar.add("item", "widgets.wifi2", {
 
 local wifi = sbar.add("item", "widgets.wifi.padding", {
     position = "right",
+    update_freq = 10,
     label = {
         drawing = false
     }
 })
 
+-- "TS" = Tailscale up (orange with an exit node), "PX" = system proxy on (Proxyman)
+local proxy = sbar.add("item", "widgets.wifi.proxy", {
+    position = "right",
+    drawing = false,
+    padding_right = -4,
+    icon = { drawing = false },
+    label = {
+        font = {
+            family = settings.font.numbers,
+            style = settings.font.style_map["Bold"],
+            size = 10.0
+        }
+    }
+})
+
 -- Background around the item
-local wifi_bracket = sbar.add("bracket", "widgets.wifi.bracket", {wifi.name, wifi_up.name, wifi_down.name}, {
+local wifi_bracket = sbar.add("bracket", "widgets.wifi.bracket", {proxy.name, wifi.name, wifi_up.name, wifi_down.name}, {
     background = {
         color = colors.bg1,
         border_color = colors.rainbow[#colors.rainbow - 4],
@@ -189,13 +205,38 @@ wifi_up:subscribe("network_update", function(env)
     })
 end)
 
-wifi:subscribe({"wifi_change", "system_woke"}, function(env)
-    sbar.exec("ipconfig getifaddr en0", function(ip)
-        local connected = not (ip == "")
+local current_dev = "en0"
+wifi:subscribe({"routine", "forced", "wifi_change", "system_woke"}, function(env)
+    sbar.exec("sh $CONFIG_DIR/helpers/net_status.sh", function(out)
+        local kind, dev, sys_proxy, ts = out:match("(%S+) (%S+) (%S+) (%S+)")
+        if not kind then
+            return
+        end
+        -- network_load watches one interface; follow the cable/Wi-Fi switch
+        if dev ~= current_dev then
+            current_dev = dev
+            os.execute("killall network_load >/dev/null 2>&1; $CONFIG_DIR/helpers/event_providers/network_load/bin/network_load " ..
+                dev .. " network_update 2.0 >/dev/null 2>&1 &")
+        end
         wifi:set({
             icon = {
-                string = connected and icons.wifi.connected or icons.wifi.disconnected,
-                color = connected and colors.white or colors.red
+                string = kind == "wired" and "󰈀" or kind == "wifi" and icons.wifi.connected or icons.wifi.disconnected,
+                font = { size = kind == "wired" and 16.0 or 14.0 },
+                color = kind == "none" and colors.red or colors.white
+            }
+        })
+        local tags = {}
+        if ts ~= "off" then
+            table.insert(tags, "TS")
+        end
+        if sys_proxy == "1" then
+            table.insert(tags, "PX")
+        end
+        proxy:set({
+            drawing = #tags > 0,
+            label = {
+                string = table.concat(tags, " "),
+                color = sys_proxy == "1" and colors.yellow or ts == "exit" and colors.orange or colors.green
             }
         })
     end)
@@ -222,7 +263,7 @@ local function toggle_details()
                 label = result
             })
         end)
-        sbar.exec("ipconfig getifaddr en0", function(result)
+        sbar.exec("ipconfig getifaddr " .. current_dev, function(result)
             ip:set({
                 label = result
             })
