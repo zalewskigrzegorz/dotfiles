@@ -30,7 +30,6 @@ EXTENSIONS=(
   dlvhdr/gh-dash            # PR/issue dashboard TUI — config in dot_config/private_gh-dash, wrapper `dash`
   rnorth/gh-combine-prs     # combine matching PRs (e.g. dependabot batches) into one
   vilmibm/gh-contribute     # suggest an issue to work on in a given repo
-  github/gh-copilot         # `gh copilot suggest` / `explain`
   sgoedecke/gh-standup      # GitHub-activity standup report (GitHub Models/Copilot)
   HaywardMorihara/gh-tidy   # checkout+pull default branch, git gc, prune merged local branches
 )
