@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Sync agent-mcp/mcp-servers.json (rendered) into Claude Code user-scope MCP.
-# (Cursor reads ~/.cursor/mcp.json directly — handled by dot_cursor/mcp.json.tmpl.)
 #
 # Re-runs whenever the rendered MCP config changes.
 # fingerprint: {{ includeTemplate "agent-mcp/mcp-servers.json.tmpl" . | sha256sum }}

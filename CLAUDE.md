@@ -21,12 +21,11 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 ├── nushell-mcp.json.tmpl           # MCP servers for the nushell mcp integration
 ├── dot_claude/                     # → ~/.claude (settings, hooks, output-styles, skills/, statusline)
 ├── dot_config/                     # → ~/.config (nushell, herdr, nvim, ghostty, sketchybar, ...)
-├── dot_cursor/                     # → ~/.cursor
 ├── private_dot_ssh/                # → ~/.ssh (mode 0600, templated)
 ├── agent-plugins/plugins.json.tmpl # Claude Code plugin install list
 ├── agent-mcp/mcp-servers.json.tmpl # Claude Code MCP server list
-├── agent-rules/                    # synced into ~/.claude (and ~/.cursor) as rule docs
-├── agent-skills/                   # synced into ~/.claude/skills + ~/.cursor/skills
+├── agent-rules/                    # rendered into ~/.claude/CLAUDE.md
+├── agent-skills/                   # synced into ~/.claude/skills
 ├── bin/                            # PATH-exposed scripts (sync, gitleaks-dotfiles, ...)
 ├── scriptc/                        # TypeScript compiled to native binaries in bin/ (stage 29)
 ├── scripts/                        # repo maintenance scripts (not on PATH)
@@ -58,7 +57,7 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 | 27 | `run_onchange_after_27-browserskill.sh.tmpl` | Install the `bsk` CLI (BrowserSkill), macOS only |
 | 28 | `run_onchange_after_28-bin-exec-bits.sh.tmpl` | rsync `bin/` → `~/bin` (keeps the exec bit; `bin/**` is chezmoi-ignored) |
 | 29 | `run_onchange_after_29-scriptc-build.sh.tmpl` | compile `scriptc/*.ts` → native binaries in `bin/` + `~/bin` |
-| 30 | `run_onchange_after_30-agent-skills-sync.sh.tmpl` | rsync `agent-skills/` → `~/.claude/skills`, `~/.cursor/skills` |
+| 30 | `run_onchange_after_30-agent-skills-sync.sh.tmpl` | rsync `agent-skills/` → `~/.claude/skills` |
 | 31 | `run_onchange_after_31-agent-rules-sync.sh.tmpl` | rsync `agent-rules/` |
 | 32 | `run_onchange_after_32-agent-mcp-sync.sh.tmpl` | apply `agent-mcp/mcp-servers.json.tmpl` |
 | 33 | `run_onchange_after_33-claude-plugins-sync.sh.tmpl` | apply `agent-plugins/plugins.json.tmpl` |
@@ -180,8 +179,8 @@ Plugins / MCP / skills sources of truth:
 
 - Claude plugins → `agent-plugins/plugins.json.tmpl`
 - Claude MCP servers → `agent-mcp/mcp-servers.json.tmpl` (also `nushell-mcp.json.tmpl` for nushell integration)
-- Claude / Cursor skills → `agent-skills/<skill-name>/SKILL.md`
-- Claude / Cursor rules → `agent-rules/`
+- Claude skills → `agent-skills/<skill-name>/SKILL.md`
+- Claude rules → `agent-rules/`
 
 Anything installed via `/plugin install`, `claude mcp add`, or `~/.claude/skills/<new>` on a machine **must** be reflected in the matching source above before the next `chezmoi apply`.
 

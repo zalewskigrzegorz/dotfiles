@@ -48,10 +48,6 @@ bin/**
 bin/sketchybar-watcher/**
 
 # Generated application state and secrets.
-.config/cursor/chats/**
-.config/cursor/cli-config.json
-# Cursor manages its bundled skills directly — don't let chezmoi fight it.
-.cursor/skills-cursor/**
 .config/raycast/ai/**
 .config/raycast/config.json
 .config/raycast/extensions/**
@@ -73,7 +69,6 @@ raycast-extensions/spam/dist/**
 # The homelab is headless: apply only CLI/shell config.
 .config/aerospace/**
 .config/borders/**
-.config/cursor/**
 .config/flipperdevices.com/**
 .config/ghostty/**
 .config/launchd/com.greg.temp-watch.plist
@@ -81,7 +76,6 @@ raycast-extensions/spam/dist/**
 .config/spotify-player/**
 .config/svim/**
 .config/zed/**
-.cursor/**
 nushell-mcp.json
 bin/aerospace-flip-window/**
 bin/sketchybar-watcher/**

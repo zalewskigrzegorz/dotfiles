@@ -369,10 +369,6 @@ run = 'move-node-to-workspace chat'
 #run = 'move-node-to-workspace web'
 
 [[on-window-detected]]
-if.app-name-regex-substring = 'Cursor'
-run = 'move-node-to-workspace code'
-
-[[on-window-detected]]
 if.app-name-regex-substring = 'Visual Studio Code'
 run = 'move-node-to-workspace code'
 

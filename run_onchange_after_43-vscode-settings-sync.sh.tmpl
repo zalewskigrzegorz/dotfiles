@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 {{- if eq .chezmoi.os "darwin" }}
 # Sync VSCode user settings from chezmoi source → real Code load path on macOS.
-# Same pattern as run_onchange_after_38 for Cursor; VSCode stores settings at
+# VSCode stores settings at
 # `~/Library/Application Support/Code/User/settings.json`.
 #
 # fingerprint: {{ output "bash" "-c" (printf "cd %q && find dot_config/Code -type f -name '*.json' -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
