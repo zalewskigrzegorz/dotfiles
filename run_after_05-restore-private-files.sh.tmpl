@@ -160,6 +160,8 @@ restore_document() {
   local item="$1"
   local out_file="$2"
 
+  # .chezmoidata/ is gitignored, so a fresh clone has no such dir and op fails
+  mkdir -p "$(dirname "$out_file")"
   if run_op op document get "$item" \
     --vault "$vault" \
     --out-file "$out_file" \
