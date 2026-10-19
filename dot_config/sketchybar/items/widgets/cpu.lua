@@ -74,11 +74,16 @@ cpu:subscribe("mouse.clicked", function(env)
 end)
 
 -- memory in use, as macOS counts it for memory pressure (100 - "free percentage")
-local mem = sbar.add("item", "widgets.mem", {
+local mem = sbar.add("graph", "widgets.mem", 42, {
     position = "right",
-    update_freq = 10,
-    padding_left = 6,
-    padding_right = 0,
+    update_freq = 2,
+    graph = { color = colors.blue },
+    background = {
+        height = 22,
+        color = { alpha = 0 },
+        border_color = { alpha = 0 },
+        drawing = true
+    },
     icon = { drawing = false },
     label = {
         string = "mem ??%",
@@ -86,8 +91,14 @@ local mem = sbar.add("item", "widgets.mem", {
             family = settings.font.numbers,
             style = settings.font.style_map["Bold"],
             size = 9.0
-        }
-    }
+        },
+        align = "right",
+        padding_right = 0,
+        width = 0,
+        y_offset = 4
+    },
+    padding_left = 6,
+    padding_right = settings.paddings + 6
 })
 
 mem:subscribe({"routine", "forced", "system_woke"}, function()
@@ -96,11 +107,10 @@ mem:subscribe({"routine", "forced", "system_woke"}, function()
         if not used then
             return
         end
+        mem:push({used / 100.})
         mem:set({
-            label = {
-                string = string.format("mem %02d%%", used),
-                color = used >= 85 and colors.red or used >= 70 and colors.orange or colors.white
-            }
+            graph = { color = used >= 85 and colors.red or used >= 70 and colors.orange or colors.blue },
+            label = string.format("mem %02d%%", used)
         })
     end)
 end)
