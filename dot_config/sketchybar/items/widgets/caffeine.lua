@@ -5,6 +5,13 @@ local settings = require("settings")
 -- ships its own plugin script; the script sets icon (☕/☾) + label itself.
 local plugin = os.getenv("HOME") .. "/.local/state/caffeine-manager/sketchybar/caffeine.sh"
 
+-- No app on this Mac → no widget instead of an empty box (shows up after the next reload).
+local f = io.open(plugin, "r")
+if not f then
+    return
+end
+f:close()
+
 local caffeine = sbar.add("item", "widgets.caffeine", {
     position = "right",
     update_freq = 5,
