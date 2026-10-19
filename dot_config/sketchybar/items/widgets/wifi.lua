@@ -31,7 +31,8 @@ local wifi_up = sbar.add("item", "widgets.wifi1", {
             size = 9.0
         },
         color = colors.red,
-        string = "??? Bps"
+        string = "?",
+        width = 26
     },
     y_offset = 4
 })
@@ -54,7 +55,8 @@ local wifi_down = sbar.add("item", "widgets.wifi2", {
             size = 9.0
         },
         color = colors.blue,
-        string = "??? Bps"
+        string = "?",
+        width = 26
     },
     y_offset = -4
 })
@@ -183,8 +185,9 @@ sbar.add("item", {
 })
 
 wifi_up:subscribe("network_update", function(env)
-    local up_color = (env.upload == "000 Bps") and colors.grey or colors.red
-    local down_color = (env.download == "000 Bps") and colors.grey or colors.blue
+    -- under 1K/s is background chatter: grey, like idle
+    local up_color = (env.upload:sub(-1) == "B") and colors.grey or colors.red
+    local down_color = (env.download:sub(-1) == "B") and colors.grey or colors.blue
     wifi_up:set({
         icon = {
             color = up_color
