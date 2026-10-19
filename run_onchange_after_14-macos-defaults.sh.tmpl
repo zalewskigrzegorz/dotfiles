@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+{{- if eq .chezmoi.os "darwin" }}
+# macOS system defaults captured from NeuroMancer on 2026-10-19, so a fresh Mac
+# gets the same Dock, menu bar and Finder behaviour, plus sketchybar as a brew
+# service (it replaces the hidden menu bar). Edit a value here and the run_onchange
+# hash re-applies it.
+set -eu
+
+# Dock: hidden, tiny, on the right, no recents, no app-launch bounce.
+defaults write com.apple.dock autohide -bool true
+defaults write com.apple.dock autohide-time-modifier -float 1
+defaults write com.apple.dock tilesize -int 16
+defaults write com.apple.dock orientation -string right
+defaults write com.apple.dock show-recents -bool false
+defaults write com.apple.dock launchanim -bool false
+defaults write com.apple.dock minimize-to-application -bool false
+# AeroSpace: keep Spaces in a fixed order and don't group windows in Mission Control.
+defaults write com.apple.dock mru-spaces -bool false
+defaults write com.apple.dock expose-group-apps -bool false
+defaults write com.apple.spaces spans-displays -bool true
+
+# Menu bar hidden for sketchybar, also in full screen.
+defaults write NSGlobalDomain _HIHideMenuBar -bool true
+defaults write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool false
+defaults write NSGlobalDomain NSAutomaticWindowAnimationsEnabled -bool false
+defaults write NSGlobalDomain AppleInterfaceStyle -string Dark
+defaults write NSGlobalDomain AppleShowAllExtensions -bool true
+
+# Finder and desktop.
+defaults write com.apple.finder AppleShowAllFiles -bool true
+defaults write com.apple.finder ShowPathbar -bool true
+defaults write com.apple.finder FXPreferredViewStyle -string glyv
+defaults write com.apple.WindowManager StandardHideDesktopIcons -bool true
+
+killall Dock Finder SystemUIServer 2>/dev/null || true
+
+if [ -x /opt/homebrew/bin/brew ] && /opt/homebrew/bin/brew list sketchybar >/dev/null 2>&1; then
+  /opt/homebrew/bin/brew services start sketchybar >/dev/null 2>&1 || echo "macos-defaults: brew services start sketchybar failed"
+fi
+echo "macos-defaults: applied"
+{{- end }}
