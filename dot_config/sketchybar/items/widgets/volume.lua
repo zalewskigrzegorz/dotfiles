@@ -157,8 +157,8 @@ local function volume_toggle_details(env)
                             string = device,
                             color = color
                         },
-                        click_script = 'SwitchAudioSource -s "' .. device ..
-                            '" && sketchybar --set /volume.device\\.*/ label.color=' .. colors.grey ..
+                        click_script = 'SwitchAudioSource -s ' .. shell_quote(device) ..
+                            ' && sketchybar --set /volume.device\\.*/ label.color=' .. colors.grey ..
                             ' --set $NAME label.color=' .. colors.white
 
                     })

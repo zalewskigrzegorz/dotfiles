@@ -52,9 +52,15 @@ local blink = false
 local function heat(key, is_red)
     hot[key] = is_red and hot[key] + 1 or 0
 end
+local shown -- last border state sent, so a calm bar sends nothing
 local function blink_tick()
     local alarm = hot.cpu >= 15 or hot.mem >= 15
     blink = alarm and not blink
+    local state = (alarm and "a" or "") .. (blink and "b" or "")
+    if state == shown then
+        return
+    end
+    shown = state
     sbar.set("widgets.cpu.bracket", {
         background = {
             border_color = blink and colors.red or colors.rainbow[#colors.rainbow - 5],
@@ -93,7 +99,8 @@ cpu:subscribe("mouse.clicked", function(env)
     sbar.exec("open -a 'Activity Monitor'")
 end)
 
--- memory in use, as macOS counts it for memory pressure (100 - "free percentage")
+-- memory in use, as macOS counts it for memory pressure: kern.memorystatus_level is
+-- the "free percentage" memory_pressure prints, read in one process
 local mem = sbar.add("graph", "widgets.mem", 42, {
     position = "right",
     update_freq = 2,
@@ -122,11 +129,12 @@ local mem = sbar.add("graph", "widgets.mem", 42, {
 })
 
 mem:subscribe({"routine", "forced", "system_woke"}, function()
-    sbar.exec("memory_pressure -Q | awk '/free percentage/{print 100 - $NF}'", function(out)
-        local used = tonumber(out)
-        if not used then
+    sbar.exec("sysctl -n kern.memorystatus_level", function(out)
+        local free = tonumber(out)
+        if not free then
             return
         end
+        local used = 100 - free
         heat("mem", used >= 85)
         mem:push({used / 100.})
         mem:set({

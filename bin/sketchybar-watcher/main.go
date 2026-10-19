@@ -305,9 +305,16 @@ func kindavimPoller(st *state) {
 	interval := kindavimIdleMs * time.Millisecond
 	lastMode := ""
 	var lastMtime time.Time
+	// pgrep is a process spawn (Kandji inspects every one); the mtime check below
+	// is a plain stat, so only the cheap part runs at the fast interval.
+	running := false
+	var lastPgrep time.Time
 	for {
-		out, err := runCmd("pgrep", "-x", "kindaVim")
-		running := err == nil && len(out) > 0
+		if time.Since(lastPgrep) >= kindavimIdleMs*time.Millisecond {
+			out, err := runCmd("pgrep", "-x", "kindaVim")
+			running = err == nil && len(out) > 0
+			lastPgrep = time.Now()
+		}
 		if running {
 			interval = kindavimPollMs * time.Millisecond
 			// A4: only re-read JSON if mtime changed
@@ -553,7 +560,12 @@ func animatePulse(pulsed []string, st *state) {
 			baseBg = "0x19b347ff"
 			baseBorderW = "3"
 		}
-		go pulseCycles(item, baseBg, baseBorder, baseBorderW)
+		go func() {
+			pulseCycles(item, baseBg, baseBorder, baseBorderW)
+			// The base colours were read before the pulse; focus may have moved
+			// since, so re-push the real state instead of trusting them.
+			scheduleRefresh(st)
+		}()
 	}
 }
 
