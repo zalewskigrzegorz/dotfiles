@@ -2426,7 +2426,15 @@ function stage1(rs: RepoState, query: string): Target | null {
   const sf = tmpFile("state");
   writeFileSync(sf, serializeRepoState(rs), { mode: 0o600 });
   const self = shq(selfPath());
-  const header = `${rs.repo}${rs.ghRepo === "" ? "" : ` · ${rs.ghRepo}`} · base origin/${rs.defaultBranch}${rs.currentBranch === "" ? "" : ` · on ${rs.currentBranch}`}\ntype a branch, a PR number or a title · enter → actions`;
+  // A stale cache is being refreshed in the background; rows only pick it up on
+  // the next keystroke, so a pasted query needs one more key.
+  let stale = false;
+  try {
+    stale = rs.ghRepo !== "" && (Date.now() - statSync(prCachePath(rs.ghRepo)).mtimeMs) / 1000 >= PR_LIST_TTL_S;
+  } catch {
+    stale = false;
+  }
+  const header = `${rs.repo}${rs.ghRepo === "" ? "" : ` · ${rs.ghRepo}`} · base origin/${rs.defaultBranch}${rs.currentBranch === "" ? "" : ` · on ${rs.currentBranch}`}\ntype a branch, a PR number or a title · enter → actions${stale ? " · refreshing PRs, type again if one is missing" : ""}`;
   const args = [
     ...fzfBase("work> ", header),
     // A PR row shows its head branch in the meta column; match it too.

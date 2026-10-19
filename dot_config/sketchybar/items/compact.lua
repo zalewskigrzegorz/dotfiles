@@ -1,7 +1,7 @@
 local settings = require("settings")
 
 -- Laptop layout: whenever the built-in screen is in use, widgets drop their text and
--- the front app moves right of the notch ("e"), so nothing sits under the notch.
+-- the front app title is dropped there, so nothing sits under the notch.
 -- shortcut: decides per bar, not per display, so with the lid open next to a monitor
 -- the monitors get the compact layout too; add per-display items if that bothers.
 local compact_below = 1800
@@ -9,9 +9,13 @@ local space = settings.items.space
 
 local watcher = sbar.add("item", "compact.watcher", { drawing = false, updates = true })
 
-local function apply(compact)
+local function apply(compact, big_ids)
     local show = not compact
-    sbar.set("front_app", { position = compact and "e" or "left" })
+    -- no room for the app title next to the notch; keep it on the monitors only
+    sbar.set("front_app", {
+        drawing = show or #big_ids > 0,
+        display = compact and #big_ids > 0 and table.concat(big_ids, ",") or "active"
+    })
     -- only the label: volume1/mic1 run the scripts that update the icons, and
     -- updates = "when_shown" would stop them if the whole item were hidden
     sbar.set("widgets.volume1", { label = { drawing = show } })
@@ -39,14 +43,17 @@ end
 local function check()
     sbar.exec("sketchybar --query displays", function(displays)
         local compact = false
+        local big_ids = {}
         if type(displays) == "table" then
             for _, d in ipairs(displays) do
                 if d.frame and d.frame.w < compact_below then
                     compact = true
+                elseif d.frame then
+                    table.insert(big_ids, d["arrangement-id"])
                 end
             end
         end
-        apply(compact)
+        apply(compact, big_ids)
     end)
 end
 
