@@ -1,5 +1,5 @@
 ---
-description: Small operational traps that each cost a session a retry — sudo handoff, probing unknown CLIs, transient index.lock, locating pnpm packages, empty variables, bulk git mv, removing PR reviewers, Slack token rotation, uvx cache lock, private overlay sync, e2e tsc, single spec runs
+description: Small operational traps that each cost a session a retry — sudo handoff, probing unknown CLIs, transient index.lock, locating pnpm packages, empty variables, bulk git mv, removing PR reviewers, Slack token rotation, uvx cache lock, private overlay sync, e2e tsc, single spec runs, read-only op service account, secret handling, software installs
 alwaysApply: true
 ---
 
@@ -140,3 +140,32 @@ those files are red, on that message, is reported in one sentence ("tylko
 temporal, brak sieci w sandboxie, CI to pokryje"). Don't hunt for a
 regression and don't rerun (2026-10-12). Any other failure in those files is
 a normal failure.
+
+## `op` here is a read-only service account
+
+`OP_SERVICE_ACCOUNT_TOKEN` is set on purpose (headless `op`, `docs/secrets.md`),
+so `op item edit` / `op item create` fail with `Couldn't update the item`
+(2× in a row, 2026-10-19). One `op whoami | rg 'User Type'`; `SERVICE_ACCOUNT`
+→ the write is Greg's: one numbered step in the 1Password app, or a nushell
+line with `input -s` (`env -u OP_SERVICE_ACCOUNT_TOKEN op item edit …` goes
+through the desktop app, unverified). Say up front that `op item edit` shows
+the value in the process args for a moment.
+
+## A secret goes in through Greg, and is never repeated
+
+- **Greg types or pastes it himself.** Don't read a token out of an app's
+  config to write it to 1Password for him; after "wkleję sam" don't offer that
+  variant again (368db022).
+- **A secret already in the chat is not copied into commands.** Write `<tok>`,
+  compare with `printf %s "$tok" | shasum | cut -c1-8` or the length, or
+  compare in the target file. A pasted Jam SQL token ended up literal in three
+  commands, one of them visible in `ps` (cdcd47c4). Close with one line: "token
+  jest w historii sesji, rozważ rotację".
+
+## Installing software is a decision of its own
+
+`brew install [--cask]`, `npm -g`, `uv tool install` → ask first, naming the
+package, its source and the side effect ("dubluje Sparka z Setappa"), unless
+Greg said "zainstaluj X" himself. A diagnostic question ("jaki mam plan") does
+not cover an install; `brew install --cask readdle-spark` went in unasked next
+to the Setapp copy (30ce5f6a).
