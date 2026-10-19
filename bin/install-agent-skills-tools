@@ -34,10 +34,10 @@ else
   echo "skills-cli already installed ($(skills --version 2>/dev/null || true))."
 fi
 
-# Register cursor + claude targets so a future `skills sync` (e.g. for community
-# remote skills) pushes to both agents.
+# Register the claude target so a future `skills sync` (e.g. for community
+# remote skills) pushes to it.
 if command -v skills &>/dev/null; then
-  for target in cursor claude; do
+  for target in claude; do
     if ! skills target list 2>/dev/null | grep -qw "$target"; then
       echo "Adding skills target: $target"
       skills target add "$target"
@@ -47,6 +47,6 @@ fi
 
 echo
 echo "Agent-skills tools ready."
-echo "  Shared dotfiles skills:   sync-agent-skills    (rsync agent-skills/ -> both agents)"
+echo "  Shared dotfiles skills:   sync-agent-skills    (rsync agent-skills/ -> ~/.claude/skills)"
 echo "  Community remote skills:  skills source add <github-url> --remote && skills sync"
 echo "  Status:                   skills status"

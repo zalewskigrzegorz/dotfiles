@@ -9,7 +9,7 @@ $windows | where app-name =~ "(?i)discord|slack|chatmate|whatsapp|^messages$|fac
 $windows | where app-name =~ "(?i)comet|safari|google chrome|^zen$"
 | each { |win| aerospace move-node-to-workspace web --window-id $win.window-id }
 
-$windows | where app-name =~ "(?i)cursor|^code$|vscode|visual studio code|datagrip|^zed$|docker desktop|beyond compare"
+$windows | where app-name =~ "(?i)^code$|vscode|visual studio code|datagrip|^zed$|docker desktop|beyond compare"
 | each { |win| aerospace move-node-to-workspace code --window-id $win.window-id }
 
 $windows | where app-name =~ "(?i)ghostty|^terminal$|iterm|kitty"

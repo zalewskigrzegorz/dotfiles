@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sync agent-skills/ -> BOTH ~/.cursor/skills and ~/.claude/skills via rsync.
+# Sync agent-skills/ -> ~/.claude/skills via rsync.
 # Re-runs whenever the fingerprint below changes (i.e. anything in agent-skills/),
 # the set of work checkouts/worktrees changes, OR whenever this script's body changes (the scope arrays below live here, so
 # editing a bucket re-triggers the run_onchange hash).
@@ -100,7 +100,7 @@ PRUNABLE_ALL=("${SCOPED_ALL[@]}" "${RETIRED[@]}")
 PRIVATE_SOURCE="${DOTFILES_SECRET_DIR:-$HOME/.local/state/dotfiles/secrets}/agent-skills"
 
 # --- 1) Global targets: copy everything, then prune the project-scoped ones. ---
-for target in "${HOME}/.cursor/skills" "${HOME}/.claude/skills"; do
+for target in "${HOME}/.claude/skills"; do
   mkdir -p "$target"
   rsync -a --delete \
     --exclude '.DS_Store' \

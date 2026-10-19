@@ -65,25 +65,18 @@ cloud embedding provider, no external vector DB, no API keys.
   (`agent-plugins/plugins.json.tmpl`), the install script, and the rules. Serena
   is the only local code-intelligence server now.
 
-## Cursor
-
-- **`dot_cursor/` → `~/.cursor/`** (chezmoi): settings, hooks, **`rules/`** (global assistant rules), **`skills/`**. On **`homelab`** profile, `.cursor/**` targets are skipped (see `.chezmoiignore`) — no Cursor sync on headless hosts.
-- **`.cursor/rules/`** at repo root (not under `dot_cursor/`): workspace-only rules when **this dotfiles repo** is the Cursor project (e.g. `dotfiles-architecture.mdc`). Keeps repo-specific AI instructions out of `~/.cursor/rules`.
-
 ## macOS Workstation Only
 
 These are ignored when `profile = "homelab"`:
 
 - `dot_config/aerospace`
 - `dot_config/borders`
-- `dot_config/cursor`
 - `dot_config/flipperdevices.com`
 - `dot_config/ghostty`
 - `dot_config/sketchybar`
 - `dot_config/spotify-player`
 - `dot_config/svim`
 - `dot_config/zed`
-- `dot_cursor`
 - `dot_claude`
 - `nushell-mcp.json.tmpl`
 - `bin/aerospace-flip-window`
@@ -99,7 +92,6 @@ These were removed from git tracking during the migration:
 - `.claude/hooks/peon-ping/.sound.pid`
 - `.claude/hooks/peon-ping/.state.json`
 - `.claude/hooks/peon-ping/.update_available`
-- `.config/cursor/chats/**/store.db`
 - `.config/nushell/env.nu.bak-work-migration`
 - `.config/nushell/vendor/autoload/starship.nu`
 - `.config/zed/.tmp*`

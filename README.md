@@ -4,7 +4,7 @@ Personal dotfiles managed with [chezmoi](https://www.chezmoi.io/) and bootstrapp
 
 ## Profiles
 
-- `workstation` - macOS desktop/laptop with GUI apps, casks, Aerospace, SketchyBar, Cursor, Zed and Claude config.
+- `workstation` - macOS desktop/laptop with GUI apps, casks, Aerospace, SketchyBar, Zed and Claude config.
 - `homelab` - headless Debian/Ubuntu with CLI and shell config only. No casks, GUI apps, fonts, window manager or status bar tooling.
 
 The active profile is stored in `~/.config/chezmoi/chezmoi.toml`:
@@ -81,19 +81,18 @@ legacy/migrate-stow-links-to-chezmoi.sh --apply
 
 The script removes only symlinks whose targets are inside the current dotfiles checkout. It does not touch real files or directories.
 
-## Agent config (Claude Code + Cursor)
+## Agent config (Claude Code)
 
-Single-source-of-truth folders at repo root hold what's shared between both agents. `chezmoi apply` renders/syncs them into `~/.cursor/*` and `~/.claude/*`.
+Single-source-of-truth folders at repo root hold the agent config. `chezmoi apply` renders/syncs them into `~/.claude/*`.
 
 | Folder | Lives in repo as | Pushed to | Rendered by |
 | --- | --- | --- | --- |
-| Skills (shared, both agents) | `agent-skills/<name>/SKILL.md` | `~/.cursor/skills/` + `~/.claude/skills/` | `run_onchange_after_30-agent-skills-sync.sh.tmpl` (rsync) |
-| Rules (global) | `agent-rules/<name>.md` (+ Cursor-style frontmatter) | `~/.cursor/rules/<name>.mdc` + `~/.claude/CLAUDE.md` (only `alwaysApply: true`) | `run_onchange_after_31-agent-rules-sync.sh.tmpl` |
-| MCP servers (global) | `agent-mcp/mcp-servers.json.tmpl` | `~/.cursor/mcp.json` (via `dot_cursor/mcp.json.tmpl`) + Claude user-scope via `claude mcp add` | `run_onchange_after_32-agent-mcp-sync.sh.tmpl` |
-| Cursor-only skills | `dot_cursor/skills-cursor/<name>/SKILL.md` | `~/.cursor/skills-cursor/` (chezmoi-managed) | chezmoi default |
+| Skills | `agent-skills/<name>/SKILL.md` | `~/.claude/skills/` | `run_onchange_after_30-agent-skills-sync.sh.tmpl` (rsync) |
+| Rules (global) | `agent-rules/<name>.md` (+ frontmatter) | `~/.claude/CLAUDE.md` (only `alwaysApply: true`) | `run_onchange_after_31-agent-rules-sync.sh.tmpl` |
+| MCP servers (global) | `agent-mcp/mcp-servers.json.tmpl` | Claude user-scope via `claude mcp add` | `run_onchange_after_32-agent-mcp-sync.sh.tmpl` |
 | Claude global file | (auto) | `~/.claude/CLAUDE.md` (auto-generated from `agent-rules/`) | rules sync |
 
-Project-scoped configs are not touched: `<repo>/.cursor/rules/`, `<repo>/CLAUDE.md`, `<repo>/.mcp.json` stay per-project.
+Project-scoped configs are not touched: `<repo>/CLAUDE.md`, `<repo>/.mcp.json` stay per-project.
 
 Add or change shared content, then `chezmoi apply` — both agents pick it up. For an ad-hoc skill resync without other chezmoi changes:
 
@@ -119,7 +118,7 @@ Verify with `launchctl list | grep com.greg` (PIDs should be > 0).
 ## Reference
 
 - Agent config (shared + per-agent): `docs/agents-sync.md`
-- MCP client setup (Raycast/Cursor/Claude): `docs/mcp-clients-setup.md`
+- MCP client setup (Raycast/Claude): `docs/mcp-clients-setup.md`
 - Brew bundle reference: `docs/brew-snapshot-20260503.md`
 - Stow link inventory: `docs/stow-links-before-chezmoi.md`
 - Dotfiles inventory: `docs/dotfiles-inventory.md`

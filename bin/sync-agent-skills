@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Sync agent-skills/ -> BOTH ~/.cursor/skills and ~/.claude/skills via rsync.
+# Sync agent-skills/ -> ~/.claude/skills via rsync.
 # Single source of truth: dotfiles/agent-skills/ (one subdir per skill, each with SKILL.md).
 
 set -e
 
 DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
 SOURCE="${DOTFILES}/agent-skills"
-TARGETS=("${HOME}/.cursor/skills" "${HOME}/.claude/skills")
+TARGETS=("${HOME}/.claude/skills")
 
 if [[ ! -d "$SOURCE" ]]; then
   echo "No agent-skills directory at $SOURCE — nothing to sync."

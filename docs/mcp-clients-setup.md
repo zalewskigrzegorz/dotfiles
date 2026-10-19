@@ -1,4 +1,4 @@
-# MCP setup (Raycast, Cursor, Claude)
+# MCP setup (Raycast, Claude)
 
 Endpoints:
 
@@ -12,10 +12,9 @@ Endpoints:
 ## What can be automated from dotfiles
 
 - Raycast MCP servers: **no stable public config file** to manage safely in this repo; keep manual setup in Raycast UI.
-- Cursor MCP: **yes** (`~/.cursor/mcp.json` for global, or `.cursor/mcp.json` per-project).
 - Claude Code MCP: **yes** (recommended as project-scoped `.mcp.json` in repo; user/local scope is stored in `~/.claude.json`).
 
-> **As of the agent-sync rework**, both Cursor and Claude Code now share a single source of truth at `agent-mcp/mcp-servers.json.tmpl`. `chezmoi apply` renders it into `~/.cursor/mcp.json` (via `dot_cursor/mcp.json.tmpl`) and calls `claude mcp add --scope user` for each server. See `docs/agents-sync.md` for the full layout.
+> **As of the agent-sync rework**, the single source of truth is `agent-mcp/mcp-servers.json.tmpl`. `chezmoi apply` calls `claude mcp add --scope user` for each server. See `docs/agents-sync.md` for the full layout.
 
 ## Certificate (no install needed — Let's Encrypt trusted)
 
@@ -25,27 +24,6 @@ In Raycast MCP settings add:
 
 - `https://mcp.mrglaszki.com/homey/mcp`
 - `https://mcp.mrglaszki.com/excalidraw/mcp`
-
-## Cursor (global dotfile-managed)
-
-`dot_cursor/mcp.json.tmpl` is a one-line include of the shared `agent-mcp/mcp-servers.json.tmpl`; `chezmoi apply` renders both Cursor and Claude from the same source. Edit `agent-mcp/mcp-servers.json.tmpl` instead of the rendered file. Example shared servers (current state):
-
-```json
-{
-  "mcpServers": {
-    "homey-http": {
-      "type": "http",
-      "url": "https://mcp.mrglaszki.com/homey/mcp"
-    },
-    "excalidraw-http": {
-      "type": "http",
-      "url": "https://mcp.mrglaszki.com/excalidraw/mcp"
-    }
-  }
-}
-```
-
-Restart Cursor after changes.
 
 ## Claude Code (global user scope, dotfile-managed)
 

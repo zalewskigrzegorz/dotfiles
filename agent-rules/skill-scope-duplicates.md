@@ -15,8 +15,8 @@ end of the problem and gets silently undone on the next apply.
 `run_onchange_after_30-agent-skills-sync.sh.tmpl` splits `agent-skills/` into
 buckets:
 
-- **Global** → rsync'd (`--delete`) into `~/.claude/skills/` and
-  `~/.cursor/skills/`. Loaded in every repo.
+- **Global** → rsync'd (`--delete`) into `~/.claude/skills/`. Loaded in
+  every repo.
 - **Project-scoped** → placed into `<repo>/.claude/skills/` **and removed from
   the global dir**, so they only cost context inside their own repo. Buckets:
   `WORK_SKILLS` (from `bin/place-work-skills --list`, shared with `work new`

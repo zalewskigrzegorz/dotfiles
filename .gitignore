@@ -101,8 +101,6 @@ dot_config/lnav/
 dot_config/spotify-player/clientid
 
 # Generated app state
-.config/cursor/chats/
-dot_config/cursor/chats/
 .config/zed/embeddings/
 .config/zed/prompts/
 dot_config/zed/embeddings/
