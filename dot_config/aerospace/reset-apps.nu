@@ -30,11 +30,11 @@ $windows | where { |w| ($w.app-name | str downcase) =~ "notion" and ($w.app-name
 $windows | where app-name =~ "(?i)spotify"
 | each { |win| aerospace move-node-to-workspace media --window-id $win.window-id }
 
-$windows | where app-name =~ "(?i)obsidian|^notes$|drafts|reminders|pages creator studio|pencil|expressions"
+$windows | where app-name =~ "(?i)obsidian|^notes$|reminders|pencil"
 | each { |win| aerospace move-node-to-workspace notes --window-id $win.window-id }
 
-$windows | where app-name =~ "(?i)^firefox$|firefox developer edition|insomnia|rapidapi|proxyman|chipmunk"
+$windows | where app-name =~ "(?i)^firefox$|firefox developer edition|insomnia|rapidapi|proxyman"
 | each { |win| aerospace move-node-to-workspace test --window-id $win.window-id }
 
-$windows | where app-name =~ "(?i)cleverpdf|stream deck|bazecor|logioptionsplus|insta360|wifi explorer|activity monitor|cleanmymac|google drive|google docs|google sheets|google slides|upscayl"
+$windows | where app-name =~ "(?i)cleverpdf|stream deck|bazecor|insta360|wifi explorer|activity monitor|cleanmymac|google drive|google docs|google sheets|google slides|upscayl"
 | each { |win| aerospace move-node-to-workspace misc --window-id $win.window-id }

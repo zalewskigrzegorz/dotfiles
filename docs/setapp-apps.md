@@ -14,21 +14,15 @@ On a new Mac, install Setapp with Homebrew, sign in, mark the apps below as favo
 
 ## Expected
 
-- [ ] AirBuddy
 - [ ] Boom
 - [ ] ChatMate for WhatsApp
 - [ ] CleanMyMac
 - [ ] CleanShot X
 - [ ] ClearVPN
-- [ ] DevUtils
 - [ ] DisplayBuddy
-- [ ] Dropzone
-- [ ] Expressions
+- [ ] Filepane
 - [ ] FocuSee
-- [ ] Juicy
-- [ ] NotchNook
 - [ ] OpenIn
-- [ ] OrcaSheets
 - [ ] Proxyman
 - [ ] Spark Mail
 - [ ] Timing

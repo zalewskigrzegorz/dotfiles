@@ -88,7 +88,6 @@ The brief calls 10+ external sources (gh, spark, slack, homey, wttr, NBP, Open-M
 | Homey MCP calls | 5 min | `homey-alarms.json`, `homey-waste.json`, `homey-pets.json` |
 | Hindsight recall | 5 min | one file per query, e.g. `hindsight-wip.json` |
 | Git activity scan | 10 min | `git-activity.txt` |
-| Drafts MCP | 10 min | `drafts.json` |
 | Apple Reminders read | 1 min (changes often) | `reminders.txt` |
 | Final brief text | written AFTER generation | `final-YYYYMMDD-HHMMSS.txt` |
 
@@ -422,18 +421,6 @@ Output format per line: `[list_name] reminder_name | due=<date or empty> | creat
 
 Skip the Reminders read silently if `osascript` is unavailable (lab Debian).
 
-### Drafts app (MCP — `mcp__drafts__*`, Mac-only)
-
-```
-mcp__drafts__list_drafts(date_from="<7 days ago>", folder="inbox", limit=10)
-```
-
-For each: if title is meaningful, use as-is. Otherwise `mcp__drafts__get_draft(id)` + first sentence.
-
-Skip drafts tagged `done`, `archived`, `processed`. Skip trashed.
-
-**If `mcp__drafts__*` is unreachable** (Drafts.app not running, non-Mac host, or MCP not installed yet) → **silently skip section 5b**. Brief degrades gracefully.
-
 ### Out-of-office detection
 
 From `spark events --week`, scan calendar entries titled `Out of office` or `OOO` or with all-day events from team roster members. If a roster member is OOO **today**, mention it in section 4.
@@ -571,26 +558,6 @@ Same as v1 — DMs + @-mentions last 5d, filter to unread/unanswered. Roster-fir
 **Silent-day rule:** if all three sub-streams produce nothing, one Rick line: *"Inbox czysty, na Slacku grobowy spokój — albo nikt cię nie kocha, albo wszyscy są zbyt zajęci"*.
 
 **Drafts mail folder is NOT queried — explicitly excluded as noise.**
-
-### 5d. Coś ci wpadło do głowy (Drafts app — Mac/iOS notes)
-
-Greg jots ideas into Drafts.app on walks / in transit. Recap unfiled notes from last 7d that Greg hasn't yet processed.
-
-Data: `mcp__drafts__list_drafts(date_from="<7 days ago>", folder="inbox", limit=10)`.
-
-Rules:
-- Skip drafts tagged `done`, `archived`, `processed`. Skip trashed.
-- Cap 5 mentions. >5 → 3 newest + count rest.
-- Title meaningful → use as-is. Otherwise `mcp__drafts__get_draft(id)` + first sentence.
-
-Length: 1 paragraph, 40-80 words.
-
-Tone — Rick acknowledging brain-dumps matter, cutting if vague:
-
-- *"Plus z weekendu masz dwa zapiski w drafty — coś o reorganizacji Hindsight tagów, i 'kupić śrubki M4'. Jedno wymaga decyzji, drugie sklepu."*
-- *"W drafty od piątku masz cztery notki, z czego trzy to fragmenty bez kontekstu. Albo idź to dokończ, albo skasuj."*
-
-**Skip section 5d entirely if empty.** Do not emit a "drafty puste" placeholder. **Skip if `mcp__drafts__*` is unreachable** (Drafts.app off, non-Mac host, MCP not installed).
 
 ### 6. Focus na dziś
 
@@ -790,7 +757,6 @@ If a fact cannot be confirmed from data, **drop it**. Better to say less than to
 - Any `[bracket]` markup anywhere in the output (`[burp]`, `[dry]`, `[serious]`, etc.)? **Delete it** — v2 reads brackets as literal garbage. Persona lives in the words, not tags.
 - **v2 gates:**
   - Mail action items list 5+ from same sender with same gist? Collapse into one line.
-  - Section 5d (Drafts app) just listing titles with no shape? Fold into section 5.
   - Opening context line balloons past 2 sentences? Cut to: opener → (pollen lead if alarm) → (weather if anomaly) → USD → (AQI if band > 40) → segue.
   - Section 7 (Dom) only default noise (no pet flag, trash > 3d, no pollen alarm, AQI ≤ 40)? Skip entirely.
   - Section 7 duplicates AQI from opening? Cut duplicate.

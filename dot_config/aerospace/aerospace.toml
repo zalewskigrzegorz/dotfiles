@@ -494,10 +494,6 @@ run = 'move-node-to-workspace test'
 if.app-name-regex-substring = 'Proxyman'
 run = 'move-node-to-workspace test'
 
-[[on-window-detected]]
-if.app-name-regex-substring = 'chipmunk'
-run = 'move-node-to-workspace test'
-
 # chat (1)
 [[on-window-detected]]
 if.app-name-regex-substring = 'Messages'
@@ -522,23 +518,11 @@ if.app-name-regex-substring = '^Notes$'
 run = 'move-node-to-workspace notes'
 
 [[on-window-detected]]
-if.app-name-regex-substring = 'Drafts'
-run = 'move-node-to-workspace notes'
-
-[[on-window-detected]]
 if.app-name-regex-substring = 'Reminders'
 run = 'move-node-to-workspace notes'
 
 [[on-window-detected]]
-if.app-name-regex-substring = 'Pages Creator Studio'
-run = 'move-node-to-workspace notes'
-
-[[on-window-detected]]
 if.app-name-regex-substring = 'Pencil'
-run = 'move-node-to-workspace notes'
-
-[[on-window-detected]]
-if.app-name-regex-substring = 'Expressions'
 run = 'move-node-to-workspace notes'
 
 # misc (4) — utilities, peripherals, infrequent apps
@@ -552,10 +536,6 @@ run = 'move-node-to-workspace misc'
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'Bazecor'
-run = 'move-node-to-workspace misc'
-
-[[on-window-detected]]
-if.app-name-regex-substring = 'logioptionsplus'
 run = 'move-node-to-workspace misc'
 
 [[on-window-detected]]
