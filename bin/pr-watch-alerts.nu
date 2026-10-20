@@ -43,13 +43,13 @@ def "pr-alert diff" [prev: record, cur: record, now: string]: nothing -> record 
         let new_approvers = ($c.approvers | where {|l| $l not-in $p.approvers })
         let ev = (if ($new_failed | is-not-empty) {
             let n = ($new_failed | first)
-            {kind: "ci_fail", text: $"($n) padł", url: ($c.failed_urls | get -o $n | default "")}
+            {kind: "ci_fail", text: $n, url: ($c.failed_urls | get -o $n | default "")}
         } else if ($new_approvers | is-not-empty) {
-            {kind: "approval", text: $"approval: ($new_approvers | str join ', ')", url: ""}
+            {kind: "approval", text: ($new_approvers | str join ", "), url: ""}
         } else if $c.outstanding > ($p | get -o outstanding | default 0) {
-            {kind: "comment", text: "komentarz", url: ""}
+            {kind: "comment", text: "", url: ""}
         } else if $c.pending and (not $p.pending) {
-            {kind: "ci_start", text: "CI ruszyło", url: ""}
+            {kind: "ci_start", text: "", url: ""}
         } else { null })
         if $ev == null { null } else { {key: $key, ev: ({ts: $now, num: $num} | merge $ev)} }
     } | compact | reduce -f {} {|r, acc| $acc | insert $r.key $r.ev }

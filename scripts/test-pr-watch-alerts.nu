@@ -19,7 +19,7 @@ def test_no_baseline [] {
 def test_new_fail [] {
     let ev = (pr-alert diff {"7": (snap)} {"7": (snap --failed ["e2e (3)"])} $NOW | get "7")
     assert equal $ev.kind "ci_fail"
-    assert equal $ev.text "e2e (3) padł"
+    assert equal $ev.text "e2e (3)"
     assert equal $ev.num 7
     assert equal $ev.url "https://github.com/o/r/actions/runs/1/job/7"
     assert equal $ev.ts $NOW
@@ -28,26 +28,26 @@ def test_new_fail [] {
 def test_second_shard [] {
     let ev = (pr-alert diff {"7": (snap --failed ["e2e (1)"])} {"7": (snap --failed ["e2e (1)" "e2e (3)"])} $NOW | get "7")
     assert equal $ev.kind "ci_fail"
-    assert equal $ev.text "e2e (3) padł"
+    assert equal $ev.text "e2e (3)"
 }
 
 def test_ci_start [] {
     let ev = (pr-alert diff {"7": (snap)} {"7": (snap --pending)} $NOW | get "7")
     assert equal $ev.kind "ci_start"
-    assert equal $ev.text "CI ruszyło"
+    assert equal $ev.text ""
 }
 
 def test_approval_and_comment_same_poll [] {
     let d = (pr-alert diff {"7": (snap)} {"7": (snap --approvers ["kasia"] --out 2)} $NOW)
     assert equal ($d | columns | length) 1
     assert equal $d."7".kind "approval"
-    assert equal $d."7".text "approval: kasia"
+    assert equal $d."7".text "kasia"
 }
 
 def test_comment [] {
     let ev = (pr-alert diff {"7": (snap --out 1)} {"7": (snap --out 2)} $NOW | get "7")
     assert equal $ev.kind "comment"
-    assert equal $ev.text "komentarz"
+    assert equal $ev.text ""
 }
 
 def test_closed_pr [] {
