@@ -1,15 +1,16 @@
 local settings = require("settings")
 
--- Laptop layout: whenever the built-in screen is in use, widgets drop their text and
--- the front app title is dropped there, so nothing sits under the notch.
+-- Laptop layout: when the built-in screen is the only one, widgets drop their text and
+-- the front app title is dropped, so nothing sits under the notch.
 -- shortcut: decides per bar, not per display, so with the lid open next to a monitor
--- the monitors get the compact layout too; add per-display items if that bothers.
+-- the laptop gets the full layout and some items hide under the notch; add per-display
+-- items if that bothers.
 local compact_below = 1800
 local space = settings.items.space
 
 local watcher = sbar.add("item", "compact.watcher", { drawing = false, updates = true })
 
-local function apply(compact, big_ids)
+local function apply(compact)
     local show = not compact
     -- battery and calendar read this on their next update. --update fires "forced",
     -- which re-runs check(), so it must only run on a real change or it loops forever.
@@ -17,11 +18,8 @@ local function apply(compact, big_ids)
         settings.compact = compact
         sbar.exec("sketchybar --update")
     end
-    -- no room for the app title next to the notch; keep it on the monitors only
-    sbar.set("front_app", {
-        drawing = show or #big_ids > 0,
-        display = compact and #big_ids > 0 and table.concat(big_ids, ",") or "active"
-    })
+    -- no room for the app title next to the notch
+    sbar.set("front_app", { drawing = show, display = "active" })
     -- only the label: volume1/mic1 run the scripts that update the icons, and
     -- updates = "when_shown" would stop them if the whole item were hidden
     sbar.set("widgets.volume1", { label = { drawing = show } })
@@ -47,18 +45,17 @@ end
 
 local function check()
     sbar.exec("sketchybar --query displays", function(displays)
-        local compact = false
-        local big_ids = {}
+        local small, big = false, false
         if type(displays) == "table" then
             for _, d in ipairs(displays) do
                 if d.frame and d.frame.w < compact_below then
-                    compact = true
+                    small = true
                 elseif d.frame then
-                    table.insert(big_ids, d["arrangement-id"])
+                    big = true
                 end
             end
         end
-        apply(compact, big_ids)
+        apply(small and not big)
     end)
 end
 

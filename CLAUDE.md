@@ -276,7 +276,7 @@ Kolizje nazw z teamem **nie** są przykrywane — project scope nie shadowuje us
 - **Verify a change with `bin/sketchybar-restart`**, not `--reload` plus one `--query`. Its probe checks every expected item and fails when sketchybar sits above 20% cpu, which is how an event loop shows (2026-10-19: a `forced` handler calling `--update` held 85% cpu while every item looked fine). Add new items to its `EXPECTED` list.
 - **`--update` fires `forced`.** Never call it (or `--trigger forced`) from a `forced` handler unless a state change guards it, as `items/compact.lua` does.
 - **Per-display questions start with `--query displays`.** An item's `geometry.drawing` is global; which screens show it is `associated_display_mask` (bit n = display n), and `display=2,3` takes a list. "The title still shows on the laptop" was two monitors plugged in, ~6 calls to find.
-- **Laptop vs monitor layout lives in `items/compact.lua`** and is decided per bar, not per display: with the lid open next to monitors, they get the compact layout too (accepted trade-off). Widgets read `settings.compact`.
+- **Laptop vs monitor layout lives in `items/compact.lua`** and is decided per bar, not per display: compact only when the built-in screen is the only one; with the lid open next to monitors every bar gets the full layout and the laptop's items may hide under the notch (Greg's pick, 2026-10-20). Widgets read `settings.compact`.
 
 ## Multiplexer — herdr (Mac)
 
