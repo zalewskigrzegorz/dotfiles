@@ -150,7 +150,8 @@ def raise-alerts [prev: record, cur: record]: nothing -> record {
     let events = (pr-alert diff $prev $cur (date now | format date "%+"))
     if ($events | is-empty) { return $unseen }
     let sound = ($SOUNDS_DIR | path join $"pr-(pr-alert sound $events).mp3")
-    if ($sound | path exists) { ^sh -c $"afplay '($sound)' >/dev/null 2>&1 &" }
+    # in the foreground: launchd kills a finished job's children, so a backgrounded afplay never sounded
+    if ($sound | path exists) { try { ^afplay $sound } }
     if (which sketchybar | is-empty) { return $unseen }
     let popup = (try { ^sketchybar --query pr_watch | from json | get -o popup.drawing } catch { "off" })
     if $popup == "on" {
