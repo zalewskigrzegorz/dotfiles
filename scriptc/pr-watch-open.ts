@@ -61,6 +61,13 @@ interface AlertEvent {
 const ALERTS = join(process.env.HOME ?? "", ".cache", "pr-watch-alerts.json");
 const SHOWN = join(process.env.HOME ?? "", ".cache", "pr-watch-alerts-shown.json");
 const KIND_ORDER = ["ci_fail", "approval", "comment", "ci_start"];
+// the row's icon says what happened; the label keeps only the job name / login
+const KIND_GLYPH: Record<string, string> = {
+  ci_fail: "\u{f00d}", // xmark
+  approval: "\u{f164}", // thumbs up
+  comment: "\u{f075}", // comment
+  ci_start: "\u{f04b}", // play
+};
 const KIND_COLOR: Record<string, string> = {
   ci_fail: C_CONF,
   approval: C_MERGE,
@@ -297,11 +304,11 @@ function rebuildRows(cachePath: string): void {
       [
         "--add", "item", `pr_watch.ev.${num}`, "popup.pr_watch",
         "--set", `pr_watch.ev.${num}`,
-        "icon=●",
+        `icon=${KIND_GLYPH[ev.kind ?? ""] ?? "\u{f111}"}`,
         `icon.color=${KIND_COLOR[ev.kind ?? ""] ?? C_MUTED}`,
         `icon.font=${FONT}:Bold:12.0`,
         "icon.padding_left=10",
-        `label=#${num}  ${truncate(ev.text ?? "")}  ${time}`,
+        `label=#${num}  ${ev.text ? truncate(ev.text) + "  " : ""}${time}`,
         `label.color=${C_TEXT}`,
         `label.font=${FONT}:Bold:12.0`,
         "label.padding_right=10",
