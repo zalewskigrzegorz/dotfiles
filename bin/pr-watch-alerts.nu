@@ -4,7 +4,7 @@
 # snapshot with this one yields at most ONE event per PR (Greg: "1 PR = 1 event"):
 #   ci_fail   a check failed that was not failed before (second shard counts)
 #   approval  a new login approved
-#   ci_success   checks stopped running and none is failed
+#   ci_success   checks stopped running and all of them ended green
 #   comment   outstanding-comment count grew
 #   ci_start  checks went from none pending to some pending
 # A PR without a previous snapshot (first run, new PR, pre-alerts cache) yields
@@ -27,6 +27,10 @@ def "pr-alert snapshot" [pr: record, out: int]: nothing -> record {
             let st = ($c | get -o status | default "")
             (($st != "") and ($st != "COMPLETED")) or (($c | get -o state | default "") in ["PENDING" "EXPECTED"])
         })
+        # every check finished clean; cancelled, still running or no checks at all is not green
+        green: (($checks | is-not-empty) and ($checks | all {|c|
+            (($c | get -o conclusion | default "") in ["SUCCESS" "NEUTRAL" "SKIPPED"]) or (($c | get -o state | default "") == "SUCCESS")
+        }))
         approvers: ($pr | get -o latestReviews | default [] | where {|r| ($r | get -o state) == "APPROVED" } | each {|r| $r | get -o author.login | default "?" } | uniq)
         outstanding: $out
     }
@@ -47,7 +51,7 @@ def "pr-alert diff" [prev: record, cur: record, now: string]: nothing -> record 
             {kind: "ci_fail", text: $n, url: ($c.failed_urls | get -o $n | default "")}
         } else if ($new_approvers | is-not-empty) {
             {kind: "approval", text: ($new_approvers | str join ", "), url: ""}
-        } else if $p.pending and (not $c.pending) and ($c.failed | is-empty) {
+        } else if $p.pending and (not $c.pending) and ($c | get -o green | default false) {
             {kind: "ci_success", text: "", url: ""}
         } else if $c.outstanding > ($p | get -o outstanding | default 0) {
             {kind: "comment", text: "", url: ""}
