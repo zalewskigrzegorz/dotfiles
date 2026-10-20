@@ -252,6 +252,10 @@ def newest_export():
     for p in pats:
         files += glob.glob(p)
     if not files:
+        # fresh machine: Bazecor has no backups yet, fall back to the tracked layout
+        repo = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "dygma", "defy-layout.json")
+        if os.path.exists(repo):
+            return repo
         sys.exit("dygma-cheats: no Dygma export found in ~/Raise/Backups/Defy or ~/Downloads")
     return max(files, key=os.path.getmtime)
 
