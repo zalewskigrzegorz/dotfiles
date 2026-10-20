@@ -294,6 +294,23 @@ function loadCache(cachePath: string): [string, CacheEntry][] {
   return entries;
 }
 
+// Lookups by PR number for the click handlers. A merged PR is gone from the
+// cache: return an empty entry instead of optional-chaining an undefined tuple,
+// which scriptc turns into a runtime TypeError.
+function cacheEntry(num: string): CacheEntry {
+  for (const [n, e] of loadCache(join(home(), ".cache", "pr-watch-last.json"))) {
+    if (n === num) return e;
+  }
+  return {};
+}
+
+function shownEvent(num: string): AlertEvent {
+  for (const e of readEvents(SHOWN)) {
+    if (String(Number(e.num ?? 0)) === num) return e;
+  }
+  return {};
+}
+
 function rebuildRows(cachePath: string): void {
   // sketchybar's item regex is basic POSIX: no `(a|b)`, so one remove per prefix
   spawnSync("sketchybar", ["--remove", "/pr_watch\\.pr\\..*/", "--remove", "/pr_watch\\.ev\\..*/"], { stdio: "ignore" });
@@ -447,10 +464,10 @@ function main(): void {
   if (args[0] === "__ev") {
     // like a PR row: right → the branch's herdr workspace; left (or no workspace)
     // → a failed check's job log, everything else the PR
-    const ev = readEvents(SHOWN).find((e) => String(Number(e.num ?? 0)) === args[1]);
-    const pr = loadCache(join(home(), ".cache", "pr-watch-last.json")).find(([n]) => n === args[1]);
-    if (process.env.BUTTON !== "right" || focusBranch(pr?.[1]?.branch ?? "") !== 0) {
-      const url = ev?.url || pr?.[1]?.url || "";
+    const ev = shownEvent(args[1]);
+    const pr = cacheEntry(args[1]);
+    if (process.env.BUTTON !== "right" || focusBranch(pr.branch ?? "") !== 0) {
+      const url = ev.url || pr.url || "";
       if (url.startsWith("https://github.com/")) spawnSync("open", [url], { stdio: "ignore" });
     }
     spawnSync("sketchybar", ["--set", "pr_watch", "popup.drawing=off"], { stdio: "ignore" });
@@ -458,9 +475,9 @@ function main(): void {
   }
   if (args[0] === "__row") {
     // right click → that branch's herdr workspace when one exists, else the browser
-    const entry = loadCache(join(home(), ".cache", "pr-watch-last.json")).find(([n]) => n === args[1]);
-    const url = entry?.[1]?.url ?? "";
-    if (process.env.BUTTON !== "right" || focusBranch(entry?.[1]?.branch ?? "") !== 0) {
+    const entry = cacheEntry(args[1]);
+    const url = entry.url ?? "";
+    if (process.env.BUTTON !== "right" || focusBranch(entry.branch ?? "") !== 0) {
       if (url.startsWith("https://github.com/")) spawnSync("open", [url], { stdio: "ignore" });
     }
     spawnSync("sketchybar", ["--set", "pr_watch", "popup.drawing=off"], { stdio: "ignore" });
