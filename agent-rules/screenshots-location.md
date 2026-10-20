@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Screenshots location (macOS)
 
-When Greg references "a screenshot", "the screens", "screeny", or mentions/drags an image he just took, read the newest file(s) in:
+When Greg references "a screenshot", "the screens", "screeny", "ss" (his shorthand), or mentions/drags an image he just took, read the newest file(s) in:
 
 `/Users/greg/Library/CloudStorage/GoogleDrive-maksim009@gmail.com/My Drive/Screenshots`
 
