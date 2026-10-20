@@ -389,11 +389,7 @@ if.app-name-regex-substring = 'Obsidian'
 run = 'move-node-to-workspace notes'
 
 [[on-window-detected]]
-if.app-name-regex-substring = 'Canary Mail'
-run = 'move-node-to-workspace mail'
-
-[[on-window-detected]]
-if.app-name-regex-substring = 'Spark Mail'
+if.app-name-regex-substring = '^Spark'
 run = 'move-node-to-workspace mail'
 
 [[on-window-detected]]
@@ -525,7 +521,16 @@ run = 'move-node-to-workspace notes'
 if.app-name-regex-substring = 'Pencil'
 run = 'move-node-to-workspace notes'
 
+# media (7)
+[[on-window-detected]]
+if.app-name-regex-substring = 'IINA|Music Decoy|GarageBand|iMovie'
+run = 'move-node-to-workspace media'
+
 # misc (4) — utilities, peripherals, infrequent apps
+[[on-window-detected]]
+if.app-name-regex-substring = 'Creator Studio'
+run = 'move-node-to-workspace misc'
+
 [[on-window-detected]]
 if.app-name-regex-substring = 'CleverPDF'
 run = 'move-node-to-workspace misc'

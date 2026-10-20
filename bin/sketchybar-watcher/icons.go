@@ -21,14 +21,14 @@ var appIcons = map[string]string{
 	"Claude Code URL Handler": ":claude:",
 
 	// Terminals
-	"Ghostty":  ":terminal:",
+	"Ghostty":  ":ghostty:",
 	"iTerm":    ":iterm:",
 	"Terminal": ":terminal:",
 	"kitty":    ":kitty:",
 
 	// Browsers
 	"Arc":                       ":arc:",
-	"Comet":                     ":comet:",
+	"Comet":                     ":comet_browser:",
 	"Firefox":                   ":firefox:",
 	"Firefox Developer Edition": ":firefox_developer_edition:",
 	"Google Chrome":             ":google_chrome:",
@@ -39,25 +39,27 @@ var appIcons = map[string]string{
 	"Discord":                   ":discord:",
 	"Slack":                     ":slack:",
 	"Mail":                      ":mail:",
-	"Canary Mail":               ":mail:",
-	"Spark Mail":                ":spark:",
+	"Spark Desktop":             ":spark:",
 	"ChatMate for WhatsApp":     ":whats_app:",
 	"ChatMate Pro for WhatsApp": ":whats_app:", // aerospace reports this variant
 	"WhatsApp":                  ":whats_app:",
 	"Messages":                  ":messages:",
+	"Boom":                      ":meet:",
 	"FaceTime":                  ":face_time:",
 
 	// Notes, knowledge, productivity
-	"Notes":                ":notes:",
-	"NotePlan":             ":notes:",
-	"Obsidian":             ":obsidian:",
-	"Notion":               ":notion:",
-	"Drafts":               ":drafts:",
-	"Pages Creator Studio": ":pages:",
-	"Pencil":               ":sketch:",
-	"Expressions":          ":script_editor:",
-	"Juicy":                ":default:",
-	"Reminders":            ":reminders:",
+	"Notes":                  ":notes:",
+	"NotePlan":               ":notes:",
+	"Obsidian":               ":obsidian:",
+	"Notion":                 ":notion:",
+	"Drafts":                 ":drafts:",
+	"Pages Creator Studio":   ":pages:",
+	"Keynote Creator Studio": ":keynote:",
+	"Numbers Creator Studio": ":numbers:",
+	"Pencil":                 ":sketch:",
+	"Expressions":            ":script_editor:",
+	"Juicy":                  ":default:",
+	"Reminders":              ":reminders:",
 
 	// Calendar & time
 	"Calendar":        ":calendar:",
@@ -66,15 +68,16 @@ var appIcons = map[string]string{
 	"Timing":          ":timingapp:",
 
 	// Media (music / video / audio)
-	"Spotify":      ":spotify:",
-	"Music Decoy":  ":music:",
-	"Endel":        ":music:",
-	"Boom":         ":music:",
-	"VLC":          ":vlc:",
-	"Replay":       ":dvd_player:",
-	"superwhisper": ":voice_memos:",
-	"AirBuddy":     ":face_time:",
-	"Upscayl":      ":image_playground:",
+	"Spotify":        ":spotify:",
+	"spotify_player": ":spotify:",
+	"IINA":           ":iina:",
+	"Music Decoy":    ":music:",
+	"Endel":          ":music:",
+	"VLC":            ":vlc:",
+	"Replay":         ":dvd_player:",
+	"superwhisper":   ":voice_memos:",
+	"AirBuddy":       ":face_time:",
+	"Upscayl":        ":image_playground:",
 
 	// Capture & screenshots
 	"CleanShot X": ":screencap:",
@@ -100,6 +103,7 @@ var appIcons = map[string]string{
 	"SigmaOS 1Password Linker": ":one_password:",
 	"Bitwarden":                ":bit_warden:",
 	"ClearVPN":                 ":openvpn_connect:",
+	"Tailscale":                ":tailscale:",
 
 	// System / utility
 	"Setapp":             ":setapp:",
@@ -111,7 +115,7 @@ var appIcons = map[string]string{
 	"SF Symbols":         ":sf_symbols:",
 	"iStat Menus":        ":activity_monitor:",
 	"Activity Monitor":   ":activity_monitor:",
-	"CleanMyMac":         ":pearcleaner:",
+	"CleanMyMac":         ":cleanmymac:",
 	"DisplayBuddy":       ":desktop:",
 	"NotchNook":          ":default:",
 	"OpenIn":             ":default:",
@@ -124,11 +128,11 @@ var appIcons = map[string]string{
 	"Docker Desktop": ":docker:",
 
 	// Peripherals & hardware
-	"Stream Deck":              ":keyboard:",
-	"Elgato Stream Deck":       ":keyboard:",
+	"Stream Deck":              ":hyperkey:",
+	"Elgato Stream Deck":       ":hyperkey:",
 	"Bazecor":                  ":bazecor:",
-	"KeyCastr":                 ":keyboard:",
-	"logioptionsplus":          ":keyboard:",
+	"KeyCastr":                 ":hyperkey:",
+	"logioptionsplus":          ":hyperkey:",
 	"KDE Connect":              ":phone:",
 	"Poly Studio":              ":phone:",
 	"qFlipper":                 ":gear:",
