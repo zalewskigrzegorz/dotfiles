@@ -18,11 +18,12 @@ fi
 declare -A prompt=(
   [ci_fail]="short low two-tone descending UI error buzz, synth, dry, no reverb"
   [approval]="short bright rising three-note success chime, marimba, clean UI sound"
+  [ci_success]="short satisfying two-note ascending confirmation ding, glassy bell, clean UI success sound"
   [comment]="two clear bright plucked notification pings, loud and crisp, UI message sound"
   [ci_start]="punchy engine starting whoosh rising upward, loud short UI launch sound"
 )
 
-for kind in "${@:-ci_fail approval comment ci_start}"; do
+for kind in "${@:-ci_fail approval ci_success comment ci_start}"; do
   for k in $kind; do
     body=$(printf '{"text":"%s","duration_seconds":1,"prompt_influence":0.7}' "${prompt[$k]}")
     printf 'xi-api-key: %s\n' "$key" | curl -sS --fail-with-body -X POST \

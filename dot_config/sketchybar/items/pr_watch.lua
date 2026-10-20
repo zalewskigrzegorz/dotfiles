@@ -2,7 +2,7 @@ local colors = require("colors")
 local settings = require("settings")
 
 -- Actionable-PR chip:  <fix N>  <merge N>  <new-comment N>. Hidden when no PR of
--- mine needs action. PUSH-driven by bin/pr-watch (launchd, every 3 min) — no
+-- mine needs action. PUSH-driven by bin/pr-watch (launchd, every 60 s) — no
 -- timer here. border_color is set per-poll by pr-watch
 -- (red=needs fix, gold=new comment, green=ready to merge).
 -- Click (bin/pr-watch-open): LEFT → popup listing my open PRs from the
@@ -50,10 +50,11 @@ sbar.exec(repoll)
 -- Blink while ~/.cache/pr-watch-alerts.json holds unseen events (bin/pr-watch
 -- writes it, opening the popup clears it). Color = most important kind.
 local alerts_path = os.getenv("HOME") .. "/.cache/pr-watch-alerts.json"
-local kind_order = { "ci_fail", "approval", "comment", "ci_start" }
+local kind_order = { "ci_fail", "approval", "ci_success", "comment", "ci_start" }
 local kind_colors = {
     ci_fail = 0xffff6b9d,
     approval = 0xff50fa7b,
+    ci_success = 0xff50fa7b,
     comment = 0xff8be9fd,
     ci_start = 0xffffd700
 }
