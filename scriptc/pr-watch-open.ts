@@ -266,9 +266,8 @@ function rebuildRows(cachePath: string): void {
     const outstanding = entry.outstanding ?? 0;
     const suffix = outstanding > 0 ? `   ${G_COMMENT} ${outstanding}` : "";
     const url = entry.url ?? "";
-    const branch = entry.branch ?? "";
-    // right click → that branch's herdr workspace when one exists, else the browser
-    const click = `[ "$BUTTON" = right ] && '${process.argv[1]}' __focus '${branch}' || open '${url}'; sketchybar --set pr_watch popup.drawing=off`;
+    // only the numeric PR key reaches the shell; branch and url are read back from the cache
+    const click = `'${process.argv[1]}' __row ${Number(num)}`;
 
     spawnSync(
       "sketchybar",
@@ -360,8 +359,15 @@ function main(): void {
     backgroundRefresh(join(home(), ".cache", "pr-watch-last.json"));
     return;
   }
-  if (args[0] === "__focus") {
-    process.exit(focusBranch(args[1] ?? ""));
+  if (args[0] === "__row") {
+    // right click → that branch's herdr workspace when one exists, else the browser
+    const entry = loadCache(join(home(), ".cache", "pr-watch-last.json")).find(([n]) => n === args[1]);
+    const url = entry?.[1]?.url ?? "";
+    if (process.env.BUTTON !== "right" || focusBranch(entry?.[1]?.branch ?? "") !== 0) {
+      if (url.startsWith("https://github.com/")) spawnSync("open", [url], { stdio: "ignore" });
+    }
+    spawnSync("sketchybar", ["--set", "pr_watch", "popup.drawing=off"], { stdio: "ignore" });
+    return;
   }
 
   const button = process.env.BUTTON || "left";
