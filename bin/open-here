@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# open-here <open args> — `open`, then pull the window aerospace jumped to back onto the focused workspace.
+# An app with a window already parked on another workspace (System Settings on `mac`) reopens there otherwise.
+set -euo pipefail
+
+ws=$(aerospace list-workspaces --focused 2>/dev/null || true)
+open "$@"
+[ -n "$ws" ] || exit 0
+
+for _ in $(seq 20); do
+  sleep 0.15
+  now=$(aerospace list-workspaces --focused 2>/dev/null || true)
+  if [ -n "$now" ] && [ "$now" != "$ws" ]; then
+    aerospace move-node-to-workspace --focus-follows-window "$ws"
+    exit 0
+  fi
+done
