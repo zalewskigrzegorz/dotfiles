@@ -1,0 +1,35 @@
+{{- if eq .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Work Dockerfiles pull Docker Hardened Images from dhi.io, which refuses
+# anonymous pulls (401 "failed to fetch anonymous token") even on Colima.
+vault="{{ index . "onePasswordVault" | default "Dotfiles" }}"
+# "Docker Hub PAT - dhi.io (colima LDE)": op:// refs reject parentheses, so the id.
+item="wckkfxnqjwjetujzmob5po36ai"
+
+PATH="/opt/homebrew/bin:/usr/local/bin:${HOME}/.local/bin:$PATH"
+
+op_sa_file="${HOME}/.config/op/sa-token"
+if [[ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" && -f "$op_sa_file" ]]; then
+  OP_SERVICE_ACCOUNT_TOKEN=$(tr -d '[:space:]' < "$op_sa_file")
+  export OP_SERVICE_ACCOUNT_TOKEN
+fi
+
+command -v op >/dev/null 2>&1 || { echo "Skipping dhi.io login: op not on PATH."; exit 0; }
+command -v docker >/dev/null 2>&1 || exit 0
+timeout 5 docker info >/dev/null 2>&1 || { echo "Skipping dhi.io login: docker daemon not running (colima start, then sync)."; exit 0; }
+
+user=$(timeout 8 op read "op://${vault}/${item}/username" 2>/dev/null || true)
+token=$(timeout 8 op read "op://${vault}/${item}/credential" 2>/dev/null || true)
+if [[ -z "$user" || -z "$token" ]]; then
+  echo "Skipping dhi.io login: item ${item} (username + credential) not readable in vault ${vault}."
+  exit 0
+fi
+
+if printf '%s' "$token" | docker login dhi.io -u "$user" --password-stdin >/dev/null 2>&1; then
+  echo "dhi.io: logged in as ${user}"
+else
+  echo "dhi.io: docker login failed, the PAT in item ${item} may be expired or revoked."
+fi
+{{ end -}}
