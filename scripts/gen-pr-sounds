@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# gen-pr-sounds — one-off: generate the pr-watch alert sounds with ElevenLabs
+# Sound Effects (POST /v1/sound-generation) into assets/sounds/. Re-run only to
+# replace a sound; `gen-pr-sounds ci_fail` regenerates just that one.
+# Key: $ELEVENLABS_API_KEY, else the line in ~/.config/nushell/autoload/private.nu
+# (same lookup as bin/read-claude). The key goes to curl on stdin, never in argv.
+set -euo pipefail
+
+out="$(cd "$(dirname "$0")/.." && pwd)/assets/sounds"
+mkdir -p "$out"
+
+key="${ELEVENLABS_API_KEY:-}"
+if [ -z "$key" ]; then
+  key=$(sed -nE 's/.*ELEVENLABS_API_KEY"?[[:space:]]*[:=][[:space:]]*"([^"]+)".*/\1/p' "$HOME/.config/nushell/autoload/private.nu" 2>/dev/null | head -n1)
+fi
+[ -n "$key" ] || { echo "gen-pr-sounds: no ELEVENLABS_API_KEY" >&2; exit 1; }
+
+declare -A prompt=(
+  [ci_fail]="short low two-tone descending UI error buzz, synth, dry, no reverb"
+  [approval]="short bright rising three-note success chime, marimba, clean UI sound"
+  [comment]="two clear bright plucked notification pings, loud and crisp, UI message sound"
+  [ci_start]="punchy engine starting whoosh rising upward, loud short UI launch sound"
+)
+
+for kind in "${@:-ci_fail approval comment ci_start}"; do
+  for k in $kind; do
+    body=$(printf '{"text":"%s","duration_seconds":1,"prompt_influence":0.7}' "${prompt[$k]}")
+    printf 'xi-api-key: %s\n' "$key" | curl -sS --fail-with-body -X POST \
+      'https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_128' \
+      -H @- -H 'Content-Type: application/json' -d "$body" -o "$out/pr-$k.raw.mp3"
+    # the model's output level varies a lot (one came back 18 dB quieter); even them out
+    ffmpeg -hide_banner -loglevel error -y -i "$out/pr-$k.raw.mp3" -af loudnorm=I=-14:TP=-1 -ar 44100 -b:a 128k "$out/pr-$k.mp3"
+    rm "$out/pr-$k.raw.mp3"
+    echo "pr-$k.mp3 $(wc -c < "$out/pr-$k.mp3") bytes"
+  done
+done

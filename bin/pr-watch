@@ -1,7 +1,7 @@
 #!/usr/bin/env nu
 
 # pr-watch — poll GitHub for actionable PRs of mine, push state to the SketchyBar
-# `pr_watch` chip. Run by launchd every 3 min (com.greg.pr-watch). PUSH-driven:
+# `pr_watch` chip. Run by launchd every 60 s (com.greg.pr-watch). PUSH-driven:
 # ends with `sketchybar --set`.
 #
 # "Actionable" comes from the shared classifier (`work-pr actionable`) — a PR
@@ -53,6 +53,12 @@ const WORKPR_NU = (
 )
 source $WORKPR_NU
 
+# Event detection (ci_fail / approval / comment / ci_start), see that file.
+const ALERTS_NU = (path self "pr-watch-alerts.nu")
+source $ALERTS_NU
+const ALERTS_PATH = ($nu.home-dir | path join ".cache" "pr-watch-alerts.json")
+const SOUNDS_DIR = (path self "../assets/sounds")
+
 # Work repo comes from the private work.env (restored from 1Password by `sync`);
 # never hardcode org/repo names here — this file is public.
 def work-repo []: nothing -> string {
@@ -64,7 +70,7 @@ def work-repo []: nothing -> string {
     }
     open $f | lines | where {|l| $l starts-with "WORK_MAIN_REPO="} | first | str replace "WORK_MAIN_REPO=" ""
 }
-const FIELDS = "number,title,isDraft,reviewDecision,mergeable,statusCheckRollup,headRefName,url"
+const FIELDS = "number,title,isDraft,reviewDecision,mergeable,statusCheckRollup,headRefName,url,latestReviews"
 # My GitHub login — comments by me never count as "new" (self-clear on reply).
 const ME = "zalewskigrzegorz"
 
@@ -74,6 +80,7 @@ const G_FIX = "\u{f0ad}"     # wrench   — changes req / fix CI (needs your fix
 const G_MERGE = "\u{f00c}"   # check    — ready to merge
 const G_COMMENT = "\u{f075}" # comment  — new unresolved thread since last poll
 const G_RUN = "\u{f017}"     # clock    — CI run in progress (e2e / pipeline)
+const G_BELL = "\u{f0f3}"    # bell     — unseen event, nothing else to show
 
 # State colors — dynamic. Mirror docs/mocha-neon-palette.md.
 const C_FIX = "0xffff8c42"   # peach — needs your fix (urgent, but not agents' red)
@@ -135,6 +142,23 @@ def outstanding-comments [num: int]: nothing -> any {
     { out: ($threads_out + (if $conv_out { 1 } else { 0 })), unresolved: $unresolved_any }
 }
 
+# Diff this poll against the previous cache, ring once, and queue the events for
+# the popup unless Greg is already looking at it. Returns the unseen events.
+def raise-alerts [prev: record, cur: record]: nothing -> record {
+    let unseen = (try { open $ALERTS_PATH } catch { {} })
+    let events = (pr-alert diff $prev $cur (date now | format date "%+"))
+    if ($events | is-empty) { return $unseen }
+    let sound = ($SOUNDS_DIR | path join $"pr-(pr-alert sound $events).mp3")
+    if ($sound | path exists) { ^sh -c $"afplay '($sound)' >/dev/null 2>&1 &" }
+    if (which sketchybar | is-empty) { return $unseen }
+    let popup = (try { ^sketchybar --query pr_watch | from json | get -o popup.drawing } catch { "off" })
+    if $popup == "on" { return $unseen }
+    let merged = (pr-alert merge $unseen $events)
+    $merged | to json | save -f $ALERTS_PATH
+    ^sketchybar --trigger pr_watch_alert | ignore
+    $merged
+}
+
 def main [] {
     let cache_path = ($env.HOME | path join ".cache" "pr-watch-last.json")
     let prev = (if ($cache_path | path exists) {
@@ -165,6 +189,7 @@ def main [] {
         let out = (if $cur == null { $prev_out } else { $cur.out })
         let unres = (if $cur == null { $prev_unres } else { $cur.unresolved })
         let c = (work-pr classify $pr --unresolved $unres --outstanding $out)
+        let snap = (pr-alert snapshot $pr $out)
         {
             number: $c.number,
             action: $c.action,
@@ -174,17 +199,24 @@ def main [] {
             actionable: $c.actionable,
             outstanding: $out,
             unresolved: $unres,
+            failed: $snap.failed,
+            failed_urls: $snap.failed_urls,
+            pending: $snap.pending,
+            approvers: $snap.approvers,
         }
     })
 
     # Persist cache (fallback for transient gh/GraphQL failures).
     let cache = ($enriched | reduce -f {} { |r, acc|
         $acc | insert ($r.number | into string) {
-            action: $r.action, outstanding: $r.outstanding, unresolved: $r.unresolved, actionable: $r.actionable, title: $r.title, url: $r.url, branch: $r.branch
+            action: $r.action, outstanding: $r.outstanding, unresolved: $r.unresolved, actionable: $r.actionable, title: $r.title, url: $r.url, branch: $r.branch,
+            failed: $r.failed, failed_urls: $r.failed_urls, pending: $r.pending, approvers: $r.approvers
         }
     })
     mkdir ($cache_path | path dirname)
     $cache | to json | save -f $cache_path
+
+    let unseen = (raise-alerts $prev $cache)
 
     # Outstanding comments surface on ANY PR; fix/merge counters only from
     # actionable PRs. n_comments = total comments still awaiting my reply/resolve.
@@ -194,7 +226,7 @@ def main [] {
     let act = ($enriched | where actionable)
     let n_comments = ($enriched | get outstanding | math sum)
     let n_run = ($enriched | where {|r| (work-pr bucket $r.action) == "ci"} | length)
-    if ($act | is-empty) and ($n_comments == 0) and ($n_run == 0) {
+    if ($act | is-empty) and ($n_comments == 0) and ($n_run == 0) and ($unseen | is-empty) {
         set-chip ["drawing=off"]
         return
     }
@@ -207,7 +239,8 @@ def main [] {
     if $n_merge > 0 { $parts = ($parts | append $"($G_MERGE) ($n_merge)") }
     if $n_comments > 0 { $parts = ($parts | append $"($G_COMMENT) ($n_comments)") }
     if $n_run > 0   { $parts = ($parts | append $"($G_RUN) ($n_run)") }
-    let label = ($parts | str join "   ")
+    # only an unseen event keeps the chip up: show a bell so it has something to blink
+    let label = (if ($parts | is-empty) { $G_BELL } else { $parts | str join "   " })
 
     # Urgency color drives BOTH border and label text (single label can't color
     # per-segment): peach (needs fix) > sky (unanswered comment) > gold (CI
