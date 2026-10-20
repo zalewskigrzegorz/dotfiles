@@ -789,6 +789,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	listener.(*net.UnixListener).SetUnlinkOnClose(false)
+	ownSock, _ := os.Stat(socketPath)
 
 	// B1: graceful shutdown + SIGHUP reload
 	sigCh := make(chan os.Signal, 2)
@@ -823,7 +825,10 @@ func main() {
 			}
 			st.mu.Unlock()
 			_ = listener.Close()
-			_ = os.Remove(socketPath)
+			// A newer watcher may already own the path; unlinking it would leave that one deaf.
+			if cur, err := os.Stat(socketPath); err == nil && ownSock != nil && os.SameFile(cur, ownSock) {
+				_ = os.Remove(socketPath)
+			}
 			return
 		}
 	}
