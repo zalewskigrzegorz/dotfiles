@@ -50,6 +50,8 @@ echo "free: $(gib "$start")"
 if command -v workctl >/dev/null; then
   before=$(avail_k)
   workctl prune # fzf picker; without a TTY it only lists the candidates
+  # workctl deletes removed trees in the background; `[.]` keeps pgrep off this shell
+  timeout 300 sh -c 'while pgrep -f "rm -rf .*/[.]rm-" >/dev/null; do sleep 1; done'
   echo "✅ worktrees: $(gain $(($(avail_k) - before)))"
 fi
 
