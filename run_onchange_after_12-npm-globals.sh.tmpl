@@ -26,6 +26,8 @@ tools=(
              # Experimental (0.0.x) — pin nothing yet, just track latest.
   "@wallabyjs/cli@latest"  # `wallaby-skill` for agent-skills/wallaby-cli. Back 2026-10-13: since
                            # 1.0.x the CLI starts Wallaby in the background, no editor needed.
+  "basti"  # basti-app/basti — AWS bastion tunnels (`basti connect`), prod DB access;
+           # completions in dot_config/nushell/autoload/basti.nu
 )
 
 for tool in "${tools[@]}"; do
