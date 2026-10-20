@@ -4,12 +4,13 @@
 # snapshot with this one yields at most ONE event per PR (Greg: "1 PR = 1 event"):
 #   ci_fail   a check failed that was not failed before (second shard counts)
 #   approval  a new login approved
+#   ci_success   checks stopped running and none is failed
 #   comment   outstanding-comment count grew
 #   ci_start  checks went from none pending to some pending
 # A PR without a previous snapshot (first run, new PR, pre-alerts cache) yields
 # nothing, so nothing rings on stale state. Tests: scripts/test-pr-watch-alerts.nu
 
-const PR_ALERT_PRIORITY = {ci_fail: 0, approval: 1, comment: 2, ci_start: 3}
+const PR_ALERT_PRIORITY = {ci_fail: 0, approval: 1, ci_success: 2, comment: 3, ci_start: 4}
 
 # Snapshot fields kept in the pr-watch cache for one `gh pr list` row.
 def "pr-alert snapshot" [pr: record, out: int]: nothing -> record {
@@ -46,6 +47,8 @@ def "pr-alert diff" [prev: record, cur: record, now: string]: nothing -> record 
             {kind: "ci_fail", text: $n, url: ($c.failed_urls | get -o $n | default "")}
         } else if ($new_approvers | is-not-empty) {
             {kind: "approval", text: ($new_approvers | str join ", "), url: ""}
+        } else if $p.pending and (not $c.pending) and ($c.failed | is-empty) {
+            {kind: "ci_success", text: "", url: ""}
         } else if $c.outstanding > ($p | get -o outstanding | default 0) {
             {kind: "comment", text: "", url: ""}
         } else if $c.pending and (not $p.pending) {

@@ -60,17 +60,19 @@ interface AlertEvent {
 // "shown" file (so a background rebuild still draws them) and empties the queue.
 const ALERTS = join(process.env.HOME ?? "", ".cache", "pr-watch-alerts.json");
 const SHOWN = join(process.env.HOME ?? "", ".cache", "pr-watch-alerts-shown.json");
-const KIND_ORDER = ["ci_fail", "approval", "comment", "ci_start"];
+const KIND_ORDER = ["ci_fail", "approval", "ci_success", "comment", "ci_start"];
 // the row's icon says what happened; the label keeps only the job name / login
 const KIND_GLYPH: Record<string, string> = {
   ci_fail: "\u{f00d}", // xmark
   approval: "\u{f164}", // thumbs up
+  ci_success: "\u{f00c}", // check
   comment: "\u{f075}", // comment
   ci_start: "\u{f04b}", // play
 };
 const KIND_COLOR: Record<string, string> = {
   ci_fail: C_CONF,
   approval: C_MERGE,
+  ci_success: C_MERGE,
   comment: C_NEW,
   ci_start: C_CI,
 };

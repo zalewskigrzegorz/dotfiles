@@ -50,6 +50,13 @@ def test_comment [] {
     assert equal $ev.text ""
 }
 
+def test_ci_success [] {
+    let ev = (pr-alert diff {"7": (snap --pending)} {"7": (snap)} $NOW | get "7")
+    assert equal $ev.kind "ci_success"
+    # finished red is a fail, never a success
+    assert equal (pr-alert diff {"7": (snap --pending --failed ["a"])} {"7": (snap --failed ["a"])} $NOW) {}
+}
+
 def test_closed_pr [] {
     assert equal (pr-alert diff {"7": (snap)} {} $NOW) {}
 }
@@ -100,6 +107,7 @@ def main [] {
         [ci_start, {|| test_ci_start }]
         [approval_and_comment_same_poll, {|| test_approval_and_comment_same_poll }]
         [comment, {|| test_comment }]
+        [ci_success, {|| test_ci_success }]
         [closed_pr, {|| test_closed_pr }]
         [merge_priority, {|| test_merge_priority }]
         [sound, {|| test_sound }]
