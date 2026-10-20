@@ -5,6 +5,7 @@
 //               "#num  title  <comment count>". Clicking a row opens that PR
 //               in the browser; right-clicking it focuses the herdr workspace
 //               on that branch, falling back to the browser when none exists.
+//               Event rows above the list click the same way.
 // RIGHT click → gh-dash flow: open/focus a herdr workspace running `gh dash`
 //               (my work PRs). Reuses an existing workspace if one is open.
 //               No-ops cleanly if the herdr server isn't running.
@@ -444,11 +445,14 @@ function main(): void {
     return;
   }
   if (args[0] === "__ev") {
-    // a failed check opens its job log, everything else the PR
+    // like a PR row: right → the branch's herdr workspace; left (or no workspace)
+    // → a failed check's job log, everything else the PR
     const ev = readEvents(SHOWN).find((e) => String(Number(e.num ?? 0)) === args[1]);
     const pr = loadCache(join(home(), ".cache", "pr-watch-last.json")).find(([n]) => n === args[1]);
-    const url = ev?.url || pr?.[1]?.url || "";
-    if (url.startsWith("https://github.com/")) spawnSync("open", [url], { stdio: "ignore" });
+    if (process.env.BUTTON !== "right" || focusBranch(pr?.[1]?.branch ?? "") !== 0) {
+      const url = ev?.url || pr?.[1]?.url || "";
+      if (url.startsWith("https://github.com/")) spawnSync("open", [url], { stdio: "ignore" });
+    }
     spawnSync("sketchybar", ["--set", "pr_watch", "popup.drawing=off"], { stdio: "ignore" });
     return;
   }
