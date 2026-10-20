@@ -42,3 +42,6 @@ sbar.add("item", "pr_watch", {
     },
     click_script = os.getenv("HOME") .. "/Code/dotfiles/bin/pr-watch-open"
 })
+
+-- the item starts hidden; poll now instead of waiting up to 3 min for launchd
+sbar.exec("launchctl kickstart gui/$(id -u)/com.greg.pr-watch")

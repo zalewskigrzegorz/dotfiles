@@ -3,7 +3,8 @@
 // LEFT click  → toggle a popup under the chip listing every open PR from the
 //               pr-watch cache (~/.cache/pr-watch-last.json): action glyph +
 //               "#num  title  <comment count>". Clicking a row opens that PR
-//               in the browser and closes the popup. No herdr dependency.
+//               in the browser; right-clicking it focuses the herdr workspace
+//               on that branch, falling back to the browser when none exists.
 // RIGHT click → gh-dash flow: open/focus a herdr workspace running `gh dash`
 //               (my work PRs). Reuses an existing workspace if one is open.
 //               No-ops cleanly if the herdr server isn't running.
@@ -53,6 +54,7 @@ interface CacheEntry {
   actionable?: boolean;
   title?: string;
   url?: string;
+  branch?: string;
 }
 
 function home(): string {
@@ -195,6 +197,35 @@ function ghDash(): void {
   spawnSync("open", ["-a", "Ghostty"], { stdio: "ignore" });
 }
 
+// Focus the herdr workspace whose worktree has `branch` checked out. Exit 1 when
+// none does, so the row's click_script falls back to the browser.
+function focusBranch(branch: string): number {
+  const herdrBin = process.env.HERDR_BIN || "/opt/homebrew/bin/herdr";
+  if (branch === "" || !isExecutable(herdrBin)) return 1;
+  const listRes = spawnSync(herdrBin, ["workspace", "list"], { encoding: "utf8" });
+  if (listRes.status !== 0 || !listRes.stdout) return 1;
+  let workspaces: { workspace_id?: string; worktree?: { checkout_path?: string } }[] = [];
+  try {
+    const data = JSON.parse(listRes.stdout) as {
+      result?: { workspaces?: { workspace_id?: string; worktree?: { checkout_path?: string } }[] };
+    };
+    workspaces = data?.result?.workspaces ?? [];
+  } catch {
+    return 1;
+  }
+  for (const w of workspaces) {
+    const path = w?.worktree?.checkout_path ?? "";
+    if (path === "" || !w?.workspace_id) continue;
+    const head = spawnSync("git", ["-C", path, "branch", "--show-current"], { encoding: "utf8" });
+    if (head.status === 0 && (head.stdout ?? "").trim() === branch) {
+      spawnSync(herdrBin, ["workspace", "focus", w.workspace_id], { stdio: "ignore" });
+      spawnSync("open", ["-a", "Ghostty"], { stdio: "ignore" });
+      return 0;
+    }
+  }
+  return 1;
+}
+
 function loadCache(cachePath: string): [string, CacheEntry][] {
   if (!existsSync(cachePath)) return [];
   let raw: string;
@@ -235,6 +266,9 @@ function rebuildRows(cachePath: string): void {
     const outstanding = entry.outstanding ?? 0;
     const suffix = outstanding > 0 ? `   ${G_COMMENT} ${outstanding}` : "";
     const url = entry.url ?? "";
+    const branch = entry.branch ?? "";
+    // right click → that branch's herdr workspace when one exists, else the browser
+    const click = `[ "$BUTTON" = right ] && '${process.argv[1]}' __focus '${branch}' || open '${url}'; sketchybar --set pr_watch popup.drawing=off`;
 
     spawnSync(
       "sketchybar",
@@ -255,7 +289,7 @@ function rebuildRows(cachePath: string): void {
         `label.color=${C_TEXT}`,
         `label.font=${FONT}:Regular:12.0`,
         "label.padding_right=10",
-        `click_script=open '${url}'; sketchybar --set pr_watch popup.drawing=off`,
+        `click_script=${click}`,
       ],
       { stdio: "ignore" },
     );
@@ -325,6 +359,9 @@ function main(): void {
   if (args[0] === "__bg-refresh") {
     backgroundRefresh(join(home(), ".cache", "pr-watch-last.json"));
     return;
+  }
+  if (args[0] === "__focus") {
+    process.exit(focusBranch(args[1] ?? ""));
   }
 
   const button = process.env.BUTTON || "left";
