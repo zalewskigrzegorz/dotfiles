@@ -69,6 +69,13 @@ Steps 1–3 happen on the old Mac, the rest on the new one.
     ultrawide. On the laptop screen alone (3024 × 1964, about 1512 pt wide) the items
     overflow and the front-app label covers the CPU widget. Hiding items there is not
     wanted: the bar has to stay usable without monitors, so it needs a laptop layout.
+18. **Google Drive first, Finder favorites second.** Brewfile installs the app; launch
+    it, sign in with the same Google account (the `GoogleDrive-<account>` path is in
+    favorites, CleanShot and agent rules), allow the File Provider extension. Then copy
+    `~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.FavoriteItems.sfl4`
+    from the old Mac: `killall Finder`, copy, `killall sharedfilelistd`, `open -a Finder`.
+    Bookmarks resolve by path, so it works with the same username; a Drive folder whose
+    mount is missing may be dropped from the list.
 
 Afterwards: regenerate the 1Password Secret Key if it was typed anywhere, and turn
 Remote Login off.
