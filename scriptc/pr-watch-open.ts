@@ -25,7 +25,7 @@
 // the shell string.
 
 import { spawnSync } from "node:child_process";
-import { accessSync, constants, existsSync, readFileSync } from "node:fs";
+import { accessSync, constants, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const FONT = "JetBrainsMono Nerd Font";
@@ -47,6 +47,38 @@ const C_TEXT = "0xfff0f0ff"; // label text
 // never made it into the source. Kept empty here to match current behavior
 // byte-for-byte; fixing it is a separate decision for Greg to make.
 const G_COMMENT = "";
+
+interface AlertEvent {
+  ts?: string;
+  num?: number;
+  kind?: string;
+  text?: string;
+  url?: string;
+}
+
+// bin/pr-watch queues unseen events here; opening the popup moves them to the
+// "shown" file (so a background rebuild still draws them) and empties the queue.
+const ALERTS = join(process.env.HOME ?? "", ".cache", "pr-watch-alerts.json");
+const SHOWN = join(process.env.HOME ?? "", ".cache", "pr-watch-alerts-shown.json");
+const KIND_ORDER = ["ci_fail", "approval", "comment", "ci_start"];
+const KIND_COLOR: Record<string, string> = {
+  ci_fail: C_CONF,
+  approval: C_MERGE,
+  comment: C_NEW,
+  ci_start: C_CI,
+};
+
+function readEvents(path: string): AlertEvent[] {
+  if (!existsSync(path)) return [];
+  try {
+    const data = JSON.parse(readFileSync(path, "utf8")) as Record<string, AlertEvent>;
+    const list = Object.values(data);
+    list.sort((a, b) => KIND_ORDER.indexOf(a.kind ?? "") - KIND_ORDER.indexOf(b.kind ?? ""));
+    return list;
+  } catch {
+    return [];
+  }
+}
 
 interface CacheEntry {
   action?: string;
@@ -253,7 +285,45 @@ function loadCache(cachePath: string): [string, CacheEntry][] {
 }
 
 function rebuildRows(cachePath: string): void {
-  spawnSync("sketchybar", ["--remove", "/pr_watch\\.pr\\..*/"], { stdio: "ignore" });
+  // sketchybar's item regex is basic POSIX: no `(a|b)`, so one remove per prefix
+  spawnSync("sketchybar", ["--remove", "/pr_watch\\.pr\\..*/", "--remove", "/pr_watch\\.ev\\..*/"], { stdio: "ignore" });
+
+  const events = readEvents(SHOWN);
+  for (const ev of events) {
+    const num = Number(ev.num ?? 0);
+    const time = (ev.ts ?? "").slice(11, 16);
+    spawnSync(
+      "sketchybar",
+      [
+        "--add", "item", `pr_watch.ev.${num}`, "popup.pr_watch",
+        "--set", `pr_watch.ev.${num}`,
+        "icon=●",
+        `icon.color=${KIND_COLOR[ev.kind ?? ""] ?? C_MUTED}`,
+        `icon.font=${FONT}:Bold:12.0`,
+        "icon.padding_left=10",
+        `label=#${num}  ${truncate(ev.text ?? "")}  ${time}`,
+        `label.color=${C_TEXT}`,
+        `label.font=${FONT}:Bold:12.0`,
+        "label.padding_right=10",
+        `click_script='${process.argv[1]}' __ev ${num}`,
+      ],
+      { stdio: "ignore" },
+    );
+  }
+  if (events.length > 0) {
+    spawnSync(
+      "sketchybar",
+      [
+        "--add", "item", "pr_watch.ev.sep", "popup.pr_watch",
+        "--set", "pr_watch.ev.sep",
+        "icon.drawing=off",
+        "label=────────────────",
+        `label.color=${C_MUTED}`,
+        "label.padding_left=10",
+      ],
+      { stdio: "ignore" },
+    );
+  }
 
   const entries = loadCache(cachePath);
   let added = 0;
@@ -345,6 +415,11 @@ function popup(): void {
     // popup is still open. The `__bg-refresh` re-invocation guards recursion.
     const self = process.argv[1];
     spawnSync("sh", ["-c", `"${self}" __bg-refresh >/dev/null 2>&1 &`], { stdio: "ignore" });
+
+    // seen now: show this batch, empty the queue, stop the blink
+    writeFileSync(SHOWN, existsSync(ALERTS) ? readFileSync(ALERTS, "utf8") : "{}");
+    writeFileSync(ALERTS, "{}");
+    spawnSync("sketchybar", ["--trigger", "pr_watch_alert"], { stdio: "ignore" });
   }
 
   // rebuild rows from scratch each open — cache may have changed since
@@ -357,6 +432,15 @@ function main(): void {
   const args = process.argv.slice(2);
   if (args[0] === "__bg-refresh") {
     backgroundRefresh(join(home(), ".cache", "pr-watch-last.json"));
+    return;
+  }
+  if (args[0] === "__ev") {
+    // a failed check opens its job log, everything else the PR
+    const ev = readEvents(SHOWN).find((e) => String(Number(e.num ?? 0)) === args[1]);
+    const pr = loadCache(join(home(), ".cache", "pr-watch-last.json")).find(([n]) => n === args[1]);
+    const url = ev?.url || pr?.[1]?.url || "";
+    if (url.startsWith("https://github.com/")) spawnSync("open", [url], { stdio: "ignore" });
+    spawnSync("sketchybar", ["--set", "pr_watch", "popup.drawing=off"], { stdio: "ignore" });
     return;
   }
   if (args[0] === "__row") {
