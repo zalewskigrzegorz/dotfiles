@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Install + (re)load the com.greg.pr-watch LaunchAgent: polls GitHub every 3 min
+# Install + (re)load the com.greg.pr-watch LaunchAgent: polls GitHub every 60 s
 # via bin/pr-watch and pushes the SketchyBar pr_watch chip. Mac-only. Self-
 # contained (emits the plist inline) so `chezmoi apply` reproduces it on a fresh
 # machine — mirrors run_onchange_after_20's approach.
 #
 # Bump this version comment to force re-run when the plist/interval changes.
-# Version: 2026-06-24.1
+# Version: 2026-10-20.1
 set -euo pipefail
 
 {{ if eq .chezmoi.os "darwin" -}}
@@ -32,7 +32,7 @@ cat > "$plist_file" <<PLIST
   <key>RunAtLoad</key>
   <true/>
   <key>StartInterval</key>
-  <integer>180</integer>
+  <integer>60</integer>
   <key>StandardOutPath</key>
   <string>/tmp/com.greg.pr-watch.log</string>
   <key>StandardErrorPath</key>
@@ -41,11 +41,10 @@ cat > "$plist_file" <<PLIST
 </plist>
 PLIST
 
-if launchctl list | grep -q "com.greg.pr-watch"; then
-  launchctl unload "$plist_file" || true
-fi
-launchctl load "$plist_file"
-echo "[ok] com.greg.pr-watch loaded (poll every 180s)"
+# load on a loaded job fails with "Input/output error" and keeps the old interval
+launchctl bootout "gui/$(id -u)/com.greg.pr-watch" 2>/dev/null || true
+launchctl bootstrap "gui/$(id -u)" "$plist_file"
+echo "[ok] com.greg.pr-watch loaded (poll every 60s)"
 {{ else -}}
 exit 0
 {{ end -}}
