@@ -91,8 +91,10 @@ def __pr_last_command [trigger: string] {
 }
 
 export def __pr_inline [] {
+    # empty prompt after a failure (the "did you mean" hint) → fix the last command
     let input = (commandline)
-    let output = (__pr_base inline $input)
+    let input = if ($input | str trim | is-empty) { __pr_last_command "" } else { $input }
+    let output = (__pr_base inline $input | str trim)
 
     if ($output | is-not-empty) {
         commandline edit --replace $output
