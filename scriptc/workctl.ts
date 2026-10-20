@@ -1857,7 +1857,14 @@ function removeWorktree(root: string, path: string, branch: string, branchDel: s
     err(`git worktree remove failed: ${r.err.trim()}`);
     return 1;
   }
-  if (existsSync(trash) && run("rm", ["-rf", trash]).code !== 0) err(`⚠️  could not delete ${trash}`);
+  // Detached, so the workspace closes now: a synchronous delete kept the
+  // workspace's shells in the moved-away dir for ~45 s, each prompt failing
+  // with `$env.PWD points to a non-existent directory` (2026-10-20). Only a
+  // new session survives `herdr workspace close`, which kills the pane's
+  // process group, `nohup` and a plain `&` included.
+  // shortcut: a failed delete leaves `.rm-*` behind unreported, sweep them if they pile up.
+  if (existsSync(trash))
+    sh(`perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV' rm -rf ${shq(trash)} >/dev/null 2>&1 </dev/null &`);
   if (existsSync(path) && run("rm", ["-rf", path]).code !== 0) {
     err(`⚠️  could not delete the leftover ${path}`);
     return 1;
