@@ -78,8 +78,8 @@ local function on_alert()
     if alert_color then
         pr_watch:set({ drawing = true, update_freq = 1 })
     elseif was then
+        -- the popup's background poll puts pr-watch's own colors back
         pr_watch:set({ update_freq = 0, background = { border_width = 1 } })
-        sbar.exec(repoll) -- pr-watch puts its own border color back
     end
 end
 pr_watch:subscribe("pr_watch_alert", on_alert)

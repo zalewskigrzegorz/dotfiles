@@ -7,8 +7,8 @@ source $ALERTS_NU
 
 const NOW = "2026-10-20T13:42:00+02:00"
 
-def snap [--failed: list<string> = [], --pending, --approvers: list<string> = [], --out: int = 0] {
-    {failed: $failed, failed_urls: ($failed | reduce -f {} {|n, acc| $acc | insert $n $"https://github.com/o/r/actions/runs/1/job/($n | str length)"}), pending: $pending, approvers: $approvers, outstanding: $out}
+def snap [--failed: list<string> = [], --pending, --approvers: list<string> = [], --out: int = 0, --green] {
+    {green: $green, failed: $failed, failed_urls: ($failed | reduce -f {} {|n, acc| $acc | insert $n $"https://github.com/o/r/actions/runs/1/job/($n | str length)"}), pending: $pending, approvers: $approvers, outstanding: $out}
 }
 
 def test_no_baseline [] {
@@ -51,8 +51,10 @@ def test_comment [] {
 }
 
 def test_ci_success [] {
-    let ev = (pr-alert diff {"7": (snap --pending)} {"7": (snap)} $NOW | get "7")
+    let ev = (pr-alert diff {"7": (snap --pending)} {"7": (snap --green)} $NOW | get "7")
     assert equal $ev.kind "ci_success"
+    # a cancelled run or an empty rollup right after a push is not green
+    assert equal (pr-alert diff {"7": (snap --pending)} {"7": (snap)} $NOW) {}
     # finished red is a fail, never a success
     assert equal (pr-alert diff {"7": (snap --pending --failed ["a"])} {"7": (snap --failed ["a"])} $NOW) {}
 }
@@ -96,6 +98,11 @@ def test_snapshot [] {
     assert equal $s.pending true
     assert equal $s.approvers ["kasia"]
     assert equal $s.outstanding 3
+    assert equal $s.green false
+    let ok = {statusCheckRollup: [{name: "a", status: "COMPLETED", conclusion: "SUCCESS"} {name: "b", status: "COMPLETED", conclusion: "SKIPPED"}]}
+    assert equal (pr-alert snapshot $ok 0).green true
+    assert equal (pr-alert snapshot {statusCheckRollup: [{name: "a", status: "COMPLETED", conclusion: "CANCELLED"}]} 0).green false
+    assert equal (pr-alert snapshot {statusCheckRollup: []} 0).green false
 }
 
 def main [] {

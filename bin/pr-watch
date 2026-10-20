@@ -57,6 +57,7 @@ source $WORKPR_NU
 const ALERTS_NU = (path self "pr-watch-alerts.nu")
 source $ALERTS_NU
 const ALERTS_PATH = ($nu.home-dir | path join ".cache" "pr-watch-alerts.json")
+const SHOWN_PATH = ($nu.home-dir | path join ".cache" "pr-watch-alerts-shown.json")
 const SOUNDS_DIR = (path self "../assets/sounds")
 
 # Work repo comes from the private work.env (restored from 1Password by `sync`);
@@ -152,7 +153,12 @@ def raise-alerts [prev: record, cur: record]: nothing -> record {
     if ($sound | path exists) { ^sh -c $"afplay '($sound)' >/dev/null 2>&1 &" }
     if (which sketchybar | is-empty) { return $unseen }
     let popup = (try { ^sketchybar --query pr_watch | from json | get -o popup.drawing } catch { "off" })
-    if $popup == "on" { return $unseen }
+    if $popup == "on" {
+        # Greg is looking: no blink, but the rows must still reach the open popup's rebuild
+        let shown = (try { open $SHOWN_PATH } catch { {} })
+        pr-alert merge $shown $events | to json | save -f $SHOWN_PATH
+        return $unseen
+    }
     let merged = (pr-alert merge $unseen $events)
     $merged | to json | save -f $ALERTS_PATH
     ^sketchybar --trigger pr_watch_alert | ignore
@@ -203,6 +209,7 @@ def main [] {
             failed_urls: $snap.failed_urls,
             pending: $snap.pending,
             approvers: $snap.approvers,
+            green: $snap.green,
         }
     })
 
@@ -210,7 +217,7 @@ def main [] {
     let cache = ($enriched | reduce -f {} { |r, acc|
         $acc | insert ($r.number | into string) {
             action: $r.action, outstanding: $r.outstanding, unresolved: $r.unresolved, actionable: $r.actionable, title: $r.title, url: $r.url, branch: $r.branch,
-            failed: $r.failed, failed_urls: $r.failed_urls, pending: $r.pending, approvers: $r.approvers
+            failed: $r.failed, failed_urls: $r.failed_urls, pending: $r.pending, approvers: $r.approvers, green: $r.green
         }
     })
     mkdir ($cache_path | path dirname)
