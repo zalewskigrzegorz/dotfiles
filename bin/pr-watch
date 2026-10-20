@@ -170,6 +170,7 @@ def main [] {
             action: $c.action,
             title: $c.title,
             url: $c.url,
+            branch: $pr.headRefName,
             actionable: $c.actionable,
             outstanding: $out,
             unresolved: $unres,
@@ -179,7 +180,7 @@ def main [] {
     # Persist cache (fallback for transient gh/GraphQL failures).
     let cache = ($enriched | reduce -f {} { |r, acc|
         $acc | insert ($r.number | into string) {
-            action: $r.action, outstanding: $r.outstanding, unresolved: $r.unresolved, actionable: $r.actionable, title: $r.title, url: $r.url
+            action: $r.action, outstanding: $r.outstanding, unresolved: $r.unresolved, actionable: $r.actionable, title: $r.title, url: $r.url, branch: $r.branch
         }
     })
     mkdir ($cache_path | path dirname)
