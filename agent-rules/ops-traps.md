@@ -181,6 +181,18 @@ sessions are open. Test a renderer in one new session only:
 `with-env {CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN: '1'} { claude }`. To recover,
 set `tui` back in `~/.claude/settings.json`; sessions redraw on the next key.
 
+The `env` block reloads live the same way. `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN`
+put there through `.chezmoitemplates/claude-settings.json` + `bin/sync` blanked
+every open session within seconds (928081b1, 2026-10-21, reverted in 47a4241).
+A renderer flag goes into the process env (`with-env` for one session, nushell
+`env.nu` for new ones), never into settings.json. Removing a key from the
+template does not remove it from the live file: `modify_settings.json.tmpl`
+merges keys in, so `jq 'del(.env.X)'` the live file as well. The scroll jumps
+themselves are upstream anthropics/claude-code#34845 (fullscreen tui), not the
+setup; Greg chose to wait for the fix rather than run without the alt screen.
+The live-reload blanking is filed as anthropics/claude-code#104064. Blank
+sessions do not come back after the revert: `/exit` + `claude --continue`.
+
 ## A cheap Haiku call from a script or hook
 
 `claude -p --model claude-haiku-5-5 --no-session-persistence --strict-mcp-config
