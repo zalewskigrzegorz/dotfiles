@@ -19,6 +19,10 @@ explicitly `bsk tab borrow`ed. Policy lives in
 - CLI + daemon → `~/.local/bin/bsk`, state in `~/.bsk` (runtime only, not tracked).
   Upgrade with `bsk update`; health check `bsk doctor` (all rows `ok`/`N/A`).
   `agent skill up to date → N/A` is expected — see the skill bullet below.
+- `bin/bsk` (copied to `~/bin` by stage 28, ahead on PATH) wraps that CLI: it
+  handles only `session start`, parking the Agent Window on aerospace
+  workspace `test` (8), and passes everything else through. If `which bsk`
+  still shows `~/.local/bin/bsk`, restart the shell or run `hash -r`.
 - Extension is **hand-installed** from the [Chrome Web Store](https://chromewebstore.google.com/detail/hhcmgoofomhgciiibhipgmgkgnoenaoi)
   (id `hhcmgoofomhgciiibhipgmgkgnoenaoi`) and lives in Comet's `Default` profile.
   A script cannot install it — `0 browsers connected` in `doctor` means it's off.

@@ -82,4 +82,19 @@ colors — keep W=0; true OFF = `0 0 0 0`.
 3. For colors: propose the scheme; Greg applies in Bazecor.
 4. After substantial changes, offer to commit the layout export to dotfiles.
 
+## Defy halves stuck in bootloader (`isBootloader: true`)
+
+From Dygma support's mail, 2026-10-21; not verified past "Enable Features"
+(fa747937). Greg runs every step himself; never flash for him.
+
+1. Export a backup to `~/Desktop/` (Bazecor › Preferences › Backups › Export,
+   saves as `Untitled.json`), quit Bazecor.
+2. Support ships FlasherTools (arm64 dmg, check `codesign -dv`:
+   `TeamIdentifier=2X7P6KJ6LJ`) and a "Sides loader Defy" firmware folder.
+3. FlasherTools menu bar › Advanced › Enable Features; only then "Skip serial
+   number input" and the folder picker appear. Pick the outer folder, tick
+   Force sides flash, Flash Neuron, then Flash Sides.
+4. On each half press the red corner key until it goes green.
+5. Bazecor firmware update, then Load Backup.
+
 $ARGUMENTS

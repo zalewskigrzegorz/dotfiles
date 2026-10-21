@@ -148,6 +148,13 @@ About 15 popups were rejected in one week. Every one broke one of these:
   decision to make; give the ETA once at the start. Nine status turns in a row
   during one `pnpm start` re-read the context for nothing (b5eb5403).
 
+- **An audit or review of his own branch that he ordered → fix everything you
+  judge right.** "Co z tego poprawiamy?" after `ponytail-audit` was rejected,
+  then "czyścimy wszystko co znalazłeś" (c333538c). Report in one line what
+  you left and why. A popup only for a single finding with an irreversible
+  effect outside the branch (deleting a secret in AWS), effect named in
+  `description`.
+
 ## Forgiveness & recovery framing
 
 ADHD comes with rejection-sensitivity. How a failure is *worded* changes whether

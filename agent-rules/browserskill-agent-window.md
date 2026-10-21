@@ -66,6 +66,14 @@ Chrome extension is still paired — turn it off with `/chrome` ("Enabled by
 default") or disable the extension in `chrome://extensions`. Do **not** reach
 for those tools, and don't propose bringing the stack back.
 
+## Where the Agent Window lands
+
+`bin/bsk` (stage 28 → `~/bin`, ahead of `~/.local/bin/bsk` on PATH) wraps the
+real CLI: on `session start` it parks the new Agent Window on aerospace
+workspace `test` (8) without taking focus, and passes every other subcommand
+straight through. Greg looks at it with `ctrl-8`. Call `~/.local/bin/bsk` by
+path only to skip the park step (a8481fff).
+
 ## Health check
 
 `bsk doctor` — every row `ok` or `N/A`. `0 browsers connected` means the
@@ -78,3 +86,12 @@ fault: the skill dir is named `bsk` (so Greg can just say "bsk"), while
 of truth; doctor simply can't see it.
 
 **macOS only.** The lab is headless — no browser, no `bsk` there.
+
+**`doctor` all `ok`, yet `navigate` / `tab create` → `Host access is
+restricted by policy`** is Comet ≥155 refusing `chrome.debugger.attach`
+because the extension has a non-empty `runtime_blocked_hosts` in
+`ExtensionSettings`, not MDM and not the extension (5666f824, ~15 calls). Fix:
+an empty `runtime_blocked_hosts` for `hhcmgoofomhgciiibhipgmgkgnoenaoi`, then a
+full restart: `osascript -e 'quit app "Comet"'`, `pgrep -x Comet` empty, `open
+-a Comet` (⌘Q alone left the process running). Greg keeps bsk on Comet; don't
+propose Chrome.

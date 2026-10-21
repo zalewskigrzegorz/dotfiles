@@ -54,3 +54,10 @@ the pattern starts with `-`.
 means "ignored", not "rtk hid it": `rg --no-ignore -l '<term>'
 "$(realpath apps/<app>/node_modules/<pkg>)" -g '*.d.ts'`, with the empty-variable
 guard. Four empty searches came before that on 2026-10-13 (aaee25fc).
+
+**`rg --type tsx` does not exist.** It errors, and `ts` matches `.ts` only:
+use `-g '*.ts' -g '*.tsx'`. Never put `2>/dev/null` on an `rg` whose result
+you need: the swallowed error reads as "no hits" (3e254d67).
+
+**No backreferences in `rg`.** `\1` fails with `backreferences are not
+supported`; use `rg --pcre2 '…\1…'` (e4057025).

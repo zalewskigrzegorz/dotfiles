@@ -25,3 +25,12 @@ CleanShot saves there (`Bazecor_*`, `CleanShot_*`, `X_*`, …). Read directly �
 ## "Na dropie" is a different place
 
 "na dropie jest screenshot", "wrzuciłem na drop", "jest na dropie" mean `drop.mrglaszki.com`, the self-hosted file drop on the lab, not the folder above. Go straight to `curl -s 'https://drop.mrglaszki.com/?ls' | jq …`, take the newest entries by `ts`, download them into the session scratchpad and read them. Don't search local dirs first (2026-10-02: ~8 calls across Screenshots, `~/Downloads` and `find ~` before the listing).
+
+## Screenshots reach the agent through the hook, never the clipboard
+
+Greg ruled out the clipboard ("mam wtedy cały zawalony") and dragging
+(2026-10-21, bde78708). Never suggest either. A prompt that says screen, ss or
+zrzut already carries the newest CleanShot paths from
+`dot_claude/hooks/executable_screenshot-attach.sh`; read those first and fall
+back to the Drive folder only when none were added. A session started before
+the hook needs `/exit` + `claude --continue`.

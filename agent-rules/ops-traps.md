@@ -146,10 +146,13 @@ a normal failure.
 `OP_SERVICE_ACCOUNT_TOKEN` is set on purpose (headless `op`, `docs/secrets.md`),
 so `op item edit` / `op item create` fail with `Couldn't update the item`
 (2× in a row, 2026-10-19). One `op whoami | rg 'User Type'`; `SERVICE_ACCOUNT`
-→ the write is Greg's: one numbered step in the 1Password app, or a nushell
-line with `input -s` (`env -u OP_SERVICE_ACCOUNT_TOKEN op item edit …` goes
-through the desktop app, unverified). Say up front that `op item edit` shows
-the value in the process args for a moment.
+→ go through the desktop app yourself: `env -u OP_SERVICE_ACCOUNT_TOKEN
+timeout 60 op …` (`account list`, `vault list`, `item get`, `item move`
+verified 2026-10-20, one Touch ID per call). Say first "zaraz wyskoczy Touch
+ID, N razy", read field names only (`label`, `type`, set/empty), never values.
+A numbered step for Greg stays only when he must type the secret himself
+(c333538c: "a nie możesz tego zrobić, ja potwierdzę Touch ID"). Say up front
+that `op item edit` shows the value in the process args for a moment.
 
 ## A secret goes in through Greg, and is never repeated
 
@@ -210,3 +213,82 @@ Eight `gh search prs` calls in a row answered `HTTP 403: You have exceeded a
 secondary rate limit` (28ca873d). Several searches go in one `gh api graphql`
 call with one alias per query (`s0: search(query: "is:pr …", type: ISSUE,
 first: 100){issueCount}`). After a 403, wait ~2 min once; don't retry in a loop.
+
+## The nushell MCP takes `script`, not `command`
+
+`mcp__nushell__exec` called with `command` fails on `missing field 'script'`
+(3c700a19, 3e254d67). From the Bash tool: `nu -c '…'`.
+
+## A big MCP search result: narrow it, never re-run it
+
+`slack_search_public_and_private` came back at 88 KB and the same query went
+out again (aed1533e); `mempalace_search` with `limit=5` overflowed twice in a
+row (3905c082). Start Slack searches with `response_format: "concise"`,
+`limit ≤ 20`, `include_bots: false`; MemPalace with `limit=2`, or
+`bin/mp-search` for a literal token. After "exceeds maximum allowed tokens",
+`rg`/`jq` the saved `tool-results/*.txt` or send one narrower query (date,
+channel, `from:`).
+
+## The Tailscale CLI is `bin/tailscale`
+
+The app's CLI is not on PATH; `bin/tailscale` wraps
+`/Applications/Tailscale.app/Contents/MacOS/Tailscale` (83a07dcc, 6f32e82c).
+`tailscale up`, `set --accept-routes` and other pref changes are fixes, never
+probes.
+
+## "No internet" in the browser: read the error, then the proxy
+
+`ERR_PROXY_CONNECTION_FAILED` on the screenshot, or `curl` working while the
+browser fails, means a stale system proxy (Proxyman on `127.0.0.1:9090` left
+on after a crash), not routes or DNS; `curl` ignores the system proxy. First
+`scutil --proxy` and `networksetup -getwebproxy <svc>` / `-getsecurewebproxy
+<svc>` per service from `networksetup -listallnetworkservices`, routes and DNS
+after. Turning it off (`-setwebproxystate <svc> off`, `-setsecurewebproxystate
+<svc> off`) is reversible: do it and say so in one line (83a07dcc, 13 probes
+on Tailscale first).
+
+## Port 7000 is the AirPlay Receiver
+
+Local storage on `:7000` answering `403` or `http=000` →
+`curl -sI localhost:7000 | rg AirTunes` (process `ControlCenter`). The fix is
+Greg's: General → AirDrop & Handoff → AirPlay Receiver off, opened with
+`open-here "x-apple.systempreferences:com.apple.AirDrop-Handoff-Settings.extension"`.
+The first sentence says why: macOS holds the port local storage needs
+(c333538c: "co?").
+
+## A job that must outlive its herdr workspace: `setsid`
+
+`herdr workspace close` kills the pane's process group, so `&` and `nohup`
+die with it. Detach with `perl -e 'use POSIX; setsid; exec @ARGV' -- <cmd> &`
+and say what is left behind if it fails (dc819c48).
+
+## `bin/sync` on a held chezmoi lock
+
+Another agent's `chezmoi apply` holds it. One `ps -axo pid,etime,command | rg
+'[c]hezmoi'`; under ~2 min old → `timeout 180 sh -c 'while pgrep -x chezmoi
+>/dev/null; do sleep 5; done'`, then `bin/sync` once. Older, or the wait timed
+out → report pid and age. Never kill another agent's apply (f6d9d77e).
+
+## Pushed dotfiles `master` from a worktree → fast-forward the main checkout
+
+`bin/sync` and `~/bin` read `~/Code/dotfiles`. After `git push origin
+HEAD:master` from a worktree: `git -C ~/Code/dotfiles fetch -q origin master
+&& git -C ~/Code/dotfiles merge --ff-only origin/master`, only when that
+checkout is clean and on `master`; otherwise one line (dc819c48).
+
+## Before writing "X puts Y first on PATH"
+
+Run `env PATH=<prefix>:/usr/bin:/bin command -v <tool>` and `<tool>
+--version` once. An `ls` of the directory is not proof: `libexec/bin` held
+only `python`, and two rules in a row named a wrong Python path (f6d9d77e).
+
+## SMS and iMessage are `chat.db`, read-only
+
+"SMS", "wiadomości", "iMessage" mean `~/Library/Messages/chat.db`, never
+scripting Messages. First `timeout 15 sqlite3 -readonly
+~/Library/Messages/chat.db 'select count(*) from message'`; `authorization
+denied` → `grant-failure-ask` (Full Disk Access for the terminal, `/exit` +
+`claude --continue`). Date: `datetime(m.date/1000000000+978307200,'unixepoch','localtime')`;
+sender `left join handle h on h.ROWID=m.handle_id`, direction `is_from_me`;
+attachments `message_attachment_join` → `attachment.filename`, read a copy in
+the scratchpad. Personal data from there never goes to bazgroly (5666f824).

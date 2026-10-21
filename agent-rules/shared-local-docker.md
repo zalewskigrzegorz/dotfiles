@@ -114,3 +114,20 @@ in_progress`. An active PR deploy → stop and say whose it is. A blind dispatch
 failed twice with "has an active PR deploy" on 2026-10-02, and each one costs a
 CI run and can disturb someone else's deploy. After a failure, read
 `gh run view <id> --log-failed` before dispatching again, never in a loop.
+
+## Screenshots for a PR from a local stack
+
+~25 calls on traps that are all known up front (9adba92d):
+
+- `docker` looks for colima's socket in `~/.config/colima`; it lives in
+  `~/.colima`: `DOCKER_HOST=unix://$HOME/.colima/default/docker.sock`.
+- Size colima before `pnpm start` (12 GiB, 6 CPU did it).
+- No downloaded Playwright browser or ffmpeg: a one-off spec uses
+  `channel: 'chrome'`, video and trace off, lives in the scratchpad and is
+  deleted after.
+- A new org gets a trial plan and 403 "Missing required entitlement" on paid
+  features: use the seeded `default` org and its owner.
+- Handing Greg a local login: the email in a fenced code block (a list indent
+  put a leading space in it and the form does not trim), the password only on
+  the clipboard (`printf %s … | pbcopy`, cleared after), never in chat. Check
+  the account once with a direct API call first.

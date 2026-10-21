@@ -44,3 +44,26 @@ new one.
    one. Never print on your own.
 5. Drive sync lags: after writing, `ls` the target once; don't re-write on a
    first miss.
+
+## Every field filled, nothing blank for Greg
+
+The first car sale PDF went out with placeholders for the seller's ID and
+PESEL: "nie uzupełniamy ręcznie, wszystko wpisujemy, ja będę podawał, tylko
+pytaj" (5666f824). So "buyer, price, date are usually Greg's" means **ask**,
+not **leave blank**:
+
+- Collect what's missing yourself first: scans in `Skaner`, Spark, SMS
+  (`chat.db`, see ops traps), then ask in groups, one popup each (buyer,
+  terms, the car's legal state). Write each answer in at once and regenerate
+  the PDF in both Drive folders.
+- A field nobody can know gets a question, never an empty line in the PDF.
+
+## Scans and attachments of a personal case never go to bazgroly
+
+A death certificate, eleven pages of court papers and a ruling landed in
+`bazgroly/scratch/notes/…-attachments/`, tracked and pushed (5b71991d). Scans,
+court letters and mail attachments of a family, court or notary case go to
+`Dom/<folder>` on Drive or the session scratchpad. The bazgroly note keeps a
+draft with placeholders only: no address, no PESEL, no third-party names.
+Before ending such a task: `git -C ~/Code/personal/bazgroly ls-files | rg -i
+'\.(pdf|png|jpe?g)$'` shows nothing from this case.

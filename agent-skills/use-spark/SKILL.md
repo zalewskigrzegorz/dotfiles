@@ -820,3 +820,30 @@ Do not check on every session or before every command - this skill is the source
 - **`draft --body` is markdown: `m.in.` becomes a link.** A sent mail showed `[m.in](m.in)` (2026-10-21). Write "między innymi" and check the echoed `Body:` for domain-like tokens (`m.in.`, `np.`, `tj.` followed by a space is fine, a dotted pair is not).
 - **A draft id changes after Greg edits it in Spark, and the sent copy may leave from another account.** Draft 9654 became 9656, `--delete 9654` said "not found", and the mail went out from the iCloud account as 9658 (2026-10-21). Before `--delete`, list `<account>:Drafts`, and search `to:<recipient> newer_than:1d` across accounts to see whether it was already sent.
 - **Refresh = `spark skill` + this section.** Write the upstream text into this file in dotfiles (never into `~/.claude/skills/`, stage 30 rsyncs over it), re-append this section, then `bin/sync`.
+
+### `spark` not found ≠ Setapp
+
+`command -v spark` failing is not proof of the Setapp build (66c7125f):
+
+1. `ls -ld /usr/local/bin` and `ls /Applications | rg -i spark`.
+2. App under `/Applications/Setapp/` → no CLI, say so in one line.
+3. `Spark Desktop.app` and `/usr/local/bin` is `drwx------` → the fix is
+   `sudo chmod 755 /usr/local/bin`, typed into Greg's pane without Enter (sudo
+   rule). Never guess "CLI wyłączone".
+4. `spark accounts` → "No accounts found" means the agent access level is off
+   (Settings → AI Agents, at least read-only per account). Empty `search`
+   results mean nothing until `accounts` lists them.
+
+### `action send` on a triage account only queues
+
+`action send` answers "Waiting for your approval … in Spark Desktop" and
+nothing leaves until Greg clicks (354021a2). Say so, end the turn with
+"zatwierdź w Spark Desktop i napisz poszło", never report "wysłane". Verify in
+Sent with `spark search --filter "to:<addr> newer_than:1d"`. Away from the
+Mac → give the draft link and skip `action send`.
+
+### Mail to a company about an order
+
+The sender is the account the order went to: `spark search --filter
+"from:<domain>"` first, not the default account. An image attachment can be
+piped into `spark draft` on stdin; name it in one report line.

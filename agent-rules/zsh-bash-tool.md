@@ -85,7 +85,7 @@ container, or poll a log line or marker file. Every wait loop gets a timeout
 (`timeout 600 …`) and exits on the first actionable state.
 
 **A CI run is not a hand-written loop.** `until s=$(gh run view …); do sleep 60;
-done` (2026-09-30, twice, no timeout) → `bin/gh-run-wait <workflow> [--sha
+done` (2026-09-30, twice, no timeout) → `gh-run-wait <workflow> [--sha
 <sha>]` for the run of a pushed commit, or `timeout 1800 gh run watch <id>
 --exit-status` for a known run; `gh run view <id> --log-failed` only on a
 non-zero exit. A run longer than ~10 min goes through `Monitor` with an `until`
@@ -103,7 +103,7 @@ checks`: one session wrote three of them after the block (2026-10-08). A
 non-zero exit from `--watch` means a failed or pending check, not a tool error.
 
 **A run retriggered by a label is still a run of a pushed commit.** After
-removing and re-adding a label like `run_e2e`: `bin/gh-run-wait e2e-pr.yml
+removing and re-adding a label like `run_e2e`: `gh-run-wait e2e-pr.yml
 --sha <sha>`, not `until gh run list … | grep -q <sha>; do sleep 15; done`
 (4× in one session, ffea8ff9). A required check that reads labels and stayed
 red after the label was added (it ran before the label) is re-evaluated by
@@ -139,3 +139,24 @@ popup anyway. Loops are for machine state: CI, deploys, builds.
 the Bash tool lacks. Use `pty-run --input secret -- <cmd>` (prints the
 transcript and `exit=<code>`; `--timeout SEC`, default 30, exit 124). The pty
 script was rewritten twice inline on 2026-10-08.
+
+## More zsh: `$var:x` is a modifier
+
+`git show $P:tooling/…` became `a942d18e36ooling/…` and `ambiguous argument`:
+`:t` after a variable is zsh's "tail" modifier (also `:h :r :e :l :u`). Write
+`${P}:path` or `"$P":path` (9d7d10df).
+
+## CI waits: more than `gh-run-wait` finds
+
+- `gh-run-wait` is on PATH; from a worktree `bin/gh-run-wait` does not exist
+  and the watcher died silently for ~20 min (9adba92d). After `gh run rerun`,
+  wait for the new attempt, not the old run id.
+- **Before toggling `run_e2e`:** `gh pr view <n> --json
+  mergeable,mergeStateStatus`. `CONFLICTING`/`DIRTY` → rebase first; GitHub
+  does not run `pull_request` workflows on a conflicting PR, and two toggles
+  waited ~30 min for nothing (c333538c). No run within ~3 min after the toggle
+  is the same signal.
+- **A deploy Greg starts by hand** (prod, prodeu, lab): start the watcher in
+  the same turn, `Monitor` on `gh-run-wait <workflow> --sha <sha>`, and say
+  "czekam na run na `<sha>`". The run appearing is machine state, so this is
+  not waiting for a human (9d7d10df: "i co obserwujesz?").

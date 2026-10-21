@@ -78,7 +78,10 @@ with `ERR_MODULE_NOT_FOUND` / `Cannot find package '@<org>/<pkg>'` means the
 workspace packages it imports were never built there. Run the `nx` target of
 the package under test once (`pnpm exec nx run <project>:ts:check`, 3–6 min,
 in the background) before the first test run. `pnpm install` does not fix it
-(2026-09-30).
+(2026-09-30). Component tests in `apps/ui` need four of them at once: build
+them in one `pnpm exec nx run-many --target=build --projects=<a>,<b>,…`, not
+one per failed run (3 rounds, 2cb11215). `Failed to resolve import
+"./generated-async"` is the async-API SDK package unbuilt.
 
 A fifth gap: **the e2e config `playwright.env.json`.** It is gitignored and
 sits next to the e2e suite (`e2e/*/playwright.env.json`), so an unseeded tree

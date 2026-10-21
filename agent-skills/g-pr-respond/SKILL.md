@@ -254,6 +254,15 @@ When the source is `review` (bot summary, not an inline thread), no `comment_id`
 * **Issue comment** — `gh api "repos/$OWNER/$REPO/issues/$NUMBER/comments" -X POST -f body="$REPLY_BODY"`
 * **Skip** — note in summary.
 
+### A8c2. Bot reviewers come back after every push
+
+The AI review bot reviews again after each push and can add new threads; with
+required thread resolution every push can block the merge again (c333538c:
+"I dalej są jakieś bot-komentarze"). After pushing fixes: wait for the bot's
+check (`gh pr checks <n> --json name,state`), then fetch `reviewThreads` with
+`isResolved:false` again. Only an empty list allows "wątki zamknięte"; new
+ones → one more round, and the report says how many rounds.
+
 ### A8d. After the loop
 
 ```

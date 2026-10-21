@@ -105,3 +105,23 @@ When shell access is unavailable, hand-place architecture SVG into `assets/templ
 ## Output
 
 Return the checked HTML as an absolute path, diagram type, validation summary, specification/artifact receipt, browser-evidence status, and truthful visual-review status. Do not claim success for a non-zero command or claim visual inspection you did not perform.
+
+## A change in meaning, not in structure
+
+"Pokaż mi problem, żebym wybrał rozwiązanie" about a semantic change (who sees
+what before and after, where tenant isolation breaks) is not a system
+diagram. One big architecture diagram got "nic sensownego nie widać"
+(3491f3e3). Draw two small ones, before and after, ≤ ~8 nodes, on one concrete
+example (one org, one user, one team), with edges labelled "widzi" / "może
+edytować". Read `references/` and `schemas/` once per session.
+
+## Long sequences: size before the first `finalize`
+
+A ~15-message sequence failed `finalize` 8 times in a row on
+`legend/vertical-overflow`, `composition/viewport-height` and friends, fixed
+one code per run (c8da915a; the passing candidate was `viewBox [1080, 840]`).
+For more than ~10 messages, set the `viewBox` height from the message count
+plus the legend rows, leaving ~60 px for the legend band under the last
+lifeline. Fix every reported gate code in one edit before re-running. Edit
+candidate JSON with `jq '.meta.viewBox=[w,h]' f > f.tmp && mv f.tmp f`, never
+`sed`.

@@ -145,6 +145,18 @@ Two things to put in a stack agent's brief:
 - **Trunk is checked out in the main checkout**, so the stack worktree cannot check out `main` and a fetch into it is refused. Have the agent run `git -C <main-checkout> pull --ff-only` first, and fall back to `gh stack rebase --no-trunk` if the trunk step still fails.
 - **Merged bottom layers produce phantom conflicts.** Squash-merged layers have different SHAs than their local commits, so `git cherry` reports them as absent and the rebase re-conflicts on changes already upstream. Tell the agent to take main's version there rather than resurrecting code main already dropped.
 
+## Broadcasting one command to every running Claude agent
+
+"Zaktualizuj wszystkie uruchomione agenty" (28ca873d):
+
+1. `herdr agent list | jq` filtered to claude panes.
+2. Skip a pane whose `❯` line is not empty: someone is typing there.
+3. One agent first: `herdr agent prompt <pane> "<cmd>"`, `send-keys Enter`,
+   read its result. Then the rest, ~1.5 s apart with
+   `perl -e 'select(undef,undef,undef,1.5)'` (no `sleep`).
+4. Never broadcast anything that writes `~/.claude/settings.json` (`/tui`):
+   every session reloads it live anyway.
+
 ## Safety
 
 - Never `send-keys` into a pane you haven't just `read` — you may be typing into Greg's live session (all his agents share the list; check `focused` and `cwd` before touching one you didn't start).
