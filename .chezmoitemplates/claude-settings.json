@@ -586,7 +586,6 @@
   "theme": "custom:dracula-pro",
   "verbose": false,
   "editorMode": "vim",
-  "tui": "default",
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
   "autoUpdatesChannel": "latest",
