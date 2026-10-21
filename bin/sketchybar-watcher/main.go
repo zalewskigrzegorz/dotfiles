@@ -392,6 +392,10 @@ func dimColor(c string) string {
 
 // ---- sketchybar push ----
 
+func workspaceItems(i int) []string {
+	return []string{fmt.Sprintf("item.%d", i), fmt.Sprintf("item.%d.s", i)}
+}
+
 func pushToSketchybar(labels []string, focused string, recent []string, svc bool, vim string) error {
 	args := make([]string, 0, 256)
 	for i := 1; i <= workspaceCount; i++ {
@@ -420,17 +424,20 @@ func pushToSketchybar(labels []string, focused string, recent []string, svc bool
 		if i <= len(labels) {
 			label = labels[i-1]
 		}
-		args = append(args,
-			"--set", fmt.Sprintf("item.%d", i),
-			"label="+label,
-			fmt.Sprintf("icon.highlight=%v", selected),
-			"icon.color="+drawColor,
-			fmt.Sprintf("label.highlight=%v", selected),
-			"label.color="+drawColor,
-			"background.border_color="+drawColor,
-			"background.border_width="+borderWidth,
-			"background.color="+bgColor,
-		)
+		// item.N draws on the monitors, item.N.s on the laptop screen (spaces.lua)
+		for _, item := range workspaceItems(i) {
+			args = append(args,
+				"--set", item,
+				"label="+label,
+				fmt.Sprintf("icon.highlight=%v", selected),
+				"icon.color="+drawColor,
+				fmt.Sprintf("label.highlight=%v", selected),
+				"label.color="+drawColor,
+				"background.border_color="+drawColor,
+				"background.border_width="+borderWidth,
+				"background.color="+bgColor,
+			)
+		}
 	}
 	// Apple item: service > kindaVim N/V/C/R > unicorn (insert or default).
 	// Default = mauve (primary Mocha Neon accent) to match focused workspace + chip borders.
@@ -546,7 +553,6 @@ func animatePulse(pulsed []string, st *state) {
 		if idx == 0 {
 			continue
 		}
-		item := fmt.Sprintf("item.%d", idx)
 		focused, _, _, _ := st.snapshot()
 		color := workspaceColors[ws]
 		if color == "" {
@@ -561,7 +567,13 @@ func animatePulse(pulsed []string, st *state) {
 			baseBorderW = "3"
 		}
 		go func() {
-			pulseCycles(item, baseBg, baseBorder, baseBorderW)
+			var wg sync.WaitGroup
+			for _, item := range workspaceItems(idx) {
+				wg.Add(1)
+				// go.mod is 1.21: pass item, the loop variable is shared across iterations
+				go func(item string) { defer wg.Done(); pulseCycles(item, baseBg, baseBorder, baseBorderW) }(item)
+			}
+			wg.Wait()
 			// The base colours were read before the pulse; focus may have moved
 			// since, so re-push the real state instead of trusting them.
 			scheduleRefresh(st)
@@ -725,7 +737,8 @@ func waitForSketchybar(maxWait time.Duration) error {
 	step := readinessStepMs * time.Millisecond
 	deadline := time.Now().Add(maxWait)
 	for time.Now().Before(deadline) {
-		out, err := exec.Command("sketchybar", "--query", "item.1").Output()
+		// the laptop set is added last in spaces.lua
+		out, err := exec.Command("sketchybar", "--query", "item.10.s").Output()
 		if err == nil && len(out) > 0 && !strings.Contains(string(out), "not found") {
 			return nil
 		}
