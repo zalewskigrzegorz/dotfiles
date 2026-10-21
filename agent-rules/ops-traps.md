@@ -169,3 +169,32 @@ package, its source and the side effect ("dubluje Sparka z Setappa"), unless
 Greg said "zainstaluj X" himself. A diagnostic question ("jaki mam plan") does
 not cover an install; `brew install --cask readdle-spark` went in unasked next
 to the Setapp copy (30ce5f6a).
+
+## `/tui` switches every running Claude session at once
+
+`/tui default` writes `tui` into `~/.claude/settings.json`, every open session
+reloads it live, and each one dropped from the fullscreen renderer to an empty
+normal screen: Greg saw nothing in any tab (28ca873d, 2026-10-21). The other
+sessions then answer "Already using the default renderer", which is the shared
+setting, not a sign they were untouched. Never run `/tui` or edit `tui` while
+sessions are open. Test a renderer in one new session only:
+`with-env {CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN: '1'} { claude }`. To recover,
+set `tui` back in `~/.claude/settings.json`; sessions redraw on the next key.
+
+## A cheap Haiku call from a script or hook
+
+`claude -p --model claude-haiku-5-5 --no-session-persistence --strict-mcp-config
+--tools "" --setting-sources "" --system-prompt "…" "<input>" </dev/null`, with
+an env guard (`HD_TITLE_CHILD=1`) that your own hook checks first. No hooks,
+plugins, MCP or CLAUDE.md load: ~600 tokens, ~2 s, $0.0002. `--bare` is not an
+option here, it reads only `ANTHROPIC_API_KEY`, never the OAuth login. Haiku
+sometimes reasons before the answer, so take the last line. Without
+`</dev/null` it eats the stdin of a `while read` loop around it, and the loop
+ran one item out of twelve (28ca873d).
+
+## `gh search` in a loop trips the secondary rate limit
+
+Eight `gh search prs` calls in a row answered `HTTP 403: You have exceeded a
+secondary rate limit` (28ca873d). Several searches go in one `gh api graphql`
+call with one alias per query (`s0: search(query: "is:pr …", type: ISSUE,
+first: 100){issueCount}`). After a 403, wait ~2 min once; don't retry in a loop.
