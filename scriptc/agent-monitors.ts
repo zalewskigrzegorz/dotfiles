@@ -80,7 +80,9 @@ for (const r of rows) {
   const ws = /"ws":"([^"]*)"/.exec(r);
   const ev = /"event":"([^"]*)"/.exec(r);
   const what = ev === null ? "" : (ev[1] ?? "").split(":")[0] ?? "";
-  labels.push(`${ws === null ? "?" : ws[1]} ◔${what === "" ? "" : " " + what.slice(0, 28)}`);
+  const n = /"monitors":(\d+)/.exec(r);
+  const times = n === null || n[1] === "1" ? "" : `×${n[1]}`;
+  labels.push(`${ws === null ? "?" : ws[1]} ◔${times}${what === "" ? "" : " " + what.slice(0, 28)}`);
 }
 spawnSync(
   SKETCHYBAR,
