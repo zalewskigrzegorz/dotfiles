@@ -12,8 +12,8 @@
 # and the tab/sidebar keep the full width for readable text. Only the TEXT changes
 # across checkpoints; on `/clear` a SessionStart hook sets a neutral text.
 #
-# Invoked by: the agent at checkpoints, the herdr-claude-title bootstrap hook, and
-# the SessionStart clear hook. Idempotent, non-blocking.
+# Invoked by: the herdr-claude-title Stop hook (Haiku titles) and, as an
+# override, the agent itself. Idempotent, non-blocking.
 set -u
 
 text="${1:-}"
@@ -33,7 +33,7 @@ if [ "${HERDR_ENV:-}" = "1" ] && [ -n "${HERDR_TAB_ID:-}" ]; then
   command -v "$HERDR_BIN" >/dev/null 2>&1 || HERDR_BIN=/opt/homebrew/bin/herdr
   if command -v "$HERDR_BIN" >/dev/null 2>&1; then
     # Trim to keep the tab strip / sidebar scannable. Tune via CLAUDE_HERDR_TITLE_MAX.
-    max="${CLAUDE_HERDR_TITLE_MAX:-24}"
+    max="${CLAUDE_HERDR_TITLE_MAX:-30}"
     t="$text"
     [ "${#t}" -gt "$max" ] && t="${t:0:$((max - 1))}…"
     "$HERDR_BIN" tab rename "$HERDR_TAB_ID" "$t" >/dev/null 2>&1 || true

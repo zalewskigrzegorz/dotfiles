@@ -476,11 +476,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/stop/herdr-claude-title.sh",
-            "timeout": 5000
-          },
-          {
-            "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/screenshot-attach.sh",
             "timeout": 5000
           }
@@ -501,6 +496,15 @@
           {
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/stop/stop.sh",
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/stop/herdr-claude-title.sh",
             "timeout": 5000
           }
         ]
