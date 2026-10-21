@@ -75,12 +75,15 @@ Removal: `workctl rm <branch> [--force] [--keep-branch]`. Everything after creat
 
 Checkout lands in `~/Code/tree/wt-<repo>/<branch>`. If you do fall back to raw `herdr worktree create`, capture `workspace_id` and `root_pane.pane_id` from its JSON — but expect both to shift once the layout is applied (mine 2).
 
-## The four mines
+## The seven mines
 
 1. **`agent prompt` pastes but does NOT submit.** A multi-line brief lands in the input box as `[Pasted text #1 +45 lines]` and just sits there. ALWAYS follow up: `herdr agent read <target> | tail -20` — if the text is still in the input box, `herdr agent send-keys <target> Enter`, then read again and confirm the agent is actually working. This fires nearly every time, not occasionally.
 2. **Applying the layout renumbers everything and drops agent names.** After `wt-full`'s layout step (or any tab/pane change), the agent is on a different `pane_id` and a different `tab_id` than `worktree create` reported — e.g. `w10:p1` becomes `w10:p3` on `w10:t2` — and a name you registered with `agent start` no longer resolves. Re-run `herdr agent list` and target by `pane_id` after any layout change.
 3. **`idle` is ambiguous** — it means "not typing": could be finished, could be waiting for a permission prompt. `blocked` sorts first in Greg's sidebar and is the real "needs input" signal. For "did it actually do the work", the terminal is NOT the source of truth — check the worktree: `git -C ~/Code/tree/wt-<repo>/<branch> log --oneline origin/<base>..HEAD` and `gh pr list --head <branch>`.
 4. **The parent session's permission mode does NOT propagate.** Yolo mode is session-scoped: a spawned agent does NOT inherit it regardless of how permissive your own session is. A spawned agent starts in the global `defaultMode` from `~/.claude/settings.json` — currently `acceptEdits`, so it auto-accepts file edits but still prompts (and surfaces as `blocked`) on Bash commands and MCP writes that aren't allow-listed. So it can edit unattended but will stall on the first non-allow-listed shell command; don't brief it as if it could run shell steps unattended, and don't read that first Bash stall as a failure.
+5. **`agent start` returns before `claude` is ready.** A `prompt` sent right after it answers `agent_not_ready` ("blocked during startup"), and the brief is lost; two of five agents needed a second prompt on 2026-10-21. After `agent start`: `herdr agent wait <pane> --until idle --timeout 60000`, then prompt. Check the paste landed with one `agent read` (mine 1).
+6. **`agent read` can serve a frozen screen.** On 2026-10-21 one pane showed the same statusline timer (`2m31s`) for 10 minutes and the input box kept its text after three `Enter`s, while the agent had taken the input and was working. The terminal is not the source of truth for progress either: `stat -f %Sm ~/.claude/projects/<slug>/<session>.jsonl` (the path `scripts/agent-last-turns` prints) moving in the last minute means working; `agent list` → `agent_status` and the worktree (mine 3) answer "done". Don't resend the brief into a pane that looks stuck; check the transcript first.
+7. **A child's popup is read in full before any `send-keys`.** The option labels alone lie about side effects: on 2026-10-21 `Enter` on "Przepuść przez greg-voice" in a review agent ended with `gh pr review` posted on GitHub, although the brief said "nie postuj". Read the option descriptions (`agent read | tail -30`), and when any option can post, send or commit, pick it only if Greg chose that step. A read-only brief names the forbidden commands: "no `gh pr review`, no `gh api -X POST`, no `gh pr comment`", not only "nie postuj".
 
 ## Lifecycle pattern
 
@@ -96,7 +99,7 @@ herdr agent read w12:p3 | tail -30         # what does it need / what did it pro
 workctl rm feat/demo                       # only after merge
 ```
 
-**A `wt-full` agent on a non-default model** (Greg names it, e.g. "agent Fable w nowym wt"; Fable **and Opus** only on his explicit ask, otherwise `--model sonnet`): `wt-full` starts `claude` on the default model, so switch before the brief. A brief that says "zlecam agentowi na Opusie" when none of his messages named a model is the 2026-09-08 quota burn again (2026-10-15).
+**The model follows the task's weight** (`agent-rules/subagent-model-by-weight.md`): code that lands in a PR, a debugging hunt or anything over ~15 min → `--model opus`; mail drafts, Slack digests, read-only lookups → `--model sonnet`; Fable only when Greg names it for that spawn. `wt-full` starts `claude` on the default model, so switch before the brief and say the model in the spawn line.
 
 ```bash
 herdr agent prompt w12:p3 "/model <model id>"
@@ -124,6 +127,8 @@ scripts/agent-last-turns <worktree-or-branch> 5   # what did the agent actually 
 ## Writing the brief
 
 The brief is the child's ONLY context. Include: the task + its issue/PR number; the **base branch** (stacked-PR repos: naming the wrong base creates a PR against main — the worktree-dev skill's #1 landmine, tell the agent to use it for bootstrap); pattern files to imitate; where the PR should point (`base <branch>`, `Fixes #<n>`); which branches/worktrees other agents own and must be left alone; and "present a plan before coding" if Greg should gate it.
+
+**A fix brief starts with "is the bug still there".** Before the first edit the agent runs `git log origin/main --since='14 days ago' --oneline -- <paths>` and `gh pr list --state merged --search '<symptom keywords>' --limit 5`, and checks the symptom against `origin/main` as it is now. A recent merge that removed the root cause → stop, report the PR, no code. On 2026-10-21 PR #31254 fixed a People-page filter that #31080 (merged the day before) had already made moot; Greg remembered, the agent and the brief did not. The parent checks the same thing before `workctl`, in one `gh pr list --search`.
 
 **An agent that runs migrations or DB specs** gets the target database name in the brief, must quote any `*.env` URL that contains `&` (unquoted, the shell cuts it and the migration hits the wrong database: 13 migrations once landed on shared `main`), and must print the resolved database name before `prisma migrate deploy`. When it finishes, the parent checks `select max(finished_at) from prisma._prisma_migrations` on the shared `main` DB before calling it clean.
 
