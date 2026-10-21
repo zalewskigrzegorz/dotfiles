@@ -174,7 +174,11 @@ def "work _apply-layout" [workspace_id: string, cwd: path]: nothing -> nothing {
         }
     }
     # Ensure a claude tab (only one auto-spawned; git/nvim stay on-demand).
-    if ($tabs | any { |t| ($t.label? | default "" | str contains "claude") }) { return }
+    # Match a running claude agent or our exact label: auto-title relabels tabs
+    # freely, so "label contains claude" gave false hits and skipped the tab.
+    let panes = (try { (do { ^herdr pane list --workspace $workspace_id } | complete).stdout | from json | get -o result.panes | default [] } catch { [] })
+    if ($panes | any { |p| ($p.agent? | default "") == "claude" }) { return }
+    if ($tabs | any { |t| ($t.label? | default "") == $"\u{f06a9}  claude" }) { return }
     let r = (do { ^herdr tab create --workspace $workspace_id --cwd $cwd --label $"\u{f06a9}  claude" --no-focus } | complete)
     let pane = (try { $r.stdout | from json | get -o result.root_pane.pane_id } catch { "" })
     if ($pane | is-not-empty) { do { ^herdr pane run $pane "claude" } | complete | ignore }
