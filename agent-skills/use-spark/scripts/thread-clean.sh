@@ -10,8 +10,8 @@ spark thread "$1" | python3 -c '
 import re, sys
 sig = re.compile(r"^\s*(--\s*$|__+\s*$|Pozdrawiam|Z poważaniem|Z wyrazami szacunku|Best regards|Kind regards|Regards,|Sent from my|Wysłane z)", re.I)
 noise = re.compile(r"^\s*(>|Otrzymany mail|NIP[: ]|REGON|KRS|Sąd Rejonowy|T\s*\+48|Tel\.? ?\+?48|ul\. |Al\. |Ten e-?mail|This e-?mail|Wiadomość ta|Please consider the environment)", re.I)
-header = re.compile(r"^(From|Od|Date|Data|Subject|Temat|To|Do|Attachments?|Załączniki?)\s*:", re.I)
-sep = re.compile(r"^(={5,}|-{5,}|Message \d+|#{2,}|── )")
+header = re.compile(r"^\s*(ID|From|Od|Date|Data|Subject|Temat|To|Do|Attachments?|Załączniki?)\s*:", re.I)
+sep = re.compile(r"^\s*(={5,}|-{5,}|─{5,}|Message \d+|#{2,}|── )")
 in_sig = False
 for line in sys.stdin:
     line = line.rstrip("\n")
