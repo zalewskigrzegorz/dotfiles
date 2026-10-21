@@ -466,10 +466,6 @@ if.app-name-regex-substring = 'Safari'
 run = 'move-node-to-workspace web'
 
 [[on-window-detected]]
-if.app-name-regex-substring = 'Google Chrome'
-run = 'move-node-to-workspace web'
-
-[[on-window-detected]]
 if.app-name-regex-substring = 'Zen'
 run = 'move-node-to-workspace web'
 
