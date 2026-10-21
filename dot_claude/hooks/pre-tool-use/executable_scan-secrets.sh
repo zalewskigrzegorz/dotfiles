@@ -73,9 +73,12 @@ fi
 
 # Generic password/secret/token assignments with literal string values
 # Matches: password = "actual_value", SECRET_KEY: 'actual_value', api_token="actual_value"
-# Excludes: env var references like process.env.*, os.environ.*, ${...}, getenv(...)
-if echo "$CONTENT" | grep -qiE '(password|secret|token|api_key|apikey|api_secret)[[:space:]]*[=:][[:space:]]*["\x27][^"\x27]{8,}["\x27]' && \
-   ! echo "$CONTENT" | grep -qiE '(password|secret|token|api_key|apikey|api_secret)[[:space:]]*[=:][[:space:]]*["\x27]?(process\.env|os\.environ|getenv|\$\{|ENV\[|env\()'; then
+# Excludes: env var references like process.env.*, os.environ.*, ${...}, $VAR, getenv(...)
+# Q/NQ: a bracket expression has no \x27 escape, so the quote goes in via a variable.
+Q="[\"']"
+NQ="[^\"']"
+if echo "$CONTENT" | grep -qiE '(password|secret|token|api_key|apikey|api_secret)[[:space:]]*[=:][[:space:]]*'"$Q$NQ"'{8,}'"$Q" && \
+   ! echo "$CONTENT" | grep -qiE '(password|secret|token|api_key|apikey|api_secret)[[:space:]]*[=:][[:space:]]*'"$Q"'?(process\.env|os\.environ|getenv|\$\{|\$[A-Za-z_]|ENV\[|env\()'; then
   MATCHES="$MATCHES hardcoded credential;"
 fi
 

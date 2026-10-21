@@ -31,3 +31,15 @@ Also: `process.cwd()` resolves symlinks, bash's `$PWD` does not. On macOS `/tmp`
 The pattern behind all of these: **a port changes the mechanics, not just the language.** Diff the binary against the bash original on every path you can exercise, and look hardest where bash got something implicitly — file modes, `$PWD`, inherited env.
 
 **Porting a helper that already exists in `bin/`:** the compiled binary lands on the same path as the tracked bash script, so stage 29 silently overwrites it on the next run. Do the swap deliberately — build, diff the binary against the bash original on every code path you can exercise without side effects, then `git rm --cached` the bash file (the `.gitignore` line makes the binary invisible to git, and the bash source stays in history).
+
+## Verifying `workctl` picker changes without fzf
+
+1. `scriptc coverage scriptc/workctl.ts && bin/sync` (stage 29 rebuilds the
+   binary; the old one gives a false result).
+2. `rg -c '<new string>' bin/workctl` proves the binary is fresh.
+3. From the work repo: `workctl __state > <scratch>/st.txt`, then `workctl
+   __rows <scratch>/st.txt <query>`, the same path fzf's reload takes.
+4. Force a stale PR cache with `touch -t 202610010000
+   ~/.cache/workctl-prs-<org>-<repo>.tsv`.
+5. Not covered: header width in a herdr pane and `--nth` in live fzf; those
+   stay for Greg to look at (b1c79075).

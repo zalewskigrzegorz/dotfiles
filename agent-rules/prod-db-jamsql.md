@@ -23,6 +23,19 @@ nine query errors from guessed table and column names.
    `information_schema.columns`. SSO tables live in the `auth` schema; a
    config column may be `json` or `text`, cast explicitly.
 
+## Before the tunnel: can jamsql connect at all?
+
+The tunnel closes when idle, so it is opened last (2264f7b9: three rounds,
+zero queries).
+
+1. `connections_list` and `ui_list_tabs` first. `AI connection control is
+   disabled` or `No browser window available` is Greg's step: Settings → AI
+   Integrations → allow AI to connect with saved connections, and a Jam SQL
+   window open. Ask once, one numbered step.
+2. After his "kk": tunnel, `connections_connect`, read-only query, in one go.
+3. Still failing with the tunnel up → `nc -z localhost <port>` once, then say
+   what blocks on the Jam SQL side. No `connections_connect` loop.
+
 ## Before a write
 
 - **Prove the row is on this connection.** A read-only `select … where id =
@@ -32,6 +45,14 @@ nine query errors from guessed table and column names.
 - **`query_execute` wraps the query in a cursor**, so a `WITH … UPDATE` fails
   with `DECLARE CURSOR must not contain data-modifying statements`. A write is a
   plain `UPDATE` in its own call.
+
+## A write Greg runs himself: open it in a tab
+
+Greg picked "ty odpalasz UPDATE" and got two SQL blocks to copy: "a nie możesz
+mi tego dodać?" (df44b632). Open it with `ui_open_tab` (`initialSql`, the
+region's `connectionId`, "one statement at a time" as a SQL comment), never
+`ui_execute_query`. In chat one line: region, tab title, expected row count.
+After his "poszło", a read-only check on the same connection.
 
 ## When it breaks
 

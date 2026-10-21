@@ -55,6 +55,24 @@ a "do decyzji" question that the other open PR already answered (2f5fe621).
 - **A question about another open PR:** read its diff first (`git ls-tree`,
   `git show` on its branch). Only what the diff does not settle goes to Greg.
 
+## After a rebase or merge from `main`: run what CI runs, then push
+
+Four red checks after a rebase (a moved test helper, two stale imports): "czy
+ty tego nie sprawdzasz lokalnie najpierw?" (df44b632). A 16-commit rebase with
+~25 conflicted files lost a function, a `start.sh` block and a test path
+silently (c333538c).
+
+- Before the push: `pnpm exec nx run-many -t knip:check ts:check lint -p
+  <project>` in the background; touched `*.db.spec.ts` on their own database
+  (see the local Docker rule). Red locally = no push. "0 passed, skipped
+  without a database" is not green.
+- A file `main` moved → `git grep` the old import path first.
+- ≥10 files resolved by hand → `git diff origin/main...HEAD --diff-filter=M
+  -U0 | rg '^-[^-]'` (every removed line belongs to the change) and `git
+  range-diff` against the old ref.
+- Changed test files → the package's `ts:check` too: vitest does not
+  type-check, and a PR sat red for a full e2e cycle on that (9adba92d).
+
 ## Red check on a stacked branch → compare with the base first
 
 Lint, knip or a spec red on a branch stacked on a non-main base: before

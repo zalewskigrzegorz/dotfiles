@@ -60,6 +60,26 @@ A hook still asks for force push, `gh pr merge`, and a commit or push to
 outside `COMMIT_ALLOWLIST` and `github.com/zalewskigrzegorz/*` — the work
 monorepo above all). Those prompts are the design.
 
+## Nothing in the real index while the popup waits
+
+- **Stage in a temp index, or not at all, before the popup.** `git add` into
+  the shared index while Greg reads the popup lets another agent's `git
+  commit` take your path: `717259e` (someone else's sketchybar commit) carried
+  `scriptc/workctl.ts`, and the own commit then said "nothing to commit"
+  (b1c79075). Use `g-commit`'s `GIT_INDEX_FILE=<scratch>/idx` flow, or build
+  the preview from `git diff --stat -- <paths>` and after the answer run
+  `git commit -q -m "…" -- <paths> && git push` (`git add -N` new files first).
+- **`git pull --rebase` only after your commit**, right before the push. On a
+  dirty shared tree it dies with "commit or stash"; before the commit use
+  `git fetch` + `git log --oneline HEAD..origin/<branch> -- <paths>`, and
+  don't repeat the pull after that error (28ca873d).
+- **Anything that starts CI goes after a verified push.** Chain commit → push
+  → label or dispatch with `&&`, or check `git rev-parse HEAD` equals
+  `git rev-parse @{u}` first. A commit that died on `index.lock` still let a
+  `run_e2e` label start e2e on the old sha, ~25 min lost (9adba92d).
+- **In dotfiles, `git pull/push` and `chezmoi apply` run under `timeout 60`.**
+  An orphaned `git pull` held an apply for ~3 min (56927b0a).
+
 ## What a commit looks like
 
 ```

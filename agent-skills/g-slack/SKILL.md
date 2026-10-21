@@ -136,6 +136,11 @@ was. The preview is the only place that stays visible while he decides. If the
 answer is "don't send", repeat the text as plain paragraphs (no fence, no
 blockquote) and **end the turn without another popup**, so it stays on screen.
 
+**No popup on a text he has not read.** The first draft of the turn, or a
+draft just changed after his correction, goes out as plain paragraphs ending
+in "powiedz wyślij". The popup is only for a text already on his screen
+(3905c082: two rejected send popups on fresh drafts).
+
 ### 6. Send as Greg
 
 ```bash
@@ -174,3 +179,20 @@ the same.
 - Same user token as `/g-standup` (`$WORK_SLACK_POSTER_TOKEN`) — one footer-free
   poster identity, `chat:write`, posts to any channel Greg is in.
 - `chat:write` **cannot read history** — reads always go through the MCP.
+
+## Editing a message already sent
+
+"popraw" on a posted message is `chat.update` with the same token handling as
+the post, and `ts` from the post response:
+`{"channel": $CH, "ts": $TS, "text": $TEXT}` to
+`https://slack.com/api/chat.update`. Don't post a second message.
+
+## Which channel, which tone
+
+- "Napisz do zespołu" is the team's own channel from work-context. Check the
+  channel's recent language with `slack_read_channel` before drafting; don't
+  draft in English first (3905c082).
+- "Zgłoś autorowi / do teamu, który to zakommitował": map the author to a team
+  in work-context first. Greg's own team → one line to the author (thread or
+  DM), no "zgłoszenie" header. Another team → the one-thread request flow from
+  the outward-facing rule (df44b632: "to nasz :D").

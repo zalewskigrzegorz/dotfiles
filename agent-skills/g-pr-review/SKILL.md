@@ -361,3 +361,12 @@ If user picks a verdict, submit via B5 (pending review, then event). Either way,
 * [ ] C4 replies posted via batched flow
 * [ ] C5 verdict offered (or skipped on user request)
 * [ ] B6 review worktree closed (auto on `APPROVE`, popup otherwise)
+
+# Running the PR's tests locally
+
+A fresh review worktree has no built workspace packages, so vitest dies on
+`Failed to resolve import "@<org>/shared"` (3e254d67, twice). Precheck
+`test -d packages/shared/dist || echo unbuilt`; unbuilt → don't run vitest,
+say in one line "unit nie puszczone lokalnie, paczki niezbudowane (~3–6 min)",
+and build only when the PR's risk is worth it. Run one file from
+`apps/<app>` with `pnpm exec vitest run <file>`.
