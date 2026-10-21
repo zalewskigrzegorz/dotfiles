@@ -114,17 +114,17 @@ for (const c of jsonChunks(herdr(["agent", "list"]), "agents")) {
   if (count === 0) continue;
 
   // last "Monitor event: <what>" line is the closest thing to progress; with
-  // no event yet, the session's own title says what it is waiting for
+  // no event yet, the row shows just the session title
   const events = text.split("\n").filter((l) => l.includes("Monitor event:"));
   const last = events.length === 0 ? "" : events[events.length - 1] ?? "";
   const ev = last.replace(/^.*Monitor event:\s*/, "");
   const title = jsonField(c, "name") || jsonField(c, "terminal_title_stripped");
-  const what = ev !== "" ? describe(ev) : title;
+  const what = ev !== "" ? describe(ev) : "";
 
   const times = count > 1 ? `×${count}` : "";
   const ws = numbers[jsonField(c, "workspace_id")] ?? "?";
   labels.push(`${ws} ◔${times} ${progress(text)}`);
-  rows.push(`${ws} · ${title} · ${what}`.slice(0, 110));
+  rows.push(`${ws} · ${title}${what === "" ? "" : " · " + what}`.slice(0, 110));
 }
 
 // chip = progress only; the popup (click) carries the detail, 4 rows max
