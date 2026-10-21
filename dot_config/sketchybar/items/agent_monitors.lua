@@ -3,7 +3,7 @@ local settings = require("settings")
 
 -- Idle agents waiting on a background Monitor (deploy, CI): `5 ◔ platform apply ok`.
 -- Hidden when none. PUSH-driven by bin/agent-monitors (launchd, every 15 s),
--- which writes ~/.cache/agent-monitors.json and fires `agent_monitors`.
+-- which writes ~/.cache/agent-monitors.json and `--set`s this item (a hidden item gets no events).
 local path = os.getenv("HOME") .. "/.cache/agent-monitors.json"
 
 local item = sbar.add("item", "agent_monitors", {
@@ -47,6 +47,4 @@ local function refresh()
     end
 end
 
-sbar.add("event", "agent_monitors")
-item:subscribe("agent_monitors", refresh)
-refresh() -- a trigger sent during config load is lost
+refresh() -- show the last known state right after a reload

@@ -5,8 +5,9 @@
 // otherwise is the TUI footer ("· 1 monitor") in the pane scrollback, so read
 // that. One-shot, run by launchd every 15 s (run_onchange_after_44).
 //
-// Writes ~/.cache/agent-monitors.json and triggers the SketchyBar
-// `agent_monitors` event only when the content changed.
+// Writes ~/.cache/agent-monitors.json and pushes the chip with `--set` every
+// run: a hidden item (drawing=off) never receives custom events, so a trigger
+// would not wake it.
 
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
@@ -72,5 +73,18 @@ const prev = existsSync(OUT) ? readFileSync(OUT, "utf8") : "";
 if (body !== prev) {
   writeFileSync(`${OUT}.tmp`, body);
   renameSync(`${OUT}.tmp`, OUT);
-  spawnSync(SKETCHYBAR, ["--trigger", "agent_monitors"]);
 }
+
+const labels: string[] = [];
+for (const r of rows) {
+  const ws = /"ws":"([^"]*)"/.exec(r);
+  const ev = /"event":"([^"]*)"/.exec(r);
+  const what = ev === null ? "" : (ev[1] ?? "").split(":")[0] ?? "";
+  labels.push(`${ws === null ? "?" : ws[1]} ◔${what === "" ? "" : " " + what.slice(0, 28)}`);
+}
+spawnSync(
+  SKETCHYBAR,
+  labels.length === 0
+    ? ["--set", "agent_monitors", "drawing=off"]
+    : ["--set", "agent_monitors", "drawing=on", `label=${labels.join("  ")}`],
+);
