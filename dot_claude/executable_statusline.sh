@@ -228,6 +228,15 @@ if [ -n "$HERDR_WORKSPACE_ID" ] && command -v herdr >/dev/null 2>&1; then
     [ -n "$sess_num" ] && printf '%s' "$sess_num" > "$num_cache" 2>/dev/null
   fi
   [ -n "$sess_num" ] && num_seg="${sess_c}${B}▸${sess_num}${N} "
+  # same number as the `$num` sidebar token, so the agent list reads "7 · <task>"
+  # like the sketchybar watcher chip; re-sent on change, like `$pr` below
+  if [ -n "$sess_num" ] && [ -n "$HERDR_PANE_ID" ]; then
+    num_sent="$cache_dir/numsent-${HERDR_PANE_ID//[^A-Za-z0-9]/_}"
+    if [ "$(cat "$num_sent" 2>/dev/null)" != "$sess_num" ]; then
+      printf '%s' "$sess_num" > "$num_sent"
+      herdr pane report-metadata "$HERDR_PANE_ID" --source greg.num --token "num=$sess_num" </dev/null >/dev/null 2>&1 &
+    fi
+  fi
 fi
 
 # Vim editor-mode badge — Claude's own "-- INSERT --" hint is dim grey, so an
