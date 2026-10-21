@@ -34,11 +34,14 @@ function jsonField(chunk: string, name: string): string {
 }
 
 // Only the footer (last line) counts: an old "✻ … 1 monitor still running"
-// line stays in the scrollback after the monitor has ended.
+// line stays in the scrollback after the monitor has ended. A watcher is a
+// `Monitor` ("· 1 monitor") or a `run_in_background` Bash ("· 1 shell", e.g.
+// `gh pr checks --watch`); count both.
 function footerMonitors(text: string): number {
   const lines = text.trimEnd().split("\n");
-  const m = /(\d+) monitors?\b/.exec(lines[lines.length - 1] ?? "");
-  return m === null ? 0 : Number(m[1]);
+  let n = 0;
+  for (const m of (lines[lines.length - 1] ?? "").matchAll(/(\d+) (?:monitors?|shells?)\b/g)) n += Number(m[1]);
+  return n;
 }
 
 // "Prod: Platform security apply: success · Deploy BH Prod attempt 3 (hotfix #1)"
@@ -71,7 +74,10 @@ if (process.argv[2] === "--selftest") {
   const two = "  -- INSERT -- ⏵⏵ accept edits on · 2 monitors";
   const ev = "Prod: Platform security apply: success · Deploy BH Prod attempt 3 (hotfix #1)";
   const want = "Prod: Platform security apply ✓ · Deploy BH Prod attempt 3";
-  if (footerMonitors(ok) !== 1 || footerMonitors(stale) !== 0 || footerMonitors(two) !== 2) {
+  const shell = "  -- INSERT -- ⏵⏵ accept edits on · PR #31311 · 1 shell   Image in clipboard";
+  const mixed = "  -- INSERT -- · 1 monitor · 2 shells";
+  if (footerMonitors(ok) !== 1 || footerMonitors(stale) !== 0 || footerMonitors(two) !== 2 ||
+      footerMonitors(shell) !== 1 || footerMonitors(mixed) !== 3) {
     console.log("FAIL footer");
     process.exit(1);
   }
