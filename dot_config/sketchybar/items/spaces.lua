@@ -23,25 +23,30 @@ local workspace_colors = {
 local current_workspace = get_current_workspace()
 local focused_color = colors.purple
 
-for i, workspace in ipairs(workspace_order) do
+-- Two sets: item.N (full size, monitors) and item.N.s (small, laptop screen).
+-- items/compact.lua decides which display each set draws on; the watcher updates both.
+local full = settings.items.space
+local small = { icon_padding = 6, label_padding = 8, icon_size = 13.0, label_size = 12.0 }
+
+local function add_workspace(i, workspace, suffix, size)
     local selected = workspace == current_workspace
     local workspace_color = workspace_colors[workspace] or colors.grey
 
-    local space = sbar.add("item", "item." .. i, {
+    local space = sbar.add("item", "item." .. i .. suffix, {
         icon = {
-            font = { family = "JetBrainsMono Nerd Font", size = settings.items.space.icon_size },
+            font = { family = "JetBrainsMono Nerd Font", size = size.icon_size },
             string = workspace_icons[workspace] or workspace,
-            padding_left = settings.items.space.icon_padding,
+            padding_left = size.icon_padding,
             padding_right = 6,
             color = selected and focused_color or workspace_color,
             highlight_color = focused_color,
             highlight = selected
         },
         label = {
-            padding_right = settings.items.space.label_padding,
+            padding_right = size.label_padding,
             color = selected and focused_color or workspace_color,
             highlight_color = focused_color,
-            font = settings.icons,
+            font = { family = "sketchybar-app-font", style = "Regular", size = size.label_size },
             y_offset = -1,
             highlight = selected
         },
@@ -58,9 +63,9 @@ for i, workspace in ipairs(workspace_order) do
         }
     })
 
-    sbar.add("item", "item." .. i .. "padding", { script = "", width = settings.items.gap })
+    sbar.add("item", "item." .. i .. suffix .. "padding", { script = "", width = settings.items.gap })
 
-    if i == 5 then
+    if i == 5 and suffix == "" then
         sbar.add("item", "workspace.dell_ultra_sep", {
             label = {
                 string = "│",
@@ -88,7 +93,7 @@ for i, workspace in ipairs(workspace_order) do
 
     space:subscribe("mouse.clicked", function(env)
         if env.BUTTON == "other" then
-            space_popup:set({ background = { image = "item." .. i } })
+            space_popup:set({ background = { image = space.name } })
             space:set({ popup = { drawing = "toggle" } })
         else
             sbar.exec("aerospace list-windows --workspace " .. workspace .. " --format '%{window-id}' --json", function(windows)
@@ -117,4 +122,11 @@ for i, workspace in ipairs(workspace_order) do
     space:subscribe("mouse.exited", function(_)
         space:set({ popup = { drawing = false } })
     end)
+end
+
+for i, workspace in ipairs(workspace_order) do
+    add_workspace(i, workspace, "", full)
+end
+for i, workspace in ipairs(workspace_order) do
+    add_workspace(i, workspace, ".s", small)
 end
