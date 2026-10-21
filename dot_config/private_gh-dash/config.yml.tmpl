@@ -8,6 +8,7 @@ prSections:
     -author:@me
     -author:app/renovate
     -author:app/dependabot
+    -author:app/{{ index $w "orgLower" }}-monorepo-cicd
   type: null
 - title: {{ index $gd "staffTitle" | default "Guild" | quote }}
   filters: >-
@@ -17,18 +18,15 @@ prSections:
     -author:@me
     -author:app/renovate
     -author:app/dependabot
+    -author:app/{{ index $w "orgLower" }}-monorepo-cicd
   type: null
-- title: "🤖 Renovate"
+- title: "🤖 Boty"
   filters: >-
     is:open
     review-requested:@me
     author:app/renovate
-  type: null
-- title: "🤖 Dependabot"
-  filters: >-
-    is:open
-    review-requested:@me
     author:app/dependabot
+    author:app/{{ index $w "orgLower" }}-monorepo-cicd
   type: null
 - title: My Pull Requests
   filters: is:open author:@me
@@ -40,9 +38,28 @@ prSections:
     -author:@me
     -author:app/renovate
     -author:app/dependabot
+    -author:app/{{ index $w "orgLower" }}-monorepo-cicd
+  type: null
+# A "Comment" review drops the review request, so those PRs fall out of
+# review-requested:@me. Search can't filter on my own approval, so PRs I
+# approved that still wait on others show here too. Re-requested ones stay
+# in Needs My Review; Involved keeps only PRs I never reviewed.
+- title: "💬 Do dokończenia"
+  filters: >-
+    is:open
+    reviewed-by:@me
+    -review-requested:@me
+    -author:@me
+    -review:approved
+    -author:app/{{ index $w "orgLower" }}-monorepo-cicd
   type: null
 - title: Involved
-  filters: is:open involves:@me -author:@me
+  filters: >-
+    is:open
+    involves:@me
+    -reviewed-by:@me
+    -author:@me
+    -author:app/{{ index $w "orgLower" }}-monorepo-cicd
   type: null
 issuesSections:
 - title: My Issues
