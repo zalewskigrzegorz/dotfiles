@@ -1,12 +1,11 @@
 local colors = require("colors")
 local settings = require("settings")
 
--- Idle agents waiting on a background Monitor (deploy, CI): `5 ◔ platform apply ok`.
--- Hidden when none. PUSH-driven by bin/agent-monitors (launchd, every 15 s),
--- which writes ~/.cache/agent-monitors.json and `--set`s this item (a hidden item gets no events).
-local path = os.getenv("HOME") .. "/.cache/agent-monitors.json"
-
-local item = sbar.add("item", "agent_monitors", {
+-- Idle agents waiting on a background Monitor (deploy, CI):
+-- `5 ◔ Prod: Platform security apply ✓ · Deploy BH Prod attempt 3`. Hidden when none.
+-- PUSH-driven by bin/agent-monitors (launchd, every 15 s), which `--set`s this
+-- item. A hidden item gets no events, so there is nothing to subscribe to.
+sbar.add("item", "agent_monitors", {
     position = "right",
     drawing = false,
     padding_left = settings.group_paddings,
@@ -30,21 +29,3 @@ local item = sbar.add("item", "agent_monitors", {
         border_width = 1
     }
 })
-
-local function refresh()
-    local f = io.open(path)
-    local s = f and f:read("a") or "[]"
-    if f then f:close() end
-    local parts = {}
-    for ws, ev in s:gmatch('"ws":"(.-)".-"event":"(.-)"') do
-        local short = ev:match("^(.-):") or ev
-        parts[#parts + 1] = ws .. " ◔" .. (short ~= "" and (" " .. short:sub(1, 28)) or "")
-    end
-    if #parts == 0 then
-        item:set({ drawing = false })
-    else
-        item:set({ drawing = true, label = { string = table.concat(parts, "  ") } })
-    end
-end
-
-refresh() -- show the last known state right after a reload

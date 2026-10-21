@@ -5,16 +5,15 @@
 // otherwise is the TUI footer ("· 1 monitor") in the pane scrollback, so read
 // that. One-shot, run by launchd every 15 s (run_onchange_after_44).
 //
-// Writes ~/.cache/agent-monitors.json and pushes the chip with `--set` every
-// run: a hidden item (drawing=off) never receives custom events, so a trigger
-// would not wake it.
+// Pushes the chip with `--set` every run: a hidden item (drawing=off) never
+// receives custom events, so a trigger would not wake it.
+//
+// `agent-monitors --selftest` checks the footer and event parsing.
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 
 const HERDR = process.env.HERDR_BIN ?? "/opt/homebrew/bin/herdr";
 const SKETCHYBAR = "/opt/homebrew/bin/sketchybar";
-const OUT = `${process.env.HOME ?? ""}/.cache/agent-monitors.json`;
 
 function herdr(args: string[]): string {
   const r = spawnSync(HERDR, args, { encoding: "utf8" });
@@ -34,8 +33,42 @@ function jsonField(chunk: string, name: string): string {
   return m === null ? "" : m[1] ?? "";
 }
 
-function esc(s: string): string {
-  return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+// Only the footer (last line) counts: an old "✻ … 1 monitor still running"
+// line stays in the scrollback after the monitor has ended.
+function footerMonitors(text: string): number {
+  const lines = text.trimEnd().split("\n");
+  const m = /(\d+) monitors?\b/.exec(lines[lines.length - 1] ?? "");
+  return m === null ? 0 : Number(m[1]);
+}
+
+// "Prod: Platform security apply: success · Deploy BH Prod attempt 3 (hotfix #1)"
+// → "Prod: Platform security apply ✓ · Deploy BH Prod attempt 3"
+function describe(event: string): string {
+  const [head = "", rest = ""] = event.split(" · ");
+  const colon = head.lastIndexOf(":");
+  const step = colon === -1 ? head : head.slice(0, colon);
+  const state = colon === -1 ? "" : head.slice(colon + 1).trim();
+  const mark = state === "success" ? " ✓" : state === "" ? "" : ` ${state}`;
+  const ctx = (rest.split(/ run \d| \(/)[0] ?? "").trim();
+  return `${step}${mark}${ctx === "" ? "" : " · " + ctx}`;
+}
+
+if (process.argv[2] === "--selftest") {
+  const ok = "x\n  -- INSERT -- ⏵⏵ accept edits on · 1 monitor\n";
+  const stale = "✻ done · 1 monitor still running\n  -- INSERT -- ⏵⏵ accept edits on (shift+tab to cycle)\n";
+  const two = "  -- INSERT -- ⏵⏵ accept edits on · 2 monitors";
+  const ev = "Prod: Platform security apply: success · Deploy BH Prod attempt 3 (hotfix #1)";
+  const want = "Prod: Platform security apply ✓ · Deploy BH Prod attempt 3";
+  if (footerMonitors(ok) !== 1 || footerMonitors(stale) !== 0 || footerMonitors(two) !== 2) {
+    console.log("FAIL footer");
+    process.exit(1);
+  }
+  if (describe(ev) !== want || describe("Prod") !== "Prod") {
+    console.log(`FAIL describe: ${describe(ev)}`);
+    process.exit(1);
+  }
+  console.log("ok");
+  process.exit(0);
 }
 
 const numbers: Record<string, string> = {};
@@ -45,45 +78,29 @@ for (const c of jsonChunks(herdr(["workspace", "list"]), "workspaces")) {
   if (id !== "" && n !== null) numbers[id] = n[1] ?? "";
 }
 
-const rows: string[] = [];
+const labels: string[] = [];
 for (const c of jsonChunks(herdr(["agent", "list"]), "agents")) {
   const status = jsonField(c, "agent_status");
   if (status !== "idle" && status !== "done") continue;
   const pane = jsonField(c, "pane_id");
   if (pane === "") continue;
 
-  const text = herdr(["pane", "read", pane, "--source", "recent", "--lines", "60"]);
-  const count = /(\d+) monitors?\b/.exec(text.split("\n").slice(-6).join("\n"));
-  if (count === null) continue;
+  const text = herdr(["pane", "read", pane, "--source", "recent", "--lines", "30"]);
+  const count = footerMonitors(text);
+  if (count === 0) continue;
 
-  // last "Monitor event: <what>" line is the closest thing to progress
+  // last "Monitor event: <what>" line is the closest thing to progress; with
+  // no event yet, the session's own title says what it is waiting for
   const events = text.split("\n").filter((l) => l.includes("Monitor event:"));
   const last = events.length === 0 ? "" : events[events.length - 1] ?? "";
-  const ev = last.replace(/^.*Monitor event:\s*/, "").slice(0, 80);
+  const ev = last.replace(/^.*Monitor event:\s*/, "");
+  const what = ev !== "" ? describe(ev) : jsonField(c, "name") || jsonField(c, "terminal_title_stripped");
 
-  const ws = jsonField(c, "workspace_id");
-  const title = jsonField(c, "name") || jsonField(c, "terminal_title_stripped");
-  rows.push(
-    `{"ws":"${esc(numbers[ws] ?? "?")}","pane":"${esc(pane)}","title":"${esc(title)}","monitors":${count[1]},"event":"${esc(ev)}"}`,
-  );
+  const times = count > 1 ? `×${count}` : "";
+  const ws = numbers[jsonField(c, "workspace_id")] ?? "?";
+  labels.push(`${ws} ◔${times}${what === "" ? "" : " " + what.slice(0, 64)}`);
 }
 
-const body = `[${rows.join(",")}]\n`;
-const prev = existsSync(OUT) ? readFileSync(OUT, "utf8") : "";
-if (body !== prev) {
-  writeFileSync(`${OUT}.tmp`, body);
-  renameSync(`${OUT}.tmp`, OUT);
-}
-
-const labels: string[] = [];
-for (const r of rows) {
-  const ws = /"ws":"([^"]*)"/.exec(r);
-  const ev = /"event":"([^"]*)"/.exec(r);
-  const what = ev === null ? "" : (ev[1] ?? "").split(":")[0] ?? "";
-  const n = /"monitors":(\d+)/.exec(r);
-  const times = n === null || n[1] === "1" ? "" : `×${n[1]}`;
-  labels.push(`${ws === null ? "?" : ws[1]} ◔${times}${what === "" ? "" : " " + what.slice(0, 28)}`);
-}
 spawnSync(
   SKETCHYBAR,
   labels.length === 0
