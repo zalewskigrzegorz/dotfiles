@@ -269,7 +269,7 @@ def "work sw" []: nothing -> nothing { work switch }
 # (scriptc/workctl.ts): a def is frozen into every shell that loaded this file,
 # so a fix here never reached the tabs already open — the binary is re-read on
 # every call.
-def "work rm" [
+def --env "work rm" [
     branch?: string@"work _complete-worktrees"
     --self (-s)   # remove the worktree you are standing in (no picker)
     --force
@@ -279,7 +279,12 @@ def "work rm" [
         [[on flag]; [$self "--self"] [$force "--force"] [$keep_branch "--keep-branch"]]
         | where on | get flag
     )
+    let main = (^git rev-parse --path-format=absolute --git-common-dir | complete | get stdout | str trim | path dirname)
+    let back = if ($main | path exists) { $main } else { $env.HOME }
     ^workctl rm ...([$branch] | compact) ...$flags
+    # a shell left in the removed dir errors on every prompt hook; `path exists`
+    # itself needs a live cwd, only `ls` + `cd` with a precomputed target survive
+    try { ls -D $env.PWD | ignore } catch { cd $back }
 }
 
 # Batch-remove clean worktrees whose PR is merged/closed or whose branch is in
