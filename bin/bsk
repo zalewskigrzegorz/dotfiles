@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# bsk wrapper — `bsk session start` parks the new Comet Agent Window on the `test` workspace.
+# Not an aerospace title rule: the window opens as "about:blank - Comet", same as OAuth popups.
+set -uo pipefail
+
+real="$HOME/.local/bin/bsk"
+[ "${1:-}" = session ] && [ "${2:-}" = start ] || exec "$real" "$@"
+
+comet() { aerospace list-windows --monitor all --app-bundle-id ai.perplexity.comet --format '%{window-id}' 2>/dev/null | sort; }
+
+before=$(comet)
+"$real" "$@"
+rc=$?
+[ "$rc" -eq 0 ] || exit "$rc"
+
+for _ in $(seq 20); do
+  new=$(comm -13 <(printf '%s\n' "$before") <(comet))
+  if [ -n "$new" ]; then
+    for id in $new; do aerospace move-node-to-workspace --window-id "$id" test; done
+    break
+  fi
+  sleep 0.15
+done
+exit 0
