@@ -311,6 +311,20 @@ function shownEvent(num: string): AlertEvent {
   return {};
 }
 
+// What happened, in words: the bare "#31265  16:10" row said nothing for
+// events without text (CI start, CI green, comment).
+function eventWhat(ev: AlertEvent): string {
+  const t = ev.text ?? "";
+  switch (ev.kind) {
+    case "ci_fail": return t === "" ? "CI failed" : `CI failed: ${t}`;
+    case "approval": return t === "" ? "approved" : `approved by ${t}`;
+    case "ci_success": return "CI green";
+    case "comment": return "new comment";
+    case "ci_start": return "CI started";
+    default: return t;
+  }
+}
+
 function rebuildRows(cachePath: string): void {
   // sketchybar's item regex is basic POSIX: no `(a|b)`, so one remove per prefix
   spawnSync("sketchybar", ["--remove", "/pr_watch\\.pr\\..*/", "--remove", "/pr_watch\\.ev\\..*/"], { stdio: "ignore" });
@@ -328,7 +342,7 @@ function rebuildRows(cachePath: string): void {
         `icon.color=${KIND_COLOR[ev.kind ?? ""] ?? C_MUTED}`,
         `icon.font=${FONT}:Bold:12.0`,
         "icon.padding_left=10",
-        `label=#${num}  ${ev.text ? truncate(ev.text) + "  " : ""}${time}`,
+        `label=#${num}  ${eventWhat(ev)}  ${truncate(cacheEntry(String(num)).title ?? "")}  ${time}`,
         `label.color=${C_TEXT}`,
         `label.font=${FONT}:Bold:12.0`,
         "label.padding_right=10",
