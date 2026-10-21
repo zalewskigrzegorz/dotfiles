@@ -12,9 +12,9 @@ description: |
   mojemu", "podsumuj to na slacka", "skróć to", "luźniej", "dosadnie", "tylko
   konkrety", "just the meat", "casual style", "shorten this", or when a draft
   reads too long, too stiff, or over-explained. Also covers e-mails to outside
-  companies and strangers — dealer, bank, urząd, leasing, ubezpieczyciel,
-  kontrahent, sprzedawca ("mail do dealera", "odpisz firmie", "napisz do
-  urzędu") — where the same pass switches to the polite Pan/Pani/Państwo
+  companies and strangers — dealer, bank, urząd, notariusz, kancelaria, sąd,
+  leasing, ubezpieczyciel, kontrahent, sprzedawca ("mail do dealera", "odpisz
+  firmie", "napisz do urzędu", "mail do kancelarii") — where the same pass switches to the polite Pan/Pani/Państwo
   register described inside. Do NOT run the `humanizer` skill before or after
   this one — AI-tell removal is built in here, and a second rewrite pass
   flattens the voice back out.

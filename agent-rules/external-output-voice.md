@@ -126,3 +126,17 @@ week counter and blockers; stripping them took 3 drafts.
 docs, a README, someone else's draft he is cleaning up, anything where the goal
 is "sounds less like AI" rather than "sounds like Greg". Outward-facing text in
 his own name goes through `greg-voice` instead.
+
+## A mail in Greg's name carries only his facts and asks
+
+A formal mail to a notary was drafted without `greg-voice` and with two lines
+Greg never gave: "koszt 300 zł brutto jest dla mnie w porządku" and "mogę
+wystąpić do sądu o te informacje". He rewrote the second one himself before
+sending (2026-10-21).
+
+- **Run `greg-voice` on a mail to a notary, court, office or firm** even when
+  the draft goes through `spark draft` and Greg will read it first.
+- **No acceptance, offer or promise he did not state** (a price, an action he
+  would take). Put it in the draft as a question to him or leave it out.
+- **Unknown facts stay unknown in the text** ("nie wiem, czy…"); don't fill
+  them with a plausible guess, and let him change the wording.
