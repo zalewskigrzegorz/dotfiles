@@ -14,13 +14,16 @@ decisions, not tool calls. Verified on 2026-10-21: 6 tasks, 9 agents, ~1 h,
 One line per item: what it is, which kind, where it runs, which model. Then
 spawn; don't ask about the split unless an item is ambiguous.
 
-| Kind | Example | Where | Model (`subagent-model-by-weight`) |
+| Kind | Example | Where | Score → model (`subagent-model-by-weight`) |
 |---|---|---|---|
-| Mail / document draft | kancelaria, dealer, urząd | tab in the personal workspace, `use-spark`, `pdf-form-pl` | Sonnet |
-| Lookup / digest | Slack since Thursday, standup transcript, "what did X say" | tab in the work workspace, read-only | Sonnet |
-| PR review draft | "Roman's PR, explain why it's wrong" | tab in the work workspace on `main`, read-only | Opus |
-| Code change | a fix, a filter, a migration | `workctl --branch … --action wt-full`, then the agent | Opus |
-| Needs data from Greg | a contract, a form with his PESEL | not spawned; one line asking for the data, spawn later | — |
+| Mail / document draft | kancelaria, dealer, urząd | tab in the personal workspace, `use-spark`, `pdf-form-pl` | 0 → Sonnet medium |
+| Lookup / digest | Slack since Thursday, standup transcript, "what did X say" | tab in the work workspace, read-only | 0–1 → Sonnet medium |
+| PR review draft | "Roman's PR, explain why it's wrong" | tab in the work workspace on `main`, read-only | +2 argue +2 schema +1 history → Opus high |
+| Code change | a fix, a filter, a migration | `workctl --branch … --action wt-full`, then the agent | +3 PR (+2 multi-package) → Sonnet high / Opus high |
+| Needs data from Greg | a contract, a form with his PESEL | spawn anyway with what the scans and mail hold; placeholders for the rest | 0 → Sonnet medium |
+
+The score is computed from the brief, said in the spawn line, and never
+changed on a running agent.
 
 Items that only Greg can do (a 2FA, a signature, a payment) stay on his list
 with one line each, no agent.

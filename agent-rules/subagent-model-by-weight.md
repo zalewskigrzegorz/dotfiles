@@ -1,62 +1,77 @@
 ---
-description: Subagent model and effort follow the task's weight — Opus for code and long runs, Sonnet for mail and small items, Fable only on Greg's word
+description: Subagent model and effort are computed from the task's measurable complexity before the spawn — no popup, no re-deriving, no switching on a running agent
 alwaysApply: true
 ---
 
-# Subagent Model Follows the Task's Weight
+# Subagent Model and Effort Follow the Task's Complexity
 
-Fable 5.1 is the interactive model for Greg's own session. It is **not** for
-background work. On 2026-09-08 a research fan-out (1 supplement agent + 5 deep
-agents, each spawning children) ran on Fable and burned 91% of the session
-quota in under 20 minutes. On 2026-10-21 the opposite happened: every agent of
-an orchestration day ran on Sonnet, code work included, and Greg asked for a
-split by weight ("rzeczy związane z kodem i długie akcje odpalaj na opusie,
-maile i małe itemy na sonecie, ustawiaj sam w zależności od wagi taska model i
-effort").
+Fable 5.1 is the interactive model for Greg's own session, not for background
+work (2026-09-08: a research fan-out on Fable burned 91% of the quota in 20
+min). On 2026-10-21 the opposite happened: nine agents of an orchestration day
+ran on Sonnet, code included. Greg's rule, verbatim: "rzeczy związane z kodem i
+długie akcje odpalaj na opusie, maile i małe itemy na sonecie, ustawiaj sam w
+zależności od wagi taska model i effort", and the same day: "to są wymierne
+dane, nie chcę za każdym razem tego przeliczać, zastanawiać się albo zmieniać
+już na agencie działającym".
 
-## The table
+## Score the task, then pick — before the spawn
 
-| Task | Model | Effort |
+Count the points from what the brief already says. No judgement call, no
+popup; the score is stated in the spawn line.
+
+| Signal in the brief | Points |
+|---|---|
+| Writes code that lands in a PR (fix, feature, migration, refactor) | +3 |
+| Touches more than one package or app, or a schema / migration / auth path | +2 |
+| Expected to run longer than ~15 min (build, e2e, a debugging hunt, a multi-step flow) | +2 |
+| Argues a position with evidence (a review of a non-trivial PR, a design objection) | +2 |
+| Needs the repo's history to answer (`git log -S`, blame, "why is it like this") | +1 |
+| Read-only lookup with a known source (a Slack thread, a mail thread, a config value) | 0 |
+| Draft that Greg reads before it goes out (mail, Slack reply, form) | 0 |
+| Bulk mechanical work (search, scrape, rename sweep, JSON extraction) | 0 |
+
+| Score | Model | Effort |
 |---|---|---|
-| Code that lands in a PR, a migration, a multi-file refactor, a debugging hunt, anything expected to run > ~15 min | **Opus** (`--model opus`) | high |
-| Code review draft of a non-trivial PR (security, data model, auth) | **Opus** | high |
-| Mail drafts, Slack digests, transcript lookups, a config find, a one-file read-only check, a fan-out leaf | **Sonnet** (`--model sonnet`) | medium |
-| Bulk mechanical work (search, scraping, JSON extraction, rename sweeps) | **Sonnet** | low |
-| Anything, on Fable | only when Greg names Fable for that spawn, in the moment | — |
+| 0–1 | Sonnet (`--model sonnet`) | low for bulk, medium otherwise |
+| 2–3 | Sonnet | high |
+| ≥ 4 | Opus (`--model opus`) | high |
+| any, Fable | only when Greg names Fable for that spawn, in the moment | — |
 
-The orchestrator picks the row itself and says it in one line at spawn
-("5 agentów: 2× Opus (PR, review), 3× Sonnet (maile, Slack)"). No popup for
-the model unless the task sits between two rows.
+Examples from 2026-10-21: a Slack digest (0 → Sonnet medium), a mail draft to
+a dealer (0 → Sonnet medium), a refresh-token TTL lookup with a diff sketch
+(+1 history → Sonnet medium), a review of a PR that merges two team tables
+(+2 argue, +2 schema, +1 history → Opus high), a People-page filter fix in
+`apps/ui` (+3 PR → Sonnet high, borderline; +2 if it had touched the API →
+Opus).
 
 ## Rules
 
-1. **Every `Agent` call and every `herdr agent start … -- --model <m>` names
-   the model explicitly.** Never rely on inheritance or a skill's frontmatter —
-   when the parent is Fable, inheritance means Fable. `subagent_type: "fork"`
-   always inherits; don't fork bulk work.
-2. **Never launch a subagent on Fable** unless Greg says so for that spawn, by
-   name. "Odpal agenta" means the table above.
-3. **Skills that spawn agents** (`research`, `research-deep`,
+1. **Every spawn names the model explicitly** — `Agent(model: …)` or `herdr
+   agent start … -- --model <m>` — and the spawn line states the score: "PR
+   review #31204: 5 pkt → Opus high". Never rely on inheritance or a skill's
+   frontmatter; when the parent is Fable, inheritance means Fable.
+   `subagent_type: "fork"` always inherits, so no forks for bulk work.
+2. **Decide once, before the spawn. Never `/model` on a running agent.**
+   A task that grows past its score mid-run finishes on the model it started
+   on; the overrun goes into the next brief's score, not into a switch.
+3. **No popup for the model.** The score answers it. The only exception is
+   Greg naming Fable himself. The `review-spawn-model.sh` hook, which turned
+   a review spawn into a permission prompt, is retired with this rule.
+4. **Skills that spawn agents** (`research`, `research-deep`,
    `efficient-frontier`, `superpowers:dispatching-parallel-agents`,
    `superpowers:subagent-driven-development`, `superpowers:executing-plans`,
-   `superpowers:requesting-code-review`, and any prompt template) inherit the
-   table. "The most capable available model" in a skill is not an exception
-   (2026-09-30: a whole-branch review ran on Fable because `executing-plans`
-   said so).
-4. **A review spawn where Greg may want depth** (final whole-branch review, a
-   security judgement) still gets one `AskUserQuestion`: **Opus** (Recommended)
-   · **Fable** (deeper, costs quota). Routine PR reviews take Opus from the
-   table without asking. The `review-spawn-model.sh` hook turns a review spawn
-   without that popup into a permission prompt naming the model.
-5. **Before a fan-out, say the count and the models in one line** so Greg can
-   stop it before it starts.
+   `superpowers:requesting-code-review`, and any prompt template) score the
+   same way. "The most capable available model" in a skill is not an
+   exception (2026-09-30: a whole-branch review ran on Fable because
+   `executing-plans` said so).
+5. **Before a fan-out, one line with count, models and ETA** ("5 agentów: 2×
+   Opus, 3× Sonnet, ~15 min") so Greg can stop it before it starts.
 6. **The model is not the main cost — context re-reads are.** A
-   `web-search-agent` re-reads every search result on every step: 37 steps
-   burned 3.2 M cached tokens on Sonnet (2026-09-08). Cap research agents at
-   ~15 web calls per question, forbid them from spawning children, and prefer a
-   `herdr` pane (`herdr agent start … -- --model <m>`, visible argv, `/clear`
-   between briefs) over the in-process Agent tool for anything longer than a
-   few minutes.
+   `web-search-agent` re-reads every result on every step: 37 steps burned
+   3.2 M cached tokens on Sonnet (2026-09-08). Cap research agents at ~15 web
+   calls per question, forbid them from spawning children, and prefer a
+   `herdr` pane (visible argv, `/clear` between briefs) over the in-process
+   Agent tool for anything longer than a few minutes.
 7. **Stopping a parent does not stop its children.** After `TaskStop`, run
    `ListAgents` and kill every orphan; repeat until the list is empty. Report
    the count killed.
@@ -65,11 +80,10 @@ the model unless the task sits between two rows.
    brief says "no `chmod`"; before staging, `git diff --summary | rg 'mode
    change'` must be empty.
 
-## Why the split
+## Why a score
 
-Search, scraping and mechanical edits do not need frontier judgement, and a
-mail draft that Greg reads before sending can afford a cheaper model. Code
-that lands in a PR is reviewed by the team and shipped to customers; a wrong
-root cause there costs a review round and a revert, which is more than the
-Opus premium. Fable stays with Greg's own session: planning, synthesis, the
-final answer.
+Search, scraping and a draft Greg reads before sending do not need frontier
+judgement. Code that lands in a PR is reviewed by the team and shipped; a
+wrong root cause there costs a review round and a revert, more than the Opus
+premium. The score makes that trade once, in numbers, so no session re-derives
+it and no running agent gets switched halfway.
