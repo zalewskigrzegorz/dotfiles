@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # review-spawn-model — a review subagent spawned without the Sonnet/Fable
-# popup (rule 3a in agent-rules/subagents-on-sonnet.md) gets a permission
+# popup (rule 4 in agent-rules/subagent-model-by-weight.md) gets a permission
 # prompt that names the model, so Greg can still pick before it runs. The rule
 # text alone was missed once: a whole-branch review went out on Sonnet with no
 # popup (retro 2026-10-06, b90f720d).
