@@ -95,32 +95,25 @@ mac = 'Built-in'
 #                 See:
 #                 https://nikitabobko.github.io/AeroSpace/guide#assign-workspaces-to-monitors
 [gaps]
-inner.horizontal = 8
-inner.vertical = 8
-outer.left = 5
-outer.bottom = 5
+# No gaps: HazeOver dims the unfocused windows, so they need no space between them.
+inner.horizontal = 0
+inner.vertical = 0
+outer.left = 0
+outer.bottom = 0
 # outer.top — gap from screen TOP edge to workspace area.
 # Sketchybar is sticky=on + topmost=window + height=36, so it overlays windows.
-# JankyBorders draws a border around each window — empirically only 4 px of it
-# sticks out above the window top (the 8 px stroke straddles the window edge),
-# so we add +4 px to whatever closes the gap to the bar.
-#
-# Built-in Retina Display: macOS reserves ~32 px (menubar + notch); 32 + 4 = 36
-# closes the bar gap, +4 for border → outer.top = 8.
-# External displays (DELL, Samsung C34H89x): no notch. Need to clear the full
-# bar height (36) + border slack (4) → outer.top = 40. Tested 2026-05-24.
-#
-# If you change settings.bar.height (sketchybar) or width (borders), mirror here.
+# outer.top only clears the bar: 0 hid the menus and traffic lights under it (2026-10-22).
+# Built-in 4 (macOS reserves ~32 px for the notch), externals the full bar height 36.
 #
 # Monitor pattern: aerospace does substring match, so "Built-in" matches the
 # actual MacBook display name "Built-in Retina Display".
 outer.top = [
-  { monitor."Built-in"     = 8 },
-  { monitor.'DELL U3225QE' = 40 },
-  { monitor.'C34H89x'      = 40 },
-  40,
+  { monitor."Built-in"     = 4 },
+  { monitor.'DELL U3225QE' = 36 },
+  { monitor.'C34H89x'      = 36 },
+  36,
 ]
-outer.right = 5
+outer.right = 0
 
 # 'main' binding mode declaration
 # See: https://nikitabobko.github.io/AeroSpace/guide#binding-modes
@@ -349,6 +342,13 @@ run = ['exec-and-forget $HOME/Code/dotfiles/bin/sketchybar-watcher/sketchybar-wa
 [[on-window-detected]]
 if.app-name-regex-substring = 'Discord'
 run = 'move-node-to-workspace chat'
+
+# A huddle or call window stays floating where it opened; the rule below would pull it to `chat`, often on another monitor.
+# shortcut: title pattern guessed, not yet seen live; confirm with `aerospace list-windows --all` during a call.
+[[on-window-detected]]
+if.app-name-regex-substring = 'Slack'
+if.window-title-regex-substring = '(?i)huddle|incoming call|calling'
+run = 'layout floating'
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'Slack'

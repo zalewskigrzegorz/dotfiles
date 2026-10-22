@@ -12,6 +12,8 @@ scripts/list-setapp-apps.sh
 
 On a new Mac, install Setapp with Homebrew, sign in, mark the apps below as favorites in Setapp, then use Setapp's Quick Installation/Install Favorites flow. Setapp exposes that workflow in the app UI; there is no stable Homebrew/CLI interface for installing each Setapp app by name.
 
+A Setapp build keeps its settings in a `-setapp` defaults domain (`com.pointum.hazeover-setapp`). Track the keys you chose as `defaults write` lines in `run_onchange_after_14-macos-defaults.sh.tmpl`, not the whole plist, which also holds window frames and run time.
+
 ## Expected
 
 - [ ] Boom
