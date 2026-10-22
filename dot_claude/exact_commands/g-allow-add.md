@@ -1,14 +1,14 @@
 ---
-description: Scan the conversation for Bash/MCP calls that hit a permission prompt, propose the widest safe allowlist patterns, confirm via popup, then edit settings.json.tmpl and chezmoi apply so the rule takes effect live. Explicit-invoke command (was the g-allow-add skill).
+description: Scan the conversation for Bash/MCP calls that hit a permission prompt, propose the widest safe allowlist patterns, confirm via popup, then edit .chezmoitemplates/claude-settings.json and chezmoi apply so the rule takes effect live. Explicit-invoke command (was the g-allow-add skill).
 ---
 
 # g-allow-add
 
-Greg keeps getting interrupted by permission popups for safe read-only tools. This command batches the additions in one quick round-trip instead of him hand-editing `settings.json.tmpl` each time.
+Greg keeps getting interrupted by permission popups for safe read-only tools. This command batches the additions in one quick round-trip instead of him hand-editing `.chezmoitemplates/claude-settings.json` each time.
 
 ## Where it goes
 
-Source of truth: `~/Code/dotfiles/dot_claude/settings.json.tmpl`, key `permissions.allow` (flat JSON array of strings).
+Source of truth: `~/Code/dotfiles/.chezmoitemplates/claude-settings.json`, key `permissions.allow` (flat JSON array of strings).
 
 Live config `~/.claude/settings.json` is generated from the tmpl by `chezmoi apply`. **Never edit the live file** — chezmoi overwrites it on next apply.
 
@@ -28,7 +28,7 @@ It also asks (guards) for any `rm`, force push, `chmod 777`, HTTP writes, dep in
 
 ## Pattern syntax — TWO STYLES coexist in the file
 
-Greg's `settings.json.tmpl` uses **both** of these interchangeably:
+Greg's `.chezmoitemplates/claude-settings.json` uses **both** of these interchangeably:
 
 - **Space-glob style**: `Bash(sqlite3 *)`, `Bash(ls *)`, `Bash(git status*)`
 - **Colon style**: `Bash(grep:*)`, `Bash(mkdir:*)`, `Bash(chezmoi apply:*)`
@@ -36,7 +36,7 @@ Greg's `settings.json.tmpl` uses **both** of these interchangeably:
 Both work in Claude Code. When **checking for duplicates** before adding, you MUST grep for both shapes — a single naive `grep "Bash(grep "` misses the colon form and you'll propose adding something that's already there. Use:
 
 ```bash
-grep -nE 'Bash\((cmd_name)[ :]' ~/Code/dotfiles/dot_claude/settings.json.tmpl
+grep -nE 'Bash\((cmd_name)[ :]' ~/Code/dotfiles/.chezmoitemplates/claude-settings.json
 ```
 
 or list all `Bash(...)` entries and eyeball.
@@ -111,6 +111,6 @@ Stop. No recap, no "let me know if...", no per-entry summary (already shown in t
 ## Edge cases
 
 - **Tmpl contains handlebars** (`{{ .chezmoi.homeDir }}`) — don't break them. Use small targeted edits.
-- **JSON validity** — if nervous, preview with `chezmoi execute-template < ~/Code/dotfiles/dot_claude/settings.json.tmpl | jq .` before applying.
+- **JSON validity** — if nervous, preview with `chezmoi execute-template < ~/Code/dotfiles/.chezmoitemplates/claude-settings.json | jq .` before applying.
 - **Greg deselects everything** in the AskUserQuestion popup → he changed his mind, just say "OK, nic nie dodaję" and stop.
 - **Apply errors** — show error verbatim, don't proceed. Almost always: a trailing comma or unescaped quote.
