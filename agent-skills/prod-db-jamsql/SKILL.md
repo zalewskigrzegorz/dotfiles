@@ -1,6 +1,6 @@
 ---
-description: Production database through the bastion tunnel and jamsql — confirm the region behind the tunnel, read the schema before querying, prove the row exists on that connection before any write
-alwaysApply: true
+name: prod-db-jamsql
+description: Production Postgres through the bastion tunnel and the jamsql MCP: confirm the tunnel's region (US/EU) first, read the schema instead of guessing, prove the row is on this connection before any write, open writes Greg runs himself in a Jam SQL tab. Load BEFORE any mcp__jamsql__* call, a bastion tunnel, or a query or UPDATE against prod / prodeu.
 ---
 
 # Prod Database via the Tunnel — Region First, Schema Second

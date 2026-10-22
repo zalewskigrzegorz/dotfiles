@@ -87,7 +87,7 @@ case "${1:-}" in
     total="$(printf '%s\n' "$rows" | wc -l | tr -d ' ')"
     repos="$(printf '%s\n' "$rows" | awk -F'\t' '{ print $4 }' | sort -u | wc -l | tr -d ' ')"
     here="$(printf '%s\n' "$rows" | awk -F'\t' -v c="$cwd" '$4 == c' | wc -l | tr -d ' ')"
-    echo "retro-pending: $total session(s) in $repos repo(s) never got a /retro ($here in this repo). \`/retro-backlog\` sweeps them all in one batch (Sonnet, ~1.5 min per session wall clock / 6)."
+    echo "retro-pending: $total session(s) in $repos repo(s) never got a /retro ($here in this repo). \`/retro-backlog\` sweeps them all in one batch (Sonnet, ~1.5 min per session wall clock / 6). Load the \`retro-adapter\` skill before any /retro."
     ;;
   *)
     echo "usage: retro-pending.sh end|start  (hook JSON on stdin)" >&2

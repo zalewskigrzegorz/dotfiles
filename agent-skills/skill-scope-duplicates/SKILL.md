@@ -1,6 +1,6 @@
 ---
-description: A skill showing twice in the picker is a stale global copy — fix with `bin/sync`, never by deleting the repo's copy
-alwaysApply: true
+name: skill-scope-duplicates
+description: A /skill shows up twice in Claude Code's picker, or a skill is missing / stale in a repo: how agent-skills are bucketed (global vs work / dotfiles / home-lab), why bin/sync fixes duplicates, never hand-deleting <repo>/.claude/skills, renaming a global skill that collides with a team-tracked one. Load when the picker shows a duplicate, a work skill is missing, or a skill is renamed or moved between buckets.
 ---
 
 # Duplicate `/skill` in the Picker → Run `bin/sync`, Don't Delete by Hand
