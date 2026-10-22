@@ -1,6 +1,6 @@
 ---
-description: How /retro (netresearch retro-skill) materializes findings in Greg's chezmoi-managed setup — sources of truth, no PR flow, Polish-aware signal filtering
-alwaysApply: true
+name: retro-adapter
+description: Where /retro and /retro-backlog findings land in Greg's chezmoi-managed setup: destinations table, no PR flow in dotfiles, Polish-aware signal filtering, which retro mode to run. Load BEFORE running /retro, /retro:retro, /retro-backlog, classifying retro proposals or materializing an approved learning (new rule, skill update, checkpoint, hook).
 ---
 
 # `/retro` Adapter — Where Learnings Actually Land Here
@@ -13,7 +13,7 @@ skill's default destinations.
 
 | retro destination | retro default | Here |
 |---|---|---|
-| `personal-rule` | append to `~/.claude/CLAUDE.md` | new or extended file in `~/Code/dotfiles/agent-rules/<slug>.md` with `alwaysApply: true` frontmatter |
+| `personal-rule` | append to `~/.claude/CLAUDE.md` | new or extended file in `~/Code/dotfiles/agent-rules/<slug>.md` with `alwaysApply: true` frontmatter — **only if it matters in most sessions**. Instruction files are capped at 150k chars combined (warning since 2026-10-22), so a rule tied to one tool or task becomes a skill in `agent-skills/` (like this one, `prod-db-jamsql`), and a dotfiles-only one a path-scoped `.claude/rules/<slug>.md` in the repo |
 | `project-rule` | append to `<project>/AGENTS.md` | the rules file the repo **already** uses — `CLAUDE.md` in Greg's repos (dotfiles, home-lab). Create `AGENTS.md` only if neither exists. **Team-owned targets are dropped at classification**: the work monorepo's `CLAUDE.md` and its tracked `.claude/skills/*` (create-changeset, lde-dev, worktree-dev, troubleshoot-labs, shape-pitch, …) never become a proposal or a popup option. Greg (2026-09-23): "zmiany z retro tylko w dotfiles, nic do monorepo". A real learning that only fits a team file gets one line "not materialized (team-owned)" in the report |
 | `skill-update` | PR to the skill's source repo | edit `~/Code/dotfiles/agent-skills/<name>/` in the working tree. For a plugin skill (superpowers, skill-creator, …) the upstream PR path applies, after confirming |
 | `new-skill` | scaffold a new repo | new dir `~/Code/dotfiles/agent-skills/<name>/SKILL.md`; no repo, no marketplace listing |

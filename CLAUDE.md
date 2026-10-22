@@ -202,45 +202,23 @@ Jednorazowa wiedza domenowa idzie przez **`skill-scout`** → `npx skills use <o
 - Templated secrets in `*.tmpl` files use chezmoi's secret functions (1Password on Mac, see `docs/secrets.md`)
 - `1Password CLI` on Linux is **not** in homebrew — install via apt (see Linux block in `dot_Brewfile.tmpl`)
 
-## sketchybar (Mac)
+## Path-scoped notes — `.claude/rules/`
 
-- **Verify a change with `bin/sketchybar-restart`**, not `--reload` plus one `--query`. Its probe checks every expected item and fails when sketchybar sits above 20% cpu, which is how an event loop shows (2026-10-19: a `forced` handler calling `--update` held 85% cpu while every item looked fine). Add new items to its `EXPECTED` list.
-- **`--update` fires `forced`.** Never call it (or `--trigger forced`) from a `forced` handler unless a state change guards it, as `items/compact.lua` does.
-- **Per-display questions start with `--query displays`.** An item's `geometry.drawing` is global; which screens show it is `associated_display_mask` (bit n = display n), and `display=2,3` takes a list. "The title still shows on the laptop" was two monitors plugged in, ~6 calls to find.
-- **Laptop vs monitor layout lives in `items/compact.lua`**, per display in one process: `spaces.lua` builds two workspace sets (`item.N` full, `item.N.s` small) and `compact.lua` pins them with `display=<arrangement ids>`, plus hides the cpu/mem/wifi widgets and the app title on the laptop when monitors are attached. The watcher updates both sets. A second sketchybar instance, or hiding other monitors' workspaces on the laptop, was rejected (2026-10-21). `settings.compact` (widget text) is still laptop-only-screen.
-- **A hidden item (`drawing=off`) gets no custom events**, so `--trigger` never wakes it. Its producer (launchd job, `scriptc` binary) sets it with `--set`; event + `subscribe` only for visible items. Pattern: `items/agent_monitors.lua` (56927b0a).
-- **A chip is one number or a short progress mark** (`5 ◔×2 ✓4`); step names, titles and deploy names go to the popup on click. An alert row always says what happened and to what. Check the width on the big monitor, not just the laptop ("nie dopuszczalne i to na dużym ekranie").
-- **A green `bin/sketchybar-restart` does not prove the watcher hears events.** A closing old instance once removed the socket the new one listened on. After a watcher change or restart: `test -S /tmp/sketchybar-watcher.sock` as well (95b4a5bd).
-- **A new app's icon and workspace come from its category**, not its name: `mdls -name kMDItemAppStoreCategory <App>.app` or `LSApplicationCategoryType` in `Info.plist`. No category → "propozycja: Boom = spotkania" in one line before writing `icons.go` (a1108d95).
+sketchybar, nushell autoload and workctl / gh-dash gotchas load on demand from `.claude/rules/*.md` (`paths:` frontmatter) when a matching file is read or edited. Put new file-specific gotchas there, not here: instruction files share a 150k-char budget.
 
 ## Multiplexer — herdr (Mac)
 
 - **`hd` / `herdr` is the launcher** (`dot_config/nushell/autoload/herdr.nu` → `hd`, `hd-restart`, `hd-stop`, `hd-lab`). Prefix = `ctrl+space`. The priority-sorted **agent sidebar** (blocked-first) is the core — it replaces the old `claude-agent-presence` stack and the window-wrappers. Worktrees via the herdr-native `work` CLI (`new`/`ls`/`switch`/`rm`/`pr`); `work new` / `work switch` are thin wrappers over **`bin/workctl`** (`scriptc/workctl.ts`), the one branch / PR command that `prefix+shift+g`, `prefix+shift+o`, gh-dash's `w` and lazygit's `w` all open — see `docs/herdr.md`. Nav: `prefix+w` workspace picker · `prefix+g` goto · `prefix+a` agent-cycle · `prefix+0` jump-to-waiting-agent · `prefix+h/j/k/l` panes. Config: `dot_config/herdr/config.toml.tmpl` (a template; live is `~/.config/herdr/config.toml`). Full reference: `docs/herdr.md`.
 - **tmux removed** (2026-08-18). herdr is the only multiplexer on Mac and lab; the old `dot_config/tmux/`, `brew "tmux"`, TPM install script and tmux statusline scripts are gone. Pre-herdr state remains reachable at git tag `pre-herdr` / branch `pre-herdr-backup` if ever needed.
-- **Every gh-dash `command:` must be one shell-agnostic command.** gh-dash runs custom keybinding commands through `$SHELL -c`, and in a herdr pane `$SHELL` is nushell — `cd …`, `;`, `&&`, `2>/dev/null` and other POSIX-only syntax parse-error and exit 1 *before* the command runs. Pass paths as flags instead (`workctl --repo-path …`, not `cd <path>; workctl`). Broke the `T` keybinding in `dot_config/private_gh-dash/config.yml.tmpl` (fixed 2026-09-22). The same applies to anything sent with `herdr pane run` or typed by `workctl`'s bootstrap — wrap POSIX syntax as `sh -c '…'` (fixed in `workctl` 2026-09-23).
-- **git `fsmonitor--daemon` leaks per worktree.** Every worktree and every nvim plugin repo starts its own daemon; 63 stray ones were found on 2026-09-25, and one left on a removed worktree made `work rm` fail with `fatal: fsmonitor--daemon is already running`. `workctl rm` runs `git fsmonitor--daemon stop` first (safe when none is running), and `core.fsmonitor` is off for plugin and temp repos through the `includeIf` file `~/.config/git/no-fsmonitor`.
-- **A worktree dir holding only `.claude/skills/` is a `bin/sync` husk.** Stage 30 placed work skills into a tree that `work rm` was deleting at the same moment, so the dir outlived its `.git` and is missing from `git worktree list` (2026-10-06). `workctl rm` sweeps husks (0c2c9d0) and takes the same `flock` as stage 30's placement, so just run `work rm` again; no manual `rm -rf`.
 - **`disk-sweep` is manual only** (Greg, 2026-09-25): Docker images (22.8 GB reclaimable at the time), `~/.npm`, stale worktrees. Worktree cleanup goes through `workctl prune`, which calls it. Do not schedule it (no launchd, no cron).
 - **`ctrl+space` taken by the input-source switcher** (hotkeys 60/61, once a second layout is added): `defaults write … AppleSymbolicHotKeys` + `activateSettings -u` + `killall TextInputSwitcher` do not release it in a live session (b2750378, ~8 calls). Go straight to `open-here x-apple.systempreferences:com.apple.Keyboard-Settings.extension` → Keyboard Shortcuts… → Input Sources → untick both → Done; if they already look unticked, tick and untick again. The `defaults write` in stage 14 stays for fresh Macs.
 - **Collie after a Mac restart: Tailscale first.** `tailscale status --json` with `BackendState: Stopped` → `tailscale up --accept-routes`; `no host for this node` in the bridge log is then a symptom, not the allowlist. Phone can't reach Collie while the bridge answers on the tailnet → `tailscale ping <iphone>` from the Mac; a timeout on an "online" phone is a hung iOS tunnel: Settings → General → VPN & Device Management → VPN → status off/on, then airplane mode, then a phone restart (6f32e82c).
 - **Collie: check the bridge before handing out a pairing code.** There is no `collie` on PATH: the CLI is `bin/collie` inside the plugin checkout (`~/.config/herdr/plugins/github-installations/herdr.collie-*/*/checkout/`), or `herdr plugin action invoke <action> --plugin herdr.collie`. `collie status` shows `tailnet https://<host>.ts.net`, `curl` there answers 200, and `~/.config/herdr/plugins/config/herdr.collie/collie.log` has no `host not allowed` / `no host for this node`. Only then `collie pair` (one-time, 10 min). An error on the phone → read the bridge log, don't mint a new code (two dead codes on 2026-10-19).
-- **`workctl` branch pickers must exclude any branch checked out in another worktree, the root checkout included.** `git worktree add` and `herdr worktree create` refuse it, and picking `main` from the list produced a raw JSON error that took ~130 tool calls to diagnose (2026-09-24). Selecting `main` is the regression case to try after touching the picker.
 
 ## Shell history (nushell)
 
 - **`Ctrl+R` = fzf** over the nushell sqlite history (`dot_config/nushell/autoload/fzf-history.nu`). `Alt+T` = Television smart-autocomplete (`tv.nu`). TV's `nu-history` channel is **not** wired to Ctrl+R — its filter quality is too weak.
 - **Do not propose Atuin** until upstream nushell issues close: [atuinsh/atuin#2900](https://github.com/atuinsh/atuin/issues/2900) (executehostcommand pastes literal text) + [#2820](https://github.com/atuinsh/atuin/issues/2820) (nu integration broken). Both still open as of 2026-05-16. Re-verify with `gh issue view` before recommending.
-
-## Nushell autoload gotchas (`dot_config/nushell/autoload/`)
-
-Three of these cost a debug loop each while writing `firefly.nu` (nu 0.115.1):
-
-- **`$nu.home-path` does not exist** — use `$env.HOME`. `$nu` has no home field.
-- **`mktemp -d -t <name>` needs an `-XXXXXX` suffix in the template**, e.g. `mktemp -d -t "firefly-import-XXXXXX"`.
-- **Watch string interpolation around `(ansi …)`** — `print $"...(ansi green)..."` parses the parenthesised call, so any stray parenthesis in the literal breaks the whole string.
-- **A newly added autoload file does not load in an already-open session.** `bin/sync` copies it, but you need a fresh terminal (or `source` it by hand) before the command exists.
-- **`env.nu` is a template**: edit `dot_config/nushell/env.nu.tmpl`. A per-process env flag (a renderer flag) goes there, never into `settings.json`.
-- Interactive pickers inside a command: `input list --multi` works and is the house pattern (see `firefly.nu`).
 
 ## Lab (`minis`, Debian) — connect & cold-start
 
