@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Clop pipeline step: wrap a file in one HTML page, publish it on share.mrglaszki.com
+# (7-day token link, via deck — see agent-skills/share-file) and copy the link.
+# Prints nothing on stdout: Clop treats a printed path as the step's new file.
+set -euo pipefail
+export PATH="/opt/homebrew/bin:$PATH"
+
+f=${1:-$CLOP_INPUT_FILE}
+name=$(basename "$f" | sed 's/[<>&"]/_/g')
+mime=$(file --mime-type -b "$f")
+src="data:$mime;base64,$(base64 -i "$f")"
+case $mime in
+  image/*) body="<img src=\"$src\">" ;;
+  video/*) body="<video controls src=\"$src\"></video>" ;;
+  *) body="" ;;
+esac
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+printf '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>%s</title><style>body{margin:0;background:#111;color:#eee;font:14px system-ui;text-align:center}img,video{max-width:100%%;height:auto;display:block;margin:0 auto}a{color:#8cf;display:inline-block;margin:12px}</style>%s<a download="%s" href="%s">Download %s</a>' \
+  "$name" "$body" "$name" "$src" "$name" >"$tmp/share.html"
+
+slug="clop-$(date +%Y%m%d-%H%M%S)"
+curl -sf -m 120 -F html=@"$tmp/share.html" -F title="$name" "https://deck.mrglaszki.com/api/decks/$slug" >/dev/null
+url=$(curl -sf -m 30 -X POST "https://deck.mrglaszki.com/api/decks/$slug/share" | jq -r .url)
+code=$(curl -s -m 30 -o /dev/null -w '%{http_code}' "$url")
+[ "$code" = 200 ] || { echo "clop-share: $url answered $code" >&2; exit 1; }
+printf %s "$url" | pbcopy
