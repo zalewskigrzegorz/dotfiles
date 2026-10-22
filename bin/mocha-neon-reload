@@ -6,8 +6,7 @@
 #   1. chezmoi apply       — propagate source → live
 #   2. sketchybar-restart  — clean watcher + bar restart
 #   3. aerospace reload    — reapply gaps + bindings
-#   4. borders reload      — bordersrc changes
-#   5. report status       — summary of what got refreshed
+#   4. report status       — summary of what got refreshed
 #
 # Idempotent. Safe to run repeatedly. Skips steps gracefully when a tool
 # isn't installed or the related daemon isn't running.
@@ -63,29 +62,7 @@ else
   skip "aerospace not available"
 fi
 
-# 4. borders (Darwin only) — JankyBorders doesn't honor SIGUSR1; the standard
-# reload pattern is to invoke `borders <args>` again on the running instance,
-# which forwards new options. If not running, start it via bordersrc.
-step "borders"
-if [ "$(uname -s)" = "Darwin" ] && command -v borders >/dev/null 2>&1; then
-  if pgrep -x borders >/dev/null 2>&1; then
-    ok "running (config changes apply on next launch)"
-  else
-    if [ -x "$HOME/.config/borders/bordersrc" ]; then
-      ( nohup "$HOME/.config/borders/bordersrc" >> "$HOME/Code/dotfiles/logs/borders.log" 2>&1 & )
-      sleep 1
-      if pgrep -x borders >/dev/null 2>&1; then ok "started fresh"
-      else err "failed to start — check logs/borders.log + Screen Recording permission"
-      fi
-    else
-      skip "bordersrc not executable / missing"
-    fi
-  fi
-else
-  skip "borders not available"
-fi
-
-# 5. status summary
+# 4. status summary
 step "summary"
 printf "  ${MAUVE}▸${N} sketchybar widgets:\n"
 # widgets.claude_sessions and notif_preview were deleted in f3fae4c; probing for

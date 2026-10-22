@@ -70,7 +70,6 @@ cloud embedding provider, no external vector DB, no API keys.
 These are ignored when `profile = "homelab"`:
 
 - `dot_config/aerospace`
-- `dot_config/borders`
 - `dot_config/flipperdevices.com`
 - `dot_config/ghostty`
 - `dot_config/sketchybar`

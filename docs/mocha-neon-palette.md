@@ -48,7 +48,6 @@ loud. Formula: ≈30% accent over `base #1E1E2E`.
 | starship | `dot_config/starship/starship.toml` | named palette via `[palettes.mocha-neon]` | imported |
 | nvim | `dot_config/nvim/lua/plugins/catppuccin.lua` | 11 overrides | imported |
 | ghostty | `dot_config/ghostty/config` | ANSI 0–15 + cursor + selection | hand |
-| aerospace borders | `dot_config/borders/bordersrc` | mauve (active), surface (inactive) | hand |
 | herdr | `dot_config/herdr/config.toml.tmpl` | base, mauve, blue, green, red, gold + active surface | hand |
 
 ## WCAG AA verification on base `#1E1E2E`
