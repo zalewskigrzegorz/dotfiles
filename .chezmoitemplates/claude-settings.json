@@ -74,6 +74,8 @@
       "Bash(process-compose *)",
       "Bash(docker compose *)",
       "Bash(lsof *)",
+      "Bash(ps -Ao *)",
+      "Bash(ioreg -r *)",
       "Bash(pkill *)",
       "Bash(sketchybar *)",
       "Bash(chezmoi verify*)",
