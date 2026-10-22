@@ -468,6 +468,11 @@
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/retro-pending.sh start",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/standup-pending.sh",
+            "timeout": 10
           }
         ],
         "matcher": "^(startup|resume)$"
