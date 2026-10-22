@@ -23,6 +23,15 @@ command -v jq >/dev/null 2>&1 || exit 0
 HD=$(command -v hd-title 2>/dev/null || echo "$HOME/Code/dotfiles/bin/hd-title")
 [ -x "$HD" ] || exit 0
 title_dir="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/claude-session-title"
+task_log="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/claude-task-log.jsonl"
+
+# Append-only trail for /g-standup: one line per title check, survives /clear.
+log_task() {
+  [ -n "$1" ] || return 0
+  jq -nc --arg ts "$(date +%FT%T%z)" --arg sid "$CLAUDE_CODE_SESSION_ID" --arg cwd "$PWD" \
+    --arg br "$(git branch --show-current 2>/dev/null)" --arg t "$1" \
+    '{ts:$ts,sid:$sid,cwd:$cwd,branch:$br,title:$t}' >> "$task_log"
+}
 
 SYSTEM='Nadajesz tytuł zakładce terminala, w której agent pracuje nad zadaniem użytkownika.
 Tytuł ma 2–4 słowa po polsku i mówi, CO użytkownik chce osiągnąć: czynność albo problem plus przedmiot.
@@ -86,11 +95,12 @@ retitle() {
   out=$(printf '%s\n' "$out" | sed -e '/^[[:space:]]*$/d' | tail -1 \
         | sed -e 's/^[[:space:]"„`*]*//' -e 's/[[:space:]"”`*.]*$//')
   [ -n "$out" ] || return 0
-  case "$out" in [Zz][Oo][Ss][Tt][Aa][Ww]*) return 0 ;; esac
+  case "$out" in [Zz][Oo][Ss][Tt][Aa][Ww]*) log_task "$cur"; return 0 ;; esac
   # Guard against an essay instead of a title.
   [ "$(printf '%s' "$out" | wc -w)" -le 6 ] && [ "${#out}" -le 45 ] || return 0
   "$HD" "$out"
   printf '%s' "$out" > "$auto"
+  log_task "$out"
 }
 
 if [ "${1:-}" = "--retitle" ]; then
@@ -119,7 +129,8 @@ case "$event" in
   Stop)
     transcript=$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null)
     [ -f "$transcript" ] || exit 0
-    ( retitle "$transcript" 0 ) </dev/null >/dev/null 2>&1 &
+    cwd=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
+    ( cd "${cwd:-.}" 2>/dev/null; retitle "$transcript" 0 ) </dev/null >/dev/null 2>&1 &
     disown 2>/dev/null
     ;;
 esac

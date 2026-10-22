@@ -60,8 +60,9 @@ stop. Note which question is on screen — that's where sending resumes.
 
 ### 2. Window = since the last standup
 
-Default: **since the last working day.** Mon → include Fri + weekend; otherwise
-= yesterday. Compute the cutoff date, use it for every source. Greg can override
+Default: **since the last standup**, the time in
+`~/.local/state/dotfiles/standup-last` (step 8 writes it). No file → since the last working day: Mon → include Fri +
+weekend; otherwise = yesterday. Compute the cutoff date, use it for every source. Greg can override
 ("tylko dziś", "od czwartku").
 
 ### 3. Gather work-only activity (parallel)
@@ -81,11 +82,21 @@ git -C "$WORK_PROJECT_DIR" log --author='zalewski\|Grzegorz\|maksim009' \
 
 # Meetings attended in the window (transcript optional for a 1-line takeaway)
 spark meetings --filter "newer_than:<N>d"
+
+# What the Claude sessions worked on: the herdr title hook logs every title check
+# (day, folder, branch, 3–4 word task, session id). Catches analysis and review
+# work that leaves no PR or commit.
+jq -r --arg cut "$CUT" 'select(.ts >= $cut)
+  | "\(.ts[0:10]) \(.cwd | sub(".*/"; "")) [\(.branch)] \(.title)  \(.sid)"' \
+  ~/.local/state/dotfiles/claude-task-log.jsonl | sort -u
 ```
 
+Drop rows whose folder is personal (dotfiles, bazgroly, home-lab, `~/Code/personal`).
+Only when a title is too thin to write a bullet, open that one session's
+transcript (`~/.claude/projects/*/<sid>.jsonl`); don't skim transcripts wholesale.
+
 Ambient context (don't over-weight): `mcp__hindsight__recall query="work shipped
-decisions focus <topics>"` filtered to the window; optionally skim recent AI
-sessions under `~/.claude/projects/*/` if PRs/commits are thin.
+decisions focus <topics>"` filtered to the window.
 
 **Distill, don't dump.** Collapse many commits on one topic into one bullet.
 Merge a PR and its commits into one line. Merged/open PRs → "did"; open/WIP PRs +
@@ -141,13 +152,16 @@ sent, so never resend.
 
 Read the public standup channel **once, now** (id from work-context, newest message); confirm
 Greg's update posted with all four sections and **no footer**. Report the
-permalink.
+permalink, then `date +%FT%T%z > ~/.local/state/dotfiles/standup-last`: it
+stops the `standup-pending` SessionStart nudge until the next weekday and sets
+the next window.
 
 ### 9. Fallback — draft-only
 
 If the token is missing/invalid, the bot isn't prompting, or Greg prefers to send
 himself: **don't auto-send.** Output the four answers as clean copy-paste blocks
-for him to paste. Gather → confirm stays the same.
+for him to paste. Gather → confirm stays the same. Once he says it's sent, run
+`date +%FT%T%z > ~/.local/state/dotfiles/standup-last` so the nudge stops.
 
 ## Notes
 
