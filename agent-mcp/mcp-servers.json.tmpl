@@ -78,6 +78,14 @@
       "type": "http",
       "url": "http://192.168.50.10:8888/mcp/greg/"
     },
+    {{- if eq .chezmoi.os "darwin" }}
+    {{/* Clop (cask "clop") — image/video/PDF optimiser. The MCP server ships
+         inside the app; "Enable MCP" must be on in Clop → Settings → MCP. */}}
+    "clop": {
+      "command": "/Applications/Clop.app/Contents/Helpers/ClopCLI",
+      "args": ["mcp", "serve"]
+    },
+    {{- end }}
     {{/* Serena — 100% local LSP-based semantic-nav MCP, no cloud, no API key.
          CLI installed as a uv tool by run_onchange_after_26-code-index-tools.sh.tmpl.
          Absolute ~/.local/bin path (like the nushell MCP) so runtime resolution
