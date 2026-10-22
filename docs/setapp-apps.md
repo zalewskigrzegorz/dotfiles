@@ -22,6 +22,7 @@ On a new Mac, install Setapp with Homebrew, sign in, mark the apps below as favo
 - [ ] DisplayBuddy
 - [ ] Filepane
 - [ ] FocuSee
+- [ ] HazeOver
 - [ ] OpenIn
 - [ ] Proxyman
 - [ ] Spark Mail

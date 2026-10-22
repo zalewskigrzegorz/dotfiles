@@ -39,6 +39,18 @@ for hk in 60:262144 61:786432; do
   defaults write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "${hk%%:*}" "{ enabled = 0; value = { parameters = (32, 49, ${hk#*:}); type = standard; }; }"
 done
 
+# HazeOver (Setapp) marks the focused window, replacing JankyBorders, which stalled WindowServer and froze the cursor (2026-10-22).
+# Per-screen focus keeps YouTube on another monitor bright; intensity matches Wooshy's own dim so both look the same.
+defaults write com.pointum.hazeover-setapp Color -string 000000
+defaults write com.pointum.hazeover-setapp Intensity -float 47.9159
+defaults write com.pointum.hazeover-setapp IndependentScreens -bool true
+defaults write com.pointum.hazeover-setapp MultiFocus -bool true
+defaults write com.pointum.hazeover-setapp ShowIcon -bool false
+# A short fade: a long one lags behind fast keyboard focus switches in AeroSpace.
+defaults write com.pointum.hazeover-setapp Animation -float 3
+defaults write com.pointum.hazeover-setapp AnimationCurve -int 2
+defaults write mo.com.sleeplessmind.Wooshy hazeOverWindowOpacity -float 0.4791590073529411
+
 killall Dock Finder SystemUIServer 2>/dev/null || true
 
 if [ -x /opt/homebrew/bin/brew ] && /opt/homebrew/bin/brew list sketchybar >/dev/null 2>&1; then

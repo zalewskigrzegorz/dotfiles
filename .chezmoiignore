@@ -68,7 +68,6 @@ raycast-extensions/spam/dist/**
 {{ if eq $profile "homelab" -}}
 # The homelab is headless: apply only CLI/shell config.
 .config/aerospace/**
-.config/borders/**
 .config/flipperdevices.com/**
 .config/ghostty/**
 .config/launchd/com.greg.temp-watch.plist
