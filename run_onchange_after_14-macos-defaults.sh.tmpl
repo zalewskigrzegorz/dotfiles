@@ -53,6 +53,8 @@ defaults write mo.com.sleeplessmind.Wooshy hazeOverWindowOpacity -float 0.479159
 # Clop watches CleanShot's Drive folder; MCP on so agents can drive it (server registered in agent-mcp).
 defaults write com.lowtechguys.Clop imageDirs -array "~/Desktop" "~/Library/CloudStorage/GoogleDrive-maksim009@gmail.com/My Drive/Screenshots"
 defaults write com.lowtechguys.Clop mcpEnabled -bool true
+# One image per copy: accumulated clipboard images paste into Claude and Slack as several at once.
+defaults write com.lowtechguys.Clop copyConsecutiveClipboardImages -bool false
 
 killall Dock Finder SystemUIServer 2>/dev/null || true
 
