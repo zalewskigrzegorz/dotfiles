@@ -25,7 +25,7 @@
 #     GET  /runs, /events     observability
 #
 # Targets come from `MEDIA_PLAYERS` in
-# lab:/opt/homelab/services/announce-agent/src/zones.js:
+# mrglaszki:/opt/homelab/services/announce-agent/src/zones.js:
 #   all         → greg_office + nest (kitchen) + fireplace (salon), whole house
 #   office      → greg_office (AirPlay)
 #   kitchen     → nest, falls back to fireplace
@@ -428,7 +428,7 @@ def _tina-literal [text: string, target: string, dry: bool] {
     print -e ($res.body | to text)
     if $res.status == 404 {
       print -e "hint: brak /say — announce-agent jest starszy niż trasa dosłowna, przebuduj:"
-      print -e "      ssh lab 'cd /opt/homelab/services/announce-agent && docker compose up -d --build'"
+      print -e "      ssh mrglaszki 'cd /opt/homelab/services/announce-agent && docker compose up -d --build'"
     }
     return
   }
@@ -456,7 +456,7 @@ def _tina-rephrased [text: string, target: string, dry: bool] {
     print -e ($res.body | to text)
     if ($res.body | to text | str contains "unknown trigger") {
       print -e "hint: receptura `announce` zniknęła — receptury siedzą w obrazie:"
-      print -e "      ssh lab 'cd /opt/homelab/services/announce-agent && docker compose up -d --build'"
+      print -e "      ssh mrglaszki 'cd /opt/homelab/services/announce-agent && docker compose up -d --build'"
     }
     return
   }
@@ -504,7 +504,7 @@ def _tina-mac-voice [] {
 
 # Targets for `-t`. Static on purpose — the announce-agent has no /zones
 # endpoint, and tab-completion should not wait on the network. Keep in sync with
-# `MEDIA_PLAYERS` in lab:/opt/homelab/services/announce-agent/src/zones.js.
+# `MEDIA_PLAYERS` in mrglaszki:/opt/homelab/services/announce-agent/src/zones.js.
 def "nu-complete tina-targets" [] {
   [
     { value: "all",        description: "cały dom — biuro + kuchnia + salon" }

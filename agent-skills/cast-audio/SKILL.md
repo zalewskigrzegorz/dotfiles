@@ -23,14 +23,14 @@ If unsure of protocol: `GET /api/states/<entity>` and try Path A once — a `500
 1. **Upload to the lab audio store** (served by announce-agent at port 3001):
 
 ```bash
-scp <file>.mp3 lab:/opt/homelab/services/announce-agent/data/audio/<name>.mp3
-ssh lab 'curl -sf -o /dev/null -w "%{http_code}" http://192.168.50.10:3001/audio/<name>.mp3 -r 0-100'   # expect 206
+scp <file>.mp3 mrglaszki:/opt/homelab/services/announce-agent/data/audio/<name>.mp3
+ssh mrglaszki 'curl -sf -o /dev/null -w "%{http_code}" http://192.168.50.10:3001/audio/<name>.mp3 -r 0-100'   # expect 206
 ```
 
 2. **Play via HA REST** (token lives on lab in the announce-agent stack env):
 
 ```bash
-ssh lab 'HA_TOKEN=$(grep ^HA_TOKEN= /opt/homelab/stacks/announce-agent/.env | cut -d= -f2-); HA=http://homeassistant.mrglaszki.com:8123; \
+ssh mrglaszki 'HA_TOKEN=$(grep ^HA_TOKEN= /opt/homelab/stacks/announce-agent/.env | cut -d= -f2-); HA=http://homeassistant.mrglaszki.com:8123; \
 curl -sS -X POST "$HA/api/services/media_player/volume_set" -H "Authorization: Bearer $HA_TOKEN" -H "Content-Type: application/json" \
   -d "{\"entity_id\":\"<entity>\",\"volume_level\":0.7}" >/dev/null; \
 curl -sS -X POST "$HA/api/services/media_player/play_media" -H "Authorization: Bearer $HA_TOKEN" -H "Content-Type: application/json" \
@@ -59,8 +59,8 @@ afplay <file>.mp3
 Announce-agent events keep their audio; replay any event on any target:
 
 ```bash
-curl -s "http://lab:3001/api/events?limit=10" | jq '.rows[] | {event_id, trigger_name, llm_trimmed}'
-curl -s -X POST "http://lab:3001/api/events/<event_id>/replay" -H 'Content-Type: application/json' -d '{"target":"office"}'
+curl -s "http://mrglaszki:3001/api/events?limit=10" | jq '.rows[] | {event_id, trigger_name, llm_trimmed}'
+curl -s -X POST "http://mrglaszki:3001/api/events/<event_id>/replay" -H 'Content-Type: application/json' -d '{"target":"office"}'
 ```
 
 (Replay to an AirPlay zone hits the same pyatv limitation — works only for audio formats pyatv accepts from Tina's own store; if it 500s, fall back to Path B.)
@@ -69,5 +69,5 @@ curl -s -X POST "http://lab:3001/api/events/<event_id>/replay" -H 'Content-Type:
 
 - **pyatv CLI (`atvremote`) is broken on Python 3.14** (`RuntimeError: no current event loop`). If you ever need it: `uvx --python 3.12 --from pyatv atvremote`.
 - `volume_set` succeeding does NOT mean `play_media` will work — they take different code paths in HA.
-- Auto-mode blocks direct HTTP POSTs from the Mac; the HA calls above run via `ssh lab '…'` which passes the guard. Keep them wrapped in ssh.
-- Audio-store files are plain files on disk — clean up old one-off casts occasionally (`ssh lab 'ls /opt/homelab/services/announce-agent/data/audio'`); daily-brief replays can stay.
+- Auto-mode blocks direct HTTP POSTs from the Mac; the HA calls above run via `ssh mrglaszki '…'` which passes the guard. Keep them wrapped in ssh.
+- Audio-store files are plain files on disk — clean up old one-off casts occasionally (`ssh mrglaszki 'ls /opt/homelab/services/announce-agent/data/audio'`); daily-brief replays can stay.

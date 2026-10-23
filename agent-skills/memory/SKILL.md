@@ -275,12 +275,12 @@ Raycast Settings → MCP Servers → Add:
 ### Restart Hindsight
 
 ```bash
-ssh lab "docker compose -f /opt/homelab/services/hindsight/compose.yaml restart hindsight"
+ssh mrglaszki "docker compose -f /opt/homelab/services/hindsight/compose.yaml restart hindsight"
 ```
 
 ### Switch Ollama model
 
-1. Pull: `ssh lab "docker exec ollama ollama pull <model>"`
+1. Pull: `ssh mrglaszki "docker exec ollama ollama pull <model>"`
 2. Edit `/opt/homelab/services/hindsight/.env` na labie: zmień `HINDSIGHT_LLM_MODEL`
 3. Restart Hindsight (wyżej)
 
@@ -294,13 +294,13 @@ cron-scriptu — embedded Postgres robi WAL flush, KG indeksy też na dysku.
 
 Manual snapshot:
 ```bash
-ssh lab "sudo tar czf /opt/homelab/data/hindsight-snapshot-$(date +%F).tar.gz -C /opt/homelab/data hindsight"
+ssh mrglaszki "sudo tar czf /opt/homelab/data/hindsight-snapshot-$(date +%F).tar.gz -C /opt/homelab/data hindsight"
 ```
 
 ### Restore
 
 ```bash
-ssh lab "docker compose -f /opt/homelab/services/hindsight/compose.yaml stop hindsight && \
+ssh mrglaszki "docker compose -f /opt/homelab/services/hindsight/compose.yaml stop hindsight && \
   sudo rm -rf /opt/homelab/data/hindsight && \
   sudo tar xzf /path/to/backup.tar.gz -C /opt/homelab/data/ && \
   sudo chown -R 1000:1000 /opt/homelab/data/hindsight && \
@@ -324,7 +324,7 @@ Body MUSI mieć `items` array, nie samo `content`:
 Bind mount `/opt/homelab/data/hindsight` musi być owned by UID 1000 (container's
 `hindsight` user). Fix:
 ```bash
-ssh lab "sudo chown -R 1000:1000 /opt/homelab/data/hindsight"
+ssh mrglaszki "sudo chown -R 1000:1000 /opt/homelab/data/hindsight"
 ```
 Restart Hindsight.
 
@@ -358,7 +358,7 @@ First start ściąga `cross-encoder/ms-marco-MiniLM-L-6-v2` + `BAAI/bge-small-en
 ### Coś się rozjechało — full reset (DESTRUCTIVE)
 
 ```bash
-ssh lab "docker compose -f /opt/homelab/services/hindsight/compose.yaml stop hindsight && \
+ssh mrglaszki "docker compose -f /opt/homelab/services/hindsight/compose.yaml stop hindsight && \
   sudo rm -rf /opt/homelab/data/hindsight && \
   sudo mkdir -p /opt/homelab/data/hindsight && \
   sudo chown -R 1000:1000 /opt/homelab/data/hindsight && \

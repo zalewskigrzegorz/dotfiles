@@ -5,7 +5,7 @@ description: Greg's Firefly III (self-hosted finance ledger on the lab) — look
 
 # firefly
 
-Firefly III lives on the lab (`services/firefly`, importer in `services/firefly-importer`, both in `~/Code/home-lab`). The Mac has no API access; every query goes through `ssh lab`.
+Firefly III lives on the lab (`services/firefly`, importer in `services/firefly-importer`, both in `~/Code/home-lab`). The Mac has no API access; every query goes through `ssh mrglaszki`.
 
 ## Import a Moje ING export (Mac side)
 
@@ -24,7 +24,7 @@ It straightens the ING CSV (`ing-csv.py`), splits per account, `scp`s to the lab
 The token sits in `/opt/homelab/services/firefly-importer/.env` as `FIREFLY_III_ACCESS_TOKEN`. Line 7 of that file breaks `source`, so read keys with `grep`:
 
 ```bash
-ssh lab 'cd /opt/homelab/services/firefly-importer && T=$(grep "^FIREFLY_III_ACCESS_TOKEN=" .env | cut -d= -f2-) && curl -s -H "Authorization: Bearer $T" -H "Accept: application/vnd.api+json" "http://firefly:8080/api/v1/transactions/4988" | python3 -m json.tool | head -80'
+ssh mrglaszki 'cd /opt/homelab/services/firefly-importer && T=$(grep "^FIREFLY_III_ACCESS_TOKEN=" .env | cut -d= -f2-) && curl -s -H "Authorization: Bearer $T" -H "Accept: application/vnd.api+json" "http://firefly:8080/api/v1/transactions/4988" | python3 -m json.tool | head -80'
 ```
 
 Adjust the host to whatever `services/firefly/compose.yaml` names the container. Never print the token, never copy it to the Mac.
@@ -37,7 +37,7 @@ Adjust the host to whatever `services/firefly/compose.yaml` names the container.
 
 - `docker logs` shows nothing useful. The log is inside the importer container: `/var/www/html/storage/logs/data-import-<YYYY-MM-DD>.log`.
 - `Add error on index … [a115]` is a **duplicate**, not a failure. `importer:import` still exits 1 on duplicates, which is why the `firefly` loop tolerates that code.
-- A wait loop on `pgrep -f "artisan importer:import"` through `ssh lab` matches its own shell and never ends — poll the log file or use `pgrep -x` inside the container (see `zsh-bash-tool` rule).
+- A wait loop on `pgrep -f "artisan importer:import"` through `ssh mrglaszki` matches its own shell and never ends — poll the log file or use `pgrep -x` inside the container (see `zsh-bash-tool` rule).
 - `herdr-peek` keeps ~700–999 lines; a DEBUG import floods it. Read the log file.
 
 ## Facts that shape answers
