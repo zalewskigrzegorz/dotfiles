@@ -4,6 +4,8 @@
 //   why-review            PR of the current branch
 //   why-review 31204      PR number (a branch name or URL works too)
 //
+// Also the 👥 row in workctl's PR menu, which passes the PR URL.
+//
 // Ported from `check-team-review-files` in nushell's git.nu, which read
 // CODEOWNERS from the local checkout. GitHub requests reviewers from the
 // CODEOWNERS on the PR's base branch, so that is the one read here.
@@ -127,11 +129,12 @@ function main(): void {
     const view = run("gh", [
       // gh refuses -R without an argument; the checkout is the repo then anyway.
       "pr", "view", ...prArg, ...(candidate === here ? [] : ["-R", candidate]),
-      "--json", "number,baseRefName", "--jq", '"\\(.number) \\(.baseRefName)"',
+      "--json", "number,baseRefName,url", "--jq", '"\\(.number) \\(.baseRefName) \\(.url)"',
     ]);
     const parts = view.out.trim().split(" ");
-    if (view.code === 0 && parts.length === 2) {
-      repo = candidate;
+    if (view.code === 0 && parts.length === 3) {
+      // From the URL, not `candidate`: a PR URL argument may name another repo.
+      repo = (parts[2] ?? "").split("/").slice(3, 5).join("/");
       num = parts[0] ?? "";
       base = parts[1] ?? "";
     } else {
@@ -169,17 +172,17 @@ function main(): void {
     }
   }
 
-  console.log(`PR #${num} · ${files.length} files · CODEOWNERS on ${base}`);
+  console.log(`PR #${num} · ${files.length} file${files.length === 1 ? "" : "s"} · CODEOWNERS on ${base}`);
   for (const [team, patterns] of byTeam) {
     let count = 0;
     for (const list of patterns.values()) count += list.length;
-    console.log(`\n${team} — ${count} files`);
+    console.log(`\n${team} — ${count} file${count === 1 ? "" : "s"}`);
     for (const [pattern, list] of patterns) {
       console.log(`  ${pattern}`);
       for (const file of list) console.log(`    ${file}`);
     }
   }
-  if (unowned > 0) console.log(`\nno owner — ${unowned} files`);
+  if (unowned > 0) console.log(`\nno owner — ${unowned} file${unowned === 1 ? "" : "s"}`);
 }
 
 main();
