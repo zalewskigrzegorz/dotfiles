@@ -1452,11 +1452,11 @@ function doBlockers(st: St): number {
   out("");
   const b: string[] = [];
   if (st.isDraft) b.push("PR is a draft — 📤 ready for review");
-  if (st.mergeable === "CONFLICTING") b.push("merge conflict — ⬆️ update branch, or rebase by hand");
-  if (st.mergeStateStatus === "BEHIND") b.push("branch is behind base — ⬆️ update branch");
+  if (st.mergeable === "CONFLICTING") b.push("merge conflict — 🆙 update branch / 🔁 rebase, or by hand");
+  if (st.mergeStateStatus === "BEHIND") b.push("branch is behind base — 🆙 update branch");
   if (st.failed > 0) b.push(`${st.failed} failing check(s) — 🔍 logs / ♻️ rerun / 🔧 fix-ci`);
   if (st.pending > 0) b.push(`${st.pending} check(s) still running — 👁 watch`);
-  if (st.e2eExpected > 0 && st.e2eRunning === 0) b.push("e2e expected but not running — 🏷 run_e2e");
+  if (st.e2eExpected > 0 && st.e2eRunning === 0) b.push("e2e expected but not running — 🧪 run_e2e");
   if (st.unresolved > 0) b.push(`${st.unresolved} unresolved conversation(s) — ✅ resolve / 💬 respond`);
   if (st.reviewDecision === "CHANGES_REQUESTED") b.push("changes requested — 🔔 re-review after fixing");
   if (st.reviewDecision === "REVIEW_REQUIRED") b.push("review required — waiting on reviewers");
@@ -2148,13 +2148,13 @@ function registry(): Row[] {
     row("rerun", "gh", "♻️", "rerun failed checks", (st) => st.hasPr && st.failed > 0, doRerun, NONE, "", NONE, NONE),
     row("re-review", "gh", "🔔", "re-request review (changes requested)", (st) => st.hasPr && st.reviewDecision === "CHANGES_REQUESTED", doReReview, NONE, "", NONE, NONE),
     row("trim", "gh", "✂️", "trim requested reviewers", (st) => st.hasPr && st.reviewRequests.length > 1, doTrim, (st) => `${st.reviewRequests.length} requested`, "", NONE, NONE),
-    row("no-changeset-needed", "gh", "🏷", "toggle no-changeset-needed", pr, (st, c) => doLabel(st, "no-changeset-needed", c), (st) => (st.labels.includes("no-changeset-needed") ? "on" : "off"), "label", NONE, NONE),
-    row("run_e2e", "gh", "🏷", "toggle run_e2e", pr, (st, c) => doLabel(st, "run_e2e", c), (st) => (st.labels.includes("run_e2e") ? "on" : "off"), "label", NONE, NONE),
-    row("skip_e2e", "gh", "🏷", "toggle skip_e2e", pr, (st, c) => doLabel(st, "skip_e2e", c), (st) => (st.labels.includes("skip_e2e") ? "on" : "off"), "label", NONE, NONE),
+    row("no-changeset-needed", "gh", "📝", "toggle no-changeset-needed", pr, (st, c) => doLabel(st, "no-changeset-needed", c), (st) => (st.labels.includes("no-changeset-needed") ? "on" : "off"), "label", NONE, NONE),
+    row("run_e2e", "gh", "🧪", "toggle run_e2e", pr, (st, c) => doLabel(st, "run_e2e", c), (st) => (st.labels.includes("run_e2e") ? "on" : "off"), "label", NONE, NONE),
+    row("skip_e2e", "gh", "💤", "toggle skip_e2e", pr, (st, c) => doLabel(st, "skip_e2e", c), (st) => (st.labels.includes("skip_e2e") ? "on" : "off"), "label", NONE, NONE),
     row("kick", "gh", "🦵", "kick CI (empty commit + push)", (st) => st.hasPr && st.checksTotal === 0, doKick, NONE, "", NONE, NONE),
     row("watch", "gh", "👁", "watch checks", (st) => st.hasPr && st.pending > 0, doWatch, (st) => `${st.pending} pending`, "", NONE, NONE),
-    row("update-merge", "gh", "⬆️", "update branch from base (merge commit)", (st) => st.hasPr && st.mergeStateStatus === "BEHIND", (st, c) => doUpdateBranch(st, false, c), NONE, "", NONE, NONE),
-    row("update-rebase", "gh", "⬆️", "update branch from base (rebase, force-push)", (st) => st.hasPr && st.mergeStateStatus === "BEHIND", (st, c) => doUpdateBranch(st, true, c), NONE, "", NONE, NONE),
+    row("update-merge", "gh", "🆙", "update branch from base (merge commit)", (st) => st.hasPr && st.mergeStateStatus === "BEHIND", (st, c) => doUpdateBranch(st, false, c), NONE, "", NONE, NONE),
+    row("update-rebase", "gh", "🔁", "update branch from base (rebase, force-push)", (st) => st.hasPr && st.mergeStateStatus === "BEHIND", (st, c) => doUpdateBranch(st, true, c), NONE, "", NONE, NONE),
     row("merge", "gh", "🚀", "merge --squash --auto", (st) => st.hasPr && st.isMine && !st.isDraft, doMerge, NONE, "", NONE, NONE),
     row("ready", "gh", "📤", "ready for review", pr, doReady, NONE, "", (st) => (st.isDraft ? "📤" : "📥"), (st) => (st.isDraft ? "ready for review" : "back to draft")),
     row("blockers", "gh", "🚧", "merge blockers report", pr, (st) => doBlockers(st), (st) => st.mergeStateStatus, "", NONE, NONE),
@@ -2163,7 +2163,7 @@ function registry(): Row[] {
     row("create-pr", "gh", "🔀", "open a PR for this branch", (st) => !st.hasPr && st.kind !== "new" && st.repo !== "", doCreatePr, NONE, "", NONE, NONE),
     row("wt-full", "worktree", "🌱", "worktree + .env/node_modules from parent", (_st) => true, (st, c) => doWorktree(st, "clone", c), (st) => (st.worktree !== "" ? "exists → open" : ""), "", NONE, (st) => (st.worktree !== "" ? "open worktree" : "")),
     row("wt-light", "worktree", "👓", "worktree, no seed", (st) => st.worktree === "", (st, c) => doWorktree(st, "none", c), NONE, "", NONE, NONE),
-    row("wt-bootstrap", "worktree", "🚀", "worktree + secrets + install (own tab)", (st) => st.bootstrap !== "", (st, c) => doWorktree(st, "bootstrap", c), (st) => st.bootstrap, "", NONE, NONE),
+    row("wt-bootstrap", "worktree", "📦", "worktree + secrets + install (own tab)", (st) => st.bootstrap !== "", (st, c) => doWorktree(st, "bootstrap", c), (st) => st.bootstrap, "", NONE, NONE),
     row("diff", "gh", "📄", "diff → pager", (st) => st.kind !== "new", doDiff, NONE, "", NONE, NONE),
     row("rm", "worktree", "🗑", "remove worktree + branch", (st) => st.worktree !== "", doRemove, NONE, "", NONE, NONE),
     row("web", "gh", "🌐", "open in browser", (st) => st.kind !== "new" && st.repo !== "", doWeb, NONE, "", NONE, NONE),
