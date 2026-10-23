@@ -1465,6 +1465,15 @@ function doBlockers(st: St): number {
   return 0;
 }
 
+// The CODEOWNERS walk lives in the why-review binary (scriptc/why-review.ts).
+function doWhyReview(st: St, ctx: Ctx): number {
+  if (ctx.dry) {
+    out(`[dry-run] why-review ${st.url}`);
+    return 0;
+  }
+  return runTty("why-review", [st.url]);
+}
+
 // `--undo` is plan-gated, so only the draft direction can fail that way.
 function doReady(st: St, ctx: Ctx): number {
   if (st.isDraft) {
@@ -2149,6 +2158,7 @@ function registry(): Row[] {
     row("merge", "gh", "🚀", "merge --squash --auto", (st) => st.hasPr && st.isMine && !st.isDraft, doMerge, NONE, "", NONE, NONE),
     row("ready", "gh", "📤", "ready for review", pr, doReady, NONE, "", (st) => (st.isDraft ? "📤" : "📥"), (st) => (st.isDraft ? "ready for review" : "back to draft")),
     row("blockers", "gh", "🚧", "merge blockers report", pr, (st) => doBlockers(st), (st) => st.mergeStateStatus, "", NONE, NONE),
+    row("why-review", "gh", "👥", "why these reviewers (CODEOWNERS)", pr, doWhyReview, NONE, "", NONE, NONE),
     row("stack", "gh", "🥞", "stack…", (st) => st.hasPr && st.stackSize > 0 && !st.isCrossRepository, doStackPick, (st) => (st.stackSize > 0 ? `${st.stackPosition}/${st.stackSize} of stack #${st.stackNumber}` : ""), "", NONE, NONE),
     row("create-pr", "gh", "🔀", "open a PR for this branch", (st) => !st.hasPr && st.kind !== "new" && st.repo !== "", doCreatePr, NONE, "", NONE, NONE),
     row("wt-full", "worktree", "🌱", "worktree + .env/node_modules from parent", (_st) => true, (st, c) => doWorktree(st, "clone", c), (st) => (st.worktree !== "" ? "exists → open" : ""), "", NONE, (st) => (st.worktree !== "" ? "open worktree" : "")),
