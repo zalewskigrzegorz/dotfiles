@@ -17,6 +17,12 @@ pointless. When a command needs `sudo`:
 3. If it has side effects (`killall coreaudiod` cuts audio for ~2 s), say so and
    ask for "poszło" after.
 
+The same goes for **any command Greg must run himself**, not only `sudo`: find
+the shell pane (`herdr pane list`, `herdr pane read` to confirm an empty `❯`),
+`herdr pane send-text <pane> '<cmd>'`, name the tab in one line, verify the
+result yourself after "poszło". Greg: "tak masz mi rozwiązywać odpalanie
+poleceń" (2b9b89b1, 2026-10-23).
+
 ## Unknown CLI: no `<cmd> <sub> --help | head`
 
 `collie update --help | head -30` started a real update (Collie has no
