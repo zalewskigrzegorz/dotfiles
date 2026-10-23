@@ -1,3 +1,8 @@
+---
+description: A coworker is named by full name from the work-people matrix, never by GitHub login or Slack nickname
+alwaysApply: true
+---
+
 # Coworkers by Full Name, Never by Login
 
 Greg does not map GitHub logins or Slack nicknames to people. Before naming a
