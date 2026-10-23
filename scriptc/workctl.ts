@@ -2370,6 +2370,8 @@ function spawnBg(st: St, id: string, o: Opts): void {
   run("herdr", ["notification", "show", `⏳ ${tag} ${id}`, "--body", "running in the background", "--sound", "none"]);
 }
 
+const REPORT_ROWS = ["blockers", "why-review"];
+
 // Run the picked actions, re-read, offer the menu again — one target usually
 // needs several. Esc leaves; so does an action that moved focus elsewhere.
 function menuLoop(st: St, o: Opts, rs: RepoState | null, target: Target | null): void {
@@ -2388,6 +2390,8 @@ function menuLoop(st: St, o: Opts, rs: RepoState | null, target: Target | null):
       failures += d.failures;
       for (const r of d.results) results.push(r);
       if (d.tookOver) break;
+      // fzf repaints over a report the moment the menu comes back.
+      if (now.some((i) => REPORT_ROWS.includes(i))) hold();
     }
     if (bgId !== "") {
       spawnBg(cur, bgId, o);
