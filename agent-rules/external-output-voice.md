@@ -41,6 +41,12 @@ scratch/AI artifacts.
    the scaffolding intact.
 3. If a skill's own flow (e.g. `g-pr-review`) already drafts the text, run
    `greg-voice` over that draft before it leaves the machine.
+4. **The first draft Greg sees is already voiced**, in prose and in a popup
+   `preview`. An unvoiced DM draft cost "krócej", then "moim glosem" (68513abd).
+5. **His own pasted draft is not rewritten.** "Popraw / uzupełnij" on text he
+   wrote keeps his wording: fix typos, mark added points as `propozycja` and an
+   unchecked one "nie weryfikowałem". `greg-voice` only on request ("Greg Voice
+   nie zawsze jest tym, co ja piszę", e4228afc).
 
 ## Slack — send through `g-slack`, as Greg
 

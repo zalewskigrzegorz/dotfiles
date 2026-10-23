@@ -76,9 +76,13 @@ fi
 # Excludes: env var references like process.env.*, os.environ.*, ${...}, $VAR, getenv(...)
 # Q/NQ: a bracket expression has no \x27 escape, so the quote goes in via a variable.
 # Per line: an env-var reference on one line must not excuse a literal on another.
+# Test files skip only this generic check: fixtures like access_token: 'fresh-idp-access'
+# forced /yolo on 2026-10-23. The token-shaped patterns above still apply there.
+FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // ""')
 Q="[\"']"
 NQ="[^\"']"
-if echo "$CONTENT" | grep -iE '(password|secret|token|api_key|apikey|api_secret)[[:space:]]*[=:][[:space:]]*'"$Q$NQ"'{8,}'"$Q" \
+case "$FILE_PATH" in *.test.* | *.spec.* | */__tests__/*) IS_TEST=1 ;; *) IS_TEST=0 ;; esac
+if [ "$IS_TEST" = 0 ] && echo "$CONTENT" | grep -iE '(password|secret|token|api_key|apikey|api_secret)[[:space:]]*[=:][[:space:]]*'"$Q$NQ"'{8,}'"$Q" \
    | grep -viE '(password|secret|token|api_key|apikey|api_secret)[[:space:]]*[=:][[:space:]]*'"$Q"'?(process\.env|os\.environ|getenv|\$\{|\$[A-Za-z_]|ENV\[|env\()' \
    | grep -q .; then
   MATCHES="$MATCHES hardcoded credential;"

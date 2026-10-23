@@ -20,6 +20,10 @@ In scope (→ bazgroly):
 - Any "thinking made durable" — scratch markdown the AI produces to organize its own reasoning
 - Plan Mode exports / copies if you mirror them by hand
 
+"Zanotuj pomysł, obrabiamy później" → a `notes/` file in his words, then pros
+and cons, then a visual or a send only after his "kk". No
+`superpowers:brainstorming`: the goal is already known (e4228afc).
+
 Out of scope (→ project repo, as usual):
 
 - `README.md`, `CHANGELOG.md`, `LICENSE`, `CONTRIBUTING.md`

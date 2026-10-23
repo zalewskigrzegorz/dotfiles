@@ -104,6 +104,8 @@ When shell access is unavailable, hand-place architecture SVG into `assets/templ
 
 ## Output
 
+Before handing a path to Greg, screenshot the render with `agent-browser` and look at it with `Read`; unreadable labels or tiny nodes get fixed first ("Diagram niewiele dał, nic sensownego nie widać", 3491f3e3). A "dlaczego" or "za i przeciw" question is answered in paragraphs (the ADR's), a diagram is only an extra.
+
 Return the checked HTML as an absolute path, diagram type, validation summary, specification/artifact receipt, browser-evidence status, and truthful visual-review status. Do not claim success for a non-zero command or claim visual inspection you did not perform.
 
 ## A change in meaning, not in structure

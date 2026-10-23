@@ -94,8 +94,10 @@ tries (2026-10-09 … 10-12):
   2026-10-16).
 - **Empty UI after `db:seed` → check Greg's membership first.** The seed only
   makes memberships for the seed user; Greg's account needs an `OWNER` row in
-  the `default` org. Before any `insert` into `main.*`, one query on
-  `information_schema.columns` (snake_case, users live in `main`, not `auth`).
+  the `default` org. Before any `insert` into `main.*`, and before the first
+  `select` on a table not yet seen in the session, one query on
+  `information_schema.columns` (snake_case, users live in `main`, not `auth`;
+  guessed `plan_id` / `message` failed, 68513abd).
   Backfill scripts go in the scratchpad and run with `-v ON_ERROR_STOP=1`.
 - **`prisma migrate reset` on `main` trips on other branches' schemas.** After
   the `pg_stat_activity` check: `drop schema if exists pgboss, ory_import,

@@ -112,6 +112,10 @@ After a successful send, set `slack_bump[<target>] = <today's ISO date>` for eac
 
 End every pass with a short per-PR line: what was done (retried e2e 1/2, fixed lint + pushed, rebased, notified 2 comments, bumped reviewers on Slack, ready to merge, skipped draft) — nothing else. When nothing was actionable: one line, "all green / nothing to do".
 
+Reviewers and authors are named by full name through `work-people`, never by
+login, and an unanswered thread says whom it waits on ("2 wątki <login>" got
+"czemu bez odpowiedzi?", 68513abd).
+
 ## Hard guardrails
 
 - Never merge, approve, or close a PR.

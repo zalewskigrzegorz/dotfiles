@@ -17,3 +17,7 @@ to be killed.
   fails fast. On timeout: one line, then the phone route.
 - The `grant-failure-ask` rule still applies once he is back: report the
   missing grant, do not reset TCC.
+- **Mac frozen or deaf to input** ("nie reaguje", "wiesza się", writing from
+  the phone): no `AskUserQuestion`, it renders on the machine he cannot touch.
+  One plain-text question with a one-word answer, numbered steps for physical
+  actions, nothing typed into his pane (2b9b89b1).

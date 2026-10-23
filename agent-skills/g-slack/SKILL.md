@@ -70,8 +70,9 @@ recipients read as "the system nudged me"? → automation, footer fine.
   ToolSearch returns nothing even though `claude mcp list` shows the connector
   Connected, the tools never registered in THIS session — tell Greg it needs a
   restart, or hand the reads to a session that has them.
-- **Plain, clean text.** Normal channels render Slack mrkdwn fine, but keep links
-  bare unless a real `<url|label>` helps. Match the channel's language (PL/EN).
+- **Plain, clean text.** Match the channel's language (PL/EN). A PR or issue
+  number is always `<full url|#n>`, never a bare `#n` or a long bare URL, and
+  the draft Greg reads already has that shape (3491f3e3: corrected twice).
 - **Work only, unless Greg says otherwise.** Don't post personal-repo noise.
 
 ## Workflow
@@ -111,6 +112,12 @@ reconnect Slack, or to paste the message. Don't try `$WORK_SLACK_POSTER_TOKEN`
 instead: it has `chat:write` only, so `conversations.history` answers
 `missing_scope` (2026-09-29). Don't guess the content in a popup either.
 
+A reply that defends a decision first collects its evidence: the issue, PR or
+report it came from, and the complaints behind it (`gh issue list --search`,
+or one narrow Slack search). It also asks whether the reader knows that
+context. 3491f3e3 needed three versions to add "it was a reported security
+bug" and the issue links.
+
 ### 3. Draft the reply
 
 Write what Greg would say — point first, just the meat.
@@ -139,7 +146,9 @@ blockquote) and **end the turn without another popup**, so it stays on screen.
 **No popup on a text he has not read.** The first draft of the turn, or a
 draft just changed after his correction, goes out as plain paragraphs ending
 in "powiedz wyślij". The popup is only for a text already on his screen
-(3905c082: two rejected send popups on fresh drafts).
+(3905c082: two rejected send popups on fresh drafts). While he keeps editing
+("skróć", "dopisz że…"), every new version stays plain text; the send popup
+comes after his "ok" on the last one (3491f3e3: two more rejected).
 
 ### 6. Send as Greg
 

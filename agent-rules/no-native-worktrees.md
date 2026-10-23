@@ -81,7 +81,10 @@ in the background) before the first test run. `pnpm install` does not fix it
 (2026-09-30). Component tests in `apps/ui` need four of them at once: build
 them in one `pnpm exec nx run-many --target=build --projects=<a>,<b>,…`, not
 one per failed run (3 rounds, 2cb11215). `Failed to resolve import
-"./generated-async"` is the async-API SDK package unbuilt.
+"./generated-async"` is the async-API SDK package unbuilt. In `apps/api`,
+`Cannot find package '@<org>/shared'` before a `*.db.spec.ts` is the same gap:
+build that package in the background first; a spec that never ran is "nie
+uruchomiony", not green (fa996d11).
 
 A fifth gap: **the e2e config `playwright.env.json`.** It is gitignored and
 sits next to the e2e suite (`e2e/*/playwright.env.json`), so an unseeded tree
@@ -95,7 +98,10 @@ pass the Support allowlist to the API (2026-10-12). `workctl` clones it since
 profile default` before the first `pnpm start`.
 
 **Check the worktree at the start of the session, not when a skill misfires.**
-In any `~/Code/tree/wt-*` path: `.claude/skills/g-pr` missing → run
+In any `~/Code/tree/wt-*` or `~/.herdr/worktrees/*/worktree-*` path (herdr's
+own worktrees are unseeded too, 03b98f19): `test -d node_modules && test -d
+.husky/_` before the first commit, else `pnpm install` as above;
+`.claude/skills/g-pr` missing → run
 `place-work-skills <worktree>` before any PR skill. Skills placed while a
 session is already running may not show up in the picker; if `/g-pr*` still
 says "Unknown command", `/exit` and `claude --continue`.
