@@ -119,6 +119,7 @@ bin/place-work-skills
 bin/workctl
 bin/herdr-worktree-new
 bin/agent-monitors
+bin/why-review
 # LLVM IR scriptc drops next to the binary when invoked by hand.
 bin/*.ll
 .scriptc/
