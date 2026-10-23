@@ -17,6 +17,9 @@
 # fingerprint: {{ output "bash" "-c" (printf "cd %q && find bin -type f -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1" .chezmoi.sourceDir) }}
 set -euo pipefail
 
+# chezmoi runs hooks with a minimal PATH; Debian ships no rsync, the lab's comes from linuxbrew.
+[[ -d /home/linuxbrew/.linuxbrew/bin ]] && PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
+
 SOURCE_BIN="{{ .chezmoi.sourceDir }}/bin"
 TARGET_BIN="${HOME}/bin"
 
