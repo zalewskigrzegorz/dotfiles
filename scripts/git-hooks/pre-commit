@@ -40,3 +40,19 @@ else
 fi
 
 echo "✅ gitleaks clean."
+
+# Coworkers' full names and GitHub logins from the work-people matrix (private,
+# in bazgroly) must not land in this public repo. No matrix (lab) → skip.
+for people in "$HOME"/Code/personal/bazgroly/*/people.md; do
+  [[ -f "$people" ]] || continue
+  terms=$(awk -F'|' '/^\| / && $2 !~ /Full name|Zalewski/ {
+      n = $2; gsub(/^ +| +$/, "", n); if (n ~ / /) print n
+      l = $3; gsub(/[ `]/, "", l); if (length(l) >= 4) print l }' "$people" | sort -u)
+  [[ -n "$terms" ]] || continue
+  hits=$(git diff --cached -U0 | grep -E '^\+[^+]' | grep -o -w -F -f <(printf '%s\n' "$terms") | sort -u || true)
+  if [[ -n "$hits" ]]; then
+    echo "🚫 COMMIT BLOCKED — $(wc -l <<<"$hits" | tr -d ' ') coworker name/login(s) from $people in staged lines." >&2
+    echo "   Use placeholders (<login>, <imię>, a role). Find them: git diff --cached | grep -n -w -F -f <(…)" >&2
+    exit 1
+  fi
+done

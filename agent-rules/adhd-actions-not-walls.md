@@ -154,6 +154,13 @@ About 15 popups were rejected in one week. Every one broke one of these:
   you left and why. A popup only for a single finding with an irreversible
   effect outside the branch (deleting a secret in AWS), effect named in
   `description`.
+- **An audit of the thing the conversation is about** ("odpalimy audyt tego
+  toola") gets no scope popup: audit that target, name the scope in one
+  sentence (03b98f19, rejected as "clarify").
+- **A multi-select "co zamykamy, reszta zostaje"** only when close and keep
+  are the only two moves. If an item may need a third (refresh, rebase), each
+  item gets its own popup; an unticked box never counts as "zostaw"
+  (ecc92e2d: a PR he wanted refreshed was reported "zostawione").
 
 ## Forgiveness & recovery framing
 

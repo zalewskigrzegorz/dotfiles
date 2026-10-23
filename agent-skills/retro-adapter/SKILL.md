@@ -32,6 +32,12 @@ skill's default destinations.
   `agent-skills/`.
 
 After materializing, run `bin/sync` so the change reaches the rendered targets.
+A new `agent-rules/*.md` starts with `---` / `description: …` / `alwaysApply:
+true` / `---`; without it stage 31 skips the file silently (dffe800a). After
+the sync, `rg -c '<rule title>' ~/.claude/CLAUDE.md` must not be 0.
+
+**Public repo.** Session evidence in a rule or skill never carries a real
+coworker's name, first name or login: write `<login>`, `<imię>` or the role.
 
 ## No PR flow in dotfiles
 

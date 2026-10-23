@@ -298,3 +298,14 @@ denied` → `grant-failure-ask` (Full Disk Access for the terminal, `/exit` +
 sender `left join handle h on h.ROWID=m.handle_id`, direction `is_from_me`;
 attachments `message_attachment_join` → `attachment.filename`, read a copy in
 the scratchpad. Personal data from there never goes to bazgroly (5666f824).
+
+## CI and PR traps from 2026-10-23
+
+- **Job logs:** `gh api …/actions/jobs/<id>/logs` refuses ANSI output without
+  `--allow-escape-sequences`; write to a file and `test -s` it. Only the
+  failure → `gh run view <id> --log-failed` (68513abd, 2 retries).
+- **A flaky or slow assertion waits on a ready state**, a built marker or the
+  helper the neighbouring suite uses, never on a bigger timeout: "nie timeout,
+  to bardzo zły pomysł, test będzie flaky" (68513abd).
+- **Editing a PR body again:** start from `gh pr view <n> --json body -q .body
+  > <scratch>/body.md`; the file from `gh pr create` may be gone (03b98f19).

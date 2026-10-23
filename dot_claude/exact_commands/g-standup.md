@@ -95,6 +95,16 @@ Drop rows whose folder is personal (dotfiles, bazgroly, home-lab, `~/Code/person
 Only when a title is too thin to write a bullet, open that one session's
 transcript (`~/.claude/projects/*/<sid>.jsonl`); don't skim transcripts wholesale.
 
+**PRs reviewed today:** one `gh api graphql` with `search(type: ISSUE, first:
+50)` → `reviews(last: 30)` and `comments(first: 30)`, counted in `jq` by
+`createdAt >= today`, saved to a scratch file. `reviews(last:100)` with nested
+`comments` hit `exceeds the maximum limit of 500,000` (7665ab21).
+
+**Work with no PR yet** (a Grafana board, a branch never pushed): `git -C <wt>
+status -sb` and `git -C <wt> log --oneline origin/main..HEAD` over
+`~/.herdr/worktrees/<repo>/*` and `~/Code/tree/wt-<repo>/*`, then the task log
+above. It goes into the draft as "bez PR-a" for Greg to confirm.
+
 Ambient context (don't over-weight): `mcp__hindsight__recall query="work shipped
 decisions focus <topics>"` filtered to the window.
 
@@ -114,7 +124,9 @@ keep, cut, merge, add. He drives this ("połącz X i Y", "wywal Z", "feel = ok")
 ### 5. Draft the answers
 
 English, terse, `•` bullets, plain text, team style (short imperative fragments,
-PR numbers bare). Match the four questions from work-context in order.
+PR numbers bare). Match the four questions from work-context in order. The
+"how do you feel" answer is one neutral line ("ok, could be better"), never a
+health detail and never "feel good" by default: it is public (7665ab21).
 
 ### 6. Get explicit go-ahead
 

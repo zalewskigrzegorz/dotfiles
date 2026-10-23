@@ -82,7 +82,10 @@ line contains the pattern (2026-09-27, cost ~150 turns). Never `pgrep -f
 "<pattern>"` inside a command that contains the pattern itself. Use the bracket
 trick (`pgrep -f "[a]rtisan importer:import"`), `pgrep -x` inside the
 container, or poll a log line or marker file. Every wait loop gets a timeout
-(`timeout 600 …`) and exits on the first actionable state.
+(`timeout 600 …`) and exits on the first actionable state. A multi-line loop
+with `$SECONDS`, `$(…)` and `while` goes into a `#!/bin/bash` file in the
+scratchpad, run as `bash <file> <secs>`, not inline in zsh; after a failed
+background run, read its `.output` before retrying (b33cce3d).
 
 **A CI run is not a hand-written loop.** `until s=$(gh run view …); do sleep 60;
 done` (2026-09-30, twice, no timeout) → `gh-run-wait <workflow> [--sha

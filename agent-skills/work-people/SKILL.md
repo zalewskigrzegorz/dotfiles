@@ -89,7 +89,10 @@ overrides a full name the sources get wrong.
   behind `WORK_SLACK_POSTER_TOKEN` lost the `users:read` /
   `users:read.email` user scopes. Open the app's OAuth page through `bsk`
   and let Greg add them back and reinstall. The token string does not change.
-- `gh` errors: `gh auth status`; the token needs `read:org`.
+  Don't fall back to a loop of Slack MCP `slack_search_users` (8 calls,
+  dffe800a); the MCP is for one person outside the matrix.
+- `gh` errors: `gh auth status`; the token needs `read:org`. It has no
+  `read:user`, so `email` in GraphQL fails (exit 5): match by login and name.
 
 `python3 ~/.claude/skills/work-people/scripts/sync.py --selftest` checks
 the name matching without the network. Run it after editing the script.

@@ -10,3 +10,7 @@ coworker anywhere (reply, recap, standup, PR or Slack text, agent brief), load
 the **`work-people`** skill and write the full name from its matrix. A login
 nobody can resolve stays a login marked "(nie wiem kto to)", never a guessed
 name.
+
+Popup labels and `description`s count too: two first names as an option got
+"który <imię>?" (c56d2e79). A bare first name is the same bug as a login, and a reviewer
+option says in a few words why that person.
