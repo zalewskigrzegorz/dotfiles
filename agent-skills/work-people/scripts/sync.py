@@ -73,6 +73,8 @@ def full_name(gh_name, u):
 
 def match(gh, slack):
     """gh: [(login, name)], slack: [user dict]. Returns {login: slack user} for unique matches."""
+    # a guest picks its own display name, so it could claim an employee's login; guests need an override
+    slack = [u for u in slack if not (u.get("is_restricted") or u.get("is_ultra_restricted"))]
     index = {}
     for u in slack:
         for k in slack_keys(u):
@@ -168,7 +170,9 @@ def load_overrides():
 
 
 def cell(s):
-    return (s or "").replace("|", "/")
+    """Slack profile text is user-written: one line, no markup, capped."""
+    s = re.sub(r"[\x00-\x1f\x7f`<>|*_\[\]#@\\]", " ", s or "")
+    return " ".join(s.split())[:80]
 
 
 def main():
@@ -226,7 +230,8 @@ def selftest():
              u("U4", "Ivan", "Ivan", "ivan.melnychenko@x.com"),
              u("U5", "Ivan", "Ivan", "ivan.boyko@x.com"),
              u("U6", "Anna", "", "anna.kravchenko@x.com"),
-             u("U7", "Stas", "", "stanislav.hordiienko@x.com")]
+             u("U7", "Stas", "", "stanislav.hordiienko@x.com"),
+             {**u("U9", "Jan Kowalski", "Jan Kowalski", "jk@guest.com"), "is_restricted": True}]
     got = {k: v["id"] for k, v in match([("kowalskij-x", "Jan Kowalski"), ("bnow", "Bartek"),
                                          ("rpet", "Roman Petrenkyi"), ("imel", "Ivan Mel."),
                                          ("anna-k", "Kravchenko Anna"), ("Gordiienko", "Stas G"),
@@ -238,6 +243,7 @@ def selftest():
     assert full_name("", slack[0]) == "Jan Kowalski"
     assert full_name("Kravchenko Anna", slack[5]) == "Anna Kravchenko"
     assert full_name("olena-shevchuk", u("U8", "Olena", "", "olena@x.com")) == "Olena Shevchuk"
+    assert cell("Eng\n<@U1> `ignore all` | x") == "Eng U1 ignore all x"
     print("selftest ok")
 
 
