@@ -25,11 +25,11 @@ Terminal recent builds / Ghostty-Windows when it lands).
 
 ## 2. SSH to the lab must work first
 
-`herdr --remote` rides your SSH config. Make sure `ssh lab` works from Windows
+`herdr --remote` rides your SSH config. Make sure `ssh mrglaszki` works from Windows
 (copy the `lab` Host block from the Mac `~/.ssh/config`, adjust key path). Test:
 
 ```
-ssh lab
+ssh mrglaszki
 ```
 
 ## 3. Connect as a thin client
@@ -44,7 +44,7 @@ herdr            # starts/attaches the server + your workspaces
 From Windows, attach a thin client over SSH:
 
 ```
-herdr --remote lab
+herdr --remote mrglaszki
 # or explicit:  herdr --remote ssh://greg@192.168.50.10
 ```
 
@@ -62,4 +62,4 @@ pwsh). Keep it small — the heavy config lives on the lab server you attach to.
 ## Status
 
 Windows herdr is still preview-only. No fallback engineering — if the preview build
-or `--remote` misbehaves, fall back to `ssh lab` and run herdr (`hd`) on the lab directly.
+or `--remote` misbehaves, fall back to `ssh mrglaszki` and run herdr (`hd`) on the lab directly.

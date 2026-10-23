@@ -97,7 +97,7 @@ def firefly [
     let payload = ($chosen | each {|it| ([$out $it.plik] | path join) })
 
     print $"(ansi cyan)→ wysyłka na lab(ansi reset)"
-    ^scp $config ...$payload $"lab:($remote)/"
+    ^scp $config ...$payload $"mrglaszki:($remote)/"
 
     # Importer kończy się kodem 1 przy każdym duplikacie (a115), a przy
     # zachodzących na siebie eksportach duplikaty to norma. Nie przerywamy więc
@@ -115,7 +115,7 @@ grep 'Add error on index' "$log" | grep -v '\[a115\]' | sed -E 's/.*\): //' | cu
 
     print $"(ansi cyan)→ import(ansi reset)"
     for it in $chosen {
-        let res = ($remote_import | ^ssh lab bash -s -- $it.plik | complete)
+        let res = ($remote_import | ^ssh mrglaszki bash -s -- $it.plik | complete)
         let out = ($res.stdout | lines)
         if ($out | is-empty) {
             print $"    (ansi red)($it.konto) — import nie ruszył(ansi reset) ($res.stderr | str trim)"
@@ -127,7 +127,7 @@ grep 'Add error on index' "$log" | grep -v '\[a115\]' | sed -E 's/.*\): //' | cu
         print $"    ($it.konto) — nowe: (ansi green)($s.0)(ansi reset), duplikaty: ($s.1), ($color)inne błędy: ($other)(ansi reset)"
         if $other > 0 {
             for l in ($out | skip 1) { print $"        ($l)" }
-            print $"        pełny log: lab:($s.3)"
+            print $"        pełny log: mrglaszki:($s.3)"
         }
     }
 

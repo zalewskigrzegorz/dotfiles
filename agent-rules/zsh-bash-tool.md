@@ -77,7 +77,7 @@ apps/api/node_modules/<pkg>` from `~` (empty variable, then `ls /dist/…`),
 ## Wait loops: `pgrep -f` matches its own shell
 
 `while pgrep -f "artisan importer:import"; do sleep 10; done` run through
-`ssh lab '…'` never ends: `pgrep -f` matches the remote shell whose command
+`ssh mrglaszki '…'` never ends: `pgrep -f` matches the remote shell whose command
 line contains the pattern (2026-09-27, cost ~150 turns). Never `pgrep -f
 "<pattern>"` inside a command that contains the pattern itself. Use the bracket
 trick (`pgrep -f "[a]rtisan importer:import"`), `pgrep -x` inside the

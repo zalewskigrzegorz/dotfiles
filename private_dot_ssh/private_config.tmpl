@@ -4,15 +4,8 @@ Include {{ .chezmoi.homeDir }}/.colima/ssh_config
 {{ end -}}
 # Managed by chezmoi. Edit: ~/Code/dotfiles/private_dot_ssh/private_config.tmpl
 
-Host lab
-    HostName lab
-    User greg
-    IdentityFile ~/.ssh/id_ed25519
-    ForwardAgent yes
-    ServerAliveInterval 60
-    ServerAliveCountMax 3
-
-Host lab-via-ip
+# IP, not DNS: AdGuard runs on this host, so ssh must work while it is down.
+Host mrglaszki
     HostName 192.168.50.10
     User greg
     IdentityFile ~/.ssh/id_ed25519

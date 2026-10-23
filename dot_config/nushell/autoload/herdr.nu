@@ -26,10 +26,10 @@ def hd-stop [] { herdr server stop }
 # --remote-keybindings server: the LAB interprets the prefix with its own config
 # (ctrl+space). Default `local` does NOT intercept the prefix in remote-attach,
 # so the leader appears dead. Run from a plain Ghostty window (not nested in herdr).
-def hd-lab [] {
+def hd-mrglaszki [] {
     if ($env.HERDR_ENV? | is-not-empty) {
         print -e "You're inside herdr — --remote only works from a plain terminal. Open a fresh Ghostty window."
         return
     }
-    herdr --remote lab --remote-keybindings server
+    herdr --remote mrglaszki --remote-keybindings server
 }

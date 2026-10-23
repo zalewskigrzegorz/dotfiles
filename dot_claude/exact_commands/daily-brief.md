@@ -121,7 +121,7 @@ Wrap every external call with `cached`. Example:
 cached wttr.json     3600  curl -s "wttr.in/Tarnowskie+Gory?format=j1"
 cached nbp.json      14400 curl -s "https://api.nbp.pl/api/exchangerates/rates/a/usd/last/7/?format=json"
 cached aqi.json      3600  curl -s "https://air-quality-api.open-meteo.com/v1/air-quality?..."
-cached tina.json      600  curl -s --max-time 5 "http://lab:3001/api/events?..."
+cached tina.json      600  curl -s --max-time 5 "http://mrglaszki:3001/api/events?..."
 ```
 
 **MCP tool caching** — wrap the JSON-stringified result. This command uses pseudo-code:
@@ -347,7 +347,7 @@ Convert `lastUpdated` (ms epoch) to Polish relative time ("dziś rano", "wczoraj
 ### Tina (announce-agent — last 24h events)
 
 ```bash
-curl -s --max-time 5 "http://lab:3001/api/events?from=$(date -u -v-24H +%Y-%m-%dT%H:%M:%SZ)&limit=30"
+curl -s --max-time 5 "http://mrglaszki:3001/api/events?from=$(date -u -v-24H +%Y-%m-%dT%H:%M:%SZ)&limit=30"
 # Alternative reverse proxy: https://announce.mrglaszki.com/api/events?from=...&limit=30
 ```
 
@@ -581,7 +581,7 @@ From the two added queries (`shipped this week`, `decision OR pivot OR learned`)
 
 Skip if no fresh memories.
 
-**6d — Tina recap (from `curl lab:3001/api/events`):**
+**6d — Tina recap (from `curl mrglaszki:3001/api/events`):**
 
 Apply 3-category filter (chores / calendar / anomalies) per the data-sources block. Drop everything else.
 

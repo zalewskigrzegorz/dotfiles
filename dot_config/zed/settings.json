@@ -18,7 +18,7 @@
   },
   "ssh_connections": [
     {
-      "host": "lab",
+      "host": "mrglaszki",
       "username": "greg",
       "args": [],
       "projects": [

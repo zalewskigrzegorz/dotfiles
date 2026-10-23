@@ -58,7 +58,7 @@ section when a question knocks him off script.
 
 ```bash
 git -C ~/Code/home-lab push
-ssh lab 'cd /opt/homelab && git pull && docker compose -f services/deck/compose.yaml up -d --build --force-recreate'
+ssh mrglaszki 'cd /opt/homelab && git pull && docker compose -f services/deck/compose.yaml up -d --build --force-recreate'
 ```
 
 `*.mrglaszki.com` is a DNS wildcard onto 192.168.50.10, so no record needs adding. Two things not to

@@ -29,7 +29,7 @@ fi
 # 3) Optional Tine TTS push (opt-in via env)
 if [ "${CLAUDE_TINE_NOTIFY:-0}" = "1" ]; then
   if command -v curl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
-    endpoint="${TINE_ENDPOINT:-http://lab:8080/say}"
+    endpoint="${TINE_ENDPOINT:-http://mrglaszki:8080/say}"
     project="$(basename "${PWD:-unknown}")"
     msg="Claude finished in ${project}"
     curl -fsS -m 2 -X POST "$endpoint" \

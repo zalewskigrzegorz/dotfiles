@@ -60,7 +60,7 @@ action: **confirm the target with Greg** unless he named it himself. Zones:
 | `auto` | presence-based (phones), night-mode aware | may land on a single speaker only |
 
 Source of truth: `MEDIA_PLAYERS` in
-`lab:/opt/homelab/services/announce-agent/src/zones.js`.
+`mrglaszki:/opt/homelab/services/announce-agent/src/zones.js`.
 
 Night hours: `auto` applies night-mode volumes; the explicit zones do not, so a
 late `-t all` is full volume.
@@ -144,16 +144,16 @@ is her mouth (what she said), `tina brain` her head (questions, tools, cost),
 
 **`GET /api/events` is a projection — it has no `facts` or `fetched`.** To debug
 what a recipe actually computed, fetch the single event:
-`curl -s http://lab:3001/api/events/<event_id> | jq .facts`. Reading `facts:
+`curl -s http://mrglaszki:3001/api/events/<event_id> | jq .facts`. Reading `facts:
 null` off the list view and concluding the fetch failed is a trap.
 
 ## Where it lives
 
 - `POST /say` (literal) and `POST /trigger/:name` on `http://192.168.50.10:3001`
-- Route: `lab:/opt/homelab/services/announce-agent/src/server.js`
+- Route: `mrglaszki:/opt/homelab/services/announce-agent/src/server.js`
 - LLM path: `recipes/announce.yaml` + `prompts/announce.md`
 - **All of it is baked into the container image**, only `data/` is bind-mounted.
-  After editing any of those on the lab: `ssh lab 'cd
+  After editing any of those on the lab: `ssh mrglaszki 'cd
   /opt/homelab/services/announce-agent && docker compose up -d --build'` — a
   `docker cp` alone is lost on the next rebuild.
 

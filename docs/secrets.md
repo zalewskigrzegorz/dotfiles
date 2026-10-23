@@ -158,7 +158,7 @@ To eliminate Touch ID prompts on Mac and `op signin` failures over non-TTY SSH o
    op whoami                                  # should not prompt
    ```
 
-After this, `sync` / `chezmoi apply` / `lab-sync` all run without password prompts.
+After this, `sync` / `chezmoi apply` / `mrglaszki-sync` all run without password prompts.
 
 ### File location is INTENTIONAL
 

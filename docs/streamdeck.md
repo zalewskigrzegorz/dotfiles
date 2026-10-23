@@ -128,7 +128,7 @@ Dials: `Mic gain` · `Speaker` · `Cam zoom` · `◉ PAGES`. MuteDeck = cross-ap
 
 HTTP triggers to the lab via the **API Request** plugin (GUI-configured, survives — NOT
 MCP). Keys: `n8n workflow trigger (webhook)` · `Lab status (live tile, poll)` ·
-`Tina / announce event (lab:3001)` · `draw.mrglaszki.com / tools (open)`. 4 keys + 3 dials free.
+`Tina / announce event (mrglaszki:3001)` · `draw.mrglaszki.com / tools (open)`. 4 keys + 3 dials free.
 Dial 4 = `◉ PAGES`.
 
 ### Still to draw / define (later)
