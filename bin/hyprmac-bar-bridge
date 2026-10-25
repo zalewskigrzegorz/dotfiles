@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """hyprmac-bar-bridge — feed sketchybar-watcher from HyprMac's log, which is the only place HyprMac exposes its state.
 
-Writes /tmp/hyprmac-bar/{windows.json,focused} in aerospace's output format and sends the
+Writes ~/.cache/hyprmac-bar/state/{windows.json,focused} in aerospace's output format and sends the
 watcher the same `workspace` / `window-changed` events aerospace's callbacks did.
 Runs as launchd com.greg.hyprmac-bar. Window id -> app name comes from bin/hyprmac-cgwins.swift,
 compiled to ~/.cache/hyprmac-bar/cgwins on first use. HyprMac has no CLI or events
@@ -18,7 +18,7 @@ import threading
 
 CGWINS_SRC = os.path.join(os.path.dirname(os.path.realpath(__file__)), "hyprmac-cgwins.swift")
 CGWINS = os.path.expanduser("~/.cache/hyprmac-bar/cgwins")
-OUT = "/tmp/hyprmac-bar"
+OUT = os.path.expanduser("~/.cache/hyprmac-bar/state")  # per-user, not a shared /tmp path
 WATCHER = os.path.expanduser("~/Code/dotfiles/bin/sketchybar-watcher/sketchybar-watcher")
 NAMES = {1: "chat", 4: "term", 7: "code", 10: "notes", 2: "web", 5: "test", 8: "mail", 3: "media", 6: "misc", 9: "mac"}
 DISPLAY = {"DELL U3225QE": "1", "Built-in Retina Display": "2", "C34H89x": "3"}  # aerospace monitor ids

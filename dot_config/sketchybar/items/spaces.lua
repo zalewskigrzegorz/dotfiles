@@ -21,7 +21,7 @@ local workspace_colors = {
 }
 
 -- Initial highlight only; the watcher re-pushes it as soon as it hears from bin/hyprmac-bar-bridge.
-local f = io.open("/tmp/hyprmac-bar/focused")
+local f = io.open(os.getenv("HOME") .. "/.cache/hyprmac-bar/state/focused")
 local current_workspace = f and f:read("*l") or nil
 if f then f:close() end
 local focused_color = colors.purple

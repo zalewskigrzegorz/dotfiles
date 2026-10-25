@@ -209,7 +209,7 @@ func runCmd(name string, args ...string) ([]byte, error) {
 // HyprMac has no query CLI, so the bridge rebuilds, in aerospace's output format,
 // the two answers the watcher used to ask aerospace for. Missing while the bridge
 // is down, and the callers already treat an error as "no data yet".
-const hyprmacBarDir = "/tmp/hyprmac-bar"
+var hyprmacBarDir = filepath.Join(os.Getenv("HOME"), ".cache/hyprmac-bar/state")
 
 func runAerospace(args ...string) ([]byte, error) {
 	if len(args) > 0 && args[0] == "list-workspaces" {
