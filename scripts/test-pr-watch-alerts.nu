@@ -59,6 +59,26 @@ def test_ci_success [] {
     assert equal (pr-alert diff {"7": (snap --pending --failed ["a"])} {"7": (snap --failed ["a"])} $NOW) {}
 }
 
+def test_repo_keys [] {
+    # same number in two repos: two events, num from the snapshot, key carried for the click
+    let a = ((snap) | insert num 7)
+    let d = (pr-alert diff {"o/a#7": $a, "o/b#7": $a} {"o/a#7": ($a | upsert pending true), "o/b#7": ($a | upsert outstanding 1)} $NOW)
+    assert equal ($d | get "o/a#7" | get kind) "ci_start"
+    assert equal ($d | get "o/b#7" | get kind) "comment"
+    assert equal ($d | get "o/b#7" | get num) 7
+    assert equal ($d | get "o/b#7" | get key) "o/b#7"
+    # a cache from before the repo keys: nothing matches, nothing rings, nothing crashes
+    assert equal (pr-alert diff {"7": (snap)} {"o/a#7": ($a | upsert pending true)} $NOW) {}
+}
+
+def test_merge_gate [] {
+    assert equal (pr-alert merge-gate "MERGE" false) "blocked"
+    assert equal (pr-alert merge-gate "MERGE" true) "MERGE"
+    # threads on my own PR are mine to resolve, merge rights or not
+    assert equal (pr-alert merge-gate "resolve" false) "resolve"
+    assert equal (pr-alert merge-gate "fix CI" false) "fix CI"
+}
+
 def test_closed_pr [] {
     assert equal (pr-alert diff {"7": (snap)} {} $NOW) {}
 }
@@ -115,6 +135,8 @@ def main [] {
         [approval_and_comment_same_poll, {|| test_approval_and_comment_same_poll }]
         [comment, {|| test_comment }]
         [ci_success, {|| test_ci_success }]
+        [repo_keys, {|| test_repo_keys }]
+        [merge_gate, {|| test_merge_gate }]
         [closed_pr, {|| test_closed_pr }]
         [merge_priority, {|| test_merge_priority }]
         [sound, {|| test_sound }]

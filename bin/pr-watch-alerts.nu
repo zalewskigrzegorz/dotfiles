@@ -36,14 +36,22 @@ def "pr-alert snapshot" [pr: record, out: int]: nothing -> record {
     }
 }
 
-# Events between two caches keyed by PR number, at most one per PR.
+# GitHub calls a fork PR into someone else's repo MERGEABLE too. Without merge
+# rights there is nothing for me to do: reuse the classifier's `blocked` (bucket
+# `wait`, not actionable), so it adds nothing to the chip's merge count.
+def "pr-alert merge-gate" [action: string, can_merge: bool]: nothing -> string {
+    if ($action == "MERGE") and (not $can_merge) { "blocked" } else { $action }
+}
+
+# Events between two caches keyed by "owner/repo#num", at most one per PR.
 def "pr-alert diff" [prev: record, cur: record, now: string]: nothing -> record {
     $cur | items {|key, c|
         let p = ($prev | get -o $key)
         if ($p == null) or ($p | get -o failed) == null or ($p | get -o pending) == null or ($p | get -o approvers) == null {
             return null
         }
-        let num = ($key | into int)
+        # keys are "owner/repo#num" now; a bare-number key is the old cache format
+        let num = ($c | get -o num | default ($key | split row "#" | last | into int))
         let new_failed = ($c.failed | where {|n| $n not-in $p.failed })
         let new_approvers = ($c.approvers | where {|l| $l not-in $p.approvers })
         let ev = (if ($new_failed | is-not-empty) {
@@ -58,7 +66,7 @@ def "pr-alert diff" [prev: record, cur: record, now: string]: nothing -> record 
         } else if $c.pending and (not $p.pending) {
             {kind: "ci_start", text: "", url: ""}
         } else { null })
-        if $ev == null { null } else { {key: $key, ev: ({ts: $now, num: $num} | merge $ev)} }
+        if $ev == null { null } else { {key: $key, ev: ({ts: $now, num: $num, key: $key} | merge $ev)} }
     } | compact | reduce -f {} {|r, acc| $acc | insert $r.key $r.ev }
 }
 
