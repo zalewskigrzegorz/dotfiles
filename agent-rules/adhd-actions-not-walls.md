@@ -162,6 +162,20 @@ About 15 popups were rejected in one week. Every one broke one of these:
   item gets its own popup; an unticked box never counts as "zostaw"
   (ecc92e2d: a PR he wanted refreshed was reported "zostawione").
 
+## A live test Greg runs: one step per popup
+
+Five numbered steps at once got "nie działa nic", then "jak chcemy testować coś
+to róbmy krok po kroku, wtedy zapiszesz sobie godziny, nie będziemy strzelać"
+(1d0096be, 2026-10-25). For any test he performs by hand (shortcuts, clicks, a
+repro):
+
+- **One action per `AskUserQuestion`**, the outcomes as options ("Zrobione,
+  wygląda dobrze" / "Coś nie tak"), the expected result in the `description`.
+- **After each answer:** note the time (`date +%T`), read the log or state for
+  that window, say in one line what it showed, then send the next step.
+- **Before the first step, check the starting state** (how many windows, which
+  build runs); a test on a hidden leftover window measured nothing.
+
 ## Forgiveness & recovery framing
 
 ADHD comes with rejection-sensitivity. How a failure is *worded* changes whether
