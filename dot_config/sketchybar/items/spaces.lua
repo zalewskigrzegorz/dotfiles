@@ -72,8 +72,10 @@ local function add_workspace(i, workspace, suffix, size)
 
     sbar.add("item", "item." .. i .. suffix .. "padding", { script = "", width = settings.items.gap })
 
-    if i == 5 and suffix == "" then
-        sbar.add("item", "workspace.dell_ultra_sep", {
+    -- monitor boundaries in the HyprMac key order: Dell 1-4 | Samsung 5-7 | laptop 8-0
+    local sep = ({ [4] = "workspace.dell_ultra_sep", [7] = "workspace.ultra_mac_sep" })[i]
+    if sep and suffix == "" then
+        sbar.add("item", sep, {
             label = {
                 string = "│",
                 font = { family = settings.font.text, size = 14.0 },
