@@ -23,6 +23,11 @@ K = dict(h=4, j=38, k=40, l=37, f=3, m=46, s=1, t=17, w=13, y=16, u=32, r=15, c=
 DIGITS = [18, 19, 20, 21, 23, 22, 26, 28, 25, 29]  # keys 1..9, 0
 BIN = os.path.expanduser("~/Code/dotfiles/bin")
 LIVE = os.path.expanduser("~/Library/Application Support/HyprMac/config.json")  # symlink into iCloud Drive
+MONITORS = os.path.expanduser("~/Library/Application Support/HyprMac/monitor-config.json")  # local, not synced
+
+# Top padding per monitor so tiles start under sketchybar (36pt on the externals) plus the usual 8pt
+# gap; the laptop keeps outerPadding. Fork feature (top padding PR pending); a value set in Settings wins.
+TOP_PADDING = {"DELL U3225QE": 44, "C34H89x": 44}
 
 # HyprMac anchors workspace N to screen (N-1) % screens, left to right (Dell, C34H89x, built-in),
 # and that is not configurable (zacharytgray/HyprMac#29). So the digit keys are grouped per monitor
@@ -150,6 +155,11 @@ def merge(live):
     return live
 
 
+def merge_monitors(mon):
+    mon["topPaddingPerMonitor"] = {**TOP_PADDING, **(mon.get("topPaddingPerMonitor") or {})}
+    return mon
+
+
 def main():
     live = merge(json.load(open(LIVE)))
     if "--dry-run" in sys.argv:
@@ -169,6 +179,9 @@ def main():
     live = merge(json.load(open(LIVE)))
     with open(LIVE, "w") as f:
         json.dump(live, f, indent=2)
+    mon = merge_monitors(json.load(open(MONITORS)) if os.path.exists(MONITORS) else {})
+    with open(MONITORS, "w") as f:
+        json.dump(mon, f, indent=2)
     subprocess.run(["open", "-a", app], check=True)
     print(f"merged {len(binds)} chords, {len(live['windowRules'])} pins into {LIVE}")
 
