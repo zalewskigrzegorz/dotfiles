@@ -19,7 +19,11 @@
 # Bots and my own comments never count. The count drops on the next poll (≤3 min)
 # as soon as I resolve a thread or reply — self-clearing, no manual ack.
 #
-# Cache: ~/.cache/pr-watch-last.json  { "<num>": {action, outstanding, actionable, title, url} }
+# Repos: every repo where I have an open PR, found by one `gh search prs` per poll,
+# plus the work repo always (search lags). One `gh pr list` per repo after that.
+#
+# Cache: ~/.cache/pr-watch-last.json  { "<owner/repo>#<num>": {repo, num, repo_short, action, ...} }
+# (numbers collide across repos; an old number-keyed cache simply misses once).
 # (cache is only a fallback for transient gh/GraphQL failures — the flag is live.)
 #
 # The action chain itself is no longer here: it is the SHARED classifier in
@@ -106,8 +110,8 @@ def is-foreign [c: any]: nothing -> bool {
 # review threads + conversation comments I haven't replied to since). Only
 # reachable via GraphQL (gh pr view --json has no reviewThreads field). Returns
 # null on failure so the caller keeps the cached count.
-def outstanding-comments [num: int]: nothing -> any {
-    let parts = ((work-repo) | split row "/")
+def outstanding-comments [repo: string, num: int]: nothing -> any {
+    let parts = ($repo | split row "/")
     let q = 'query($owner:String!,$name:String!,$num:Int!){repository(owner:$owner,name:$name){pullRequest(number:$num){reviewThreads(first:100){nodes{isResolved comments(last:1){nodes{author{login __typename}}}}} comments(last:30){nodes{createdAt author{login __typename}}}}}}'
     let r = (do {
         # -f, not -F, for the String! variables: -F type-coerces, so an all-digit
@@ -143,6 +147,24 @@ def outstanding-comments [num: int]: nothing -> any {
     { out: ($threads_out + (if $conv_out { 1 } else { 0 })), unresolved: $unresolved_any }
 }
 
+# Can I merge in each repo? One batched GraphQL call for all repos per poll.
+# A repo the call misses keeps the last cached answer; never seen → true (the
+# old behaviour). Owner/repo names are [A-Za-z0-9._-], safe to inline.
+def merge-rights [repos: list<string>, prev: record]: nothing -> record {
+    let q = ($repos | enumerate | each {|r|
+        let p = ($r.item | split row "/")
+        $"r($r.index): repository\(owner: \"($p.0)\", name: \"($p.1)\"\) { viewerPermission }"
+    } | str join " ")
+    let r = (do { ^gh api graphql -f $"query={ ($q) }" } | complete)
+    # parse even on a non-zero exit: one missing repo fails the call but keeps the rest
+    let perms = (try { $r.stdout | from json | get -o data | default {} } catch { {} })
+    $repos | enumerate | reduce -f {} {|r, acc|
+        let p = ($perms | get -o $"r($r.index)" | get -o viewerPermission)
+        let cached = ($prev | values | where {|e| ($e | get -o repo) == $r.item } | get -o can_merge | default [] | compact | get -o 0)
+        $acc | insert $r.item (if $p != null { $p in ["ADMIN" "MAINTAIN" "WRITE"] } else { $cached | default true })
+    }
+}
+
 # Diff this poll against the previous cache, ring once, and queue the events for
 # the popup unless Greg is already looking at it. Returns the unseen events.
 def raise-alerts [prev: record, cur: record]: nothing -> record {
@@ -172,12 +194,28 @@ def main [] {
         (try { open $cache_path } catch { {} })
     } else { {} })
 
-    let listed = (do { ^gh pr list --author "@me" --repo (work-repo) --state open --json $FIELDS --limit 30 } | complete)
-    if $listed.exit_code != 0 {
-        # gh failed (offline / auth) → leave the chip untouched, try again next poll.
-        exit 0
+    let work = (work-repo)
+    # Repos with an open PR of mine. Search failing (rate limit) → reuse the
+    # repos from the last cache so personal PRs don't flicker out for a poll.
+    let found = (do { ^gh search prs --author "@me" --state open --json repository --limit 100 } | complete)
+    let discovered = (if $found.exit_code == 0 {
+        $found.stdout | from json | get -o repository.nameWithOwner | default []
+    } else {
+        $prev | values | get -o repo | default [] | compact
+    })
+    let repos = ([$work] | append $discovered | uniq)
+    let rights = (merge-rights $repos $prev)
+
+    mut prs = []
+    for repo in $repos {
+        let listed = (do { ^gh pr list --author "@me" --repo $repo --state open --json $FIELDS --limit 30 } | complete)
+        if $listed.exit_code != 0 {
+            # gh failed (offline / auth) → leave the chip untouched, try again next poll.
+            exit 0
+        }
+        let short = (if $repo == $work { "" } else { $repo | split row "/" | last })
+        $prs = ($prs | append ($listed.stdout | from json | each {|pr| $pr | insert repo $repo | insert repo_short $short }))
     }
-    let prs = ($listed.stdout | from json)
 
     # Outstanding-comment count — EVERY open PR (one GraphQL each, ~7 calls /
     # 3 min poll). Computed live; cache is only a fallback on GraphQL failure.
@@ -189,21 +227,27 @@ def main [] {
     # all live in `work-pr classify` now; the cache fallback stays here because
     # only this poller has a cache to fall back to.
     let enriched = ($prs | each { |pr|
-        let key = ($pr.number | into string)
+        let key = $"($pr.repo)#($pr.number)"
         let prev_out = ($prev | get -o $key | get -o outstanding | default 0)
         let prev_unres = ($prev | get -o $key | get -o unresolved | default 0)
-        let cur = (outstanding-comments $pr.number)
+        let cur = (outstanding-comments $pr.repo $pr.number)
         let out = (if $cur == null { $prev_out } else { $cur.out })
         let unres = (if $cur == null { $prev_unres } else { $cur.unresolved })
         let c = (work-pr classify $pr --unresolved $unres --outstanding $out)
+        let can_merge = ($rights | get -o $pr.repo | default true)
+        let action = (pr-alert merge-gate $c.action $can_merge)
         let snap = (pr-alert snapshot $pr $out)
         {
+            key: $key,
+            repo: $pr.repo,
+            repo_short: $pr.repo_short,
             number: $c.number,
-            action: $c.action,
+            action: $action,
             title: $c.title,
             url: $c.url,
             branch: $pr.headRefName,
-            actionable: $c.actionable,
+            actionable: (work-pr actionable $action),
+            can_merge: $can_merge,
             outstanding: $out,
             unresolved: $unres,
             failed: $snap.failed,
@@ -216,7 +260,8 @@ def main [] {
 
     # Persist cache (fallback for transient gh/GraphQL failures).
     let cache = ($enriched | reduce -f {} { |r, acc|
-        $acc | insert ($r.number | into string) {
+        $acc | insert $r.key {
+            repo: $r.repo, num: $r.number, repo_short: $r.repo_short, can_merge: $r.can_merge,
             action: $r.action, outstanding: $r.outstanding, unresolved: $r.unresolved, actionable: $r.actionable, title: $r.title, url: $r.url, branch: $r.branch,
             failed: $r.failed, failed_urls: $r.failed_urls, pending: $r.pending, approvers: $r.approvers, green: $r.green
         }

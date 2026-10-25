@@ -52,6 +52,7 @@ const G_COMMENT = "";
 interface AlertEvent {
   ts?: string;
   num?: number;
+  key?: string;
   kind?: string;
   text?: string;
   url?: string;
@@ -91,6 +92,8 @@ function readEvents(path: string): AlertEvent[] {
 }
 
 interface CacheEntry {
+  num?: number;
+  repo_short?: string; // "" for the work repo, else the repo name
   action?: string;
   outstanding?: number;
   actionable?: boolean;
@@ -289,26 +292,43 @@ function loadCache(cachePath: string): [string, CacheEntry][] {
     const aRank = a[1]?.actionable ? 0 : 1;
     const bRank = b[1]?.actionable ? 0 : 1;
     if (aRank !== bRank) return aRank - bRank;
-    return Number(b[0]) - Number(a[0]);
+    return (b[1]?.num ?? Number(b[0])) - (a[1]?.num ?? Number(a[0]));
   });
   return entries;
 }
 
-// Lookups by PR number for the click handlers. A merged PR is gone from the
+// Lookups by cache key ("owner/repo#num") for the click handlers. A merged PR is gone from the
 // cache: return an empty entry instead of optional-chaining an undefined tuple,
 // which scriptc turns into a runtime TypeError.
-function cacheEntry(num: string): CacheEntry {
-  for (const [n, e] of loadCache(join(home(), ".cache", "pr-watch-last.json"))) {
-    if (n === num) return e;
+function cacheEntry(key: string): CacheEntry {
+  for (const [k, e] of loadCache(join(home(), ".cache", "pr-watch-last.json"))) {
+    if (k === key) return e;
   }
   return {};
 }
 
-function shownEvent(num: string): AlertEvent {
+// events queued before the repo keys carry only `num`
+function eventKey(ev: AlertEvent): string {
+  return ev.key ?? String(Number(ev.num ?? 0));
+}
+
+function shownEvent(key: string): AlertEvent {
   for (const e of readEvents(SHOWN)) {
-    if (String(Number(e.num ?? 0)) === num) return e;
+    if (eventKey(e) === key) return e;
   }
   return {};
+}
+
+// The key goes into a click_script shell string: GitHub owner/repo names are
+// [A-Za-z0-9._-] only, anything else is dropped rather than quoted.
+const KEY_RE = /^([A-Za-z0-9._-]+\/[A-Za-z0-9._-]+#)?[0-9]+$/;
+function clickFor(kind: string, key: string): string {
+  return KEY_RE.test(key) ? `'${process.argv[1]}' ${kind} '${key}'` : "";
+}
+
+// "#123" for the work repo, "HyprMac#2" for any other
+function prLabel(num: number, entry: CacheEntry): string {
+  return `${entry.repo_short ?? ""}#${num}`;
 }
 
 // What happened, in words: the bare "#31265  16:10" row said nothing for
@@ -330,23 +350,29 @@ function rebuildRows(cachePath: string): void {
   spawnSync("sketchybar", ["--remove", "/pr_watch\\.pr\\..*/", "--remove", "/pr_watch\\.ev\\..*/"], { stdio: "ignore" });
 
   const events = readEvents(SHOWN);
+  let evIdx = 0;
   for (const ev of events) {
     const num = Number(ev.num ?? 0);
+    const key = eventKey(ev);
+    const pr = cacheEntry(key);
     const time = (ev.ts ?? "").slice(11, 16);
+    // item names by position: PR numbers repeat across repos
+    const item = `pr_watch.ev.${evIdx}`;
+    evIdx += 1;
     spawnSync(
       "sketchybar",
       [
-        "--add", "item", `pr_watch.ev.${num}`, "popup.pr_watch",
-        "--set", `pr_watch.ev.${num}`,
+        "--add", "item", item, "popup.pr_watch",
+        "--set", item,
         `icon=${KIND_GLYPH[ev.kind ?? ""] ?? "\u{f111}"}`,
         `icon.color=${KIND_COLOR[ev.kind ?? ""] ?? C_MUTED}`,
         `icon.font=${FONT}:Bold:12.0`,
         "icon.padding_left=10",
-        `label=#${num}  ${eventWhat(ev)}  ${truncate(cacheEntry(String(num)).title ?? "")}  ${time}`,
+        `label=${prLabel(num, pr)}  ${eventWhat(ev)}  ${truncate(pr.title ?? "")}  ${time}`,
         `label.color=${C_TEXT}`,
         `label.font=${FONT}:Bold:12.0`,
         "label.padding_right=10",
-        `click_script='${process.argv[1]}' __ev ${num}`,
+        `click_script=${clickFor("__ev", key)}`,
       ],
       { stdio: "ignore" },
     );
@@ -369,33 +395,34 @@ function rebuildRows(cachePath: string): void {
   const entries = loadCache(cachePath);
   let added = 0;
 
-  for (const [num, entry] of entries) {
+  for (const [key, entry] of entries) {
+    const num = entry.num ?? Number(key);
     const action = entry.action ?? "";
     const { tag, color } = tagFor(action);
     const title = entry.title ?? "";
     const short = truncate(title);
     const outstanding = entry.outstanding ?? 0;
     const suffix = outstanding > 0 ? `   ${G_COMMENT} ${outstanding}` : "";
-    const url = entry.url ?? "";
-    // only the numeric PR key reaches the shell; branch and url are read back from the cache
-    const click = `'${process.argv[1]}' __row ${Number(num)}`;
+    // only the validated cache key reaches the shell; branch and url are read back from the cache
+    const click = clickFor("__row", key);
+    const item = `pr_watch.pr.${added}`;
 
     spawnSync(
       "sketchybar",
       [
         "--add",
         "item",
-        `pr_watch.pr.${num}`,
+        item,
         "popup.pr_watch",
         "--set",
-        `pr_watch.pr.${num}`,
+        item,
         `icon=${tag}`,
         `icon.color=${color}`,
         `icon.font=${FONT}:SemiBold:11.0`,
         "icon.width=82",
         "icon.align=left",
         "icon.padding_left=10",
-        `label=#${num}  ${short}${suffix}`,
+        `label=${prLabel(num, entry)}  ${short}${suffix}`,
         `label.color=${C_TEXT}`,
         `label.font=${FONT}:Regular:12.0`,
         "label.padding_right=10",
