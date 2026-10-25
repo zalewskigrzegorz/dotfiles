@@ -78,7 +78,6 @@ These are ignored when `profile = "homelab"`:
 - `dot_claude`
 - `nushell-mcp.json.tmpl`
 - `bin/hyprmac-config`
-- `bin/hyprmac-bar-bridge`
 - `bin/sketchybar-watcher`
 
 ## Generated Or Removed From Management

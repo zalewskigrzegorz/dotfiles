@@ -143,6 +143,9 @@ def merge(live):
     # names shown instead of numbers (HUD, menu bar, pickers; fork feature, PR pending); a name set in Settings wins
     names = {str(n): name for name, n in WS.items()}
     live["workspaceNames"] = {**names, **(live.get("workspaceNames") or {})}
+    # sketchybar reads state.json; the hook tells its watcher something changed (fork feature, PR pending)
+    live["statusExportEnabled"] = True
+    live.setdefault("statusHookCommand", f"{BIN}/sketchybar-watcher/sketchybar-watcher notify --event hyprmac")
     live["hyprKey"] = "leftControl"
     return live
 
