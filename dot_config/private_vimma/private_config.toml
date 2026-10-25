@@ -1,0 +1,418 @@
+# Vimma config. Every line below is a default, commented out, so this file changes nothing.
+# To change a setting, uncomment its line (remove the `# `) and edit the value; the table
+# header above it ([keys], [modal], ...) stays as it is. Delete lines you do not need.
+# Vimma reloads this file within 2 seconds of a save, in every window; :source reads it at
+# once. In Vimma, :config opens this file, and ctrl+b ? lists every key with its name here.
+# Reference: the user guide's config.toml section (docs/guide.md).
+schema = 2
+
+[keys]
+prefix = "ctrl+space"
+# show_keybinds = ["prefix+?"]
+# new_tab = ["prefix+c", "ctrl+t"]
+# next_tab = ["prefix+n", "ctrl+tab", "ctrl+pagedown"]
+# previous_tab = ["prefix+p", "ctrl+shift+tab", "ctrl+pageup"]
+# select_tab_1 = ["prefix+1", "alt+1"]
+# select_tab_2 = ["prefix+2", "alt+2"]
+# select_tab_3 = ["prefix+3", "alt+3"]
+# select_tab_4 = ["prefix+4", "alt+4"]
+# select_tab_5 = ["prefix+5", "alt+5"]
+# select_tab_6 = ["prefix+6", "alt+6"]
+# select_tab_7 = ["prefix+7", "alt+7"]
+# select_tab_8 = ["prefix+8", "alt+8"]
+# select_tab_9 = ["prefix+9"]
+# rename_tab = ["prefix+shift+t"]
+# close_tab = ["prefix+shift+x", "ctrl+f4"]
+# select_last_tab = ["alt+9"]
+# move_tab_left = ["ctrl+shift+pageup"]
+# move_tab_right = ["ctrl+shift+pagedown"]
+# restore_tab = ["ctrl+shift+t"]
+# split_vertical = ["prefix+v"]
+# split_horizontal = ["prefix+minus"]
+# focus_pane_left = ["prefix+h"]
+# focus_pane_down = ["prefix+j"]
+# focus_pane_up = ["prefix+k"]
+# focus_pane_right = ["prefix+l"]
+# swap_pane_left = ["prefix+shift+h"]
+# swap_pane_down = ["prefix+shift+j"]
+# swap_pane_up = ["prefix+shift+k"]
+# swap_pane_right = ["prefix+shift+l"]
+# zoom = ["prefix+z"]
+# close_pane = ["prefix+x"]
+# herdr parity (dot_config/herdr/config.toml.tmpl): resize, workspace cycling, picker-plus
+resize_mode = ["prefix+shift+r"]
+# new_pane = ["prefix+enter"]
+# next_layout = ["prefix+space"]
+next_workspace = ["prefix+."]
+previous_workspace = ["prefix+,"]
+# last_workspace = ["prefix+^", "prefix+ctrl+6"]
+# workspace_picker = ["prefix+w"]
+# new_workspace = ["prefix+shift+n"]
+# rename_workspace = ["prefix+shift+w"]
+# close_workspace = ["prefix+shift+d"]
+# private_workspace = ["prefix+shift+p", "ctrl+shift+p"]
+goto_picker = ["prefix+g", "prefix+t"]
+# live_grep = ["prefix+f g"]
+# toggle_sidebar = ["prefix+b"]
+# toggle_toolbar = ["prefix+u"]
+# history_back = ["alt+left"]
+# history_forward = ["alt+right"]
+# reload = ["f5", "ctrl+r"]
+# focus_urlbar = ["ctrl+l", "alt+d"]
+# find_next = ["ctrl+g", "f3"]
+# find_previous = ["ctrl+shift+g", "shift+f3"]
+# new_window = ["ctrl+n"]
+# close_window = ["ctrl+shift+w"]
+# restore_window = ["ctrl+shift+n"]
+# quit = ["ctrl+q"]
+# reload_hard = ["ctrl+f5", "ctrl+shift+r"]
+# go_home = ["alt+home"]
+# page_zoom_in = ["ctrl+plus", "ctrl+="]
+# page_zoom_out = ["ctrl+minus", "ctrl+_"]
+# page_zoom_reset = ["ctrl+0"]
+# toggle_fullscreen = ["f11"]
+# save_page = ["ctrl+s"]
+# print_page = ["ctrl+p"]
+# downloads = ["ctrl+shift+y"]
+# addons_manager = ["ctrl+shift+a"]
+# history_library = ["ctrl+shift+h"]
+# bookmarks_library = ["ctrl+shift+o"]
+# mute_tab = ["ctrl+m"]
+# picture_in_picture = ["ctrl+}"]
+# reader_view = ["ctrl+alt+r"]
+# screenshot = ["ctrl+shift+s"]
+# clear_history = ["ctrl+shift+delete"]
+# web_search = ["ctrl+j"]
+# about_processes = ["shift+esc"]
+# bookmark_all_tabs = ["ctrl+shift+d"]
+# toggle_bookmarks_toolbar = ["ctrl+shift+b"]
+# ai_chatbot_sidebar = ["ctrl+alt+x"]
+# open_tabs_sidebar = ["ctrl+alt+u"]
+# toggle_firefox_sidebar = ["ctrl+alt+z"]
+# switch_text_direction = ["ctrl+shift+x"]
+# caret_browsing = ["f7"]
+# find_forward = ["ctrl+f"]
+# devtools = ["ctrl+shift+i", "f12"]
+# browser_toolbox = ["ctrl+alt+shift+i"]
+# browser_console = ["ctrl+shift+j"]
+# responsive_design = ["ctrl+shift+m"]
+# devtools_inspector = ["ctrl+shift+c"]
+# devtools_console = ["ctrl+shift+k"]
+# devtools_debugger = ["ctrl+shift+z"]
+# devtools_network = ["ctrl+shift+e"]
+# devtools_style_editor = ["shift+f7"]
+# devtools_performance = ["shift+f5"]
+# devtools_storage = ["shift+f9"]
+# devtools_accessibility = ["shift+f12"]
+# toggle_bookmarks = ["prefix+shift+b"]
+# add_bookmark = ["prefix+a"]
+# agent_prompt = ["prefix+shift+a"]
+# copy_mode = ["prefix+["]
+# addon_picker = ["prefix+e"]
+
+[modal]
+# leader = " "
+# timeout_ms = 800
+# Hint labels are made of these characters, the first ones most often.
+# hint_chars = "asdfghjkl"
+# In text fields ctrl+w deletes a word, ctrl+u to the line's start, ctrl+h a character.
+# insert_editing = true
+
+[modal.normal]
+# "j" = "scroll.down"
+# "k" = "scroll.up"
+# "h" = "scroll.left"
+# "l" = "scroll.right"
+# "d" = "scroll.half_down"
+# "u" = "scroll.half_up"
+# "<C-d>" = "scroll.half_down"
+# "<C-u>" = "scroll.half_up"
+# "<C-e>" = "scroll.down"
+# "<C-y>" = "scroll.up"
+# "gg" = "scroll.top"
+# "G" = "scroll.bottom"
+# "H" = "history.back"
+# "L" = "history.forward"
+# "<C-o>" = "history.back"
+# "<C-i>" = "history.forward"
+# "<C-[>" = "history.back"
+# "<C-]>" = "history.forward"
+# "<Esc>" = "page.stop"
+# "r" = "page.reload"
+# "f" = "hint.follow"
+# "F" = "hint.element"
+# "gF" = "hint.follow_new_tab"
+# "/" = "find.forward"
+# "?" = "find.backward"
+# "n" = "find.next"
+# "N" = "find.previous"
+# "i" = "mode.insert"
+# "I" = "urlbar.focus"
+# "v" = "mode.visual"
+# ":" = "command.open"
+# "t" = "tab.new"
+# "x" = "tab.close"
+# Vimium parity: X reopens the last closed tab
+"X" = "tab.restore"
+# "gt" = "tab.next"
+# "gT" = "tab.previous"
+# "b" = "goto.picker"
+# "<C-^>" = "workspace.last"
+# "<C-6>" = "workspace.last"
+# "]w" = "workspace.next"
+# "[w" = "workspace.previous"
+# "]q" = "grep.next"
+# "[q" = "grep.previous"
+# "yy" = "page.yank_url"
+# "p" = "page.open_clipboard"
+# "P" = "page.open_clipboard_new_tab"
+# "gi" = "page.focus_input"
+# "gu" = "page.url_up"
+# "gU" = "page.url_root"
+# "gf" = "page.view_source"
+# "<C-w>h" = "pane.focus_left"
+# "<C-w>j" = "pane.focus_down"
+# "<C-w>k" = "pane.focus_up"
+# "<C-w>l" = "pane.focus_right"
+# "<C-w>H" = "pane.swap_left"
+# "<C-w>J" = "pane.swap_down"
+# "<C-w>K" = "pane.swap_up"
+# "<C-w>L" = "pane.swap_right"
+# "<C-w>o" = "pane.zoom"
+# "<C-w><" = "pane.resize_narrower"
+# "<C-w>>" = "pane.resize_wider"
+# "<C-w>+" = "pane.resize_taller"
+# "<C-w>-" = "pane.resize_shorter"
+
+[modal.insert]
+# "<Esc>" = "mode.normal"
+
+[modal.visual]
+# "0" = "caret.line_start"
+# "<Esc>" = "mode.normal"
+# "h" = "caret.left"
+# "j" = "caret.down"
+# "k" = "caret.up"
+# "l" = "caret.right"
+# "w" = "caret.word_forward"
+# "b" = "caret.word_backward"
+# "$" = "caret.line_end"
+# "gg" = "caret.top"
+# "G" = "caret.bottom"
+# "e" = "caret.word_end"
+# "ge" = "caret.word_end_backward"
+# "W" = "caret.bigword_forward"
+# "B" = "caret.bigword_backward"
+# "E" = "caret.bigword_end"
+# "^" = "caret.first_nonblank"
+# "{" = "caret.paragraph_backward"
+# "}" = "caret.paragraph_forward"
+# "f" = "caret.find_forward"
+# "F" = "caret.find_backward"
+# "t" = "caret.till_forward"
+# "T" = "caret.till_backward"
+# ";" = "caret.find_repeat"
+# "," = "caret.find_repeat_reverse"
+# "v" = "selection.toggle"
+# "V" = "selection.line"
+# "o" = "selection.swap"
+# "iw" = "selection.inner_word"
+# "aw" = "selection.a_word"
+# "ip" = "selection.inner_block"
+# "ap" = "selection.a_block"
+# "y" = "selection.yank"
+# "Y" = "selection.yank_lines"
+# "I" = "urlbar.focus"
+
+[modal.command]
+# "<Esc>" = "command.cancel"
+
+[modal.hint]
+# "<Esc>" = "hint.cancel"
+
+[modal.element]
+# "<Esc>" = "mode.normal"
+# "v" = "element.visual"
+# "V" = "element.visual_line"
+# "y" = "element.yank"
+# "+" = "element.parent"
+# "-" = "element.child"
+# "j" = "element.next"
+# "k" = "element.prev"
+# "F" = "hint.element"
+
+[modal.help]
+# "<Esc>" = "help.close"
+# "/" = "help.filter"
+# "q" = "help.close"
+
+[modal.panel]
+# "1" = "panel_select_1"
+# "2" = "panel_select_2"
+# "3" = "panel_select_3"
+# "4" = "panel_select_4"
+# "5" = "panel_select_5"
+# "6" = "panel_select_6"
+# "7" = "panel_select_7"
+# "8" = "panel_select_8"
+# "9" = "panel_select_9"
+# "j" = "panel.down"
+# "k" = "panel.up"
+# "<CR>" = "panel.open"
+# "<Esc>" = "panel.close"
+# "x" = "panel.close_tab"
+# "<Space>" = "panel.mark"
+# "V" = "panel.visual"
+# "m" = "panel.move"
+# "I" = "urlbar.focus"
+# "h" = "bookmarks.collapse"
+# "l" = "bookmarks.expand"
+# "t" = "bookmarks.open_tab"
+# "s" = "bookmarks.open_vsplit"
+# "S" = "bookmarks.open_hsplit"
+# "a" = "bookmarks.add"
+# "A" = "bookmarks.add_folder"
+# "r" = "bookmarks.rename"
+# "d" = "bookmarks.delete"
+# "y" = "bookmarks.yank"
+# "/" = "bookmarks.filter"
+
+[modal.resize]
+# "h" = "pane.resize_narrower"
+# "l" = "pane.resize_wider"
+# "j" = "pane.resize_taller"
+# "k" = "pane.resize_shorter"
+# "<Left>" = "pane.resize_narrower"
+# "<Right>" = "pane.resize_wider"
+# "<Down>" = "pane.resize_taller"
+# "<Up>" = "pane.resize_shorter"
+# "<lt>" = "pane.resize_narrower"
+# ">" = "pane.resize_wider"
+# "+" = "pane.resize_taller"
+# "-" = "pane.resize_shorter"
+# "<Esc>" = "pane.resize_exit"
+# "<CR>" = "pane.resize_exit"
+# "q" = "pane.resize_exit"
+
+[unbind]
+# normal = []
+
+# Firefox's own shortcuts are off; Vimma binds them on the same keys (ctrl+b ? lists them).
+# enable = ["ctrl+j"] gives one back exactly as Firefox runs it.
+[firefox]
+# disable = "all"
+# enable = []
+
+# Order here is the order ctrl+b ) goes in; each workspace is a Firefox container. None by default.
+# Left-out keys: color = "gray", icon = "circle", autofill = true.
+[workspaces]
+# work = { color = "blue", icon = "briefcase", home = "https://intranet.example" }
+
+# The built-in palette `name`: "vimma" (vimma.dev's colours, dark or light) or "tokyo-night"
+# (dark). "omarchy" follows your Omarchy theme where Omarchy is installed and uses `name`
+# elsewhere; "file" always uses `name`.
+[theme]
+# source = "omarchy"
+# name = "vimma"
+# The built-in palette "dark", "light", or "system" (as the system or Firefox is, live).
+# Left out, :theme dark|light|system sets it and remembers it; set here, it always wins.
+# appearance = "system"
+# font = "monospace"
+
+# Overrides on top of the palette, with the keys of Omarchy's colors.toml.
+[theme.colors]
+# Mocha Neon (docs/mocha-neon-palette.md in dotfiles, ANSI as in ghostty)
+mode = "dark"
+accent = "#B347FF"
+selection = "#423B6D"
+muted = "#7F849C"
+background = "#1E1E2E"
+darker_background = "#11111B"
+lighter_background = "#313244"
+foreground = "#F0F0FF"
+red = "#FF6B9D"
+yellow = "#FFD700"
+orange = "#FF8C42"
+green = "#50FA7B"
+cyan = "#8BE9FD"
+blue = "#8AB4F8"
+magenta = "#FF80BF"
+
+# The most panes (live pages) one workspace shows at once, 1 to 16.
+[panes]
+# max = 4
+# Where ctrl+b enter puts a new pane: "dwindle" splits the focused pane along its longer side,
+# "manual" splits right as ctrl+b v. ctrl+b v and ctrl+b - always keep their direction.
+# layout = "dwindle"
+# The main pane's size in the main-vertical and main-horizontal layouts, 20 to 80 percent.
+# main_size = 60
+
+# The bookmarks panel (ctrl+b shift+b) and ctrl+b a: "workspace" is the current workspace's
+# folder in the Bookmarks Toolbar; "toolbar" the whole toolbar; "all" every bookmark.
+[bookmarks]
+# root = "workspace"
+
+# The private workspace (ctrl+b shift+p): "swap" shows it in place of the Vimma window on
+# Hyprland and macOS, which hide the other one until you switch back; "window" opens it as
+# a window of its own beside it, as on every other system.
+[private]
+# placement = "swap"
+
+# Firefox's toolbar (the URL bar and add-on buttons) in every window: "shown" or "hidden".
+# Hidden, focusing the address bar shows it; ctrl+b u and :toolbar toggle it until restart.
+[ui]
+# toolbar = "shown"
+# Firefox's Bookmarks Toolbar, hidden by default (your bookmarks: ctrl+b shift+b):
+# "shown", "hidden" or "newtab" (on the start page and new tabs only). Left out,
+# ctrl+shift+b, :bookmarkstoolbar and Firefox's View > Toolbars menu set it for good.
+# bookmarks_toolbar = "shown"
+
+# Every 12 hours Vimma asks updates.vimma.dev whether a newer version exists. The request
+# names only the update channel and the platform. false stops every check.
+[updates]
+# check = true
+
+# Local AI agents (Claude Code, Codex, opencode, Copilot) reach only the agent workspace, and
+# every request asks you first. Left out, :mcp on|off sets enabled and remembers it; set
+# here, it always wins. ask_timeout: seconds a request waits for you (10 to 300); a bare `a`
+# grants grant_minutes, a count before it up to grant_max_minutes (at most 1440).
+[mcp]
+# enabled = false
+# workspace = "agent"
+# ask_timeout = 50
+grant_minutes = 60
+# grant_max_minutes = 480
+# max_read_chars = 200000
+# notify = true
+# Downloads from the agent workspace ask first, are saved only here (never your Downloads
+# folder itself), never opened, and refused over download_max_mb (1 to 4096).
+# download_dir = "~/Downloads/vimma-agent"
+# download_max_mb = 200
+# A ClamAV scan with definitions older than this many days (1 to 90) is never reported
+# clean: keeping the file is asked, as for one ClamAV could not fully scan.
+# clamav_max_age_days = 7
+
+# Per-site insert mode: auto (detect text fields), never (keys stay vimma's), always.
+# A host also covers its subdomains. None by default.
+# [sites."docs.google.com"]
+# insert = "always"
+
+# Which workspace a link opens in: by domain (and its subdomains), url prefix, or the app
+# that opened it (vimma-open). The first matching rule wins. None by default.
+# [[routes]]
+# domain = "github.com"
+# workspace = "work"
+
+# Search engines. default: an installed engine's name (as in Settings > Search), or
+# "@alias" of a URL below. Each alias is typed as @alias before the words, in the URL bar
+# and in :open and :tabnew. A URL with one %s becomes an engine; a name gives that engine
+# the alias. Set here, the default wins at every start; delete the line to choose it in
+# Settings. None by default.
+# [search]
+# default = "DuckDuckGo"
+# [search.aliases]
+# gh = "https://github.com/search?q=%s"
+# w = "Wikipedia (en)"
+
+[search]
+default = "Google"

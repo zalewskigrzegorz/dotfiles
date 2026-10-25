@@ -85,6 +85,16 @@
       "command": "/Applications/Clop.app/Contents/Helpers/ClopCLI",
       "args": ["mcp", "serve"]
     },
+    {{/* Vimma (cask "vimma-browser/tap/vimma") — agent reaches only its "agent"
+         workspace, every request is confirmed in Vimma. vimma-ctl has no prebuilt
+         macOS binary yet: clone github.com/vimma-browser/vimma at the tag matching
+         the cask, `cargo build --release` in tools/vimma-ctl, copy to ~/.local/bin.
+         In Vimma: about:config vimma.control.enabled=true, then `:mcp on`.
+         Agent tabs close when the MCP connection ends. */}}
+    "vimma": {
+      "command": "{{ .chezmoi.homeDir }}/.local/bin/vimma-ctl",
+      "args": ["mcp"]
+    },
     {{- end }}
     {{/* Serena — 100% local LSP-based semantic-nav MCP, no cloud, no API key.
          CLI installed as a uv tool by run_onchange_after_26-code-index-tools.sh.tmpl.
