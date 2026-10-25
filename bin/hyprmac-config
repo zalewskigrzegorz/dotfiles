@@ -89,7 +89,10 @@ bind(K["c"], H | O, {"runCommand": {"label": "Read clipboard", "command": f"{BIN
 bind(K["quote"], H, {"toggleFloating": {}})
 bind(K["f"], H | O | S, {"focusFloating": {}})
 bind(K["k"], H | O, {"showKeybinds": {}})
-bind(K["ret"], H | O, {"launchApp": {"bundleID": "com.mitchellh.ghostty"}})
+# Greg launches apps elsewhere. HyprMac re-injects its default launchApp (Terminal on Hypr+Return,
+# i.e. Ctrl+Enter, the same Dygma thumb key) whenever no saved bind has that exact action, so park it
+# on a chord nobody presses.
+bind(K["ret"], H | S | O | C, {"launchApp": {"bundleID": "com.apple.Terminal"}})
 bind(K["m"], H | O, {"focusMenuBar": {}})
 bind(K["f"], H, {"moveToNextEmptyWorkspace": {}})  # HyprMac's fullscreen
 bind(K["w"], H | O | S, {"closeWindow": {}})
@@ -114,7 +117,8 @@ assert len(chords) == len(set(chords)), "duplicate chord"
 
 # Chords this script wrote before and dropped (2026-10-25: frequent actions moved off 4-key
 # chords). Listed so merge() removes them instead of keeping them as if Greg had added them.
-RETIRED = {(K["r"], H | O | S), (K["f"], H | O), (K["k"], H | O | S), (K["j"], H | O | S)}
+RETIRED = {(K["r"], H | O | S), (K["f"], H | O), (K["k"], H | O | S), (K["j"], H | O | S),
+           (K["ret"], H | O), (K["ret"], H)}
 RETIRED |= {(k, (m & ~H) | CTRL) for k, m in RETIRED}
 
 
