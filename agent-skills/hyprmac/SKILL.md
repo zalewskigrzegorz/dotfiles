@@ -30,6 +30,9 @@ built from his fork until his PRs land; open ones are listed in
   before inventing 4-key ones.
 - Workspace N lives on screen `(N-1) % screens`, left to right; keys are grouped per monitor
   and keep the AeroSpace names (chat, term, code, notes | web, test, mail | media, misc, mac).
+  **When upstream #29 (assign workspaces to monitors) ships, Greg wants this workaround gone**:
+  workspace N = key N, monitors assigned explicitly. The maps to undo are listed in the test
+  note (`KEY_TO_WS`, `hyprmac_ws`, bar order and separators).
 
 ## Diagnose from logs, not guesses
 
