@@ -40,6 +40,7 @@ local function apply(laptop_ids, big_ids)
         pin("item." .. i .. ".spadding", laptop_ids)
     end
     pin("workspace.dell_ultra_sep", big_ids)
+    pin("workspace.ultra_mac_sep", big_ids)
     for _, name in ipairs(wide) do
         sbar.set(name, { display = mixed and table.concat(big_ids, ",") or "all" })
     end
