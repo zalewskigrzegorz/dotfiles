@@ -99,9 +99,9 @@ bind(K["y"], H | O | S, {"saveLayout": {}})
 bind(K["u"], H | O | S, {"restoreLayout": {}})
 bind(K["r"], H | O | S, {"retileAll": {}})
 
-# HyprMac checks the HID state on every Hypr chord, and with a fast or dual-function Control
-# (the Dygma thumb: tap Enter, hold Ctrl) it often reads "up", clears Hypr and passes the stroke on
-# with a plain control flag (54 of 151 chords on 2026-10-25). A twin on control catches that form.
+# HyprMac checks the HID state on every Hypr chord, and for left Control it often reads "up" on a
+# quick press, on the MacBook keyboard too, then clears Hypr and passes the stroke on with a plain
+# control flag (54 of 151 chords on 2026-10-25). A twin on control catches that form.
 for b in list(binds):
     if b["modifiers"] & H:
         twin = (b["modifiers"] & ~H) | CTRL
