@@ -10,8 +10,9 @@ schema = 2
 prefix = "ctrl+space"
 show_keybinds = ["prefix+?", "<leader>?"]
 # new_tab = ["prefix+c", "ctrl+t"]
-# next_tab = ["prefix+n", "ctrl+tab", "ctrl+pagedown"]
-# previous_tab = ["prefix+p", "ctrl+shift+tab", "ctrl+pageup"]
+# cmd+alt+arrows as in Chrome: the mouse side buttons send them, ctrl+tab is HyprMac's.
+next_tab = ["prefix+n", "ctrl+tab", "ctrl+pagedown", "cmd+alt+right"]
+previous_tab = ["prefix+p", "ctrl+shift+tab", "ctrl+pageup", "cmd+alt+left"]
 # select_tab_1 = ["prefix+1", "alt+1"]
 # select_tab_2 = ["prefix+2", "alt+2"]
 # select_tab_3 = ["prefix+3", "alt+3"]
