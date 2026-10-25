@@ -18,7 +18,8 @@ import time
 
 H, S, O, CTRL, C = 1, 2, 4, 8, 16  # hypr, shift, option, control, command (ModifierFlags bits)
 K = dict(h=4, j=38, k=40, l=37, f=3, m=46, s=1, t=17, w=13, y=16, u=32, r=15, c=8,
-         slash=44, minus=27, equal=24, tab=48, space=49, ret=36)
+         slash=44, minus=27, equal=24, tab=48, space=49, ret=36,
+         semicolon=41, quote=39, comma=43, period=47)
 DIGITS = [18, 19, 20, 21, 23, 22, 26, 28, 25, 29]  # keys 1..9, 0
 BIN = os.path.expanduser("~/Code/dotfiles/bin")
 LIVE = os.path.expanduser("~/Library/Application Support/HyprMac/config.json")  # symlink into iCloud Drive
@@ -66,12 +67,12 @@ for d, k in zip(["left", "down", "up", "right"], "hjkl"):
     bind(K[k], H | S, {"swapDirection": {"_0": d}})
 for n, key in zip(KEY_TO_WS, DIGITS):
     bind(key, H, {"switchDesktop": {"_0": n}})
-    bind(key, H | S, {"moveToDesktop": {"_0": n}})
-    bind(key, H | O | S, {"moveToWorkspaceAndFollow": {"_0": n}})
+    bind(key, H | S, {"moveToWorkspaceAndFollow": {"_0": n}})  # the one Greg uses: 2 keys + digit
+    bind(key, H | O | S, {"moveToDesktop": {"_0": n}})
 bind(K["minus"], H, {"resizeDirection": {"_0": "left"}})
 bind(K["equal"], H, {"resizeDirection": {"_0": "right"}})
-bind(K["j"], H | O | S, {"resizeDirection": {"_0": "down"}})
-bind(K["k"], H | O | S, {"resizeDirection": {"_0": "up"}})
+bind(K["comma"], H, {"resizeDirection": {"_0": "down"}})
+bind(K["period"], H, {"resizeDirection": {"_0": "up"}})
 bind(K["slash"], H, {"toggleSplit": {}})
 bind(K["tab"], H, {"cycleWorkspace": {"_0": 1}})
 bind(K["tab"], H | O, {"cycleWorkspace": {"_0": -1}})
@@ -85,7 +86,7 @@ bind(K["l"], CTRL | C, {"showWorkspaceOverview": {}})
 bind(K["slash"], H | O, {"runCommand": {"label": "Dygma cheats", "command": f"{BIN}/dygma-cheats --choose"}})
 bind(K["r"], H | O, {"runCommand": {"label": "Read Claude", "command": f"{BIN}/read-claude"}})
 bind(K["c"], H | O, {"runCommand": {"label": "Read clipboard", "command": f"{BIN}/read-claude --clip"}})
-bind(K["f"], H | O, {"toggleFloating": {}})
+bind(K["quote"], H, {"toggleFloating": {}})
 bind(K["f"], H | O | S, {"focusFloating": {}})
 bind(K["k"], H | O, {"showKeybinds": {}})
 bind(K["ret"], H | O, {"launchApp": {"bundleID": "com.mitchellh.ghostty"}})
@@ -97,7 +98,7 @@ bind(K["s"], H | S, {"moveToScratchpad": {}})
 bind(K["t"], H | O, {"toggleTiling": {}})
 bind(K["y"], H | O | S, {"saveLayout": {}})
 bind(K["u"], H | O | S, {"restoreLayout": {}})
-bind(K["r"], H | O | S, {"retileAll": {}})
+bind(K["semicolon"], H, {"retileAll": {}})
 
 # HyprMac checks the HID state on every Hypr chord, and for left Control it often reads "up" on a
 # quick press, on the MacBook keyboard too, then clears Hypr and passes the stroke on with a plain
@@ -111,6 +112,11 @@ for b in list(binds):
 chords = [(b["keyCode"], b["modifiers"]) for b in binds]
 assert len(chords) == len(set(chords)), "duplicate chord"
 
+# Chords this script wrote before and dropped (2026-10-25: frequent actions moved off 4-key
+# chords). Listed so merge() removes them instead of keeping them as if Greg had added them.
+RETIRED = {(K["r"], H | O | S), (K["f"], H | O), (K["k"], H | O | S), (K["j"], H | O | S)}
+RETIRED |= {(k, (m & ~H) | CTRL) for k, m in RETIRED}
+
 
 def merge(live):
     key = lambda b: json.dumps(b, sort_keys=True)
@@ -118,6 +124,8 @@ def merge(live):
     kept = []
     for b in live.get("keybinds") or []:
         if key(b) in mine:
+            continue
+        if (b["keyCode"], b["modifiers"]) in RETIRED:
             continue
         if (b["keyCode"], b["modifiers"]) in chords:
             print("replaced UI chord:", key(b), file=sys.stderr)
