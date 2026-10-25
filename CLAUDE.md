@@ -176,11 +176,12 @@ Installed as a **uv tool** (→ `~/.local/bin`) by
   cost > benefit. Gone from the plugin list, install script, and rules. Don't
   reinstall it or add `ccc` anywhere.
 
-#### Browser automation — two stacks (Mac)
+#### Browser automation — three stacks (Mac)
 
 | Stack | Reach for it when | Source of truth |
 |---|---|---|
 | `agent-browser` (skill, Chrome/CDP) | **Quick shot, no human needed** — public page, docs scrape, DOM read, test a deployed page. Cheaper in tokens. | `agent-skills/agent-browser/` |
+| **`browsentic`** (MCP → Vimma) | **Logged-in work in Greg's daily browser**, on trial since 2026-10-25 against `bsk`. | `run_onchange_after_12-npm-globals.sh.tmpl` + `agent-mcp/mcp-servers.json.tmpl` + `agent-skills/browsentic/` |
 | **`bsk`** (BrowserSkill → Comet Agent Window) | **Greg wants to watch, joint research, behind a login, or bot-blocked/captcha.** Also long multi-step flows. | `run_onchange_after_27-browserskill.sh.tmpl` + `agent-skills/bsk/` |
 
 Policy: `agent-rules/browserskill-agent-window.md`. Install, `bsk doctor`, skill refresh and the retired `claude-in-chrome`: `docs/browser-automation.md`.

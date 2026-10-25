@@ -38,15 +38,18 @@ Slack — are one command away. Treat it accordingly.
    `select`, `evaluate`, `tab borrow`, `record` prompt every time**. A prompt
    there is the design, not friction to route around.
 
-## Two stacks, and only two
+## Three stacks while Browsentic is on trial
 
 | Stack | Use it when | Why |
 | --- | --- | --- |
 | **`agent-browser`** (skill, Chrome/CDP, own profile) | **A quick shot Greg doesn't need to watch**: fetch a public page, scrape docs, check a URL, poke a deployed page, one-off DOM read, a test that needs no intervention from him. | Cheaper in tokens than `bsk` and there's no window to watch. Doesn't touch his profile. Default for throwaway work. |
-| **`bsk`** (BrowserSkill → Comet Agent Window) | **Greg wants to see it happen**, you're researching something *together*, the site is behind a login, or it blocks bots / needs a captcha or 2FA. Also anything long and multi-step. | Rides his real Comet session in a visible Agent Window, and `bsk request-help` hands the human steps back to him. |
+| **`browsentic`** (MCP → Vimma, his daily browser) | **Default for anything in his logged-in browser**: read, click, type, screenshot in Vimma while he watches the tab. | Greg picked it on 2026-10-25 as faster to work with than `bsk`. The MCP refuses submits, uploads, captchas and tab switches by design: those go to Greg or the side panel. Skill: `agent-skills/browsentic/`. |
+| **`bsk`** (BrowserSkill → Comet Agent Window) | The task needs Comet specifically, or a separate Agent Window with `request-help` for login / 2FA / captcha. | Rides his real Comet session in a visible Agent Window, and `bsk request-help` hands the human steps back to him. |
 
-Rule of thumb: **needs Greg's eyes, his login, or gets bot-blocked → `bsk`;
-otherwise → `agent-browser`.**
+Rule of thumb: **his login or his eyes → `browsentic`; Comet or a human step
+mid-flow → `bsk`; otherwise → `agent-browser`.** One of `browsentic` / `bsk`
+goes once the trial settles (Greg, 2026-10-25); don't remove either before he
+says so.
 
 **Minting a token or API key on a site behind his login is a `bsk` job, not a
 step list.** On 2026-09-28 Greg got the Docker Hub PAT instructions twice and

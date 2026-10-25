@@ -95,6 +95,13 @@
       "command": "{{ .chezmoi.homeDir }}/.local/bin/vimma-ctl",
       "args": ["mcp"]
     },
+    {{/* Browsentic (npm global, run_onchange_after_12) — drives the paired browser
+         (Vimma) through its Bridge on 127.0.0.1:8765. Submits, uploads, captchas
+         and tab switches are refused for MCP callers by design. */}}
+    "browsentic": {
+      "command": "/opt/homebrew/bin/browsentic",
+      "args": ["mcp"]
+    },
     {{- end }}
     {{/* Serena — 100% local LSP-based semantic-nav MCP, no cloud, no API key.
          CLI installed as a uv tool by run_onchange_after_26-code-index-tools.sh.tmpl.
