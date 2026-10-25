@@ -104,6 +104,7 @@ tap "mickamy/tap"
 tap "nikitabobko/tap"
 tap "nnnkkk7/tap"
 tap "timrogers/tap"
+tap "vimma-browser/tap"
 
 brew "felixkratz/formulae/sketchybar"
 brew "flock"      # macOS lacks flock; on Linux it ships with system util-linux
@@ -159,6 +160,7 @@ cask "sf-symbols"
 # slack: MDM-installed (root:admin), see the bitwarden note above.
 cask "spotify"
 cask "tailscale-app"
+cask "vimma-browser/tap/vimma" # not notarised: first launch needs `xattr -dr com.apple.quarantine /Applications/Vimma.app`
 cask "wooshy"
 cask "zed"
 {{ if $setapp -}}

@@ -33,6 +33,7 @@ var appIcons = map[string]string{
 	"Firefox Developer Edition": ":firefox_developer_edition:",
 	"Google Chrome":             ":google_chrome:",
 	"Safari":                    ":safari:",
+	"Vimma":                     ":vim:",
 	"Zen":                       ":zen_browser:",
 
 	// Communication & mail
