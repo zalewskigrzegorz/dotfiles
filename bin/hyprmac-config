@@ -25,9 +25,9 @@ BIN = os.path.expanduser("~/Code/dotfiles/bin")
 LIVE = os.path.expanduser("~/Library/Application Support/HyprMac/config.json")  # symlink into iCloud Drive
 MONITORS = os.path.expanduser("~/Library/Application Support/HyprMac/monitor-config.json")  # local, not synced
 
-# Top padding per monitor so tiles start under sketchybar (36pt on the externals) plus the usual 8pt
-# gap; the laptop keeps outerPadding. Fork feature (top padding PR pending); a value set in Settings wins.
-TOP_PADDING = {"DELL U3225QE": 44, "C34H89x": 44}
+# Top padding per monitor so tiles start just under sketchybar (36pt on the externals, Greg picked 37);
+# the laptop keeps outerPadding. Fork feature (top padding PR pending); a value set in Settings wins.
+TOP_PADDING = {"DELL U3225QE": 37, "C34H89x": 37}
 
 # HyprMac anchors workspace N to screen (N-1) % screens, left to right (Dell, C34H89x, built-in),
 # and that is not configurable (zacharytgray/HyprMac#29). So the digit keys are grouped per monitor
