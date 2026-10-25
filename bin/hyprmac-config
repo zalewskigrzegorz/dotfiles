@@ -140,6 +140,9 @@ def merge(live):
     pins = [{"bundleID": b, "workspace": WS[ws]} for ws, ids in PINS.items() for b in ids if b not in have]
     live["windowRules"] = (live.get("windowRules") or []) + pins
     live["excludedBundleIDs"] = sorted(set(live.get("excludedBundleIDs") or []) | set(FLOAT))
+    # names shown instead of numbers (HUD, menu bar, pickers; fork feature, PR pending); a name set in Settings wins
+    names = {str(n): name for name, n in WS.items()}
+    live["workspaceNames"] = {**names, **(live.get("workspaceNames") or {})}
     live["hyprKey"] = "leftControl"
     return live
 
@@ -153,15 +156,17 @@ def main():
     os.makedirs(backups, exist_ok=True)
     shutil.copy(LIVE, f"{backups}/config-{time.strftime('%Y%m%d-%H%M%S')}.json")
     # HyprMac writes its config back on quit, so the merge goes in only after it is gone.
-    subprocess.run(["osascript", "-e", 'quit app "HyprMac"'], timeout=15, check=False)
+    # A build from the fork runs as "HyprMac Debug" while its PRs wait upstream.
+    app = "HyprMac Debug" if not subprocess.run(["pgrep", "-x", "HyprMac Debug"], capture_output=True).returncode else "HyprMac"
+    subprocess.run(["osascript", "-e", f'quit app "{app}"'], timeout=15, check=False)
     for _ in range(20):
-        if subprocess.run(["pgrep", "-x", "HyprMac"], capture_output=True).returncode:
+        if subprocess.run(["pgrep", "-x", app], capture_output=True).returncode:
             break
         time.sleep(0.5)
     live = merge(json.load(open(LIVE)))
     with open(LIVE, "w") as f:
         json.dump(live, f, indent=2)
-    subprocess.run(["open", "-a", "HyprMac"], check=True)
+    subprocess.run(["open", "-a", app], check=True)
     print(f"merged {len(binds)} chords, {len(live['windowRules'])} pins into {LIVE}")
 
 
