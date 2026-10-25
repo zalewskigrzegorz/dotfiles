@@ -1,5 +1,5 @@
 ---
-description: GUI windows Claude opens for Greg go to his focused aerospace workspace via open-here, never plain open
+description: GUI windows Claude opens for Greg go through open-here, never plain open
 alwaysApply: true
 ---
 
@@ -11,8 +11,8 @@ monitor, and he never noticed it (2026-10-20).
 
 - **Use `open-here <args>` instead of `open`** for anything that shows a window
   Greg must act on: System Settings panes, apps, files, Finder folders. It
-  opens, then moves the window aerospace jumped to back onto his focused
-  workspace.
+  is a plain `open` passthrough now, since HyprMac switches to an app's
+  workspace when the app is activated.
 - Plain `open` stays fine for things he does not need to see (a URL handed to a
   background app, a scripted step with no window).
 - Still say in one line what you opened and what he should click there.

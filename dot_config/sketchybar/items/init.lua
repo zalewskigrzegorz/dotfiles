@@ -1,4 +1,3 @@
-require("items.aerospace")
 require("items.apple")
 require("items.spaces")
 require("items.front_app")

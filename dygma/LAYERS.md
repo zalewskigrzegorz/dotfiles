@@ -64,8 +64,8 @@ SK:Windows      A      S      D      F      G SK:Read reset talk      ∅      �
 | 3 | Copy | copy (⌘C) | AI translate | **read clipboard aloud** (⌃⌥C) |
 | 4 | vs autocomplete | autocomplete (⌃Space) | AI hard-rewrite ADHD-Slack (⌃⌘G) | — free |
 | 5 | Read reset talk | reset layers → base | **read Claude aloud** (⌃⌥R) | Slack channel search |
-| 6 | Windows | aerospace picker (⌃⌘L) | Wooshy (⌃⌘/) | kindaVim Normal Mode (⌃[) |
-| 7 | leaders | herdr prefix (⌃Space) | aerospace leader (⌃⇧Space) | — free |
+| 6 | Windows | workspace overview (⌃⌘L, ⌃⌥Space) | Wooshy (⌃⌘/) | kindaVim Normal Mode (⌃[) |
+| 7 | leaders | herdr prefix (⌃Space) | — free (was AeroSpace leader) | — free |
 
 ## Mouse + win — nav-tools layer
 - **Movement** (cross): `@E`=↑ `@S`=← `@D`=↓ `@F`=→ · **scroll** `@3`=↑ `@C`=↓ · **back/fwd** `@W`/`@R`
@@ -81,4 +81,4 @@ SK:Windows      A      S      D      F      G SK:Read reset talk      ∅      �
 ## Colors (Mocha Neon, owned in Bazecor)
 ESC=white · superkeys=mauve · letters=blue · symbols=cyan · modifiers=gold ·
 Control/Space/Tab/Enter=green · DEL/X/Bksp=red · screenshot=pink · layer-buttons=orange ·
-numbers=aerospace-workspace · NoKey=black · Transparent(return)=red.
+numbers=hyprmac-workspace · NoKey=black · Transparent(return)=red.

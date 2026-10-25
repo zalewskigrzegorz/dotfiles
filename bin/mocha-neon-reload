@@ -5,8 +5,9 @@
 # Touches every surface that depends on chezmoi-synced sources, in order:
 #   1. chezmoi apply       — propagate source → live
 #   2. sketchybar-restart  — clean watcher + bar restart
-#   3. aerospace reload    — reapply gaps + bindings
-#   4. report status       — summary of what got refreshed
+#   3. report status       — summary of what got refreshed
+#
+# HyprMac needs no step: it watches its own config.json (bin/hyprmac-config writes it).
 #
 # Idempotent. Safe to run repeatedly. Skips steps gracefully when a tool
 # isn't installed or the related daemon isn't running.
@@ -50,19 +51,7 @@ else
   skip "sketchybar not available (not Darwin or not installed)"
 fi
 
-# 3. aerospace (Darwin only)
-step "aerospace"
-if [ "$(uname -s)" = "Darwin" ] && command -v aerospace >/dev/null 2>&1; then
-  if pgrep -x AeroSpace >/dev/null 2>&1; then
-    aerospace reload-config >/dev/null 2>&1 && ok "config reloaded" || err "reload failed"
-  else
-    skip "AeroSpace.app not running"
-  fi
-else
-  skip "aerospace not available"
-fi
-
-# 4. status summary
+# 3. status summary
 step "summary"
 printf "  ${MAUVE}▸${N} sketchybar widgets:\n"
 # widgets.claude_sessions and notif_preview were deleted in f3fae4c; probing for

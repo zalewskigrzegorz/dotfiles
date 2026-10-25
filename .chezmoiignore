@@ -41,7 +41,7 @@ bin/**
 
 # sketchybar-watcher is built and run straight out of the source dir
 # (~/Code/dotfiles/bin/sketchybar-watcher/) by run_onchange_after_36 — sketchybar
-# init.lua and aerospace's after-startup-command both exec that path. Copying the
+# init.lua and bin/sketchybar-restart both exec that path. Copying the
 # 4 MB binary + its .go sources to ~/bin/ serves nobody, and since the rebuild
 # stamps -X main.buildTime the copy is stale the moment it lands, so `chezmoi
 # diff` could never be clean.
@@ -67,7 +67,6 @@ raycast-extensions/spam/dist/**
 {{- end }}
 {{ if eq $profile "homelab" -}}
 # The homelab is headless: apply only CLI/shell config.
-.config/aerospace/**
 .config/flipperdevices.com/**
 .config/ghostty/**
 .config/launchd/com.greg.temp-watch.plist
@@ -76,7 +75,6 @@ raycast-extensions/spam/dist/**
 .config/svim/**
 .config/zed/**
 nushell-mcp.json
-bin/aerospace-flip-window/**
 bin/sketchybar-watcher/**
 bin/temp-watch
 {{ end -}}

@@ -135,7 +135,7 @@ an offline fallback (`nohup deck-serve <deck.html> 8777 … & disown`) for when 
 unreachable, but `deck.mrglaszki.com` is the path — it survives reboots, needs no terminal, and the
 phone reaches it from anywhere on the LAN.
 
-**AeroSpace hotkeys don't work** and the bindings were removed on 2026-07-30. Don't re-add
+**Window-manager hotkeys didn't work** (AeroSpace, bindings removed on 2026-07-30; AeroSpace itself is gone, replaced by HyprMac). Don't re-add
 them; the phone remote is the proven control. Full detail, including the AppleScript dead
 ends, is in `references/presenting.md`.
 

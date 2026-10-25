@@ -69,7 +69,6 @@ cloud embedding provider, no external vector DB, no API keys.
 
 These are ignored when `profile = "homelab"`:
 
-- `dot_config/aerospace`
 - `dot_config/flipperdevices.com`
 - `dot_config/ghostty`
 - `dot_config/sketchybar`
@@ -78,7 +77,8 @@ These are ignored when `profile = "homelab"`:
 - `dot_config/zed`
 - `dot_claude`
 - `nushell-mcp.json.tmpl`
-- `bin/aerospace-flip-window`
+- `bin/hyprmac-config`
+- `bin/hyprmac-bar-bridge`
 - `bin/sketchybar-watcher`
 
 ## Generated Or Removed From Management

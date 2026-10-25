@@ -84,10 +84,10 @@ Obsidian in that mode.
 
 ## Remotes that don't work
 
-**AeroSpace hotkeys.** Bindings like `ctrl-alt-right = 'exec-and-forget curl …'` were added
+**Window-manager hotkeys (AeroSpace, retired 2026-10-25 for HyprMac, which has no CLI to exec from).** Bindings like `ctrl-alt-right = 'exec-and-forget curl …'` were added
 on 2026-07-30, applied, reloaded — and never fired. They were removed rather than left as
 dead config. Before retrying, establish which half is broken: whether macOS eats the combo
-(`ctrl-→` is Mission Control's desktop switcher) and whether `exec-and-forget` reaches the
+(`ctrl-→` is Mission Control's desktop switcher) and whether `exec-and-forget` reached the
 binary at all. **Dygma** can only send a key combo, so it inherits the same problem.
 
 **AppleScript.** All three doors are shut: `osascript` has no Accessibility grant
@@ -98,7 +98,7 @@ A server sidesteps all of it.
 
 **Which browser he's actually using** — don't assume. His default handler is OpenIn
 (Setapp), which routes wherever he's configured; on 2026-07-30 it was Comet. Find the real
-window with `aerospace list-windows --all | grep -i "<deck title>"`.
+window with `osascript -e 'tell application "System Events" to get name of every window of every process'` (needs Accessibility) or a look at the screen.
 
 ## Publishing afterwards
 
