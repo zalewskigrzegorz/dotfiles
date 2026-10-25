@@ -19,7 +19,7 @@ import time
 H, S, O, CTRL, C = 1, 2, 4, 8, 16  # hypr, shift, option, control, command (ModifierFlags bits)
 K = dict(h=4, j=38, k=40, l=37, f=3, m=46, s=1, t=17, w=13, y=16, u=32, r=15, c=8,
          slash=44, minus=27, equal=24, tab=48, space=49, ret=36,
-         semicolon=41, quote=39, comma=43, period=47)
+         semicolon=41, quote=39, comma=43, period=47, lbracket=33, rbracket=30)
 DIGITS = [18, 19, 20, 21, 23, 22, 26, 28, 25, 29]  # keys 1..9, 0
 BIN = os.path.expanduser("~/Code/dotfiles/bin")
 LIVE = os.path.expanduser("~/Library/Application Support/HyprMac/config.json")  # symlink into iCloud Drive
@@ -81,8 +81,9 @@ bind(K["period"], H, {"resizeDirection": {"_0": "up"}})
 bind(K["slash"], H, {"toggleSplit": {}})
 bind(K["tab"], H, {"cycleWorkspace": {"_0": 1}})
 bind(K["tab"], H | O, {"cycleWorkspace": {"_0": -1}})
-bind(K["tab"], H | S, {"moveWorkspaceToMonitor": {"_0": "right"}})
-bind(K["h"], H | O | S, {"moveWorkspaceToMonitor": {"_0": "left"}})
+# window to the monitor on the left / right; Ctrl+Opt+Shift+H could not be pressed on the Dygma
+bind(K["lbracket"], H | S, {"moveWorkspaceToMonitor": {"_0": "left"}})
+bind(K["rbracket"], H | S, {"moveWorkspaceToMonitor": {"_0": "right"}})
 bind(K["space"], H | O, {"showWorkspaceOverview": {}})
 bind(K["l"], H | C, {"showWorkspaceOverview": {}})
 # The Dygma "Windows" superkey sends ctrl+cmd+l in one report: HyprMac's HID check calls that Hypr
@@ -123,7 +124,7 @@ assert len(chords) == len(set(chords)), "duplicate chord"
 # Chords this script wrote before and dropped (2026-10-25: frequent actions moved off 4-key
 # chords). Listed so merge() removes them instead of keeping them as if Greg had added them.
 RETIRED = {(K["r"], H | O | S), (K["f"], H | O), (K["k"], H | O | S), (K["j"], H | O | S),
-           (K["ret"], H | O), (K["ret"], H)}
+           (K["ret"], H | O), (K["ret"], H), (K["tab"], H | S), (K["h"], H | O | S)}
 RETIRED |= {(k, (m & ~H) | CTRL) for k, m in RETIRED}
 
 
