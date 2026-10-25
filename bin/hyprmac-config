@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""hyprmac-config — merge Greg's HyprMac keybinds, app pins and floating apps into its live config.
+
+Only `keybinds`, `windowRules`, `excludedBundleIDs` and `hyprKey` are ours. Everything set in
+HyprMac's own Settings (gaps, focus border, dimming, ...) stays as it is, and so does a chord or
+app pin added there on a combo / app this script does not use. HyprMac is quit before the write
+and started again after it; the old file goes to ~/.local/state/hyprmac/backups first.
+
+  hyprmac-config            merge, restart HyprMac
+  hyprmac-config --dry-run  print the merged config, change nothing
+"""
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+
+H, S, O, CTRL, C = 1, 2, 4, 8, 16  # hypr, shift, option, control, command (ModifierFlags bits)
+K = dict(h=4, j=38, k=40, l=37, f=3, m=46, s=1, t=17, w=13, y=16, u=32, r=15, c=8,
+         slash=44, minus=27, equal=24, tab=48, space=49, ret=36)
+DIGITS = [18, 19, 20, 21, 23, 22, 26, 28, 25, 29]  # keys 1..9, 0
+BIN = os.path.expanduser("~/Code/dotfiles/bin")
+LIVE = os.path.expanduser("~/Library/Application Support/HyprMac/config.json")  # symlink into iCloud Drive
+
+# HyprMac anchors workspace N to screen (N-1) % screens, left to right (Dell, C34H89x, built-in),
+# and that is not configurable (zacharytgray/HyprMac#29). So the digit keys are grouped per monitor
+# and keep the aerospace names. shortcut: assumes 3 enabled screens, regroup when that changes.
+WS = dict(chat=1, term=4, code=7, notes=10, web=2, test=5, mail=8, media=3, misc=6, mac=9)
+KEY_TO_WS = [WS[n] for n in ("chat", "term", "code", "notes", "web", "test", "mail", "media", "misc", "mac")]
+
+PINS = {  # aerospace on-window-detected rules by bundle ID; some apps are not installed right now
+    "chat": ["com.tinyspeck.slackmacgap", "com.hnc.Discord", "net.whatsapp.WhatsApp",
+             "net.coldx.App-for-WhatsApp-setapp", "com.apple.MobileSMS", "com.apple.FaceTime"],
+    "term": ["com.mitchellh.ghostty", "com.apple.Terminal", "com.googlecode.iterm2", "net.kovidgoyal.kitty"],
+    "code": ["com.microsoft.VSCode", "dev.zed.Zed", "com.jetbrains.datagrip", "com.sql-studio.app",
+             "com.docker.docker", "com.ScooterSoftware.BeyondCompare"],
+    "notes": ["md.obsidian", "notion.id", "com.apple.Notes", "com.apple.reminders"],
+    "web": ["dev.vimma.browser", "ai.perplexity.comet", "com.apple.Safari", "app.zen-browser.zen"],
+    "test": ["org.mozilla.firefox", "org.mozilla.firefoxdeveloperedition", "com.insomnia.app",
+             "com.luckymarmot.Paw", "com.proxyman.NSProxy-setapp"],
+    "mail": ["com.readdle.SparkDesktop", "com.apple.mail", "com.apple.iCal", "com.cron.electron",
+             "com.flexibits.fantastical2.mac", "info.eurocomp.Timing-setapp"],
+    "media": ["com.spotify.client", "com.colliderli.iina", "com.apple.Music", "com.apple.garageband10",
+              "com.apple.iMovieApp"],
+    "misc": ["com.apple.ActivityMonitor", "com.elgato.StreamDeck", "com.macpaw.CleanMyMac-setapp",
+             "com.google.drivefs", "com.google.drivefs.shortcuts.docs", "com.google.drivefs.shortcuts.sheets",
+             "com.google.drivefs.shortcuts.slides", "com.insta360.linkcontroller", "com.apple.Keynote",
+             "com.apple.Numbers", "com.apple.Pages", "com.adriangranados.wifiexplorer-setapp",
+             "org.upscayl.Upscayl"],
+    "mac": ["com.dygmalab.bazecor"],
+}
+# aerospace `layout floating` by app; its title rules (PiP, Slack huddle) have no HyprMac equivalent.
+FLOAT = ["co.boomvision.boom-setapp", "com.getcleanshot.app-setapp", "mo.com.sleeplessmind.kindaVim"]
+
+binds = []
+
+
+def bind(key, mods, action):
+    binds.append({"action": action, "keyCode": key, "modifiers": mods})
+
+
+# Every action gets a chord, or mergeNewDefaults injects HyprMac's own onto bare hypr+<key>.
+for d, k in zip(["left", "down", "up", "right"], "hjkl"):
+    bind(K[k], H, {"focusDirection": {"_0": d}})
+    bind(K[k], H | S, {"swapDirection": {"_0": d}})
+for n, key in zip(KEY_TO_WS, DIGITS):
+    bind(key, H, {"switchDesktop": {"_0": n}})
+    bind(key, H | S, {"moveToDesktop": {"_0": n}})
+    bind(key, H | O | S, {"moveToWorkspaceAndFollow": {"_0": n}})
+bind(K["minus"], H, {"resizeDirection": {"_0": "left"}})
+bind(K["equal"], H, {"resizeDirection": {"_0": "right"}})
+bind(K["j"], H | O | S, {"resizeDirection": {"_0": "down"}})
+bind(K["k"], H | O | S, {"resizeDirection": {"_0": "up"}})
+bind(K["slash"], H, {"toggleSplit": {}})
+bind(K["tab"], H, {"cycleWorkspace": {"_0": 1}})
+bind(K["tab"], H | O, {"cycleWorkspace": {"_0": -1}})
+bind(K["tab"], H | S, {"moveWorkspaceToMonitor": {"_0": "right"}})
+bind(K["h"], H | O | S, {"moveWorkspaceToMonitor": {"_0": "left"}})
+bind(K["space"], H | O, {"showWorkspaceOverview": {}})
+bind(K["l"], H | C, {"showWorkspaceOverview": {}})
+# The Dygma "Windows" superkey sends ctrl+cmd+l in one report: HyprMac's HID check calls that Hypr
+# stale and passes it on with a plain control flag, so match that form too.
+bind(K["l"], CTRL | C, {"showWorkspaceOverview": {}})
+bind(K["slash"], H | O, {"runCommand": {"label": "Dygma cheats", "command": f"{BIN}/dygma-cheats --choose"}})
+bind(K["r"], H | O, {"runCommand": {"label": "Read Claude", "command": f"{BIN}/read-claude"}})
+bind(K["c"], H | O, {"runCommand": {"label": "Read clipboard", "command": f"{BIN}/read-claude --clip"}})
+bind(K["f"], H | O, {"toggleFloating": {}})
+bind(K["f"], H | O | S, {"focusFloating": {}})
+bind(K["k"], H | O, {"showKeybinds": {}})
+bind(K["ret"], H | O, {"launchApp": {"bundleID": "com.mitchellh.ghostty"}})
+bind(K["m"], H | O, {"focusMenuBar": {}})
+bind(K["f"], H, {"moveToNextEmptyWorkspace": {}})  # HyprMac's fullscreen
+bind(K["w"], H | O | S, {"closeWindow": {}})
+bind(K["s"], H, {"toggleScratchpad": {}})
+bind(K["s"], H | S, {"moveToScratchpad": {}})
+bind(K["t"], H | O, {"toggleTiling": {}})
+bind(K["y"], H | O | S, {"saveLayout": {}})
+bind(K["u"], H | O | S, {"restoreLayout": {}})
+bind(K["r"], H | O | S, {"retileAll": {}})
+
+chords = [(b["keyCode"], b["modifiers"]) for b in binds]
+assert len(chords) == len(set(chords)), "duplicate chord"
+
+
+def merge(live):
+    key = lambda b: json.dumps(b, sort_keys=True)
+    mine = set(map(key, binds))
+    kept = []
+    for b in live.get("keybinds") or []:
+        if key(b) in mine:
+            continue
+        if (b["keyCode"], b["modifiers"]) in chords:
+            print("replaced UI chord:", key(b), file=sys.stderr)
+        else:
+            kept.append(b)
+    live["keybinds"] = binds + kept
+    have = {r["bundleID"] for r in live.get("windowRules") or []}
+    pins = [{"bundleID": b, "workspace": WS[ws]} for ws, ids in PINS.items() for b in ids if b not in have]
+    live["windowRules"] = (live.get("windowRules") or []) + pins
+    live["excludedBundleIDs"] = sorted(set(live.get("excludedBundleIDs") or []) | set(FLOAT))
+    live["hyprKey"] = "leftControl"
+    return live
+
+
+def main():
+    live = merge(json.load(open(LIVE)))
+    if "--dry-run" in sys.argv:
+        json.dump(live, sys.stdout, indent=2)
+        return
+    backups = os.path.expanduser("~/.local/state/hyprmac/backups")
+    os.makedirs(backups, exist_ok=True)
+    shutil.copy(LIVE, f"{backups}/config-{time.strftime('%Y%m%d-%H%M%S')}.json")
+    # HyprMac writes its config back on quit, so the merge goes in only after it is gone.
+    subprocess.run(["osascript", "-e", 'quit app "HyprMac"'], timeout=15, check=False)
+    for _ in range(20):
+        if subprocess.run(["pgrep", "-x", "HyprMac"], capture_output=True).returncode:
+            break
+        time.sleep(0.5)
+    live = merge(json.load(open(LIVE)))
+    with open(LIVE, "w") as f:
+        json.dump(live, f, indent=2)
+    subprocess.run(["open", "-a", "HyprMac"], check=True)
+    print(f"merged {len(binds)} chords, {len(live['windowRules'])} pins into {LIVE}")
+
+
+if __name__ == "__main__":
+    main()

@@ -35,7 +35,6 @@ mkdir -p "$TARGET_BIN"
 # ~/bin is either stale or useless.
 rsync -a \
   --exclude 'sketchybar-watcher/' \
-  --exclude 'aerospace-flip-window/' \
   --exclude 'temp-watch' \
   "$SOURCE_BIN"/ "$TARGET_BIN"/
 

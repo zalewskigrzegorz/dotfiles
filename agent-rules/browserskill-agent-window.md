@@ -72,10 +72,10 @@ for those tools, and don't propose bringing the stack back.
 ## Where the Agent Window lands
 
 `bin/bsk` (stage 28 → `~/bin`, ahead of `~/.local/bin/bsk` on PATH) wraps the
-real CLI: on `session start` it parks the new Agent Window on aerospace
-workspace `test` (8) without taking focus, and passes every other subcommand
-straight through. Greg looks at it with `ctrl-8`. Call `~/.local/bin/bsk` by
-path only to skip the park step (a8481fff).
+real CLI and passes every subcommand straight through. It no longer parks the
+Agent Window: the Comet window lands where HyprMac's window rule for Comet puts
+it (workspace web, `ctrl-5`). Parking on a workspace `test` (`ctrl-8`) went
+away with AeroSpace (a8481fff).
 
 ## Health check
 

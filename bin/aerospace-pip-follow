@@ -1,9 +1,0 @@
-#!/bin/bash
-# AeroSpace has no sticky windows (nikitabobko/AeroSpace#2), so PiP windows get moved to every workspace you switch to.
-ws=${AEROSPACE_FOCUSED_WORKSPACE:-$(aerospace list-workspaces --focused)}
-aerospace list-windows --all --format '%{window-id}|%{workspace}|%{window-title}' |
-  while IFS='|' read -r id cur title; do
-    if [ "$title" = 'Picture in Picture' ] && [ "$cur" != "$ws" ]; then
-      aerospace move-node-to-workspace --window-id "$id" "$ws"
-    fi
-  done

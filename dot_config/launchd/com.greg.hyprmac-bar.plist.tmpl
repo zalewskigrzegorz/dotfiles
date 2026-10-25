@@ -3,10 +3,10 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.greg.aerospace-watchdog</string>
+  <string>com.greg.hyprmac-bar</string>
   <key>ProgramArguments</key>
   <array>
-    <string>{{ .chezmoi.homeDir }}/Code/dotfiles/bin/aerospace-watchdog</string>
+    <string>{{ .chezmoi.homeDir }}/Code/dotfiles/bin/hyprmac-bar-bridge</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict>
@@ -15,11 +15,13 @@
   </dict>
   <key>RunAtLoad</key>
   <true/>
-  <key>StartInterval</key>
-  <integer>30</integer>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
   <key>StandardOutPath</key>
-  <string>/tmp/com.greg.aerospace-watchdog.log</string>
+  <string>/tmp/com.greg.hyprmac-bar.log</string>
   <key>StandardErrorPath</key>
-  <string>/tmp/com.greg.aerospace-watchdog.err</string>
+  <string>/tmp/com.greg.hyprmac-bar.err</string>
 </dict>
 </plist>

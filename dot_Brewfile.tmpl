@@ -105,10 +105,11 @@ tap "nikitabobko/tap"
 tap "nnnkkk7/tap"
 tap "timrogers/tap"
 tap "vimma-browser/tap"
+tap "zacharytgray/hyprmac"
 
 brew "felixkratz/formulae/sketchybar"
 brew "flock"      # macOS lacks flock; on Linux it ships with system util-linux
-brew "choose-gui" # native floating fuzzy picker — bin/aerospace-picker window switcher
+brew "choose-gui" # native floating fuzzy picker — bin/dygma-cheats --choose
 brew "colima"     # macOS Docker VM runtime; Linux runs Docker natively (no colima)
 brew "fswatch"
 brew "gnu-sed"
@@ -126,7 +127,6 @@ brew "mysql-client"
 
 cask "1password"
 cask "1password-cli"
-cask "aerospace"
 # bitwarden: NOT brew-managed. Iru/Kandji (MDM) installs it into /Applications as
 # root:wheel, so `brew upgrade` can only chown-fail against it and brew's own copy
 # rotted at 2022.9.1 since Mar 2024. Updates come from MDM. Same story for slack.
@@ -146,6 +146,7 @@ cask "ghostty"
 cask "glaze"
 cask "google-chrome"
 cask "google-drive"
+cask "zacharytgray/hyprmac/hyprmac" # tiling WM; third-party tap: run `brew trust --cask zacharytgray/hyprmac/hyprmac` once first
 cask "iina"
 cask "insomnia"
 cask "insta360-link-controller"

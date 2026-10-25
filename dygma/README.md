@@ -15,5 +15,5 @@ so `chezmoi apply` cannot do it automatically. Manual step:
 
 ## Editing
 Use the `/dygma` slash command — it loads the full decode/edit workflow.
-Runtime cheat-sheet: `dygma-cheats` (or aerospace `ctrl-alt-/`, or Mouse+win `?`).
+Runtime cheat-sheet: `dygma-cheats` (or Mouse+win `?`).
 Decoder reference: `~/Code/personal/bazgroly/dotfiles/notes/dygma-decoder.py`.

@@ -20,7 +20,7 @@ import subprocess
 import sys
 
 HOME = os.path.expanduser("~")
-# launchers (aerospace exec-and-forget, Raycast) give a minimal PATH — ensure
+# launchers (HyprMac runCommand, Raycast) give a minimal PATH — ensure
 # choose / pbcopy / defaults are reachable.
 os.environ["PATH"] = "/opt/homebrew/bin:/usr/bin:/bin:" + os.environ.get("PATH", "")
 
@@ -208,41 +208,38 @@ def app_hotkeys():
     return canon, globals_
 
 
-def aerospace_hotkeys():
-    """aerospace.toml bindings → (canon_map, entries). Window-manager shortcuts."""
-    path = os.path.join(HOME, ".config/aerospace/aerospace.toml")
+def hyprmac_hotkeys():
+    """HyprMac keybinds (its config.json, merged by bin/hyprmac-config) → (canon_map, entries)."""
+    path = os.path.join(HOME, "Library/Application Support/HyprMac/config.json")
     canon, entries = {}, []
-    if not os.path.exists(path):
+    try:
+        binds = json.load(open(path)).get("keybinds") or []
+    except Exception:
         return canon, entries
-    modmap = {"ctrl": "Ctrl", "cmd": "Cmd", "alt": "Opt", "shift": "Shift"}
-    keymap = {"slash": "/", "comma": ",", "period": ".", "minus": "-", "equal": "=",
-              "space": "Space", "enter": "Enter", "tab": "Tab", "esc": "Esc",
-              "leftSquareBracket": "[", "rightSquareBracket": "]", "backtick": "`"}
-    import re
-    in_mode = False
-    for line in open(path):
-        s = line.strip()
-        if s.startswith("[mode.") or s.startswith("[") and "binding" in s:
-            in_mode = True
-        elif s.startswith("[") and "binding" not in s:
-            in_mode = False
-        m = re.match(r"^([a-z0-9\-]+)\s*=\s*'(.+)'\s*$", s)
-        if not (in_mode and m):
+    # Carbon virtual key codes for the keys bin/hyprmac-config binds
+    keys = {4: "H", 38: "J", 40: "K", 37: "L", 3: "F", 46: "M", 1: "S", 17: "T", 13: "W", 16: "Y",
+            32: "U", 15: "R", 8: "C", 44: "/", 27: "-", 24: "=", 48: "Tab", 49: "Space", 36: "Enter",
+            18: "1", 19: "2", 20: "3", 21: "4", 23: "5", 22: "6", 26: "7", 28: "8", 25: "9", 29: "0"}
+    # workspace numbers → the names bin/hyprmac-config keeps from aerospace
+    names = {1: "chat", 4: "term", 7: "code", 10: "notes", 2: "web", 5: "test", 8: "mail",
+             3: "media", 6: "misc", 9: "mac"}
+    for b in binds:
+        base = keys.get(b.get("keyCode"))
+        bits = b.get("modifiers", 0)
+        if not base or not b.get("action"):
             continue
-        combo, action = m.group(1), m.group(2)
-        parts = combo.split("-")
-        mods = [modmap[p] for p in parts[:-1] if p in modmap]
-        base = parts[-1]
-        base = keymap.get(base, base.upper() if len(base) == 1 else base)
-        if not mods:
-            continue
+        # Hypr is the left Control key, so hypr (1) and control (8) both read as Ctrl
+        mods = [m for bit, m in ((1, "Ctrl"), (8, "Ctrl"), (2, "Shift"), (4, "Opt"), (16, "Cmd")) if bits & bit]
+        name, arg = next(iter(b["action"].items()))
+        arg = arg.get("_0", arg.get("label", "")) if isinstance(arg, dict) else arg
+        if name in ("switchDesktop", "moveToDesktop", "moveToWorkspaceAndFollow"):
+            arg = names.get(arg, arg)
+        action = ("%s %s" % (name, arg)).strip()
         c = norm(mods, base)
         pretty = "+".join(sorted(set(mods), key=lambda m: _ORDER.get(m, 9))) + "+" + base
-        canon.setdefault(c, "aerospace · %s" % action)
-        entries.append(("aerospace · %s" % action, pretty.replace("+", " "),
-                        "aerospace (window mgmt)"))
+        canon.setdefault(c, "hyprmac · %s" % action)
+        entries.append(("hyprmac · %s" % action, pretty.replace("+", " "), "HyprMac (window mgmt)"))
     return canon, entries
-
 
 # ─── load newest Dygma export ─────────────────────────────────────────────────
 def newest_export():
@@ -281,6 +278,22 @@ CLAUDE_ACTIONS = [
     ("Claude Code · wyślij kolejkowaną wiadomość teraz", "Ctrl Y", "Claude Code (prompt)"),
 ]
 
+VIMMA_ACTIONS = [
+    ("Vimma · lista skrótów", "Ctrl Space ?", "Vimma (prefix, każdy tryb)"),
+    ("Vimma · lista skrótów", "Space ?", "Vimma (leader, tryb normal)"),
+    ("Vimma · pasek adresu", "I", "Vimma (normal / visual)"),
+    ("Vimma · pasek adresu", "Ctrl L", "Vimma (każdy tryb)"),
+    ("Vimma · otwórz URL ze schowka", "p", "Vimma (normal)"),
+    ("Vimma · otwórz URL ze schowka w nowej karcie", "P", "Vimma (normal)"),
+    ("Vimma · kliknij link literkami (hint)", "f", "Vimma (normal)"),
+    ("Vimma · link w nowej karcie", "g F", "Vimma (normal)"),
+    ("Vimma · nowa karta", "t", "Vimma (normal)"),
+    ("Vimma · zamknij kartę", "x", "Vimma (normal)"),
+    ("Vimma · przywróć zamkniętą kartę", "X", "Vimma (normal)"),
+    ("Vimma · pisanie w polu / powrót do nawigacji", "i / Esc", "Vimma"),
+    ("Vimma · panel Browsentic", "Alt Shift B", "Vimma (każdy tryb)"),
+]
+
 
 def build_entries():
     d = json.load(open(newest_export()))
@@ -289,16 +302,17 @@ def build_entries():
     km = [int(x) for x in raw["keymap.custom"].split()]
     lnames = {l["id"]: l["name"] for l in n["layers"]}
     apps, app_globals = app_hotkeys()
-    aero, aero_entries = aerospace_hotkeys()
-    apps = {**aero, **apps}  # app hotkeys win label collisions over aerospace
+    aero, aero_entries = hyprmac_hotkeys()
+    apps = {**aero, **apps}  # app hotkeys win label collisions over HyprMac
     base = km[:80]  # Main layer — used to label physical positions
 
     entries = []  # (search_label, shortcut, where)
     entries += app_globals          # global hotkeys (fire even off-keyboard)
     entries += WOOSHY_ACTIONS       # Wooshy in-picker actions (not in defaults)
     entries += CLAUDE_ACTIONS       # Claude Code custom prompt bindings
+    entries += VIMMA_ACTIONS        # Vimma browser prefix/leader bindings
     if "--no-aero" not in sys.argv:
-        entries += aero_entries     # aerospace window-manager bindings
+        entries += aero_entries     # HyprMac window-manager bindings
 
     # every modified key across layers
     for li in range(len(km) // 80):
@@ -330,9 +344,9 @@ def build_entries():
         ("vs autocomplete", "2×tap"): "read selection aloud (TTS ⌥Esc)",
         ("Read reset talk", "tap"): "reset layers → base",
         ("Read reset talk", "2×tap"): "Slack channel/contact search (Raycast)",
-        ("Windows", "tap"): "aerospace picker", ("Windows", "hold"): "Wooshy (click UI by typing)",
+        ("Windows", "tap"): "HyprMac workspace overview", ("Windows", "hold"): "Wooshy (click UI by typing)",
         ("Windows", "2×tap"): "kindaVim Normal Mode",
-        ("leaders", "tap"): "herdr prefix (ctrl+space)", ("leaders", "hold"): "aerospace leader",
+        ("leaders", "tap"): "herdr prefix (ctrl+space)", ("leaders", "hold"): "— (free, was aerospace leader)",
     }
     slot = ["tap", "hold", "tap&hold", "2×tap", "2×hold"]
     for sk in n.get("superkeys", []):

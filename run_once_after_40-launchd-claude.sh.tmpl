@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 {{- if eq .chezmoi.os "darwin" }}
 # Idempotent install + load of LaunchAgents:
-#   - com.greg.aerospace-watchdog (restarts AeroSpace.app if it dies — chicken
-#                                  and egg fix for `Leader+X` rebind)
+#   - com.greg.hyprmac-bar (resident KeepAlive; bin/hyprmac-bar-bridge feeds the
+#                          sketchybar workspaces from HyprMac's log)
 #   - com.greg.temp-watch (polls smctemp every 20s, alerter notifications when
 #                          CPU crosses 85°C threshold and again when it cools
 #                          back below 75°C — "odpal podstawkę" reminder)
@@ -16,13 +16,14 @@
 #                          changes and forces `sketchybar --reload` to fix the
 #                          render-freeze where the bar survives but stops drawing
 #                          — see bin/sketchybar-display-listener)
-# Legacy labels (claude-watcher / claude-idle-timer) are explicitly torn down
-# below — they fed the now-removed sketchybar claude_sessions widget.
+# Legacy labels are explicitly torn down below: claude-watcher / claude-idle-timer
+# fed the removed sketchybar claude_sessions widget, aerospace-watchdog went with
+# AeroSpace (HyprMac since 2026-10-25).
 # `run_once_*` per chezmoi semantics — re-runs only when this script's content
 # changes. To force a re-bootstrap (e.g. after editing the plists), bump the
 # version stamp in the comment below.
 #
-# Version: 2026-06-26.3
+# Version: 2026-10-25.1
 set -eu
 
 SRC_DIR="${HOME}/.config/launchd"
@@ -30,12 +31,12 @@ DST_DIR="${HOME}/Library/LaunchAgents"
 mkdir -p "$DST_DIR"
 
 # Tear down legacy claude-* agents if they were installed on this machine.
-for legacy in com.greg.claude-watcher com.greg.claude-idle-timer; do
+for legacy in com.greg.claude-watcher com.greg.claude-idle-timer com.greg.aerospace-watchdog; do
   launchctl bootout "gui/$(id -u)/${legacy}" 2>/dev/null || true
   rm -f "${DST_DIR}/${legacy}.plist"
 done
 
-for label in com.greg.aerospace-watchdog com.greg.temp-watch com.greg.slack-watch com.greg.sketchybar-watch com.greg.sketchybar-display; do
+for label in com.greg.hyprmac-bar com.greg.temp-watch com.greg.slack-watch com.greg.sketchybar-watch com.greg.sketchybar-display; do
   src="${SRC_DIR}/${label}.plist"
   dst="${DST_DIR}/${label}.plist"
   if [[ ! -f "$src" ]]; then

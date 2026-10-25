@@ -5,8 +5,8 @@ local settings = require("settings")
 -- Workspace labels and highlight state are updated by sketchybar-watcher via --set (no Lua logic)
 
 local workspace_order = {
-    "chat", "term", "code", "misc", "notes",
-    "web", "media", "test", "mail", "mac"
+    "chat", "term", "code", "notes", "web",
+    "test", "mail", "media", "misc", "mac"
 }
 
 local workspace_icons = {
@@ -20,7 +20,10 @@ local workspace_colors = {
     ["misc"] = colors.grey, ["notes"] = colors.green, ["mail"] = colors.red, ["mac"] = colors.white
 }
 
-local current_workspace = get_current_workspace()
+-- Initial highlight only; the watcher re-pushes it as soon as it hears from bin/hyprmac-bar-bridge.
+local f = io.open("/tmp/hyprmac-bar/focused")
+local current_workspace = f and f:read("*l") or nil
+if f then f:close() end
 local focused_color = colors.purple
 
 -- Two sets: item.N (full size, monitors) and item.N.s (small, laptop screen).
@@ -91,31 +94,12 @@ local function add_workspace(i, workspace, suffix, size)
         }
     })
 
+    -- Left click switched workspaces through aerospace; HyprMac cannot be driven from
+    -- outside yet (zacharytgray/HyprMac#44), so only the middle-click preview is left.
     space:subscribe("mouse.clicked", function(env)
         if env.BUTTON == "other" then
             space_popup:set({ background = { image = space.name } })
             space:set({ popup = { drawing = "toggle" } })
-        else
-            sbar.exec("aerospace list-windows --workspace " .. workspace .. " --format '%{window-id}' --json", function(windows)
-                if windows and #windows > 0 then
-                    sbar.exec("aerospace list-windows --focused --format '%{window-id}' --json", function(focused)
-                        local current_window_id = focused and focused[1] and focused[1]["window-id"]
-                        local next_window_id = nil
-                        for wi, window in ipairs(windows) do
-                            if window["window-id"] == current_window_id then
-                                next_window_id = windows[wi + 1] and windows[wi + 1]["window-id"] or windows[1]["window-id"]
-                                break
-                            end
-                        end
-                        if not next_window_id then
-                            next_window_id = windows[1]["window-id"]
-                        end
-                        sbar.exec("aerospace focus --window-id " .. next_window_id)
-                    end)
-                else
-                    sbar.exec("aerospace workspace " .. workspace)
-                end
-            end)
         end
     end)
 

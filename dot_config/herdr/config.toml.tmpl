@@ -38,7 +38,7 @@ directory = "~/.herdr/worktrees"
 # The whole reason for the switch: attention-queue ordering (blocked first).
 agent_panel_sort = "priority"
 accent = "#B347FF"
-# Outer terminal window title (what AeroSpace / the Ghostty tab bar shows).
+# Outer terminal window title (what HyprMac / the Ghostty tab bar shows).
 # Renders on the herdr SERVER, so {hostname} = the host the panes actually run
 # on. Fixes the two-identical-Ghostty-windows problem: `hd-mrglaszki` attaches to the
 # lab's herdr server in a separate window, and now that window reads "minis · …"
@@ -113,7 +113,7 @@ reload_config = ""
 resize_mode = "prefix+shift+r"
 
 # Numbered jump (focus_agent / switch_workspace by digit) is impossible here:
-# ctrl+digit = AeroSpace workspaces, alt = dead (Polish option layer), cmd+digit =
+# ctrl+digit = HyprMac workspaces, alt = dead (Polish option layer), cmd+digit =
 # macOS/Ghostty (and cmd+shift+digit = screenshots). So navigate by cycle/picker +
 # the "jump to the waiting agent" command below (prefix+0).
 
@@ -213,6 +213,6 @@ type = "plugin_action"
 command = "tokscale.dashboard.open"
 description = "Tokscale token-usage dashboard"
 
-# vim-herdr-navigation NOT bound: ctrl+hjkl is AeroSpace window-focus, and alt is
+# vim-herdr-navigation NOT bound: ctrl+hjkl is a HyprMac window-focus chord, and alt is
 # reserved for Polish diacritics (option+l=ł), so there's no clean no-prefix chord.
 # Use herdr's native prefix+h/j/k/l for pane focus instead.

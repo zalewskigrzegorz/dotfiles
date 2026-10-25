@@ -5,10 +5,10 @@
 | Process | Owner | Purpose |
 |---|---|---|
 | `sketchybar` | `brew services` LaunchAgent | the bar daemon itself |
-| `sketchybar-watcher` (Go) | started by aerospace `after-startup-command` AND by `bin/sketchybar-restart` | pushes `--set` for: aerospace workspace highlighting (`item.1..10`), apple item state (kindavim mode), notif_preview content |
+| `sketchybar-watcher` (Go) | started by `bin/sketchybar-restart` | pushes `--set` for: workspace highlighting (`item.1..10`, from the `bin/hyprmac-bar-bridge` files in `/tmp/hyprmac-bar/`), apple item state (kindavim mode), notif_preview content |
 | `cpu_load`, `network_load` | sketchybar event provider helpers | spawned automatically by sketchybar widgets |
 
-`brew services start sketchybar` is the ONLY thing that launches the daemon. Do NOT add `exec-and-forget sketchybar` to aerospace startup — it causes a lock-file race (Bug 2).
+`brew services start sketchybar` is the ONLY thing that launches the daemon. Do NOT start sketchybar from another launcher (a window manager startup hook, a login item) — it causes a lock-file race (Bug 2).
 
 ## Watcher startup contract
 
@@ -45,5 +45,5 @@ Manual restart steps are listed in the script itself.
 - **Bar visible but widgets blank** → watcher race; run `bin/sketchybar-restart`.
 - **kindavim mode never updates** → watcher dead; check `pgrep -lf sketchybar-watcher`.
 - **notif_preview never appears** → check `bin/sketchybar-watcher/notif_preview.go` polling NotificationCenter sqlite — macOS may have permission-denied the DB (Full Disk Access required).
-- **Two sketchybar processes** → aerospace is launching one in addition to brew services. Verify `after-startup-command` does NOT contain a sketchybar line.
+- **Two sketchybar processes** → something else is launching one in addition to brew services. Look for a second launcher (login item, startup hook).
 - **`[!] Set: Item not found 'apple' / 'item.N'` in `logs/sketchybar.log`** → race during startup or after a reload. Mitigated by `sketchybar_ready` handler in watcher (fixed in `984cec5`) but if it returns, check `readinessMaxMs` in `bin/sketchybar-watcher/main.go`.

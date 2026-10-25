@@ -15,7 +15,7 @@ defaults write com.apple.dock orientation -string right
 defaults write com.apple.dock show-recents -bool false
 defaults write com.apple.dock launchanim -bool false
 defaults write com.apple.dock minimize-to-application -bool false
-# AeroSpace: keep Spaces in a fixed order and don't group windows in Mission Control.
+# Window manager (HyprMac): keep Spaces in a fixed order and don't group windows in Mission Control.
 defaults write com.apple.dock mru-spaces -bool false
 defaults write com.apple.dock expose-group-apps -bool false
 defaults write com.apple.spaces spans-displays -bool true
@@ -39,17 +39,6 @@ for hk in 60:262144 61:786432; do
   defaults write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "${hk%%:*}" "{ enabled = 0; value = { parameters = (32, 49, ${hk#*:}); type = standard; }; }"
 done
 
-# HazeOver (Setapp) marks the focused window, replacing JankyBorders, which stalled WindowServer and froze the cursor (2026-10-22).
-# Per-screen focus keeps YouTube on another monitor bright; intensity matches Wooshy's own dim so both look the same.
-defaults write com.pointum.hazeover-setapp Color -string 000000
-defaults write com.pointum.hazeover-setapp Intensity -float 47.9159
-defaults write com.pointum.hazeover-setapp IndependentScreens -bool true
-defaults write com.pointum.hazeover-setapp MultiFocus -bool true
-defaults write com.pointum.hazeover-setapp ShowIcon -bool false
-# A short fade: a long one lags behind fast keyboard focus switches in AeroSpace.
-defaults write com.pointum.hazeover-setapp Animation -float 3
-defaults write com.pointum.hazeover-setapp AnimationCurve -int 2
-defaults write mo.com.sleeplessmind.Wooshy hazeOverWindowOpacity -float 0.4791590073529411
 # Clop watches CleanShot's Drive folder; MCP on so agents can drive it (server registered in agent-mcp).
 defaults write com.lowtechguys.Clop imageDirs -array "~/Desktop" "~/Library/CloudStorage/GoogleDrive-maksim009@gmail.com/My Drive/Screenshots"
 defaults write com.lowtechguys.Clop mcpEnabled -bool true

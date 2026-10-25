@@ -62,7 +62,8 @@ var (
 )
 
 var workspaceOrder = []string{
-	"chat", "term", "code", "misc", "notes", "web", "media", "test", "mail", "mac",
+	// HyprMac key order (Caps/Ctrl+1..0); aerospace had misc and media at 4 and 7.
+	"chat", "term", "code", "notes", "web", "test", "mail", "media", "misc", "mac",
 }
 
 // Workspace icon colors — Mocha Neon palette (matches dot_config/sketchybar/colors.lua + spaces.lua).
@@ -204,8 +205,17 @@ func runCmd(name string, args ...string) ([]byte, error) {
 	return exec.Command(name, args...).Output()
 }
 
+// hyprmacBarDir is written by bin/hyprmac-bar-bridge (launchd com.greg.hyprmac-bar):
+// HyprMac has no query CLI, so the bridge rebuilds, in aerospace's output format,
+// the two answers the watcher used to ask aerospace for. Missing while the bridge
+// is down, and the callers already treat an error as "no data yet".
+const hyprmacBarDir = "/tmp/hyprmac-bar"
+
 func runAerospace(args ...string) ([]byte, error) {
-	return runCmd("aerospace", args...)
+	if len(args) > 0 && args[0] == "list-workspaces" {
+		return os.ReadFile(hyprmacBarDir + "/focused")
+	}
+	return os.ReadFile(hyprmacBarDir + "/windows.json")
 }
 
 // ---- window cache (A3) ----

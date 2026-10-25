@@ -19,7 +19,7 @@ edit the layout competently is here. Don't make it a skill — rare use.
 - Auto-backups: `~/Raise/Backups/Defy/<neuronID>/<ts>-*.json` (every ~30 min) —
   use as rollback / to read the live keyboard state.
 - Full decoder + format notes: `~/Code/personal/bazgroly/dotfiles/notes/dygma-decoder.py`
-- Runtime cheat-sheet for Greg: `~/Code/dotfiles/bin/dygma-cheats` (aerospace `ctrl-alt-/` → choose picker; also bound to Mouse+win `?`).
+- Runtime cheat-sheet for Greg: `~/Code/dotfiles/bin/dygma-cheats` (bound to Mouse+win `?`).
 
 ## Division of labor (LEARNED THE HARD WAY)
 - **Bindings / keymap → Claude.** Reliable: pure matrix, index = `row*16 + col`,
@@ -61,8 +61,8 @@ edit the layout competently is here. Don't make it a skill — rare use.
 | 3 | Copy | copy | AI translate | — (free) |
 | 4 | vs autocomplete | autocomplete | AI hard-rewrite ADHD-Slack (⌃⌘G) | read selection (⌥Esc system TTS) |
 | 5 | Read reset talk | reset layers→base | — (free) | Slack channel/contact search |
-| 6 | Windows | aerospace picker (⌃⌘L) | Wooshy (⌃⌘/) | kindaVim Normal Mode (⌃[) |
-| 7 | leaders | herdr prefix (⌃Space) | aerospace leader | — (free) |
+| 6 | Windows | workspace overview (⌃⌘L, ⌃⌥Space) | Wooshy (⌃⌘/) | kindaVim Normal Mode (⌃[) |
+| 7 | leaders | herdr prefix (⌃Space) | — (free, was AeroSpace leader) | — (free) |
 - Free slots to fill later: `[3]2×tap, [5]hold, [7]2×tap`.
 - AI prompts (grammar/light/hard) live in Raycast AI commands; Defy just sends
   ⇧⌘G / ⌘G / ⌃⌘G. Use a cheap fast model (Haiku/4o-mini) for grammar/light.

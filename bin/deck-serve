@@ -6,7 +6,7 @@
 Then:
     open http://localhost:8777/          # the deck itself
     open http://<mac-ip>:8777/remote     # phone remote
-    curl -s localhost:8777/next          # what the AeroSpace / Stream Deck binding calls
+    curl -s localhost:8777/next          # what the Stream Deck binding calls
 
 The deck holds an SSE connection to /events; every /next, /prev, /first, /last, /calm and
 /goto/<n> hit is broadcast to it instantly. Works while focus is anywhere else, because

@@ -4,7 +4,7 @@ Personal dotfiles managed with [chezmoi](https://www.chezmoi.io/) and bootstrapp
 
 ## Profiles
 
-- `workstation` - macOS desktop/laptop with GUI apps, casks, Aerospace, SketchyBar, Zed and Claude config.
+- `workstation` - macOS desktop/laptop with GUI apps, casks, HyprMac, SketchyBar, Zed and Claude config.
 - `homelab` - headless Debian/Ubuntu with CLI and shell config only. No casks, GUI apps, fonts, window manager or status bar tooling.
 
 The active profile is stored in `~/.config/chezmoi/chezmoi.toml`:
