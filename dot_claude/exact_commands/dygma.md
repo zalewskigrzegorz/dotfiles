@@ -9,15 +9,17 @@ edit the layout competently is here. Don't make it a skill — rare use.
 
 ## Hardware & files
 - **Dygma Defy wireless** ("Defy red devil"), configured via Bazecor.
-- **Working file:** `~/Raise/Backups/Untitled.json` — the single current layout.
+- **Working file:** `~/Desktop/Untitled.json` (Bazecor › Preferences › Backups › Export saves
+  there since 2026-10; the old `~/Raise/Backups/` paths are stale) — the single current layout.
   Edit it SURGICALLY (string-replace the `data` of `keymap.custom` /
   `colormap.map` / `palette`; for superkeys edit `superkeys.map` + the matching
   `neuron.superkeys[].actions`). Keep the rest byte-identical.
-- Greg flashes by **Load backup → Untitled.json** in Bazecor. You CANNOT flash
+- Greg flashes by **Load backup → Untitled.json** in Bazecor; he applies every
+  function change himself ("pokaż który, sam sobie zmienię"). You CANNOT flash
   from CLI. ⚠️ Tell Greg to import BEFORE he re-exports, or his export clobbers
   your edits.
-- Auto-backups: `~/Raise/Backups/Defy/<neuronID>/<ts>-*.json` (every ~30 min) —
-  use as rollback / to read the live keyboard state.
+- Auto-backups: check where Bazecor writes them before relying on them; the
+  `~/Raise/Backups/Defy/<neuronID>/` path no longer had files on 2026-10-25.
 - Full decoder + format notes: `~/Code/personal/bazgroly/dotfiles/notes/dygma-decoder.py`
 - Runtime cheat-sheet for Greg: `~/Code/dotfiles/bin/dygma-cheats` (bound to Mouse+win `?`).
 
@@ -53,6 +55,9 @@ edit the layout competently is here. Don't make it a skill — rare use.
 - Mouse tuning: `mouse.speed`=1, `accelSpeed`=24, `speedLimit`=96 (tap=precise, hold=fast).
 
 ## Superkeys (current map — also in dygma-cheats descriptions)
+
+Bazecor shows them 1-indexed: **"Super 7" = id 6 "Windows", "Super 8" = id 7 "leaders"**.
+Super 8 is Greg's leader key; don't repurpose it without asking.
 | # | name | tap | hold | 2×tap |
 |---|---|---|---|---|
 | 0 | AI | Raycast (⌘Space) | AI light-rewrite (⌘G) | AI grammar (⇧⌘G) |
