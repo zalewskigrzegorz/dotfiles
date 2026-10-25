@@ -337,6 +337,8 @@ green = "#50FA7B"
 cyan = "#8BE9FD"
 blue = "#8AB4F8"
 magenta = "#FF80BF"
+# The vimma palette paints link hints with bright_green, and nothing else uses it.
+bright_green = "#FFD700"
 
 # The most panes (live pages) one workspace shows at once, 1 to 16.
 [panes]

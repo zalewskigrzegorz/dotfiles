@@ -1,0 +1,7 @@
+/* Vimma link-hint labels, bigger than the built-in 11px (hints.css in Vimma's omni.ja).
+ * Copied into the Vimma profile by run_onchange_after_39-vimma-userchrome-sync.sh.tmpl.
+ * The colour comes from bright_green in config.toml. */
+
+#vimma-hints .vimma-hint {
+  font-size: 14px !important;
+}

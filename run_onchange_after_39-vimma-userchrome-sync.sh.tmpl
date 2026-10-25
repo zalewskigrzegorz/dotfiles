@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+{{- if eq .chezmoi.os "darwin" }}
+# Copy userChrome.css into every Vimma profile and turn on the pref that makes Firefox load it.
+# Takes effect on the next Vimma restart.
+#
+# fingerprint: {{ include "dot_config/private_vimma/userChrome.css" | sha256sum }}
+
+set -eu
+
+SRC="$HOME/.config/vimma/userChrome.css"
+ROOT="$HOME/Library/Application Support/Vimma/Profiles"
+PREF='user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);'
+
+[ -f "$SRC" ] || { echo "vimma-userchrome-sync: $SRC missing, skipping."; exit 0; }
+[ -d "$ROOT" ] || { echo "vimma-userchrome-sync: no Vimma profiles, skipping."; exit 0; }
+
+while IFS= read -r prof; do
+  [ -n "$prof" ] || continue
+  mkdir -p "$prof/chrome"
+  cp -f "$SRC" "$prof/chrome/userChrome.css"
+  grep -qF "$PREF" "$prof/user.js" 2>/dev/null || echo "$PREF" >> "$prof/user.js"
+  echo "vimma-userchrome-sync: synced → $prof"
+done < <(find "$ROOT" -mindepth 1 -maxdepth 1 -type d)
+{{- end }}
