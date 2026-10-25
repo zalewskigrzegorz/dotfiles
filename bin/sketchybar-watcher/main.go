@@ -205,17 +205,48 @@ func runCmd(name string, args ...string) ([]byte, error) {
 	return exec.Command(name, args...).Output()
 }
 
-// hyprmacBarDir is written by bin/hyprmac-bar-bridge (launchd com.greg.hyprmac-bar):
-// HyprMac has no query CLI, so the bridge rebuilds, in aerospace's output format,
-// the two answers the watcher used to ask aerospace for. Missing while the bridge
-// is down, and the callers already treat an error as "no data yet".
-var hyprmacBarDir = filepath.Join(os.Getenv("HOME"), ".cache/hyprmac-bar/state")
+// HyprMac (fork build, status export opt-in) writes its whole state here on every
+// change and runs `sketchybar-watcher notify --event hyprmac` as its hook.
+var hyprmacStateFile = filepath.Join(os.Getenv("HOME"), "Library/Application Support/HyprMac/state.json")
 
-func runAerospace(args ...string) ([]byte, error) {
-	if len(args) > 0 && args[0] == "list-workspaces" {
-		return os.ReadFile(hyprmacBarDir + "/focused")
+// aerospace monitor ids the rest of the watcher still speaks (1=DELL, 2=Built-in, 3=C34H89x)
+var hyprmacDisplayIDs = map[string]int{"DELL U3225QE": 1, "Built-in Retina Display": 2, "C34H89x": 3}
+
+type hyprState struct {
+	FocusedWorkspace int    `json:"focusedWorkspace"`
+	FocusedMonitor   string `json:"focusedMonitor"`
+	Workspaces       []struct {
+		ID      int    `json:"id"`
+		Name    string `json:"name"`
+		Windows []struct {
+			App string `json:"app"`
+		} `json:"windows"`
+	} `json:"workspaces"`
+}
+
+func readHyprState() (*hyprState, error) {
+	b, err := os.ReadFile(hyprmacStateFile)
+	if err != nil {
+		return nil, err
 	}
-	return os.ReadFile(hyprmacBarDir + "/windows.json")
+	var st hyprState
+	if err := json.Unmarshal(b, &st); err != nil {
+		return nil, err
+	}
+	return &st, nil
+}
+
+// focusedName is the workspace label the bar items use: the HyprMac name, else the number.
+func (h *hyprState) focusedName() string {
+	for _, w := range h.Workspaces {
+		if w.ID == h.FocusedWorkspace {
+			if w.Name != "" {
+				return w.Name
+			}
+			return strconv.Itoa(w.ID)
+		}
+	}
+	return ""
 }
 
 // ---- window cache (A3) ----
@@ -228,11 +259,6 @@ var (
 	windowCacheExpiry time.Time
 )
 
-type windowInfo struct {
-	Workspace string `json:"workspace"`
-	AppName   string `json:"app-name"`
-}
-
 func getWindowsByWorkspace() (windowSet, error) {
 	windowCacheMu.Lock()
 	if windowCacheData != nil && time.Now().Before(windowCacheExpiry) {
@@ -242,20 +268,22 @@ func getWindowsByWorkspace() (windowSet, error) {
 	}
 	windowCacheMu.Unlock()
 
-	out, err := runAerospace("list-windows", "--all", "--format", "%{workspace}%{app-name}", "--json")
+	st, err := readHyprState()
 	if err != nil {
 		return nil, err
 	}
-	var list []windowInfo
-	if err := json.Unmarshal(out, &list); err != nil {
-		return nil, err
-	}
 	byWs := make(windowSet)
-	for _, w := range list {
-		if w.Workspace == "" || w.AppName == "" || w.AppName == "kindaVim" {
-			continue
+	for _, w := range st.Workspaces {
+		label := w.Name
+		if label == "" {
+			label = strconv.Itoa(w.ID)
 		}
-		byWs[w.Workspace] = append(byWs[w.Workspace], w.AppName)
+		for _, win := range w.Windows {
+			if win.App == "" || win.App == "kindaVim" {
+				continue
+			}
+			byWs[label] = append(byWs[label], win.App)
+		}
 	}
 
 	windowCacheMu.Lock()
@@ -272,15 +300,11 @@ func invalidateWindowCache() {
 }
 
 func getFocusedWorkspace() (string, error) {
-	out, err := runAerospace("list-workspaces", "--focused")
+	st, err := readHyprState()
 	if err != nil {
 		return "", err
 	}
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	if len(lines) == 0 {
-		return "", nil
-	}
-	return strings.TrimSpace(lines[0]), nil
+	return st.focusedName(), nil
 }
 
 // ---- kindaVim (A4: mtime-gated polling) ----
@@ -651,6 +675,18 @@ func handleEvent(st *state, event string, env map[string]string) {
 		if d := env["FOCUSED_DISPLAY"]; d != "" {
 			if n, err := strconv.Atoi(d); err == nil {
 				st.setFocusedDisplay(n)
+			}
+		}
+		invalidateWindowCache()
+		scheduleRefresh(st)
+	case "hyprmac": // HyprMac's status hook: state.json changed
+		if hs, err := readHyprState(); err == nil {
+			if ws := hs.focusedName(); ws != "" {
+				st.setFocused(ws)
+				_ = os.Remove(lastNotifWsFile)
+			}
+			if d, ok := hyprmacDisplayIDs[hs.FocusedMonitor]; ok {
+				st.setFocusedDisplay(d)
 			}
 		}
 		invalidateWindowCache()

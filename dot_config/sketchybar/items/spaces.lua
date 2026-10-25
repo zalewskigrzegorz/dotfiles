@@ -20,11 +20,15 @@ local workspace_colors = {
     ["misc"] = colors.grey, ["notes"] = colors.green, ["mail"] = colors.red, ["mac"] = colors.white
 }
 
--- Initial highlight only; the watcher re-pushes it as soon as it hears from bin/hyprmac-bar-bridge.
-local f = io.open(os.getenv("HOME") .. "/.cache/hyprmac-bar/state/focused")
-local current_workspace = f and f:read("*l") or nil
-if f then f:close() end
+-- No initial highlight: the watcher pushes it on sketchybar_ready from HyprMac's state.json.
+local current_workspace = nil
 local focused_color = colors.purple
+
+-- HyprMac workspace number behind each name (bin/hyprmac-config keeps the same map).
+local hyprmac_ws = { chat = 1, term = 4, code = 7, notes = 10, web = 2, test = 5, mail = 8, media = 3, misc = 6, mac = 9 }
+-- The fork's debug build answers hyprmac:// while its PRs wait upstream; with -b the release
+-- app, which also claims the scheme, is never launched by a click.
+local hyprmac_bundle = "com.zachgray.HyprMac.debug"
 
 -- Two sets: item.N (full size, monitors) and item.N.s (small, laptop screen).
 -- items/compact.lua decides which display each set draws on; the watcher updates both.
@@ -94,12 +98,13 @@ local function add_workspace(i, workspace, suffix, size)
         }
     })
 
-    -- Left click switched workspaces through aerospace; HyprMac cannot be driven from
-    -- outside yet (zacharytgray/HyprMac#44), so only the middle-click preview is left.
+    -- Left click: switch to the workspace and focus a window there; clicking again cycles them.
     space:subscribe("mouse.clicked", function(env)
         if env.BUTTON == "other" then
             space_popup:set({ background = { image = space.name } })
             space:set({ popup = { drawing = "toggle" } })
+        elseif hyprmac_ws[workspace] then
+            sbar.exec(string.format('open -g -b %s "hyprmac://focus?workspace=%d"', hyprmac_bundle, hyprmac_ws[workspace]))
         end
     end)
 
