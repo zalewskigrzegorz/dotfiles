@@ -8,7 +8,7 @@ schema = 2
 
 [keys]
 prefix = "ctrl+space"
-# show_keybinds = ["prefix+?"]
+show_keybinds = ["prefix+?", "<leader>?"]
 # new_tab = ["prefix+c", "ctrl+t"]
 # next_tab = ["prefix+n", "ctrl+tab", "ctrl+pagedown"]
 # previous_tab = ["prefix+p", "ctrl+shift+tab", "ctrl+pageup"]
