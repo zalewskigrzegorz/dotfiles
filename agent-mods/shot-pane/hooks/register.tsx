@@ -6,14 +6,15 @@ const DIR = '/Users/greg/Library/CloudStorage/GoogleDrive-maksim009@gmail.com/My
 // Image bytes cap is 2 MiB decoded.
 const MAX_B64 = Math.floor((2 * 1024 * 1024 * 4) / 3)
 const shots = atom({ plugin: 'shot-pane', key: 'shots' } as const, [])
-const THUMBS = '/private/tmp/shot-pane'
+// Per-user and 0700: the thumbnails are copies of private screenshots.
+const THUMBS = '/Users/greg/Library/Caches/shot-pane'
 
 // herdr drops kitty images past ~6 M decoded pixels without a word, a 3024 px Retina shot included.
 async function thumbOf($: EngineInterface, path: string): Promise<string> {
   const out = `${THUMBS}/${path.split('/').pop()}`
-  const isMade = await $.fs.stat(out).then(s => s.kind === 'file', () => false)
+  const isMade = await $.fs.stat(out).then(s => s.kind === 'file' && !s.isLink, () => false)
   if (isMade) return out
-  await $.process.run(['mkdir', '-p', THUMBS]).catch(() => null)
+  await $.process.run(['mkdir', '-p', '-m', '700', THUMBS]).catch(() => null)
   const ran = await $.process.run(['sips', '-Z', '1600', path, '--out', out]).catch(() => null)
   return ran?.exitCode === 0 ? out : path
 }

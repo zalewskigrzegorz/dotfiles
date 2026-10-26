@@ -36,7 +36,7 @@ test('a screenshot prompt opens the pane on the recent PNGs, newest first', asyn
   expect(names).toEqual(['new.png', 'mid.png'])
   expect(read.map(p => p.split('/').pop())).toEqual(['new.png', 'mid.png'])
   expect(resized).toEqual(['new.png', 'mid.png'])
-  expect(read.every(p => p.startsWith('/private/tmp/shot-pane/'))).toBe(true)
+  expect(read.every(p => p.startsWith('/Users/greg/Library/Caches/shot-pane/'))).toBe(true)
   await ui.unmount()
 })
 
