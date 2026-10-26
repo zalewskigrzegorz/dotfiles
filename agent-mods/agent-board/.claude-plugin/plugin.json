@@ -1,0 +1,1 @@
+{ "name": "agent-board", "version": "0.1.0", "description": "Pane listing the session's subagents with status, model and age, and a button to view each.", "types": "./types/index.d.ts" }

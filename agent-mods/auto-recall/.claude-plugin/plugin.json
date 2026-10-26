@@ -1,0 +1,1 @@
+{ "name": "auto-recall", "version": "0.1.0", "description": "On prompts like 'wróćmy do' or 'kontynuuj', attaches a capped Hindsight recall as context." }

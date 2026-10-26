@@ -1,0 +1,1 @@
+{ "name": "popup-ping", "version": "0.1.0", "description": "Re-notifies with a sound every 5 min while an AskUserQuestion popup waits unanswered." }
