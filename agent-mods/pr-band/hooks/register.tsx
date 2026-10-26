@@ -123,8 +123,8 @@ export const register: Register = on => {
         </Box>
         {p.failed.length > 0 && <Text color="red">{p.failed.join(', ')}</Text>}
         <Box>
-          <Button key="open" hotkey="o" label="otwórz" onPress={() => void $.process.run(['open', p.url])} />
-          {p.e2eRun && <Button key="e2e" hotkey="e" label="screeny e2e" onPress={() => void showE2e($, p)} />}
+          <Button key="open" label="otwórz" onPress={() => void $.process.run(['open', p.url])} />
+          {p.e2eRun && <Button key="e2e" label="screeny e2e" onPress={() => void showE2e($, p)} />}
         </Box>
       </Box>
     )
@@ -153,17 +153,16 @@ export const register: Register = on => {
           {now.fail > 0 && (
             <Button
               key="log"
-              hotkey="l"
               label="log-failed"
               onPress={ask(`Przeczytaj gh run view --log-failed dla padniętych checków PR #${now.number} (${now.failed.join(', ')}) i powiedz, co padło.`)}
             />
           )}
-          {now.e2eRun && <Button key="e2e" hotkey="e" label="screeny e2e" onPress={() => void showE2e($, now)} />}
+          {now.e2eRun && <Button key="e2e" label="screeny e2e" onPress={() => void showE2e($, now)} />}
           {needsRebase(now) && (
-            <Button key="rebase" hotkey="r" label="rebase" onPress={ask(`Branch PR #${now.number} jest ${now.merge}: zrebase'uj go na bazę PR-a i uruchom lokalnie to, co CI.`)} />
+            <Button key="rebase" label="rebase" onPress={ask(`Branch PR #${now.number} jest ${now.merge}: zrebase'uj go na bazę PR-a i uruchom lokalnie to, co CI.`)} />
           )}
-          <Button key="open" hotkey="o" label="otwórz" onPress={() => void $.process.run(['open', now.url])} />
-          <Button key="hide" hotkey="x" label="ukryj" onPress={() => update($, hiddenFor, () => now.number)} />
+          <Button key="open" label="otwórz" onPress={() => void $.process.run(['open', now.url])} />
+          <Button key="hide" label="ukryj" onPress={() => update($, hiddenFor, () => now.number)} />
         </Box>
         {below}
       </Box>

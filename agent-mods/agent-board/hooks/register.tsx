@@ -54,7 +54,7 @@ export const register: Register = on => {
         {list.map((a, i) => {
           const spawn = known[a.description]
           return (
-            <Button key={a.id} plain hotkey={i < 9 ? String(i + 1) : undefined} onPress={show(a.id)}>
+            <Button key={a.id} plain onPress={show(a.id)}>
               {GLYPH[a.status]} {a.description}{' '}
               <Text dimColor>
                 {spawn?.model ?? a.type} {spawn ? age(now - spawn.startedAt) : ''}
@@ -62,7 +62,7 @@ export const register: Register = on => {
             </Button>
           )
         })}
-        <Button key="main" hotkey="g" label="główny wątek" onPress={() => void $.ui.view({})} />
+        <Button key="main" label="główny wątek" onPress={() => void $.ui.view({})} />
       </Box>
     )
   })
