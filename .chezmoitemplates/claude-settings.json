@@ -525,6 +525,17 @@
         ]
       }
     ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/stop/stop.sh error",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
     "PreCompact": [
       {
         "hooks": [
