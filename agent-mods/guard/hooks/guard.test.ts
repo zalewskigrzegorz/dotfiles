@@ -44,7 +44,7 @@ test('agent spawns', () => {
 })
 
 test('bash traps', () => {
-  for (const ok of ['git add agent-mods .gitignore', 'git add -- a.ts', 'grep -E "a|b" x', 'rg -n -e foo', 'git commit -m "fix: x"'])
+  for (const ok of ['git add agent-mods .gitignore', 'git add -- a.ts', 'grep -E "a|b" x', 'rg -n -e foo', 'git commit -m "fix: x"', "rg -n 'git add -A|rg -E' agent-rules/", 'git commit -m "never git add ."'])
     expect(bashProblem(ok)).toBeUndefined()
   expect(bashProblem('git add -A && git commit -m x')).toContain('git add -A')
   expect(bashProblem('git add .')).toContain('git add -A')

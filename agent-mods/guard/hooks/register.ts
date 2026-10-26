@@ -41,11 +41,13 @@ export function agentProblem(e: { model?: string; subagent_type?: string; isolat
 }
 
 export function bashProblem(command: string): string | undefined {
-  if (/\bgit\s+add\s+(-A\b|--all\b|\.(\s|$))/.test(command))
+  // Quoted text is a pattern or a message, not a command: `rg 'git add -A'` must pass.
+  const bare = command.replace(/'[^']*'|"[^"]*"/g, "''")
+  if (/\bgit\s+add\s+(-A\b|--all\b|\.(\s|$))/.test(bare))
     return 'no `git add -A` / `git add .`: stage only your own paths, other agents share the checkout (commit-message-rules.md)'
   if (/\bgit\s+commit\b[\s\S]*Co-Authored-By/i.test(command))
     return 'no Co-Authored-By trailer in commits (commit-message-rules.md)'
-  if (/(^|[|;&]\s*)rg\b[^|;&]*\s-E\s/.test(command))
+  if (/(^|[|;&]\s*)rg\b[^|;&]*\s-E\s/.test(bare))
     return '`rg -E` means --encoding, not ERE: drop -E, rg regex is extended already (ugrep-not-gnu-grep.md)'
   return undefined
 }
