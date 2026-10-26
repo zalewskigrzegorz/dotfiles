@@ -38,14 +38,19 @@ export const register: Register = on => {
     const { Box, Button, Text } = $.ui.resolve(e)
     const run = (text: string) => () => void $.prompt.submit({ text, asUser: true })
 
+    const below = await next(e)
+
     return (
-      <Box>
-        {now.standup > 0 && (
-          <Button key="standup" label={`standup (${now.standup})`} onPress={run('/g-standup')} />
-        )}
-        {now.retro > 0 && <Button key="retro" label={`retro (${now.retro})`} onPress={run('/retro-backlog')} />}
-        <Text> </Text>
-        <Button key="hide" label="ukryj" onPress={() => update($, isHidden, () => true)} />
+      <Box flexDirection="column">
+        <Box>
+          {now.standup > 0 && (
+            <Button key="standup" label={`standup (${now.standup})`} onPress={run('/g-standup')} />
+          )}
+          {now.retro > 0 && <Button key="retro" label={`retro (${now.retro})`} onPress={run('/retro-backlog')} />}
+          <Text> </Text>
+          <Button key="hide" label="ukryj" onPress={() => update($, isHidden, () => true)} />
+        </Box>
+        {below}
       </Box>
     )
   })

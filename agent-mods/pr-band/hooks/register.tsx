@@ -37,28 +37,33 @@ export const register: Register = on => {
     const { Box, Button, Text } = $.ui.resolve(e)
     const ask = (text: string) => () => void $.prompt.submit({ text, asUser: true })
 
+    const below = await next(e)
+
     return (
-      <Box>
-        <Text>PR #{now.number} </Text>
-        <Text color="green">✓{now.pass} </Text>
-        {now.fail > 0 && <Text color="red">✗{now.fail} </Text>}
-        {now.pending > 0 && <Text color="yellow">⏳{now.pending} </Text>}
-        <Text dimColor>
-          {now.merge.toLowerCase()}
-          {now.review && ` · ${now.review.toLowerCase().replace('_', ' ')}`}{' '}
-        </Text>
-        {now.fail > 0 && (
-          <Button
-            key="log"
-            label="log-failed"
-            onPress={ask(`Przeczytaj gh run view --log-failed dla padniętych checków PR #${now.number} (${now.failed.join(', ')}) i powiedz, co padło.`)}
-          />
-        )}
-        {needsRebase(now) && (
-          <Button key="rebase" label="rebase" onPress={ask(`Branch PR #${now.number} jest ${now.merge}: zrebase'uj go na bazę PR-a i uruchom lokalnie to, co CI.`)} />
-        )}
-        <Button key="open" label="otwórz" onPress={() => void $.process.run(['open', now.url])} />
-        <Button key="hide" label="ukryj" onPress={() => update($, hiddenFor, () => now.number)} />
+      <Box flexDirection="column">
+        <Box>
+          <Text>PR #{now.number} </Text>
+          <Text color="green">✓{now.pass} </Text>
+          {now.fail > 0 && <Text color="red">✗{now.fail} </Text>}
+          {now.pending > 0 && <Text color="yellow">⏳{now.pending} </Text>}
+          <Text dimColor>
+            {now.merge.toLowerCase()}
+            {now.review && ` · ${now.review.toLowerCase().replace('_', ' ')}`}{' '}
+          </Text>
+          {now.fail > 0 && (
+            <Button
+              key="log"
+              label="log-failed"
+              onPress={ask(`Przeczytaj gh run view --log-failed dla padniętych checków PR #${now.number} (${now.failed.join(', ')}) i powiedz, co padło.`)}
+            />
+          )}
+          {needsRebase(now) && (
+            <Button key="rebase" label="rebase" onPress={ask(`Branch PR #${now.number} jest ${now.merge}: zrebase'uj go na bazę PR-a i uruchom lokalnie to, co CI.`)} />
+          )}
+          <Button key="open" label="otwórz" onPress={() => void $.process.run(['open', now.url])} />
+          <Button key="hide" label="ukryj" onPress={() => update($, hiddenFor, () => now.number)} />
+        </Box>
+        {below}
       </Box>
     )
   })
