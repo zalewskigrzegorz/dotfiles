@@ -6,7 +6,7 @@ dir=${dirs[0]}
 
 # Only the head of the prompt, so pasted code with "@media screen" doesn't fire it.
 prompt=$(jq -r '.prompt // empty' | head -c 200)
-printf '%s' "$prompt" | grep -qiE '(^|[^[:alnum:]])(screen(y|a|ie|em|ów|ik|shot[[:alnum:]]*)?|ss|zrzut[[:alnum:]]*)([^[:alnum:]]|$)' || exit 0
+printf '%s' "$prompt" | grep -qiE '(^|[^[:alnum:]])(screen(y|a|ie|em|ów|ik|shot[[:alnum:]]*)?|scr|ss|zrzut[[:alnum:]]*)([^[:alnum:]]|$)' || exit 0
 
 # Shots from the last 15 min (max 5); none → just the newest one.
 recent=$(find "$dir" -maxdepth 1 -type f -mmin -15 \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' \) -print0 \

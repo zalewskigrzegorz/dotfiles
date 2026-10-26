@@ -6,7 +6,7 @@ const DIR = '/Users/greg/Library/CloudStorage/GoogleDrive-maksim009@gmail.com/My
 const shots = atom({ plugin: 'shot-pane', key: 'shots' } as const, [])
 
 // Same trigger as hooks/screenshot-attach.sh, on the prompt's head only.
-export const TRIGGER = /(^|[^\p{L}\p{N}])(screen(y|a|ie|em|ów|ik|shot\p{L}*)?|ss|zrzut\p{L}*)([^\p{L}\p{N}]|$)/iu
+export const TRIGGER = /(^|[^\p{L}\p{N}])(screen(y|a|ie|em|ów|ik|shot\p{L}*)?|scr|ss|zrzut\p{L}*)([^\p{L}\p{N}]|$)/iu
 
 export const register: Register = on => {
   on('prompt.submit', async ($, e, next) => {
