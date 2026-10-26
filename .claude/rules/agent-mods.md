@@ -31,3 +31,11 @@ is the API.
 - **Safety guards stay in shell hooks** (`block-dangerous-commands.sh`): a mod
   hook that throws is skipped and the tool runs anyway. Mods do lint, bands,
   panes.
+- **A pane opened unasked seats only from 144 columns**; a herdr pane is ~125, so
+  it waits undrawn (`isPlaced: false`). Give the mod a command that opens it
+  (asked = any width) and toast that command when `isPlaced` is false.
+- **`Image` inside herdr needs three things** (shot-pane, e4d8288c):
+  `kitty_graphics = true` in herdr's `[terminal]` (server restart),
+  `CLAUDE_CODE_FORCE_TERMINAL_IMAGES=1` in `env.nu` (herdr reports
+  `TERM_PROGRAM=herdr`, so Claude Code draws only the `alt`), and a picture under
+  ~6 M decoded pixels (herdr drops bigger ones silently: `sips -Z 1600` first).
