@@ -73,3 +73,18 @@ test('a pane too narrow to seat says how to open it, and /screen opens it', asyn
   expect(ran.text).toBe('Podgląd screena otwarty.')
   expect(opened).toBe(2)
 })
+
+test('the preview closes itself after three minutes', async ($, on) => {
+  const clock = mock.clock(on, { now: 100 * MIN })
+  const closed: string[] = []
+  on('ui.open', () => ({ value: { isPlaced: true as const } }))
+  on('ui.close', (_, e) => (closed.push(e.id), { value: undefined }))
+  on('prompt.submit', (_, e) => ({ text: e.text }))
+  on('fs.list', () => ({ value: [{ name: 'new.png', kind: 'file', size: 1, isLink: false, mtimeMs: 99 * MIN }] }))
+
+  await $.prompt.submit({ text: 'scr', wait: false, origin: { kind: 'composer' } })
+  await clock.advance(2 * MIN)
+  expect(closed).toEqual([])
+  await clock.advance(MIN)
+  expect(closed).toEqual(['shot-pane'])
+})

@@ -42,6 +42,14 @@ export function fit(size: { width: number; height: number }, maxColumns: number,
   return { columns, rows }
 }
 
+// No mouse to press the pane's ×: the preview closes itself after a while.
+const CLOSE_AFTER_MS = 3 * 60_000
+let closeTimer: { cancel: () => void } | undefined
+function closeLater($: EngineInterface) {
+  closeTimer?.cancel()
+  closeTimer = $.clock.after(CLOSE_AFTER_MS, () => void $.ui.close({ id: PANE }).catch(() => {}))
+}
+
 export const register: Register = on => {
   on('prompt.submit', async ($, e, next) => {
     if (TRIGGER.test(e.text.slice(0, 200))) {
@@ -58,6 +66,7 @@ export const register: Register = on => {
         // An unasked pane seats only from 144 columns; below that it waits undrawn.
         const opened = await $.ui.open({ id: PANE, title: 'Screen' })
         if (!opened.isPlaced) $.ui.toast('Screen gotowy: /screen otwiera podgląd')
+        closeLater($)
       })().catch(() => {})
     } else if (!e.command && !e.isMeta) {
       // The talk moved on: the preview goes with the next prompt that names no screenshot.
@@ -82,6 +91,7 @@ export const register: Register = on => {
       await update($, shots, () => [`${DIR}/${newest.name}`])
     }
     await $.ui.open({ id: PANE, title: 'Screen' })
+    closeLater($)
     return { text: 'Podgląd screena otwarty.' }
   })
 
