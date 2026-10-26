@@ -24,31 +24,29 @@ default *inside* the popup by marking it `(Recommended)` and putting it first.
    **steps Greg must run** are fine and still required — that's a different thing.)
 3. **One question per popup, chained.** Ask, get the answer, then ask the next
    one conditionally. Never fire 4 questions at once "to save a round-trip" —
-   working memory is 3–5 items and four simultaneous questions blows it. The 1–4
-   slot in the tool schema is a ceiling, not a target; two is the practical max,
-   and only when the questions are genuinely independent.
+   working memory is 3–5 items and four simultaneous questions blows it. Two
+   only when the questions are genuinely independent.
 4. **A long answer closes with a popup.** Anything longer than roughly one
    screen ends in `AskUserQuestion` with the plausible next moves — never an
    open-ended "daj znać, co dalej".
 
 ## Writing the options
 
-- **2–4 options**, never more. >4 is choice overload and it drains exactly the
-  executive function this rule exists to protect.
+- **The `guard` mod (`agent-mods/guard`) denies the mechanical breaks** and
+  says why: more than 2 questions, options outside 2–4, `header` over 12
+  chars, a digit in `question`, a listed "Other", a bare "1)" / "Q1" label, an
+  empty `description`, `(Recommended)` off the first option, `preview` with
+  multi-select or over 15 lines. Fix the popup it names; don't argue with it.
 - **Recommended first**, label suffixed `(Recommended)`. Smart default, always.
 - **Labels are actions, not categories** — "Fork obcego skilla pod ADHD" beats
   "Skill option 3". Greg should be able to pick from labels alone.
 - **`description` carries the trade-off** in 1–2 sentences: what happens if he
   picks this, and what it costs. That's where the wall of text goes to die.
-- **`header` ≤12 chars.** It's a chip, not a sentence.
 - **`multiSelect: true` when the options aren't mutually exclusive** — Greg likes
-  multi-select. It is only safe because free text is always reachable:
-- **"Other" is automatic.** The harness always appends a free-text escape hatch.
-  **Never list it manually** and never build a popup that assumes his answer must
-  be one of your options. Every popup is a superset of a free-text question, which
-  is why a popup is never worse than prose.
+  multi-select. Never build a popup that assumes his answer must be one of your
+  options: the harness always appends free text.
 - **Use `preview`** when the options are concrete artifacts to compare — layouts,
-  snippets, config shapes. Single-select only.
+  snippets, config shapes.
 - **The popup covers the message above it.** If the decision is *about* a text
   (a Slack draft, a PR body, a commit message, a snippet), that text goes into
   the `preview` of the options — not into the prose before the popup. Seen
@@ -57,22 +55,17 @@ default *inside* the popup by marking it `(Recommended)` and putting it first.
   and needs the text, print it as plain paragraphs and end the turn with no
   popup so it stays on screen.
 - **A draft longer than ~15 lines skips the popup entirely — decide that up
-  front, don't wait for it to fail.** A `preview` that big renders badly in
-  Ghostty and Greg can't read it, so the fallback above kicks in only after a
-  screenshot round-trip, an interrupt and a "nie potwierdzę!" (2026-09-22).
-  Print the long draft as plain paragraphs, end the turn with "powiedz wyślij",
-  and offer no options at all.
+  front.** Print it as plain paragraphs, end the turn with "powiedz wyślij",
+  and offer no options at all (2026-09-22).
 
 ## Popup hygiene — what a rejected popup taught (retro over 7 sessions, 2026-09-29)
 
 About 15 popups were rejected in one week. Every one broke one of these:
 
-- **`question` is one sentence, no numbers.** Prices, counts, estimates go into
-  `description` or `preview`. A question that carries "60 Selection z Advanced
-  kosztuje 201 350 zł…" is a wall with buttons under it (fc3cd4a8).
-- **Options stand on their own.** No label like "ADR 11" or "5. worktree-dev"
-  that only makes sense from the prose above — the popup covers that prose.
-  Each `description` says what changes and why in one sentence (72ff3ae5).
+- **`question` is one sentence.** Prices, counts, estimates go into
+  `description` or `preview` (fc3cd4a8).
+- **Options stand on their own.** The popup covers the prose above, so each
+  `description` says what changes and why in one sentence (72ff3ae5).
 - **A question from a plan file is never introduced by its label.** "Pierwsza
   decyzja to Q1: kto przenosi stronę logowania" got "co znaczy Kto? jaki PR?"
   (b90f720d). `Q1`, `Task 3b` mean something only to whoever read the plan.

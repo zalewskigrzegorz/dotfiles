@@ -12,12 +12,10 @@ clutter to him and must not be produced.
 
 ## Rules
 
-1. **Never pass `isolation: "worktree"`** to the Agent/Task tool or `isolation:
-   'worktree'` to Workflow `agent()` calls when working in Greg's repos. Run
-   subagents in the shared workspace instead.
-2. **Never call `EnterWorktree`** or otherwise spin up a Claude-managed worktree.
-   Dynamic workflows are already disabled globally (`disableWorkflows: true` in
-   settings) — do not try to route around that.
+1. **No `isolation: "worktree"` and no `EnterWorktree`.** The `guard` mod
+   denies both; run subagents in the shared workspace.
+2. Dynamic workflows are disabled globally (`disableWorkflows: true`) — do not
+   route around that.
 3. **If a task genuinely needs an isolated checkout, use `workctl`** (his
    tooling, below), or ask him — do not reach for native worktree isolation.
 4. This is about *Claude-created* worktrees only. Greg's own `work`/herdr
