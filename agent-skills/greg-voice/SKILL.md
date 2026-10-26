@@ -168,6 +168,13 @@ chain:
 > So the model code runs in-process, isolated by the WASM VM and its limits
 > (10s / 64 MB / call caps), not by a job-level boundary.
 
+**Root cause, replying to colleagues in a thread** — cause in one sentence,
+what to do now, next step and who reviews; the mechanism chain stays out until
+someone asks (a 5-sentence draft got "krótsza, bardziej moim głosem"):
+
+> it's the stale DB password terraform kept from the last deploy. redeploy with
+> the fresh one works for now, I'll open a PR, needs a review from <role>
+
 **Polish channel, full casual:**
 
 > Nasz cykl też idzie fajnie, ale oczywiście milion zmian mieliśmy dzisiaj na syncu

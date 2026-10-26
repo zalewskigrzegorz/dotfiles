@@ -86,6 +86,11 @@ tries (2026-10-09 … 10-12):
   written to a file: `pw=$(docker exec "$co-postgres-1" printenv
   POSTGRES_PASSWORD)`, then `VAR='postgresql://myuser:'"$pw"'@localhost:5432/db_specs'
   pnpm exec vitest …`. Don't grep `.env` for it (~8 calls, 2026-10-15).
+- **A migration test runs on a clone of `main`**, not a hand-built empty
+  database: `docker exec "$co-postgres-1" sh -c 'createdb -U myuser <scratch> &&
+  pg_dump -U myuser -d main --no-owner | psql -U myuser -d <scratch> -q -v
+  ON_ERROR_STOP=1'`. Say "lokalnie, kopia `main` do `<scratch>`", drop it after;
+  `already exists` there is another branch's leftover schema (a120142c, 3 tries).
 - **A fresh database needs the Ory schemas before Prisma.** `create schema
   kratos; create schema hydra`, the Ory migrations from the `oryd/hydra` image
   (DSN with `search_path=hydra`, same for kratos), then `prisma migrate
@@ -133,3 +138,8 @@ CI run and can disturb someone else's deploy. After a failure, read
   put a leading space in it and the form does not trim), the password only on
   the clipboard (`printf %s … | pbcopy`, cleared after), never in chat. Check
   the account once with a direct API call first.
+- **Where PR screenshots go:** `git ls-remote origin | rg -i screenshots` shows
+  the convention, a PNG-only `<branch>-screenshots` branch. Push it as an orphan
+  commit without a checkout: `git hash-object -w` → `git mktree` → `c=$(git
+  commit-tree …)`, `[ -n "$c" ]`, then `git push origin "${c}:refs/heads/<branch>-screenshots"`
+  (braced: `$c:r…` is a zsh modifier). The PR body links the raw files (a120142c).

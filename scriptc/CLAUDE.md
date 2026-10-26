@@ -43,3 +43,5 @@ The pattern behind all of these: **a port changes the mechanics, not just the la
    ~/.cache/workctl-prs-<org>-<repo>.tsv`.
 5. Not covered: header width in a herdr pane and `--nth` in live fzf; those
    stay for Greg to look at (b1c79075).
+
+- **`scriptc` stays an npm global.** Moving the globals to pnpm (226a665) broke stage 29 and was reverted (ed44986): pnpm's side-effects cache can skip `install-native.mjs`, which sets the exec bit on `scriptc.exe` and its `tsc`. Before touching the install, `scriptc build hello.ts -o hello && ./hello` must print.

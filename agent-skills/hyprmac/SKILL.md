@@ -25,7 +25,8 @@ HyprMac" (7c37679b).
   `excludedBundleIDs`, `hyprKey`, `workspaceNames`, `statusExport*` and the top padding,
   keeps every setting Greg made in HyprMac's UI and every UI chord on a combo it doesn't use,
   backs up to `~/.local/state/hyprmac/backups/`, quits the running app (release or Debug),
-  writes, relaunches. Copying a whole generated config over the live one wiped Greg's
+  writes, relaunches. Check the relaunch with `pgrep -x "HyprMac Debug"` after ~5 s:
+  `pgrep -x HyprMac` always exits 1 on Greg's Debug build (673e7d5e). Copying a whole generated config over the live one wiped Greg's
   settings once ("nie rób tak").
 - Every action needs a chord: `mergeNewDefaults` re-injects a default for any action missing
   from the file. That is how Hypr+Return → Terminal came back; `launchApp` is parked on an
@@ -79,10 +80,32 @@ watcher reads the file. Clicks call `open -g -b com.zachgray.HyprMac.debug
 "hyprmac://focus?workspace=N"` (`-b` because both installed apps claim the scheme). Top
 padding per monitor keeps tiles under the 36 pt bar.
 
+## Build branch: `greg-nightly`
+
+`greg-nightly` is `upstream/main` plus every still-open PR branch from `origin`
+(73759dde). Run `scripts/rebuild-live.sh` before every build: it rebuilds the
+branch from scratch, force-pushes with `--force-with-lease` and returns to the
+branch you were on; merged or closed PRs drop out by themselves. The script is
+local-only (`.git/info/exclude`), so say so. Never rebuild `local/live` by hand.
+
+## Focus bugs
+
+- Log: `~/Library/Logs/HyprMac/com.zachgray.HyprMac.debug.log`; patterns
+  `switch:` and `focus\(\d+\) activate (ok|dropped)`, filtered to the test's
+  time window with `awk`.
+- Frontmost app over time: a watcher script that exits by itself after N
+  seconds, run in the background.
+- macOS 27 drops `activate()` when the app is still inactive 100 ms later (log
+  line `activate dropped — app still inactive 100ms after activate()`); the fix
+  fronts the app through SkyLight (issue #56, PR #57). Not verified on 26.
+
 ## Fork workflow
 
 - Repo `~/Code/personal/HyprMac`, remotes `origin` = fork, `upstream`. One branch per fix
   from `main`; read the repo's `CLAUDE.md` (xcodegen, frozen wire keys, "no repro, no guess fix").
+  That file is upstream's: its hub host and `/usr/local/bin` paths are the author's. On
+  Greg's Macs resolve tools with `command -v xcodegen gh` (`/opt/homebrew/bin`), and don't
+  edit the file, it would ride into every PR (73759dde).
 - Gate: `find build/sizing/isolated-tests/home -name config.json -delete; ./scripts/test-isolated.sh --debug-variant`
   (~5 min, check `Executed N` > 0, 0 failures), then `ponytail:ponytail-review`.
 - Live build = throwaway branch `local/live` (the stacked base plus every open fix branch

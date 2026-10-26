@@ -263,6 +263,12 @@ check (`gh pr checks <n> --json name,state`), then fetch `reviewThreads` with
 `isResolved:false` again. Only an empty list allows "wątki zamknięte"; new
 ones → one more round, and the report says how many rounds.
 
+The same turn as the push starts the checks watcher (`timeout 3000 gh pr checks
+<n> --watch --interval 90`, in the background). A red check is read with `gh
+run view <id> --log-failed` and fixed in a new commit; "done" only when checks
+are green or the one blocker is `REVIEW_REQUIRED`. A Recheck run went red on
+the reply's own ADR text and Greg had to ask for the babysit (bc00373d).
+
 ### A8d. After the loop
 
 ```
