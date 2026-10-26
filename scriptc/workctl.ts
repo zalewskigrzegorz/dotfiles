@@ -419,6 +419,23 @@ function foreignWorktrees(skipRoot: string, detached: boolean): Worktree[] {
     seen.add(path);
     wts.push({ repo: basename(root), root, branch, path });
   }
+  // `-maxdepth 4` stops one level short of a three-segment branch
+  // (`poc/x/y/.git` is depth 5), so `rm --self` said "not inside a worktree"
+  // (2026-10-26). git lists every worktree of each repo the scan found.
+  const roots: string[] = [];
+  for (const w of wts) if (!roots.includes(w.root)) roots.push(w.root);
+  for (const root of roots) {
+    let path = "";
+    for (const line of lines(git(root, ["worktree", "list", "--porcelain"]).out)) {
+      if (line.startsWith("worktree ")) path = line.slice("worktree ".length);
+      const branch = line.startsWith("branch refs/heads/") ? line.slice("branch refs/heads/".length) : "";
+      if (branch === "" && !(detached && line === "detached")) continue;
+      const pooled = path.startsWith(`${TREE_ROOT}/`) || path.startsWith(`${HERDR_TREE_ROOT}/`);
+      if (!pooled || seen.has(path) || !existsSync(path)) continue;
+      seen.add(path);
+      wts.push({ repo: basename(root), root, branch, path });
+    }
+  }
   return wts;
 }
 
