@@ -286,7 +286,7 @@ VIMMA_ACTIONS = [
     ("Vimma · otwórz URL ze schowka", "p", "Vimma (normal)"),
     ("Vimma · otwórz URL ze schowka w nowej karcie", "P", "Vimma (normal)"),
     ("Vimma · kliknij link literkami (hint)", "f", "Vimma (normal)"),
-    ("Vimma · link w nowej karcie", "g F", "Vimma (normal)"),
+    ("Vimma · link w nowej karcie (w tle)", "F / g F", "Vimma (normal)"),
     ("Vimma · nowa karta", "t", "Vimma (normal)"),
     ("Vimma · zamknij kartę", "x", "Vimma (normal)"),
     ("Vimma · przywróć zamkniętą kartę", "X", "Vimma (normal)"),
