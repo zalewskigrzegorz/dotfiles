@@ -99,7 +99,7 @@
          (Vimma) through its Bridge on 127.0.0.1:8765. Submits, uploads, captchas
          and tab switches are refused for MCP callers by design. */}}
     "browsentic": {
-      "command": "/opt/homebrew/bin/browsentic",
+      "command": "{{ .chezmoi.homeDir }}/Library/pnpm/bin/browsentic",
       "args": ["mcp"]
     },
     {{- end }}

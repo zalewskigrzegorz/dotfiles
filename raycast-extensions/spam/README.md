@@ -29,11 +29,11 @@ field has focus.
 
 ```bash
 cd ~/raycast-extensions/spam   # chezmoi-applied target
-npm ci
-npm run dev                    # registers it into Raycast; Ctrl+C after it appears
+pnpm install --frozen-lockfile
+pnpm dev                        # registers it into Raycast; Ctrl+C after it appears
 ```
 
-`node_modules` is gitignored, so a fresh machine needs the `npm ci` step above.
+`node_modules` is gitignored, so a fresh machine needs the `pnpm install` step above.
 
 ## Change the catch-all domain
 
