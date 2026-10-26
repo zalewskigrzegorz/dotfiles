@@ -88,3 +88,17 @@ test('the preview closes itself after three minutes', async ($, on) => {
   await clock.advance(MIN)
   expect(closed).toEqual(['shot-pane'])
 })
+
+test('/screen <folder> shows that folder, newest first, at most four', async ($, on) => {
+  mock.clock(on)
+  const listed: string[] = []
+  on('ui.open', () => ({ value: { isPlaced: true as const } }))
+  on('command.register', () => ({ value: { command: 'screen' } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('fs.list', (_, e) => (listed.push(e.path ?? ''), { value: [1, 2, 3, 4, 5].map(n => ({ name: `s${n}.png`, kind: 'file' as const, size: 1, isLink: false, mtimeMs: n })) }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const ran = await $.command.run({ command: 'screen', args: '/c/e2e-42', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 120 } })
+  expect(ran.text).toBe('Podgląd screena otwarty.')
+  expect(listed).toEqual(['/c/e2e-42'])
+})
