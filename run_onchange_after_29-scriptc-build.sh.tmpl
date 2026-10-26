@@ -44,8 +44,6 @@ fi
 if [[ -d "${HOME}/.local/share/mise/shims" ]]; then
   PATH="${HOME}/.local/share/mise/shims:${PATH}"
 fi
-# scriptc is a pnpm global (stage 12).
-PATH="${HOME}/Library/pnpm/bin:${HOME}/.local/share/pnpm/bin:${PATH}"
 
 shopt -s nullglob
 sources=("$SOURCE_DIR"/*.ts)
@@ -57,8 +55,8 @@ fi
 for tool in scriptc clang; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "scriptc build: $tool not on PATH — cannot build ${#sources[@]} source(s)." >&2
-    echo "  Mac:  brew install node pnpm && pnpm add -g --allow-build=scriptc scriptc (stage 12), clang ships with Xcode CLT." >&2
-    echo "  Lab:  brew install node pnpm llvm && pnpm add -g --allow-build=scriptc scriptc." >&2
+    echo "  Mac:  brew install node && npm install -g scriptc (stage 12), clang ships with Xcode CLT." >&2
+    echo "  Lab:  brew install node llvm && npm install -g scriptc." >&2
     exit 1
   fi
 done

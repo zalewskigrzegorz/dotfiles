@@ -1,6 +1,6 @@
 # scriptc — native helpers
 
-[scriptc](https://github.com/vercel-labs/scriptc) (vercel-labs, Apache-2.0, **experimental 0.0.x**) compiles ordinary TypeScript to a standalone native binary — no Node, no V8 in the output. Installed as a pnpm global (`~/Library/pnpm/bin`) by `run_onchange_after_12-npm-globals.sh.tmpl`; needs node 24+ and clang **at build time only**.
+[scriptc](https://github.com/vercel-labs/scriptc) (vercel-labs, Apache-2.0, **experimental 0.0.x**) compiles ordinary TypeScript to a standalone native binary — no Node, no V8 in the output. Installed as an npm global by `run_onchange_after_12-npm-globals.sh.tmpl`; needs node 24+ and clang **at build time only**.
 
 - **Source of truth is `scriptc/<name>.ts`.** Stage 29 compiles each one to `bin/<name>` and mirrors it to `~/bin/<name>`. The binaries are **gitignored** — arch-specific and ~400 KB each, so every machine builds its own. Add a `.gitignore` line per new source.
 - **Output goes to `bin/`, not just `~/bin`,** because `$PATH` has `~/Code/dotfiles/bin` at position 3 and `~/bin` at 20 — the checkout shadows `~/bin` on the Mac.

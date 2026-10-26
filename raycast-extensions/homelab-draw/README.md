@@ -11,11 +11,11 @@ Drives `draw.mrglaszki.com` + `draw-bridge` from Raycast. Replaces the old `draw
 
 ```bash
 cd ~/Code/dotfiles/raycast-extensions/homelab-draw
-pnpm install
-pnpm dev   # registers the extension with Raycast in development mode
+npm install
+npm run dev   # registers the extension with Raycast in development mode
 ```
 
-Leave `pnpm dev` running while you iterate. Once happy, `pnpm build` produces a `dist/` ready for production use; close `dev` and trigger the commands directly from Raycast.
+Leave `npm run dev` running while you iterate. Once happy, `npm run build` produces a `dist/` ready for production use; close `dev` and trigger the commands directly from Raycast.
 
 ## Preferences (Raycast → Extensions)
 

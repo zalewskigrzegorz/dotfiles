@@ -21,10 +21,6 @@ fi
 if [ -d "/home/linuxbrew/.linuxbrew/bin" ]; then
     PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
 fi
-# pnpm global bins (stage 12), same PNPM_HOME as env.nu.tmpl's linux branch.
-if [ -d "$HOME/.local/share/pnpm/bin" ]; then
-    PATH="$HOME/.local/share/pnpm/bin:$PATH"
-fi
 if [ -d "$HOME/.local/bin" ]; then
     PATH="$HOME/.local/bin:$PATH"
 fi
