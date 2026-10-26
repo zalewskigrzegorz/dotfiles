@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { agentProblem, bashProblem, popupProblems } from './register'
+import { agentProblem, ambiguousFirstNames, bareFirstNames, bashProblem, popupProblems } from './register'
 
 const good = {
   question: 'Który mod budujemy?',
@@ -63,4 +63,14 @@ test('a bad popup is denied, then let through after three denies', async ($, on)
   expect(JSON.stringify(fourth)).not.toContain('guard:')
   const clean = await $.tool.call({ tool: 'AskUserQuestion', questions: [good] })
   expect(JSON.stringify(clean)).not.toContain('guard:')
+})
+
+test('a first name several people share is a bare name unless the surname follows', () => {
+  const matrix = '| Full name | GitHub |\n|---|---|\n| Anna Nowak | a |\n| Anna Kowal | b |\n| Roman Lis | r |\n| Roman Bak | s |\n| Alan Turing | t |'
+  const amb = ambiguousFirstNames(matrix)
+  expect([...amb].sort()).toEqual(['anna', 'roman'])
+  expect(bareFirstNames('Odpowiedź dla Romana w wątku', amb)).toEqual(['Romana'])
+  expect(bareFirstNames('Daj znać Romanowi i Annie', amb)).toEqual(['Romanowi', 'Annie'])
+  expect(bareFirstNames('Anna Nowak robi review', amb)).toEqual([])
+  expect(bareFirstNames('Alan robi review, Romantyczny adapter też', amb)).toEqual([])
 })

@@ -52,12 +52,58 @@ export function bashProblem(command: string): string | undefined {
   return undefined
 }
 
+// First names worn by 2+ people in the work-people matrix: alone in a popup they name nobody.
+export function ambiguousFirstNames(markdown: string): Set<string> {
+  const counts = new Map<string, number>()
+  for (const line of markdown.split('\n')) {
+    const name = line.split('|')[1]?.trim() ?? ''
+    if (!name || name === 'Full name' || /^-+$/.test(name)) continue
+    const first = name.split(/\s+/)[0]?.toLowerCase()
+    if (first && first.length >= 3) counts.set(first, (counts.get(first) ?? 0) + 1)
+  }
+  return new Set([...counts].filter(([, n]) => n >= 2).map(([first]) => first))
+}
+
+// A capitalised word that is an ambiguous first name, inflected or not ("Romana",
+// "Romanowi"), with no capitalised surname right after it.
+export function bareFirstNames(text: string, ambiguous: Set<string>): string[] {
+  const words = text.split(/[^\p{L}]+/u).filter(Boolean)
+  const hits: string[] = []
+  words.forEach((w, i) => {
+    if (!/^\p{Lu}/u.test(w)) return
+    // Polish swaps the last vowel (Anna → Anny, Annie), so match on the name without it.
+    const stem = [...ambiguous].find(f => {
+      const root = f.length > 3 ? f.replace(/[aeiouy]$/, '') : f
+      return w.toLowerCase().startsWith(root) && w.length <= f.length + 3
+    })
+    if (stem && !/^\p{Lu}/u.test(words[i + 1] ?? '')) hits.push(w)
+  })
+  return hits
+}
+
+let ambiguous = new Set<string>()
 const denied = new Map<string, number>()
 
 export const register: Register = on => {
+  on('session.start', async ($, e, next) => {
+    // Found by shape, so no org name sits in this public repo.
+    void $.process
+      .run(['find', '/Users/greg/Code/personal/bazgroly', '-maxdepth', '2', '-name', 'people.md'])
+      .then(found => found.stdout.split('\n').find(Boolean))
+      .then(path => (path ? $.fs.read(path) : ''))
+      .then(text => (ambiguous = ambiguousFirstNames(text)))
+      .catch(() => {})
+    return next(e)
+  })
+
   on('tool.call', { tool: 'AskUserQuestion' }, ($, e, next) => {
     const questions = e.questions as Question[]
-    const problems = popupProblems(questions)
+    const texts = questions.flatMap(q => [q.question, ...q.options.flatMap(o => [o.label, o.description ?? ''])])
+    const bare = [...new Set(texts.flatMap(t => bareFirstNames(t, ambiguous)))]
+    const problems = [
+      ...popupProblems(questions),
+      ...(bare.length ? [`bare first name ${bare.join(', ')}: several people share it, write the full name from work-people (coworkers-by-full-name)`] : []),
+    ]
     if (problems.length === 0) return next(e)
     const key = questions.map(q => q.question).join('\n')
     const count = (denied.get(key) ?? 0) + 1
