@@ -288,6 +288,8 @@ VIMMA_ACTIONS = [
     ("Vimma · kliknij link literkami (hint)", "f", "Vimma (normal)"),
     ("Vimma · link w nowej karcie (w tle)", "F / g F", "Vimma (normal)"),
     ("Vimma · nowa karta", "t", "Vimma (normal)"),
+    ("Vimma · poprzednia / następna karta", "H / L", "Vimma (normal)"),
+    ("Vimma · historia wstecz / naprzód", "Ctrl O / Ctrl I", "Vimma (normal)"),
     ("Vimma · zamknij kartę", "x", "Vimma (normal)"),
     ("Vimma · przywróć zamkniętą kartę", "X", "Vimma (normal)"),
     ("Vimma · pisanie w polu / powrót do nawigacji", "i / Esc", "Vimma"),
