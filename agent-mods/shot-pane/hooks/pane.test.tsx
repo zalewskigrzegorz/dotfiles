@@ -40,13 +40,17 @@ test('a screenshot prompt opens the pane on the recent PNGs, newest first', asyn
   await ui.unmount()
 })
 
-test('an ordinary prompt leaves the folder alone', async ($, on) => {
-  mock.clock(on)
+test('an ordinary prompt leaves the folder alone and closes the preview', async ($, on) => {
+  const clock = mock.clock(on)
   let listed = 0
+  const closed: string[] = []
   on('prompt.submit', (_, e) => ({ text: e.text }))
   on('fs.list', () => (listed++, { value: [] }))
+  on('ui.close', (_, e) => (closed.push(e.id), { value: undefined }))
   await $.prompt.submit({ text: 'zrób commit', wait: false, origin: { kind: 'composer' } })
+  await clock.settle()
   expect(listed).toBe(0)
+  expect(closed).toEqual(['shot-pane'])
 })
 
 test('a pane too narrow to seat says how to open it, and /screen opens it', async ($, on) => {
