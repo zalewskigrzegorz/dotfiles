@@ -119,7 +119,9 @@ export const register: Register = on => {
       }),
     )
     const maxColumns = Math.max(10, Math.min(120, (e.props.bodyColumns ?? 60) - 2))
-    const maxRows = Math.max(6, Math.floor(((e.viewport?.rows ?? 30) - 4) / Math.max(1, list.length)) - 1)
+    // The pane's own room, not the window's: inline above the prompt it is far shorter, and a taller image was cut.
+    const room = e.props.scroll?.bodyRows ?? (e.viewport?.rows ?? 30) - 4
+    const maxRows = Math.max(3, Math.floor(room / Math.max(1, list.length)) - 1)
     const boxes = sources.map(src => {
       const size = 'png' in src && src.png ? pngSize(src.png) : undefined
       return size ? fit(size, maxColumns, maxRows) : { columns: maxColumns, rows: maxRows }
