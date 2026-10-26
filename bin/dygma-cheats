@@ -282,6 +282,12 @@ WOOSHY_ACTIONS = [
 # (source: dot_claude/keybindings.json).
 CLAUDE_ACTIONS = [
     ("Claude Code · wyślij kolejkowaną wiadomość teraz", "Ctrl Y", "Claude Code (prompt)"),
+    ("Claude Code · wejdź w band nad promptem", "Esc \\", "Claude Code (normal)"),
+    ("Claude Code · band: poprzedni / następny przycisk", "h / l", "Claude Code (band)"),
+    ("Claude Code · PR: log-failed / screeny e2e / rebase", "f / e / r", "Claude Code (band pr-band)"),
+    ("Claude Code · PR: otwórz / ukryj", "o / x", "Claude Code (band pr-band)"),
+    ("Claude Code · standup / retro / ukryj", "s / b / u", "Claude Code (band nudge-band)"),
+    ("Claude Code · podgląd screena / PR-a", "/screen, /pr", "Claude Code (prompt)"),
 ]
 
 VIMMA_ACTIONS = [
