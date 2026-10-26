@@ -1,6 +1,6 @@
 ---
 name: hyprmac
-description: Greg's tiling window manager HyprMac (replaced AeroSpace 2026-10-25) and his fork of it. Use when a HyprMac shortcut "nie działa" / "Ctrl przestał działać", a window floats, lands on the wrong workspace or monitor, "Arrangement rejected", "Could not hide the current workspace", sketchybar shows stale workspaces, when changing HyprMac keybinds, app pins, names or padding, and when fixing, building, testing or opening PRs from the fork (~/Code/personal/HyprMac). Not for Dygma layout edits (/dygma).
+description: Greg's tiling window manager HyprMac (replaced AeroSpace 2026-10-25) and his fork of it. Use when a HyprMac shortcut "nie działa" / "Ctrl przestał działać", a window floats, lands on the wrong workspace or monitor, "Arrangement rejected", "Could not hide the current workspace", sketchybar shows stale workspaces, when changing HyprMac keybinds, app pins, names or padding, and when fixing, building, testing or opening PRs from the fork (~/Code/personal/HyprMac), and when picking or recommending a keyboard shortcut for any other app (Vimma, Logi Options+, nvim, Dygma), since plain Ctrl chords are HyprMac's. Not for Dygma layout edits (/dygma).
 ---
 
 # HyprMac
@@ -8,6 +8,13 @@ description: Greg's tiling window manager HyprMac (replaced AeroSpace 2026-10-25
 Upstream `zacharytgray/HyprMac` (cask `zacharytgray/hyprmac/hyprmac`). Greg runs **HyprMac Debug**
 built from his fork until his PRs land; open ones are listed in
 `~/Code/personal/bazgroly/dotfiles/notes/2026-10-25-hyprmac-test.md`.
+
+## Choosing a shortcut for another app
+
+Plain `ctrl+…` chords (`ctrl+tab`, `ctrl+1…0`, `ctrl+arrows`) belong to HyprMac.
+For another app propose `cmd+alt+…` (the Chrome tab keys, chosen in `f5f50f6`).
+"Vimma has ctrl+tab by default" got "eee ctrl tab to chyba workspace zmienia w
+HyprMac" (7c37679b).
 
 ## Config: merge, never overwrite
 

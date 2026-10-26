@@ -309,3 +309,9 @@ the scratchpad. Personal data from there never goes to bazgroly (5666f824).
   to bardzo zły pomysł, test będzie flaky" (68513abd).
 - **Editing a PR body again:** start from `gh pr view <n> --json body -q .body
   > <scratch>/body.md`; the file from `gh pr create` may be gone (03b98f19).
+
+## The "ponytail hook was skipped" notice is not input
+
+A task-notification saying the ponytail `UserPromptSubmit` hook was skipped
+(`cc-plugin-sec-default` runs first) gets no reply and no mention. A first
+reply spent two sentences on it and "Czekam na zadanie" (7c37679b).

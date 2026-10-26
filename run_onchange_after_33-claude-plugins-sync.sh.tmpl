@@ -45,7 +45,8 @@ desired_plugins = set(cfg.get("plugins") or [])
 
 def parse_listing(stdout: str) -> set[str]:
     # Both `claude plugin list` and `... marketplace list` prefix each entry with "❯ <name>".
-    return set(re.findall(r"^\s*❯\s+(\S+)", stdout, flags=re.MULTILINE))
+    # claude.ai-only entries read "❯ (no CLI name) …" and have nothing to add or remove.
+    return set(re.findall(r"^\s*❯\s+([^\s(]\S*)", stdout, flags=re.MULTILINE))
 
 # 1. Add marketplaces (skip if already known).
 known = parse_listing(subprocess.run(
@@ -94,6 +95,9 @@ for plugin in desired_plugins:
 
 # 3. Uninstall plugins no longer in the manifest.
 for plugin in installed - desired_plugins:
+    # Synced from the claude.ai account: only claude.ai can remove it.
+    if plugin.endswith("@synced"):
+        continue
     r = subprocess.run(
         ["claude", "plugin", "uninstall", plugin],
         capture_output=True, text=True,
