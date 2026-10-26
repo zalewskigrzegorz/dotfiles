@@ -587,6 +587,8 @@
     "command": "{{ .chezmoi.homeDir }}/.claude/statusline.sh"
   },
   "enabledPlugins": {
+    "cc-plugin-mermaid@builtin": true,
+    "cc-plugin-responsive-mode@builtin": true,
     "cc-plugin-you-should-know@builtin": true,
     "code-review@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
