@@ -1,11 +1,22 @@
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
 
 const PANE = 'shot-pane'
 const DIR = '/Users/greg/Library/CloudStorage/GoogleDrive-maksim009@gmail.com/My Drive/Screenshots'
 // Image bytes cap is 2 MiB decoded.
 const MAX_B64 = Math.floor((2 * 1024 * 1024 * 4) / 3)
 const shots = atom({ plugin: 'shot-pane', key: 'shots' } as const, [])
+const THUMBS = '/private/tmp/shot-pane'
+
+// herdr drops kitty images past ~6 M decoded pixels without a word, a 3024 px Retina shot included.
+async function thumbOf($: EngineInterface, path: string): Promise<string> {
+  const out = `${THUMBS}/${path.split('/').pop()}`
+  const isMade = await $.fs.stat(out).then(s => s.kind === 'file', () => false)
+  if (isMade) return out
+  await $.process.run(['mkdir', '-p', THUMBS]).catch(() => null)
+  const ran = await $.process.run(['sips', '-Z', '1600', path, '--out', out]).catch(() => null)
+  return ran?.exitCode === 0 ? out : path
+}
 
 // Same trigger as hooks/screenshot-attach.sh, on the prompt's head only.
 export const TRIGGER = /(^|[^\p{L}\p{N}])(screen(y|a|ie|em|ów|ik|shot\p{L}*)?|scr|ss|zrzut\p{L}*)([^\p{L}\p{N}]|$)/iu
@@ -58,7 +69,7 @@ export const register: Register = on => {
     // Bytes, not the file name: a multiplexer (herdr, tmux) passes kitty bytes on, a name it may not.
     const sources = await Promise.all(
       list.map(async path => {
-        const { base64 } = await $.fs.read(path, { as: 'bytes' }).catch(() => ({ base64: '' }))
+        const { base64 } = await $.fs.read(await thumbOf($, path), { as: 'bytes' }).catch(() => ({ base64: '' }))
         return base64 && base64.length <= MAX_B64 ? { png: base64 } : { file: path, format: 'png' as const }
       }),
     )
