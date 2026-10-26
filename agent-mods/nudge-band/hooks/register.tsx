@@ -53,11 +53,11 @@ export const register: Register = on => {
       <Box flexDirection="column">
         <Box>
           {now.standup > 0 && (
-            <Button key="standup" label={`standup (${now.standup})`} onPress={run('g-standup')} />
+            <Button key="standup" plain hotkey="s" label={`standup (${now.standup})`} onPress={run('g-standup')} />
           )}
-          {now.retro > 0 && <Button key="retro" label={`retro (${now.retro})`} onPress={run('retro-backlog')} />}
+          {now.retro > 0 && <Button key="retro" plain hotkey="b" label={`retro (${now.retro})`} onPress={run('retro-backlog')} />}
           <Text> </Text>
-          <Button key="hide" label="ukryj" onPress={() => update($, hiddenAt, () => countsOf(now))} />
+          <Button key="hide" plain hotkey="u" label="ukryj" onPress={() => update($, hiddenAt, () => countsOf(now))} />
         </Box>
         {below}
       </Box>
