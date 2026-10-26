@@ -76,14 +76,23 @@ export const register: Register = on => {
   })
 
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'screen', description: 'Show the latest CleanShot screenshot in a pane' })
+    await $.command.register({ name: 'screen', description: 'Show the latest CleanShot screenshot, or a folder of PNGs, in a pane', argumentHint: '[folder]' })
     // Thumbnails older than a day go: they are only previews of the Drive originals.
     void $.process.run(['find', THUMBS, '-type', 'f', '-name', '*.png', '-mtime', '+0', '-delete']).catch(() => null)
     return next(e)
   })
 
-  on('command.run', { command: 'screen' }, async $ => {
-    if ((await read($, shots)).length === 0) {
+  on('command.run', { command: 'screen' }, async ($, e) => {
+    // `/screen <folder>` shows that folder's PNGs (pr-band hands over e2e failure shots this way).
+    const folder = e.args.trim()
+    if (folder) {
+      const pngs = (await $.fs.list(folder).catch(() => []))
+        .filter(f => f.kind === 'file' && /\.png$/i.test(f.name))
+        .sort((a, b) => b.mtimeMs - a.mtimeMs)
+        .slice(0, 4)
+      if (pngs.length === 0) return { text: `Brak PNG w ${folder}.` }
+      await update($, shots, () => pngs.map(f => `${folder}/${f.name}`))
+    } else if ((await read($, shots)).length === 0) {
       const newest = (await $.fs.list(DIR))
         .filter(f => f.kind === 'file' && /\.png$/i.test(f.name))
         .sort((a, b) => b.mtimeMs - a.mtimeMs)[0]
