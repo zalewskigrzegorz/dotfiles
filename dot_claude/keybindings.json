@@ -19,6 +19,7 @@
         "ctrl+l": "chat:clearInput",
         "cmd+k": "chat:clearScreen",
         "ctrl+x ctrl+k": "chat:killAgents",
+        "ctrl+x ctrl+r": "command:rewind",
         "shift+tab": "chat:cycleMode",
         "meta+p": "chat:modelPicker",
         "meta+o": "chat:fastMode",
