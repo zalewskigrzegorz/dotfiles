@@ -43,6 +43,33 @@ test('chips run the commands, hide keeps what is beneath', async ($, on) => {
   await ui.unmount()
 })
 
+test('a hidden band comes back when the counts change', async ($, on) => {
+  const clock = mock.clock(on)
+  let retro = 'retro-pending: 8 session(s) in 3 repo(s)'
+  on('process.run', (_, e) => ({
+    value: { exitCode: 0, stderr: '', isStdoutTruncated: false, isStderrTruncated: false, stdout: e.argv.join(' ').includes('standup') ? '' : retro },
+  }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('session.id', () => ({ value: 's1' }))
+  on('session.cwd', () => ({ value: '/' }))
+  on('turn.complete', (_, e) => ({ text: e.answer }))
+  on('ui.render', ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return <Text>beneath</Text>
+  })
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  await ui.press({ key: 'hide' })
+  expect(await ui.find({ type: 'Button', key: 'retro' })).toBeUndefined()
+
+  retro = 'retro-pending: 9 session(s) in 3 repo(s)'
+  await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
+  await clock.settle()
+  expect((await ui.find({ type: 'Button', key: 'retro' }))?.text).toContain('retro (9)')
+  await ui.unmount()
+})
+
 test('the chip goes at the end of the turn that sent the standup', async ($, on) => {
   const clock = mock.clock(on)
   let standup = 'standup-pending: 13 work task(s) logged since the last standup'

@@ -4,7 +4,9 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { Nudges } from '../types'
 
 const nudges = atom({ plugin: 'nudge-band', key: 'nudges' } as const, { standup: 0, retro: 0 })
-const isHidden = atom({ plugin: 'nudge-band', key: 'isHidden' } as const, false)
+// Hidden for one set of counts: a new standup or retro brings the band back.
+const hiddenAt = atom({ plugin: 'nudge-band', key: 'hiddenAt' } as const, null)
+const countsOf = (n: Nudges) => `${n.standup}/${n.retro}`
 
 const POLL_MS = 5 * 60_000
 
@@ -40,7 +42,7 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const now = await read($, nudges)
-    if (e.props.hasSurvey || (now.standup === 0 && now.retro === 0) || (await read($, isHidden))) return next(e)
+    if (e.props.hasSurvey || (now.standup === 0 && now.retro === 0) || (await read($, hiddenAt)) === countsOf(now)) return next(e)
 
     const { Box, Button, Text } = $.ui.resolve(e)
     const run = (command: string) => () => void $.command.run({ command, args: '' })
@@ -55,7 +57,7 @@ export const register: Register = on => {
           )}
           {now.retro > 0 && <Button key="retro" hotkey="b" label={`retro (${now.retro})`} onPress={run('retro-backlog')} />}
           <Text> </Text>
-          <Button key="hide" hotkey="u" label="ukryj" onPress={() => update($, isHidden, () => true)} />
+          <Button key="hide" hotkey="u" label="ukryj" onPress={() => update($, hiddenAt, () => countsOf(now))} />
         </Box>
         {below}
       </Box>

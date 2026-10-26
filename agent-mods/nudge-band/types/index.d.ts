@@ -2,6 +2,6 @@ export type Nudges = { standup: number; retro: number }
 
 declare module 'claude-code' {
   interface PluginState {
-    'nudge-band': { nudges: Nudges; isHidden: boolean }
+    'nudge-band': { nudges: Nudges; hiddenAt: string | null }
   }
 }
