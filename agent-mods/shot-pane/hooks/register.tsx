@@ -21,10 +21,29 @@ export const register: Register = on => {
         const picked = (recent.length > 0 ? recent : pngs.slice(0, 1)).map(f => `${DIR}/${f.name}`)
         if (picked.length === 0) return
         await update($, shots, () => picked)
-        await $.ui.open({ id: PANE, title: 'Screen' })
+        // An unasked pane seats only from 144 columns; below that it waits undrawn.
+        const opened = await $.ui.open({ id: PANE, title: 'Screen' })
+        if (!opened.isPlaced) $.ui.toast('Screen gotowy: /screen otwiera podgląd')
       })().catch(() => {})
     }
     return next(e)
+  })
+
+  on('session.start', async ($, e, next) => {
+    await $.command.register({ name: 'screen', description: 'Show the latest CleanShot screenshot in a pane' })
+    return next(e)
+  })
+
+  on('command.run', { command: 'screen' }, async $ => {
+    if ((await read($, shots)).length === 0) {
+      const newest = (await $.fs.list(DIR))
+        .filter(f => f.kind === 'file' && /\.png$/i.test(f.name))
+        .sort((a, b) => b.mtimeMs - a.mtimeMs)[0]
+      if (!newest) return { text: 'Brak screenów w folderze CleanShota.' }
+      await update($, shots, () => [`${DIR}/${newest.name}`])
+    }
+    await $.ui.open({ id: PANE, title: 'Screen' })
+    return { text: 'Podgląd screena otwarty.' }
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {

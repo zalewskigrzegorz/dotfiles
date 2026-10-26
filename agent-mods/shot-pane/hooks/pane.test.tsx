@@ -40,3 +40,24 @@ test('an ordinary prompt leaves the folder alone', async ($, on) => {
   await $.prompt.submit({ text: 'zrób commit', wait: false, origin: { kind: 'composer' } })
   expect(listed).toBe(0)
 })
+
+test('a pane too narrow to seat says how to open it, and /screen opens it', async ($, on) => {
+  const clock = mock.clock(on, { now: 100 * MIN })
+  const toasts: string[] = []
+  let opened = 0
+  on('ui.open', () => (opened++, { value: opened > 1 ? { isPlaced: true as const } : { isPlaced: false as const, reason: 'narrow' } }))
+  on('ui.toast', (_, e) => (toasts.push(e.text), { value: undefined }))
+  on('prompt.submit', (_, e) => ({ text: e.text }))
+  on('command.register', () => ({ value: { command: 'screen' } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('fs.list', () => ({ value: [{ name: 'new.png', kind: 'file', size: 1, isLink: false, mtimeMs: 99 * MIN }] }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  await $.prompt.submit({ text: 'scr', wait: false, origin: { kind: 'composer' } })
+  await clock.settle()
+  expect(toasts).toEqual(['Screen gotowy: /screen otwiera podgląd'])
+
+  const ran = await $.command.run({ command: 'screen', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 120 } })
+  expect(ran.text).toBe('Podgląd screena otwarty.')
+  expect(opened).toBe(2)
+})
