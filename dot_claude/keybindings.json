@@ -23,6 +23,7 @@
         "shift+tab": "chat:cycleMode",
         "meta+p": "chat:modelPicker",
         "meta+o": "chat:fastMode",
+        "meta+b": "abovePrompt:focus",
         "meta+t": "chat:thinkingToggle",
         "enter": "chat:submit",
         "ctrl+j": "chat:newline",
