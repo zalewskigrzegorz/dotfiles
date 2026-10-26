@@ -12,6 +12,8 @@ test('a screenshot prompt opens the pane on the recent PNGs, newest first', asyn
   const clock = mock.clock(on, { now: 100 * MIN })
   let opened = 0
   on('ui.open', () => (opened++, { value: { isPlaced: true } }))
+  const read: string[] = []
+  on('fs.read', (_, e) => (read.push(e.path), { value: { base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' } }))
   on('prompt.submit', (_, e) => ({ text: e.text }))
   on('fs.list', () => ({
     value: [
@@ -29,6 +31,7 @@ test('a screenshot prompt opens the pane on the recent PNGs, newest first', asyn
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   const names = (await ui.findAll({ type: 'Text' })).map(t => t.text)
   expect(names).toEqual(['new.png', 'mid.png'])
+  expect(read.map(p => p.split('/').pop())).toEqual(['new.png', 'mid.png'])
   await ui.unmount()
 })
 

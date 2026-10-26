@@ -3,6 +3,8 @@ import type { Register } from 'claude-code'
 
 const PANE = 'shot-pane'
 const DIR = '/Users/greg/Library/CloudStorage/GoogleDrive-maksim009@gmail.com/My Drive/Screenshots'
+// Image bytes cap is 2 MiB decoded.
+const MAX_B64 = Math.floor((2 * 1024 * 1024 * 4) / 3)
 const shots = atom({ plugin: 'shot-pane', key: 'shots' } as const, [])
 
 // Same trigger as hooks/screenshot-attach.sh, on the prompt's head only.
@@ -53,15 +55,22 @@ export const register: Register = on => {
       return <Text>{list.map(p => p.split('/').pop()).join('\n')}</Text>
     }
     const { Box, Image, Text } = $.ui.resolve(e)
+    // Bytes, not the file name: a multiplexer (herdr, tmux) passes kitty bytes on, a name it may not.
+    const sources = await Promise.all(
+      list.map(async path => {
+        const { base64 } = await $.fs.read(path, { as: 'bytes' }).catch(() => ({ base64: '' }))
+        return base64 && base64.length <= MAX_B64 ? { png: base64 } : { file: path, format: 'png' as const }
+      }),
+    )
     const columns = Math.max(10, Math.min(120, (e.props.bodyColumns ?? 60) - 2))
     const rows = Math.max(6, Math.floor(((e.viewport?.rows ?? 30) - 4) / Math.max(1, list.length)) - 1)
 
     return (
       <Box flexDirection="column">
-        {list.map(path => (
+        {list.map((path, i) => (
           <Box key={path} flexDirection="column">
             <Text dimColor>{path.split('/').pop()}</Text>
-            <Image key={path} source={{ file: path, format: 'png' }} columns={columns} rows={rows} alt={path.split('/').pop() ?? ' '} />
+            <Image key={path} source={sources[i] ?? { file: path, format: 'png' }} columns={columns} rows={rows} alt={path.split('/').pop() ?? ' '} />
           </Box>
         ))}
       </Box>
