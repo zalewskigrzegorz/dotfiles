@@ -141,7 +141,8 @@ goto_picker = ["prefix+g", "prefix+t"]
 # "<Esc>" = "page.stop"
 # "r" = "page.reload"
 # "f" = "hint.follow"
-# "F" = "hint.element"
+# Vimium parity: F opens the link in a new background tab
+"F" = "hint.follow_new_tab"
 # "gF" = "hint.follow_new_tab"
 # "/" = "find.forward"
 # "?" = "find.backward"
