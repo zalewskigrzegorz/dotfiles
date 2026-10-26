@@ -1,0 +1,16 @@
+{
+  "name": "greg-mods",
+  "owner": {
+    "name": "Grzegorz Zalewski"
+  },
+  "metadata": {
+    "description": "Claude Code mods kept in dotfiles."
+  },
+  "plugins": [
+    {
+      "name": "guard",
+      "source": "./guard",
+      "description": "Turns checkable rules from agent-rules into tool.call denies: popup hygiene, agent spawns, worktrees, a few Bash traps."
+    }
+  ]
+}

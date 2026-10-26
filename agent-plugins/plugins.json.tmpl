@@ -11,6 +11,9 @@
     "netresearch-claude-code-marketplace": {
       "source": "github",
       "repo": "netresearch/claude-code-marketplace"
+    },
+    "greg-mods": {
+      "path": "{{ .chezmoi.sourceDir }}/agent-mods"
     }
   },
   "plugins": [
@@ -22,6 +25,7 @@
     "security-guidance@claude-plugins-official",
     "feature-dev@claude-plugins-official",
     "ponytail@ponytail",
-    "retro@netresearch-claude-code-marketplace"
+    "retro@netresearch-claude-code-marketplace",
+    "guard@greg-mods"
   ]
 }

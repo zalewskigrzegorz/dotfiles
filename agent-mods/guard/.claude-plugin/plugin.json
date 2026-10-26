@@ -1,0 +1,5 @@
+{
+  "name": "guard",
+  "version": "0.1.0",
+  "description": "Turns checkable rules from agent-rules into tool.call denies: popup hygiene, agent spawns, worktrees, a few Bash traps."
+}
