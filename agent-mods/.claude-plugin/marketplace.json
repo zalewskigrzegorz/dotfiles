@@ -16,6 +16,36 @@
       "name": "pr-band",
       "source": "./pr-band",
       "description": "Band above the prompt with the current branch's PR checks and merge state; toast and sound when the checks finish."
+    },
+    {
+      "name": "popup-ping",
+      "source": "./popup-ping",
+      "description": "Re-notifies with a sound every 5 min while an AskUserQuestion popup waits unanswered."
+    },
+    {
+      "name": "nudge-band",
+      "source": "./nudge-band",
+      "description": "Band above the prompt with clickable standup and retro reminders instead of SessionStart text."
+    },
+    {
+      "name": "auto-recall",
+      "source": "./auto-recall",
+      "description": "On prompts like 'wróćmy do' or 'kontynuuj', attaches a capped Hindsight recall as context."
+    },
+    {
+      "name": "agent-board",
+      "source": "./agent-board",
+      "description": "Pane listing the session's subagents with status, model and age, and a button to view each."
+    },
+    {
+      "name": "shot-pane",
+      "source": "./shot-pane",
+      "description": "When a prompt mentions a screenshot, shows the newest CleanShot PNG in a pane."
+    },
+    {
+      "name": "remember",
+      "source": "./remember",
+      "description": "/zapamietaj saves the given text or the mouse selection to Hindsight."
     }
   ]
 }

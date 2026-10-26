@@ -1,0 +1,1 @@
+{ "name": "nudge-band", "version": "0.1.0", "description": "Band above the prompt with clickable standup and retro reminders instead of SessionStart text.", "types": "./types/index.d.ts" }
