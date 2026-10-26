@@ -250,6 +250,13 @@
       }
     },
     {
+      "context": "AbovePrompt",
+      "bindings": {
+        "h": "abovePrompt:previous",
+        "l": "abovePrompt:next"
+      }
+    },
+    {
       "context": "Plugin",
       "bindings": {
         "space": "plugin:toggle",
