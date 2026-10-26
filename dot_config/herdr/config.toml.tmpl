@@ -8,6 +8,8 @@ onboarding = false
 default_shell = "{{ if eq .chezmoi.os "darwin" }}/opt/homebrew/bin/nu{{ else }}/home/linuxbrew/.linuxbrew/bin/nu{{ end }}"
 shell_mode = "auto"
 new_cwd = "follow"
+# Pass kitty images on to Ghostty (Claude Code shot-pane previews). Needs a server restart.
+kitty_graphics = true
 
 [theme]
 name = "catppuccin"

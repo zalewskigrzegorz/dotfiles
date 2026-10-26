@@ -12,6 +12,9 @@ test('a screenshot prompt opens the pane on the recent PNGs, newest first', asyn
   const clock = mock.clock(on, { now: 100 * MIN })
   let opened = 0
   on('ui.open', () => (opened++, { value: { isPlaced: true } }))
+  const resized: string[] = []
+  on('fs.stat', () => ({ value: { kind: 'other' as const, size: 0, mtimeMs: 0, isLink: false } }))
+  on('process.run', (_, e) => (e.argv[0] === 'sips' && resized.push(String(e.argv[3]).split('/').pop() ?? ''), { value: { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
   const read: string[] = []
   on('fs.read', (_, e) => (read.push(e.path), { value: { base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' } }))
   on('prompt.submit', (_, e) => ({ text: e.text }))
@@ -32,6 +35,8 @@ test('a screenshot prompt opens the pane on the recent PNGs, newest first', asyn
   const names = (await ui.findAll({ type: 'Text' })).map(t => t.text)
   expect(names).toEqual(['new.png', 'mid.png'])
   expect(read.map(p => p.split('/').pop())).toEqual(['new.png', 'mid.png'])
+  expect(resized).toEqual(['new.png', 'mid.png'])
+  expect(read.every(p => p.startsWith('/private/tmp/shot-pane/'))).toBe(true)
   await ui.unmount()
 })
 
