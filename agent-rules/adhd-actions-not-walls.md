@@ -80,7 +80,14 @@ About 15 popups were rejected in one week. Every one broke one of these:
   mean ("rozumiem: przyłącze = gniazdo wallboxa w garażu"), then the result. A
   popup comes only after that. "Przyłącze siły" read as the house connection
   produced two rejected popups in a row (1734eed7). A "clarify" there means the
-  reading was wrong: restate it, don't re-ask the fork.
+  reading was wrong: restate it, don't re-ask the fork. Two more shapes:
+  "zobaczysz <link do wątku review / issue>" → read that comment within the
+  first two tool calls and say in one sentence what it asks and on which
+  database, before the long research ("o co wogole chodzi?" after ~25 silent
+  calls, 02c6f9fd). "Czy X może być przydatne dla mnie / na labie" → one
+  `recall(max_tokens=512)` on his stack (lab services, Tina) before naming a
+  use case, then the reading in one line, then the verdict (fda7a24d: Laya
+  judged for Firefly, he meant Tina).
 - **No approve/send/do-it on something he has not read.** A new idea, a plan,
   a snippet, a reply to a reviewer: explain it in plain paragraphs, end the
   turn, and only then offer the popup. A question that fires right after the
@@ -126,6 +133,11 @@ About 15 popups were rejected in one week. Every one broke one of these:
 - A "co dalej?" gets a next-action line within the first few tool calls, not a
   90-call silent run that ends in a popup.
 - Reviewers already assigned by CODEOWNERS → report them in one line, no popup.
+- **"Co trzeba zrobić żeby X", "jak to wdrożyć"** asks for a checklist:
+  numbered steps, in the order the thread or meeting notes behind it set (read
+  them first). A merge or deploy popup only after his "kk" on the list. "Merguj
+  + pilnuj e2e (Recommended)" got "nie nie merdzujemy jeszcze, trzeba
+  zaktualizować w bazie najpierw" (a656141a).
 - **A PR just opened in the flow he chose** → one status line with the link,
   no "co dalej z PR #n". Speak again when checks finish (28875263).
 - **"odpal to", "pokaż na żywo"** is a command, not a fork. Check what is free

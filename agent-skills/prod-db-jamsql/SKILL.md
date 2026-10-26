@@ -29,10 +29,16 @@ The tunnel closes when idle, so it is opened last (2264f7b9: three rounds,
 zero queries).
 
 1. `connections_list` and `ui_list_tabs` first. `AI connection control is
-   disabled` or `No browser window available` is Greg's step: Settings → AI
-   Integrations → allow AI to connect with saved connections, and a Jam SQL
-   window open. Ask once, one numbered step.
-2. After his "kk": tunnel, `connections_connect`, read-only query, in one go.
+   disabled` is the intended state: **Greg connects himself** ("nie ja bede sam
+   przelaczal tak jest bezpieczniej", 02c6f9fd). Don't ask him to allow AI
+   connect, and never call `connections_connect` or `query_get_results`
+   (`Share results is disabled` too). Ask once for the connection open in a
+   Jam SQL window. `ECONNREFUSED` from `ToolSearch +jamsql` means the app is
+   closed: he opens it, then `/mcp` → jamsql → Reconnect.
+2. After his "kk": tunnel region via `ps`/`lsof` and one `select
+   inet_server_addr()` on his `connectionId`, then read-only queries on it.
+   The result of a step he ran in a tab is read back with `query_execute` on
+   the same connection.
 3. Still failing with the tunnel up → `nc -z localhost <port>` once, then say
    what blocks on the Jam SQL side. No `connections_connect` loop.
 
@@ -53,6 +59,18 @@ mi tego dodać?" (df44b632). Open it with `ui_open_tab` (`initialSql`, the
 region's `connectionId`, "one statement at a time" as a SQL comment), never
 `ui_execute_query`. In chat one line: region, tab title, expected row count.
 After his "poszło", a read-only check on the same connection.
+
+## A write the agent runs, Greg approves in Jam SQL
+
+Under "write with approval" each `UPDATE` raises an approval window. Four sent
+in parallel raised four at once and three came back "Write query was denied
+by the user"; 2 of 5 certificates landed (a656141a).
+
+- Before the first write, one line: "zaraz N okien zatwierdzenia, po jednym,
+  region X, tabela Y".
+- One write `query_execute` per turn, never in parallel. Wait for its result.
+- "Write query was denied" means not run. After the series, a read-only check
+  of every row on the same connection, never an assumption.
 
 ## When it breaks
 

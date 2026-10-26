@@ -55,6 +55,15 @@ instructions.
   Browsentic → **Inspect** → Console, look for `ws://127.0.0.1:8765`.
 - Logs: `browsentic logs` (same as `~/.browsentic/daemon.log`).
 
+## A bar on the page that does nothing when clicked
+
+That is Browsentic's "rail": it shows after the side panel was minimized
+(flag `browsentic/panelCollapsed`). A click does nothing because
+`sidebarAction.open()` runs from a background message and Firefox wants a
+direct user gesture (the extension swallows the error). `Alt+Shift+B` or the
+toolbar icon opens the panel and the rail goes; nothing hides it for good.
+Read from the extension code, not tested in the browser (56251e09, ~19 calls).
+
 ## New Mac
 
 `browsentic` comes from `run_onchange_after_12-npm-globals.sh.tmpl`. Once:
