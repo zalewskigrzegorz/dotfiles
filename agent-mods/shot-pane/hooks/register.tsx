@@ -59,6 +59,9 @@ export const register: Register = on => {
         const opened = await $.ui.open({ id: PANE, title: 'Screen' })
         if (!opened.isPlaced) $.ui.toast('Screen gotowy: /screen otwiera podgląd')
       })().catch(() => {})
+    } else if (!e.command && !e.isMeta) {
+      // The talk moved on: the preview goes with the next prompt that names no screenshot.
+      void $.ui.close({ id: PANE }).catch(() => {})
     }
     return next(e)
   })
