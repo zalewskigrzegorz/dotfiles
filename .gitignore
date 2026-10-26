@@ -51,6 +51,8 @@ authorized_keys*
 *secret*
 !docs/secrets.md
 *token*
+!agent-mods/token-weather/
+!agent-mods/token-weather/**
 *password*
 .config/nushell/autoload/private.nu
 dot_config/nushell/autoload/private.nu
