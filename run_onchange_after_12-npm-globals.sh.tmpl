@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs global npm-registry CLI tools through pnpm (never npm) that have no homebrew formula or where the brew
+# Installs npm-global CLI tools that have no homebrew formula or where the brew
 # version lags upstream. Re-runs whenever this script's content changes (so
 # editing the `tools` array below triggers reinstall on next `chezmoi apply`).
 set -euo pipefail
@@ -11,18 +11,10 @@ elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi
 
-if ! command -v pnpm >/dev/null 2>&1; then
-  echo "pnpm not found; skipping npm-globals install" >&2
+if ! command -v npm >/dev/null 2>&1; then
+  echo "npm not found; skipping npm-globals install" >&2
   exit 0
 fi
-
-# Same PNPM_HOME as env.nu.tmpl; pnpm refuses `add -g` unless its bin dir is on PATH.
-{{- if eq .chezmoi.os "darwin" }}
-export PNPM_HOME="$HOME/Library/pnpm"
-{{- else }}
-export PNPM_HOME="$HOME/.local/share/pnpm"
-{{- end }}
-export PATH="$PNPM_HOME/bin:$PATH"
 
 # Skill-driven tools the agents depend on. See agent-skills/<name>/SKILL.md for
 # why each one is here. Keep this list short — npm globals rot fast.
@@ -41,7 +33,6 @@ tools=(
 )
 
 for tool in "${tools[@]}"; do
-  echo "pnpm add -g $tool"
-  # scriptc fetches its native binary and tsx's esbuild its platform build in postinstall.
-  pnpm add -g --silent --allow-build=scriptc --allow-build=esbuild "$tool"
+  echo "npm install -g $tool"
+  npm install -g --silent "$tool"
 done

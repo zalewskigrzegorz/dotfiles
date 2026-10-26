@@ -510,7 +510,8 @@ function bootstrapCommand(root: string): string {
   if (existsSync(join(root, "pnpm-lock.yaml"))) steps.push("pnpm install");
   else if (existsSync(join(root, "bun.lockb")) || existsSync(join(root, "bun.lock"))) steps.push("bun install");
   else if (existsSync(join(root, "yarn.lock"))) steps.push("yarn install");
-  else if (existsSync(join(root, "package.json"))) steps.push("pnpm install");
+  else if (existsSync(join(root, "package-lock.json"))) steps.push("npm ci");
+  else if (existsSync(join(root, "package.json"))) steps.push("npm install");
   // Typed into the new tab's shell, which is nushell: `&&` is a parse error
   // there, so hand the chain to sh as one shell-agnostic command.
   return steps.length === 0 ? "" : `sh -c ${shq(steps.join(" && "))}`;
