@@ -47,6 +47,26 @@ defaults write com.lowtechguys.Clop copyConsecutiveClipboardImages -bool false
 
 # kindaVim enters normal mode on Esc, like nvim, Vimma, nushell and Claude Code. Read on its next launch.
 defaults write mo.com.sleeplessmind.kindaVim enterNormalModeWith -string escape
+# Off for apps with a vim of their own: Esc there belongs to Claude Code's vim mode and Vimma.
+defaults write mo.com.sleeplessmind.kindaVim appsToIgnore -string '["dev.vimma.browser","com.mitchellh.ghostty"]'
+defaults write mo.com.sleeplessmind.kindaVim KeyboardShortcuts_enterNormalMode -string '{"carbonModifiers":4096,"carbonKeyCode":33}'
+defaults write mo.com.sleeplessmind.kindaVim sequenceCharacters -string jk
+defaults write mo.com.sleeplessmind.kindaVim showCharactersWindow -bool true
+defaults write mo.com.sleeplessmind.kindaVim charactersWindowContent -string mode
+defaults write mo.com.sleeplessmind.kindaVim charactersWindowPosition -string aboveCaret
+
+# Wooshy: toggle shortcut and look. Input coordinates stay out: they follow the monitor layout.
+defaults write mo.com.sleeplessmind.Wooshy KeyboardShortcuts_toggleWith -string '{"carbonModifiers":4352,"carbonKeyCode":44}'
+defaults write mo.com.sleeplessmind.Wooshy hazeOverWindowOpacity -float 0.479159
+defaults write mo.com.sleeplessmind.Wooshy hazeOverWindowStyle -string fadeOutWholeScreen
+defaults write mo.com.sleeplessmind.Wooshy inputBackgroundOpacity -float 0.9
+defaults write mo.com.sleeplessmind.Wooshy inputBorderThickness -float 2
+defaults write mo.com.sleeplessmind.Wooshy inputCornerRadius -float 9
+defaults write mo.com.sleeplessmind.Wooshy inputPosition -string aboveInput
+defaults write mo.com.sleeplessmind.Wooshy inputPreset -string wooshy
+defaults write mo.com.sleeplessmind.Wooshy inputTextSize -float 16
+defaults write mo.com.sleeplessmind.Wooshy targetsBorderStyle -string macOS26
+defaults write mo.com.sleeplessmind.Wooshy targetsColor -string gsFlamboyantFuchsia
 
 killall Dock Finder SystemUIServer 2>/dev/null || true
 
