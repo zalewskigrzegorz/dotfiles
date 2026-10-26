@@ -3,8 +3,8 @@
 # PreToolUse on mcp__hindsight__retain / sync_retain.
 # Auto-injects metadata.project from git root basename, PWD basename, or "_global".
 #
-# Reads PreToolUse JSON on stdin, prints (possibly modified) JSON on stdout.
-# If modification fails or wrong tool, passes input through untouched.
+# Reads PreToolUse JSON on stdin, prints hookSpecificOutput.updatedInput on stdout.
+# If modification fails or wrong tool, prints nothing (input runs untouched).
 # Always exits 0.
 
 set -uo pipefail
@@ -12,34 +12,38 @@ set -uo pipefail
 LOG="$HOME/.claude/hindsight-tag.log"
 
 # Ensure jq exists; otherwise pass-through.
-command -v jq >/dev/null 2>&1 || { cat; exit 0; }
+command -v jq >/dev/null 2>&1 || exit 0
 
 input=$(cat)
 tool_name=$(printf '%s' "$input" | jq -r '.tool_name // empty' 2>/dev/null)
 
 case "$tool_name" in
   mcp__hindsight__retain|mcp__hindsight__sync_retain) ;;
-  *)
-    printf '%s' "$input"
-    exit 0
-    ;;
+  *) exit 0 ;;
 esac
 
-# Resolve project tag: git root basename → PWD basename → _global.
+# Resolve project tag: main repo basename (shared by all its worktrees) → PWD basename → _global.
 cwd=$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null)
 [ -z "$cwd" ] && cwd="$PWD"
-project=$(cd "$cwd" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null | xargs -I{} basename {} 2>/dev/null)
+project=""
+common=$(git -C "$cwd" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+[ -n "$common" ] && project=$(basename "$(dirname "$common")")
 [ -z "$project" ] && project=$(basename "$cwd" 2>/dev/null)
 [ -z "$project" ] && project="_global"
 
-# Inject metadata.project if not already set.
-modified=$(printf '%s' "$input" | jq --arg p "$project" '
-  .tool_input.metadata = ((.tool_input.metadata // {}) | (.project //= $p))
+# Inject metadata.project if not already set. Claude Code applies only
+# hookSpecificOutput.updatedInput; echoing the input back changed nothing.
+# "allow" is neutral here: mcp__hindsight__* is already in permissions.allow.
+modified=$(printf '%s' "$input" | jq -c --arg p "$project" '
+  {hookSpecificOutput: {
+    hookEventName: "PreToolUse",
+    permissionDecision: "allow",
+    updatedInput: (.tool_input | .metadata = ((.metadata // {}) | (.project //= $p)))
+  }}
 ' 2>/dev/null)
 
 if [ -z "$modified" ]; then
   echo "[$(date -Iseconds)] jq mutation failed; pass-through" >>"$LOG" 2>&1
-  printf '%s' "$input"
   exit 0
 fi
 

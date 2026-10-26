@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ~/.claude/hooks/stop/stop.sh
-# Claude Code Stop hook — fired when assistant turn ends.
+# Claude Code Stop hook — fired when assistant turn ends; StopFailure calls it with `error`.
 # Cheap, non-blocking. Two layers:
 #   1) OSC 9 terminal notification (works through SSH on Ghostty/iTerm)
 #   2) Optional cross-machine TTS via Tine (opt-in via CLAUDE_TINE_NOTIFY=1)
@@ -11,14 +11,11 @@ set -u
 # Silently no-ops in hook-subprocess context (no /dev/tty).
 printf '\033]9;Claude finished\007' > /dev/tty 2>/dev/null || true
 
-# 2) Sound layer — status-dependent.
-# Finished if clean, error if last tool failed. Always append subagent-done at end.
-if [ -f "$HOME/.claude/hooks/sounds/.error" ]; then
-  # Error state — play error sound instead of finished
+# 2) Sound layer — `stop.sh error` comes from StopFailure (turn ended on an API error).
+# Always append subagent-done at end.
+if [ "${1:-}" = "error" ]; then
   sound="$HOME/.claude/hooks/sounds/claude-error.mp3"
-  rm -f "$HOME/.claude/hooks/sounds/.error" # clean marker
 else
-  # Success — play finished sound
   sound="$HOME/.claude/hooks/sounds/claude-finished.mp3"
 fi
 [ -f "$sound" ] && (afplay "$sound" >/dev/null 2>&1 &)
