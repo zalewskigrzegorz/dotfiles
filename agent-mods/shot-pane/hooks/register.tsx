@@ -22,6 +22,26 @@ async function thumbOf($: EngineInterface, path: string): Promise<string> {
 // Same trigger as hooks/screenshot-attach.sh, on the prompt's head only.
 export const TRIGGER = /(^|[^\p{L}\p{N}])(screen(y|a|ie|em|ów|ik|shot\p{L}*)?|scr|ss|zrzut\p{L}*)([^\p{L}\p{N}]|$)/iu
 
+// PNG width and height sit big-endian at bytes 16..24 (IHDR); 32 base64 chars cover them.
+export function pngSize(base64: string): { width: number; height: number } | undefined {
+  const head = atob(base64.slice(0, 32))
+  if (head.length < 24 || head.slice(12, 16) !== 'IHDR') return undefined
+  const u32 = (at: number) => ((head.charCodeAt(at) << 24) | (head.charCodeAt(at + 1) << 16) | (head.charCodeAt(at + 2) << 8) | head.charCodeAt(at + 3)) >>> 0
+  return { width: u32(16), height: u32(20) }
+}
+
+// A terminal cell is about twice as tall as wide, so rows = columns * h/w / 2.
+export function fit(size: { width: number; height: number }, maxColumns: number, maxRows: number) {
+  const ratio = size.height / size.width / 2
+  let columns = maxColumns
+  let rows = Math.max(1, Math.round(columns * ratio))
+  if (rows > maxRows) {
+    rows = maxRows
+    columns = Math.max(1, Math.round(rows / ratio))
+  }
+  return { columns, rows }
+}
+
 export const register: Register = on => {
   on('prompt.submit', async ($, e, next) => {
     if (TRIGGER.test(e.text.slice(0, 200))) {
@@ -45,6 +65,8 @@ export const register: Register = on => {
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'screen', description: 'Show the latest CleanShot screenshot in a pane' })
+    // Thumbnails older than a day go: they are only previews of the Drive originals.
+    void $.process.run(['find', THUMBS, '-type', 'f', '-name', '*.png', '-mtime', '+0', '-delete']).catch(() => null)
     return next(e)
   })
 
@@ -74,15 +96,19 @@ export const register: Register = on => {
         return base64 && base64.length <= MAX_B64 ? { png: base64 } : { file: path, format: 'png' as const }
       }),
     )
-    const columns = Math.max(10, Math.min(120, (e.props.bodyColumns ?? 60) - 2))
-    const rows = Math.max(6, Math.floor(((e.viewport?.rows ?? 30) - 4) / Math.max(1, list.length)) - 1)
+    const maxColumns = Math.max(10, Math.min(120, (e.props.bodyColumns ?? 60) - 2))
+    const maxRows = Math.max(6, Math.floor(((e.viewport?.rows ?? 30) - 4) / Math.max(1, list.length)) - 1)
+    const boxes = sources.map(src => {
+      const size = 'png' in src && src.png ? pngSize(src.png) : undefined
+      return size ? fit(size, maxColumns, maxRows) : { columns: maxColumns, rows: maxRows }
+    })
 
     return (
       <Box flexDirection="column">
         {list.map((path, i) => (
           <Box key={path} flexDirection="column">
             <Text dimColor>{path.split('/').pop()}</Text>
-            <Image key={path} source={sources[i] ?? { file: path, format: 'png' }} columns={columns} rows={rows} alt={path.split('/').pop() ?? ' '} />
+            <Image key={path} source={sources[i] ?? { file: path, format: 'png' }} columns={boxes[i]?.columns ?? maxColumns} rows={boxes[i]?.rows ?? maxRows} alt={path.split('/').pop() ?? ' '} />
           </Box>
         ))}
       </Box>
