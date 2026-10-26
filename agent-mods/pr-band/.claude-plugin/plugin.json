@@ -1,0 +1,6 @@
+{
+  "name": "pr-band",
+  "version": "0.1.0",
+  "description": "Band above the prompt with the current branch's PR checks and merge state; toast and sound when the checks finish.",
+  "types": "./types/index.d.ts"
+}

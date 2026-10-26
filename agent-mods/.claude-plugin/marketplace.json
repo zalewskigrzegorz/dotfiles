@@ -11,6 +11,11 @@
       "name": "guard",
       "source": "./guard",
       "description": "Turns checkable rules from agent-rules into tool.call denies: popup hygiene, agent spawns, worktrees, a few Bash traps."
+    },
+    {
+      "name": "pr-band",
+      "source": "./pr-band",
+      "description": "Band above the prompt with the current branch's PR checks and merge state; toast and sound when the checks finish."
     }
   ]
 }
