@@ -36,7 +36,7 @@ export const register: Register = on => {
     if (e.props.hasSurvey || (now.standup === 0 && now.retro === 0) || (await read($, isHidden))) return next(e)
 
     const { Box, Button, Text } = $.ui.resolve(e)
-    const run = (text: string) => () => void $.prompt.submit({ text, asUser: true })
+    const run = (command: string) => () => void $.command.run({ command, args: '' })
 
     const below = await next(e)
 
@@ -44,9 +44,9 @@ export const register: Register = on => {
       <Box flexDirection="column">
         <Box>
           {now.standup > 0 && (
-            <Button key="standup" label={`standup (${now.standup})`} onPress={run('/g-standup')} />
+            <Button key="standup" label={`standup (${now.standup})`} onPress={run('g-standup')} />
           )}
-          {now.retro > 0 && <Button key="retro" label={`retro (${now.retro})`} onPress={run('/retro-backlog')} />}
+          {now.retro > 0 && <Button key="retro" label={`retro (${now.retro})`} onPress={run('retro-backlog')} />}
           <Text> </Text>
           <Button key="hide" label="ukryj" onPress={() => update($, isHidden, () => true)} />
         </Box>
