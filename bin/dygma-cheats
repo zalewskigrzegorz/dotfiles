@@ -182,6 +182,9 @@ def app_hotkeys():
         for k, v in pl.items():
             if "KeyboardShortcuts_" not in k:
                 continue
+            # kindaVim keeps the custom shortcut stored while another entry mode is active
+            if k.endswith("_enterNormalMode") and pl.get("enterNormalModeWith", "customShortcut") != "customShortcut":
+                continue
             r = carbon(v)
             if not r:
                 continue
@@ -189,6 +192,8 @@ def app_hotkeys():
             label = "%s · %s" % (app, action)
             canon[r[0]] = label
             globals_.append((label, r[1].replace("+", " "), "globalny hotkey (system)"))
+    if (read_plist("mo.com.sleeplessmind.kindaVim") or {}).get("enterNormalModeWith") == "escape":
+        globals_.append(("kindaVim · enter Normal Mode", "Esc", "kindaVim (każde pole tekstowe)"))
     # CleanShot uses its own keys
     cs = read_plist("com.getcleanshot.app-setapp")
     cs_labels = {"LAVAtakeArea": "Area", "LAVAtakeWindow": "Window",
@@ -219,6 +224,7 @@ def hyprmac_hotkeys():
     # Carbon virtual key codes for the keys bin/hyprmac-config binds
     keys = {4: "H", 38: "J", 40: "K", 37: "L", 3: "F", 46: "M", 1: "S", 17: "T", 13: "W", 16: "Y",
             32: "U", 15: "R", 8: "C", 44: "/", 27: "-", 24: "=", 48: "Tab", 49: "Space", 36: "Enter",
+            41: ";", 39: "'", 43: ",", 47: ".", 33: "[", 30: "]", 42: "\\",
             18: "1", 19: "2", 20: "3", 21: "4", 23: "5", 22: "6", 26: "7", 28: "8", 25: "9", 29: "0"}
     # workspace numbers → the names bin/hyprmac-config keeps from aerospace
     names = {1: "chat", 4: "term", 7: "code", 10: "notes", 2: "web", 5: "test", 8: "mail",
@@ -288,6 +294,8 @@ VIMMA_ACTIONS = [
     ("Vimma · kliknij link literkami (hint)", "f", "Vimma (normal)"),
     ("Vimma · link w nowej karcie (w tle)", "F / g F", "Vimma (normal)"),
     ("Vimma · nowa karta", "t", "Vimma (normal)"),
+    ("Vimma · lista kart (szukaj)", "Space , / b", "Vimma (normal)"),
+    ("Vimma · live grep po kartach", "Space /", "Vimma (normal)"),
     ("Vimma · poprzednia / następna karta", "H / L", "Vimma (normal)"),
     ("Vimma · historia wstecz / naprzód", "Ctrl O / Ctrl I", "Vimma (normal)"),
     ("Vimma · zamknij kartę", "x", "Vimma (normal)"),
@@ -347,7 +355,7 @@ def build_entries():
         ("Read reset talk", "tap"): "reset layers → base",
         ("Read reset talk", "2×tap"): "Slack channel/contact search (Raycast)",
         ("Windows", "tap"): "HyprMac workspace overview", ("Windows", "hold"): "Wooshy (click UI by typing)",
-        ("Windows", "2×tap"): "kindaVim Normal Mode",
+        ("Windows", "2×tap"): "Ctrl [, wolne (kindaVim jest na Esc)",
         ("leaders", "tap"): "herdr prefix (ctrl+space)", ("leaders", "hold"): "— (free, was aerospace leader)",
     }
     slot = ["tap", "hold", "tap&hold", "2×tap", "2×hold"]
