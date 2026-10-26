@@ -104,7 +104,10 @@ About 15 popups were rejected in one week. Every one broke one of these:
   własną", "max 3k", "w razie czego pytaj" — use it, don't confirm it (fc3cd4a8).
 - **No gate on a step he already chose.** "Domykamy PR?" after he picked
   "daj PR do review" one popup earlier is a meta-question. Do it, or end the
-  turn with a one-line status (7cd3bd57, 5a4b92b0).
+  turn with a one-line status (7cd3bd57, 5a4b92b0). A commitment he dictates
+  into an outward message ("zrobimy PR", "sprawdzę jutro") counts as chosen
+  too: start the worktree and the agent in the same turn, no "robię teraz?"
+  (415d3e29).
 - **Commit popup after a diagnosis starts with the human line.** When the
   session was a hunt or several small fixes, the `preview` opens with 1–2 lines
   of what was fixed and why ("audio dopełnione ciszą do okna pyatv; CO₂ max
@@ -180,6 +183,9 @@ repro):
   that window, say in one line what it showed, then send the next step.
 - **Before the first step, check the starting state** (how many windows, which
   build runs); a test on a hidden leftover window measured nothing.
+- **Before a "co widzisz" popup, look at the screenshots** the hook attached or
+  the Drive folder's last ~5 min. If the answer is on the picture, say it in
+  one sentence and go on ("już jest screenshot w scr", 673e7d5e).
 
 ## Forgiveness & recovery framing
 

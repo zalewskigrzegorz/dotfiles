@@ -85,6 +85,16 @@ Checkout lands in `~/Code/tree/wt-<repo>/<branch>`. If you do fall back to raw `
 6. **`agent read` can serve a frozen screen.** On 2026-10-21 one pane showed the same statusline timer (`2m31s`) for 10 minutes and the input box kept its text after three `Enter`s, while the agent had taken the input and was working. The terminal is not the source of truth for progress either: `stat -f %Sm ~/.claude/projects/<slug>/<session>.jsonl` (the path `scripts/agent-last-turns` prints) moving in the last minute means working; `agent list` → `agent_status` and the worktree (mine 3) answer "done". Don't resend the brief into a pane that looks stuck; check the transcript first.
 7. **A child's popup is read in full before any `send-keys`.** The option labels alone lie about side effects: on 2026-10-21 `Enter` on "Przepuść przez greg-voice" in a review agent ended with `gh pr review` posted on GitHub, although the brief said "nie postuj". Read the option descriptions (`agent read | tail -30`), and when any option can post, send or commit, pick it only if Greg chose that step. A read-only brief names the forbidden commands: "no `gh pr review`, no `gh api -X POST`, no `gh pr comment`", not only "nie postuj".
 
+## A `workctl` tab already runs Claude: no `/model` or `/effort` in it
+
+`workctl --action wt-full` opens the tab with Claude running. `/model` and
+`/effort` typed there through `herdr agent prompt` answer "saved as your
+default for new sessions" and write the **global** `~/.claude/settings.json`,
+which every open session reloads live (415d3e29). Pick the model at spawn
+(`herdr agent start … -- --model <m>` in a fresh tab), never inside a running
+one. Recovery: `jq '{model, effortLevel}' ~/.claude/settings.json`, then `jq
+'del(.model)'` on the live file.
+
 ## Lifecycle pattern
 
 ```bash

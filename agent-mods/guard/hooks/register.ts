@@ -47,6 +47,9 @@ export function bashProblem(command: string): string | undefined {
     return 'no `git add -A` / `git add .`: stage only your own paths, other agents share the checkout (commit-message-rules.md)'
   if (/\bgit\s+commit\b[\s\S]*Co-Authored-By/i.test(command))
     return 'no Co-Authored-By trailer in commits (commit-message-rules.md)'
+  // zsh reads `$var:t` / `:h :r :e :l :u` as a modifier, inside double quotes too.
+  if (/\$[A-Za-z_]\w*:[htrelu]/.test(command.replace(/'[^']*'/g, "''")))
+    return 'unbraced `$var:<letter>` is a zsh modifier (`$c:refs` → `…efs`): write `${var}:…` (zsh traps)'
   if (/(^|[|;&]\s*)rg\b[^|;&]*\s-E\s/.test(bare))
     return '`rg -E` means --encoding, not ERE: drop -E, rg regex is extended already (ugrep-not-gnu-grep.md)'
   return undefined

@@ -157,6 +157,20 @@ null` off the list view and concluding the fetch failed is a trap.
   /opt/homelab/services/announce-agent && docker compose up -d --build'` — a
   `docker cp` alone is lost on the next rebuild.
 
+## Where Tina's latency comes from
+
+Measured on 2026-10-23 (076b9dad): the network is noise (~10 ms RTT, a 24 kB
+POST to Gemini in 89 ms); the time went to 3 Gemini calls in a row per simple
+command (9–15 s), each resending the full prompt.
+
+- Measure from `docker compose logs` in `services/jarvis-brain`, its
+  `/runs?limit=N` on `:3002`, and `took_ms` in the announce-agent `/say` log.
+- Simple on/off commands go through `src/fast-command.js` first (0.4–1.1 s,
+  $0); only unclear ones reach the model.
+- `announce-agent` serves an already-spoken sentence from its disk cache (voice
+  + text) before calling TTS.
+- Count model calls before blaming the network.
+
 ## What the announce pages show (2026-09-27)
 
 `POST /say` also takes `question` and `run_id`. When Tina answers a question

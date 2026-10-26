@@ -14,10 +14,15 @@ nine query errors from guessed table and column names.
 
 ## Before the first query
 
-1. **Which region is the tunnel on?** `ps -axo command | rg '[b]asti.*connect'`
-   and `lsof -nP -iTCP:<port>`. Match the jamsql connection to that region.
-   Tunnel changed since the last query → `connections_connect` before
-   `query_execute`.
+1. **Which region is the tunnel on?** Print only pid, region and host:
+   `ps -axo pid,etime,command | rg -o '[s]ession-manager-plugin.*?(eu-central-1|us-east-1) StartSession.*?"host":\["[^"]+"\]' | rg -o '^\S+|"host":\["[^"]+"\]'`,
+   plus `lsof -nP -iTCP:<port>`. **Never print the raw `ps` line of
+   `session-manager-plugin`**: it carries the SSM `SessionId` and a live
+   stream token (`wss://ssmmessages…`), which then sit in the transcript
+   (5291ecd3). Match the jamsql connection to that region. Tunnel changed
+   since the last query → Greg reconnects in Jam SQL; after his "kk", one
+   `select inet_server_addr()` on the region's `connectionId`, never
+   `connections_connect`.
 2. **Name the target in one line:** "prod EU, read-only, nic nie zapisuję".
 3. **Read the schema, don't guess it.** First query on an unknown table →
    `information_schema.columns`. SSO tables live in the `auth` schema; a
@@ -71,6 +76,16 @@ by the user"; 2 of 5 certificates landed (a656141a).
 - One write `query_execute` per turn, never in parallel. Wait for its result.
 - "Write query was denied" means not run. After the series, a read-only check
   of every row on the same connection, never an assumption.
+
+## Backups and snapshots
+
+Read-only, first line "read-only, nic nie odtwarzam" (a120142c, 5 calls):
+`aws --profile <prod-profile> --region <r> rds describe-db-snapshots
+--db-instance-identifier <id> --query 'reverse(sort_by(DBSnapshots,&SnapshotCreateTime))[0]'`.
+Instances, not clusters; US is `us-east-1`, EU `eu-central-1`; automated
+daily snapshots land around 07:08 UTC. Loop regions with a function
+(`snap() { aws … --region "$1" … "$2"; }`), never `set -- $p` in zsh. A
+restore is a separate task with its own go-ahead.
 
 ## When it breaks
 

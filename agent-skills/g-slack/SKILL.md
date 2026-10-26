@@ -84,6 +84,13 @@ points at it ("odpisz w tym wątku", a Slack link, a channel name). Resolve
 channel names/IDs from work-context. If it's ambiguous which channel/thread,
 **ask** — don't guess where a public message lands.
 
+Replying in an existing thread Greg did not link: search for the run or job
+ID from the brief or PR body (`slack_search_public_and_private`, concise,
+`limit ≤ 10`); nothing → `slack_read_channel` on the team channel with
+`oldest` at the run date, and take the root message holding the run URL.
+Never search by PR number or by words from Greg's own messages: those match
+his replies, not the root (0c9ebd23, 5 calls).
+
 ### 2. Read the context
 
 Load the Slack MCP read tools and read the thread/channel so the reply actually

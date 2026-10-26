@@ -74,3 +74,12 @@ test('a first name several people share is a bare name unless the surname follow
   expect(bareFirstNames('Anna Nowak robi review', amb)).toEqual([])
   expect(bareFirstNames('Alan robi review, Romantyczny adapter też', amb)).toEqual([])
 })
+
+test('an unbraced zsh modifier after a variable is denied, ports and paths pass', () => {
+  expect(bashProblem('git push origin "$c:refs/heads/x"')).toContain('zsh modifier')
+  expect(bashProblem('git show $P:tooling/a.ts')).toContain('zsh modifier')
+  expect(bashProblem('git push origin "${c}:refs/heads/x"')).toBeUndefined()
+  expect(bashProblem('export PATH=$PATH:/usr/bin')).toBeUndefined()
+  expect(bashProblem('curl http://$host:8080')).toBeUndefined()
+  expect(bashProblem("rg '$x:t' file")).toBeUndefined()
+})
