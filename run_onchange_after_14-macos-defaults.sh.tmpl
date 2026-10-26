@@ -45,6 +45,9 @@ defaults write com.lowtechguys.Clop mcpEnabled -bool true
 # One image per copy: accumulated clipboard images paste into Claude and Slack as several at once.
 defaults write com.lowtechguys.Clop copyConsecutiveClipboardImages -bool false
 
+# kindaVim enters normal mode on Esc, like nvim, Vimma, nushell and Claude Code. Read on its next launch.
+defaults write mo.com.sleeplessmind.kindaVim enterNormalModeWith -string escape
+
 killall Dock Finder SystemUIServer 2>/dev/null || true
 
 if [ -x /opt/homebrew/bin/brew ] && /opt/homebrew/bin/brew list sketchybar >/dev/null 2>&1; then
