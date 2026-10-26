@@ -1,0 +1,16 @@
+{
+  "name": "greg-mods",
+  "owner": {
+    "name": "Grzegorz Zalewski"
+  },
+  "metadata": {
+    "description": "Claude Code mods kept in dotfiles: own ones and vendored samples."
+  },
+  "plugins": [
+    {
+      "name": "token-weather",
+      "source": "./token-weather",
+      "description": "A live forecast of the context window, drawn above the prompt. Vendored from anthropics/claude-code-playground (Apache-2.0)."
+    }
+  ]
+}

@@ -21,6 +21,7 @@ private/**
 agent-skills/**
 agent-rules/**
 agent-mcp/**
+agent-mods/**
 
 # TypeScript sources compiled to native binaries by run_onchange_after_29.
 # The build output lands in bin/ (and ~/bin); the sources belong to the repo,
