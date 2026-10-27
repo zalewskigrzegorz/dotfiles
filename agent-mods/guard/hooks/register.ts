@@ -56,22 +56,28 @@ function selectItems(sql: string): string[] {
       const ch = sql[i]
       if (ch === '(') depth += 1
       if (ch === ')' && --depth < 0) break
-      if (depth === 0 && /^from\b/i.test(sql.slice(i)) && /\s/.test(sql[i - 1] ?? ' ')) break
+      if (depth === 0 && /^from\b/i.test(sql.slice(i)) && !/\w/.test(sql[i - 1] ?? ' ')) break
       if (depth === 0 && ch === ',') (items.push(item), (item = ''))
       else item += ch
     }
     items.push(item)
   }
-  return items.map(s => s.trim().replace(/\s+(as\s+)?[`"]?\w+[`"]?$/i, '').trim()).filter(Boolean)
+  // An alias goes only after `AS` or a finished expression, so `a - token` keeps its `token`.
+  return items.map(s => s.trim().replace(/(\s+as\s+[`"]?\w+[`"]?|(?<=[\w)\]'"`])\s+[`"]?\w+[`"]?)$/i, '').trim()).filter(Boolean)
 }
+
+// The whole item is one call that cannot return the value whole: a length, a hash, or at most 4 chars.
+const SAFE_WRAP = /^((length|count|uniq\w*|md5|sha\w*|cityhash64|isnull|notempty|empty)\s*\([^()]*\)|left\s*\([^(),]*,\s*[1-4]\s*\))$/i
 
 export function sqlProblem(sql: string): string | undefined {
   const fix = 'name only the fields you need (JSONExtract…(col, \'key\'), `col->>\'key\'`, `* EXCEPT(col)`); a secret-named field only as `length(x)` / `left(x, 4)`. A printed token stays in the transcript and in MemPalace (ops-traps.md)'
   for (const item of selectItems(sql)) {
     if (/^(\w+\.)?\*$/.test(item)) return `\`SELECT ${item}\` can carry tokens: ${fix}`
-    if (BLOB.test(item)) return `raw JSON column \`${item}\` dumps every key, tokens included: ${fix}`
+    // A cast or serialiser around a blob still prints all of it: `details::text`, `toString(details)`.
+    const unwrapped = item.replace(/::\w+$/, '').replace(/^(tostring|to_json\w*|row_to_json|cast)\s*\(\s*([\w.]+)(\s+as\s+\w+)?\s*\)$/i, '$2')
+    if (BLOB.test(unwrapped)) return `raw JSON column \`${item}\` dumps every key, tokens included: ${fix}`
     const named = item.replace(/\blike\s+'[^']*'/gi, '')
-    if (SECRET.test(named) && !/^(length|left|substr\w*|count\w*|uniq\w*|md5|sha\w*|cityhash64|isnull|notempty|empty)\s*\(/i.test(named))
+    if (SECRET.test(named) && !SAFE_WRAP.test(named))
       return `\`${item.slice(0, 60)}\` reads a secret-named field: ${fix}`
   }
   return undefined
@@ -80,7 +86,8 @@ export function sqlProblem(sql: string): string | undefined {
 export function bashProblem(command: string): string | undefined {
   // Quoted text is a pattern or a message, not a command: `rg 'git add -A'` must pass.
   const bare = command.replace(/'[^']*'|"[^"]*"/g, "''")
-  if (/\b(psql|clickhouse(-client)?|ch-query|gq\.sh|mysql|sqlite3|duckdb)\b/.test(bare)) {
+  // Raw command, not `bare`: the client often sits inside quotes (`ssh lab 'psql …'`, `sh -c "…"`).
+  if (/\b(psql|clickhouse(-client)?|ch-query|gq\.sh|mysql|sqlite3|duckdb)\b/.test(command)) {
     const problem = sqlProblem(command)
     if (problem) return problem
   }

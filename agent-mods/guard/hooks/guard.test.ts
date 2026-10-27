@@ -138,6 +138,13 @@ test('a query that can print a token is denied, narrow ones pass', () => {
     ["gq.sh \"SELECT arrayFilter(x -> NOT x LIKE '%token%', mapKeys(SpanAttributes)) FROM t\"", undefined],
     ["gq.sh \"SELECT SpanAttributes['http.route'] AS route FROM t\"", undefined],
     ['psql -c "select * except(details) from t"', undefined],
+    ["ssh mrglaszki 'docker exec pg psql -c \"select * from users\"'", 'SELECT *'],
+    ['psql -c "select substr(token, 1, 200) from keys"', 'secret-named'],
+    ['psql -c "select left(token, 40) from keys"', 'secret-named'],
+    ['psql -c "select id, details::text from s"', 'raw JSON column'],
+    ["gq.sh \"SELECT toString(s.details) FROM s\"", 'raw JSON column'],
+    ['psql -c "select id, a || token from s"', 'secret-named'],
+    ['psql -c "select left(token, 4) AS token_prefix from keys"', undefined],
     ["rg -n 'select \\* from' src", undefined],
   ]
   for (const [cmd, want] of cases) {
