@@ -7,19 +7,8 @@ const items = atom({ plugin: 'sprawy', key: 'items' } as const, [])
 
 const TOOL = 'mcp__sprawy__sprawa'
 const STATUSES: readonly Status[] = ['queued', 'in_progress', 'done']
-const MAX_ITEMS = 5 // plus the header: six rows at most
 const POLL_MS = 20_000
-const PANE = 'sprawy'
 const KEEP_MS = 7 * 24 * 3600_000 // a list untouched this long is dropped at session start
-// Mocha Neon, as nudge-band (docs/mocha-neon-palette.md).
-const GOLD = '#FFD700'
-const PINK = '#FF79C6'
-const AGENT_LABEL: Record<AgentState, string> = {
-  working: 'agent pracuje',
-  waiting: 'agent czeka na Ciebie',
-  done: 'agent skończył',
-  failed: 'agent padł',
-}
 
 const DESCRIPTION = `Keeps the list of separate things the user raised in this session (requests, complaints, ideas, feedback). The user sees it above the prompt, so nothing gets lost.
 When a user message raises something separate (often numbered: "2 sprawa ...", "3 ...", or slipped in while you work on something else), call action=add once per thing before you act on it. Title in the user's language, at most 6 words.
@@ -44,19 +33,6 @@ const queuePositions = (all: readonly Item[]) =>
       .sort((a, b) => a.order - b.order)
       .map((i, n) => [i.id, n + 1] as const),
   )
-
-// In progress first, then the queue in order, then the newest done ones in the slots left.
-export function visible(all: readonly Item[], max = MAX_ITEMS): { shown: Item[]; hidden: number } {
-  const pos = queuePositions(all)
-  const active = [
-    ...all.filter(i => i.status === 'in_progress'),
-    ...all.filter(i => i.status === 'queued').sort((a, b) => pos.get(a.id)! - pos.get(b.id)!),
-  ]
-  const room = Math.max(max - active.length, 0)
-  const done = room ? all.filter(i => i.status === 'done').slice(-room) : []
-  const shown = [...active.slice(0, max), ...done]
-  return { shown, hidden: all.length - shown.length }
-}
 
 const subState = (a: AgentInfo | undefined): AgentState => {
   if (!a || a.status === 'completed') return 'done' // the list drops an agent seconds after its end
@@ -186,61 +162,5 @@ export const register: Register = on => {
     }
 
     return { deny: 'action must be add, set or list.' }
-  })
-
-  // The band is one segment of the shared summary line; a press toggles the full list in a pane.
-  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const all = await read($, items)
-    if (e.props.hasSurvey || all.length === 0) return next(e)
-
-    const { Box, Button, Text } = $.ui.resolve(e)
-    const count = (s: Status) => all.filter(i => i.status === s).length
-    const waiting = all.some(i => i.agent?.state === 'waiting' && i.status !== 'done')
-    const below = await next(e)
-    const toggle = async () => {
-      if ((await $.ui.panes()).some(p => p.id === PANE)) await $.ui.close({ id: PANE })
-      else await $.ui.open({ id: PANE, title: 'Sprawy' })
-    }
-
-    return (
-      <Box flexDirection="row">
-        <Button key="sprawy" plain hotkey="l" label="sprawy" onPress={() => void toggle()}>
-          <Text color={waiting ? PINK : count('in_progress') ? GOLD : undefined} dimColor={!waiting && !count('in_progress')}>
-            ☰ ◐{count('in_progress')} ⧗{count('queued')} ✓{count('done')}
-          </Text>
-        </Button>
-        {below ? <Text dimColor> │ </Text> : null}
-        {below}
-      </Box>
-    )
-  })
-
-  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const all = await read($, items)
-    const { Box, Text } = $.ui.resolve(e)
-    if (all.length === 0) return <Text dimColor>Brak spraw.</Text>
-    const { shown, hidden } = visible(all, all.length)
-    const pos = queuePositions(all)
-
-    return (
-      <Box flexDirection="column">
-        {hidden > 0 && <Text dimColor>(+{hidden} ukryte)</Text>}
-        {shown.map(i => {
-          const mark = i.status === 'queued' ? `[${pos.get(i.id)}]` : i.status === 'done' ? '✓' : '◐'
-          const extra = [i.note, i.agent && i.status !== 'done' ? AGENT_LABEL[i.agent.state] : undefined].filter(Boolean)
-          const waiting = i.agent?.state === 'waiting' && i.status !== 'done'
-          return (
-            <Text
-              wrap="truncate-end"
-              dimColor={i.status === 'done'}
-              color={waiting ? PINK : i.status === 'in_progress' ? GOLD : undefined}
-            >
-              {mark} {i.id}. {i.title}
-              {extra.length ? ` (${extra.join(', ')})` : ''}
-            </Text>
-          )
-        })}
-      </Box>
-    )
   })
 }

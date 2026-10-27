@@ -1,0 +1,10 @@
+{
+  "name": "pulpit",
+  "version": "0.1.0",
+  "description": "One summary line above the prompt (items, PR, standup, retro); a press opens one pane with the details and actions of every mod.",
+  "dependencies": [
+    "sprawy",
+    "pr-band",
+    "nudge-band"
+  ]
+}

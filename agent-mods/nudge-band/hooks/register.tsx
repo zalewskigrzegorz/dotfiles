@@ -1,17 +1,11 @@
-import { atom, read, update } from 'claude-code'
+import { atom, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Nudges } from '../types'
 
 const nudges = atom({ plugin: 'nudge-band', key: 'nudges' } as const, { standup: 0, retro: 0 })
-// Hidden for one set of counts: a new standup or retro brings the band back.
-const hiddenAt = atom({ plugin: 'nudge-band', key: 'hiddenAt' } as const, null)
-const countsOf = (n: Nudges) => `${n.standup}/${n.retro}`
 
 const POLL_MS = 5 * 60_000
-// Mocha Neon, the statusline's colours (docs/mocha-neon-palette.md).
-const GOLD = '#FFD700'
-const LAVENDER = '#9580FF'
 
 // Reads the counts out of the SessionStart hooks' own lines, so the logic stays in one place.
 export const countOf = (text: string, pattern: RegExp) => Number(pattern.exec(text)?.[1] ?? 0)
@@ -41,36 +35,5 @@ export const register: Register = on => {
   on('turn.complete', async ($, e, next) => {
     void poll($).catch(() => {})
     return next(e)
-  })
-
-  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const now = await read($, nudges)
-    if (e.props.hasSurvey || (now.standup === 0 && now.retro === 0) || (await read($, hiddenAt)) === countsOf(now)) return next(e)
-
-    const { Box, Button, Text } = $.ui.resolve(e)
-    const run = (command: string) => () => void $.command.run({ command, args: '' })
-
-    const below = await next(e)
-
-    // One segment of the shared summary line, icons for the two nudges; a press runs the command.
-    return (
-      <Box flexDirection="row">
-        {now.standup > 0 && (
-          <Button key="standup" plain hotkey="s" label={`standup (${now.standup})`} onPress={run('g-standup')}>
-            <Text color={GOLD}> {now.standup} </Text>
-          </Button>
-        )}
-        {now.retro > 0 && (
-          <Button key="retro" plain hotkey="b" label={`retro (${now.retro})`} onPress={run('retro-backlog')}>
-            <Text color={LAVENDER}>󰑓 {now.retro} </Text>
-          </Button>
-        )}
-        <Button key="hide" plain hotkey="u" label="ukryj" dimColor onPress={() => update($, hiddenAt, () => countsOf(now))}>
-          <Text dimColor>×</Text>
-        </Button>
-        {below ? <Text dimColor> │ </Text> : null}
-        {below}
-      </Box>
-    )
   })
 }

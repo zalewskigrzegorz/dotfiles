@@ -1,11 +1,5 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-const BAND = {
-  plugin: 'pr-band',
-  component: 'AbovePrompt',
-  props: { hasSurvey: false, isWorking: false, maxRows: 6, bodyColumns: 100, scroll: { offset: 0, bodyRows: 6 }, view: {} },
-} as const
-
 const PANE = {
   plugin: 'pr-band',
   component: 'Pane',
@@ -16,73 +10,31 @@ const PANE = {
 const view = (checks: object[]) =>
   JSON.stringify({ number: 7, url: 'https://x/pr/7', title: 'Fix', author: { login: 'x' }, mergeStateStatus: 'DIRTY', reviewDecision: '', statusCheckRollup: checks })
 
-test('the PR segment sits beside what is beneath, a press toggles the pane with the actions, toast when checks finish', async ($, on) => {
+test('polls the PR into state, toasts when checks finish, the peek holds the actions', async ($, on) => {
   const clock = mock.clock(on)
-  let panes: string[] = []
-  on('ui.panes', () => ({ value: panes.map(id => ({ id, title: 'PR', isShown: true, isFocused: false, isPlaced: true })) as never }))
-  on('ui.open', (_, e) => (panes.push(e.id), { value: { isPlaced: true as const } }))
-  on('ui.close', (_, e) => ((panes = panes.filter(p => p !== e.id)), { value: undefined }))
   let checks: object[] = [{ name: 'unit', status: 'IN_PROGRESS' }]
   const toasts: string[] = []
   const submitted: string[] = []
   on('process.run', () => ({ value: { exitCode: 0, stdout: view(checks), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
   on('ui.toast', (_, e) => (toasts.push(e.text), { value: undefined }))
+  on('ui.open', () => ({ value: { isPlaced: true as const } }))
   on('audio.play', () => ({ value: undefined }))
   on('prompt.submit', (_, e) => (submitted.push(e.text), { text: e.text }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('command.register', () => ({ value: { command: 'pr' } }))
-  // Stands for another plugin's band (nudge-band) beneath this one.
-  on('ui.render', ($, e) => {
-    const { Text } = $.ui.resolve(e)
-    return <Text>beneath</Text>
-  })
-
+  on('command.run', (_, e) => ({ text: e.command }))
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   await clock.settle()
-
-  for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({ ...BAND, surface })
-    expect((await ui.find({ type: 'Text', text: /#7/ }))?.text).toBe('󰘬 #7 ')
-    expect(await ui.find({ type: 'Text', text: /beneath/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /dirty/ })).toBeDefined()
-    await ui.unmount()
-  }
 
   checks = [{ name: 'unit', status: 'COMPLETED', conclusion: 'FAILURE' }]
   await clock.advance(90_000)
   expect(toasts).toEqual(['PR #7: 1 checków padło'])
 
-  const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  await band.press({ key: 'pr' })
-  expect(panes).toEqual(['pr-peek'])
-  // Opened by hand, a plain prompt leaves it up.
-  await $.prompt.submit({ text: 'ok', wait: false, origin: { kind: 'composer' } })
-  await clock.settle()
-  expect(panes).toEqual(['pr-peek'])
+  await $.command.run({ command: 'pr', args: '7' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await ui.find({ type: 'Button', key: 'rebase' })).toBeDefined()
   await ui.press({ key: 'log' })
   expect(submitted.find(t => t.includes('--log-failed'))).toContain('unit')
-  await ui.unmount()
-  await band.press({ key: 'pr' })
-  expect(panes).toEqual([])
-  await band.unmount()
-})
-
-test('no PR draws only what is beneath', async ($, on) => {
-  mock.clock(on)
-  on('process.run', () => ({ value: { exitCode: 1, stdout: '', stderr: 'no pull requests found', isStdoutTruncated: false, isStderrTruncated: false } }))
-  on('session.start', (_, e) => ({ cwd: e.cwd }))
-  on('command.register', () => ({ value: { command: 'pr' } }))
-  on('ui.render', ($, e) => {
-    const { Text } = $.ui.resolve(e)
-    return <Text>beneath</Text>
-  })
-  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
-
-  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: /PR #/ })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: /beneath/ })).toBeDefined()
   await ui.unmount()
 })
 
@@ -146,20 +98,13 @@ test('the e2e button pulls the failure shots and hands the folder to /screen', a
   })
   on('command.run', (_, e) => (shown.push(`${e.command} ${e.args}`), { text: '' }))
   on('ui.toast', () => ({ value: undefined }))
-  on('ui.panes', () => ({ value: [] }))
   on('ui.open', () => ({ value: { isPlaced: true as const } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('command.register', () => ({ value: { command: 'pr' } }))
-  on('ui.render', ($, e) => {
-    const { Text } = $.ui.resolve(e)
-    return <Text>beneath</Text>
-  })
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   await clock.settle()
 
-  const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  await band.press({ key: 'pr' })
-  await band.unmount()
+  await $.command.run({ command: 'pr', args: '7' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await ui.press({ key: 'e2e' })
   expect(ran).toContain('gh run download')
