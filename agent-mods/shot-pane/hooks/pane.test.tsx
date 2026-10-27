@@ -8,11 +8,14 @@ const PANE = {
 } as const
 const MIN = 60_000
 
-test('a screenshot prompt opens the pane on the recent PNGs, newest first', async ($, on) => {
+test('a screenshot prompt only toasts; /screen then opens the pane on the recent PNGs, newest first', async ($, on) => {
   const clock = mock.clock(on, { now: 100 * MIN })
-  mock.env(on, {})
   let opened = 0
   on('ui.open', () => (opened++, { value: { isPlaced: true } }))
+  const toasts: string[] = []
+  on('ui.toast', (_, e) => (toasts.push(e.text), { value: undefined }))
+  on('command.register', () => ({ value: { command: 'screen' } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
   const resized: string[] = []
   on('fs.stat', () => ({ value: { kind: 'other' as const, size: 0, mtimeMs: 0, isLink: false } }))
   on('process.run', (_, e) => (e.argv[0] === 'sips' && resized.push(String(e.argv[3]).split('/').pop() ?? ''), { value: { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
@@ -28,8 +31,12 @@ test('a screenshot prompt opens the pane on the recent PNGs, newest first', asyn
     ],
   }))
 
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   await $.prompt.submit({ text: 'zobacz screen, co tu nie gra', wait: false, origin: { kind: 'composer' } })
   await clock.settle()
+  expect(opened).toBe(0)
+  expect(toasts).toEqual(['Screen gotowy: /screen otwiera podgląd'])
+  await $.command.run({ command: 'screen', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 120 } })
   expect(opened).toBe(1)
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
@@ -54,12 +61,11 @@ test('an ordinary prompt leaves the folder alone and closes the preview', async 
   expect(closed).toEqual(['shot-pane'])
 })
 
-test('a pane too narrow to seat says how to open it, and /screen opens it', async ($, on) => {
+test('a screenshot prompt opens nothing, /screen opens the pane', async ($, on) => {
   const clock = mock.clock(on, { now: 100 * MIN })
-  mock.env(on, {})
   const toasts: string[] = []
   let opened = 0
-  on('ui.open', () => (opened++, { value: opened > 1 ? { isPlaced: true as const } : { isPlaced: false as const, reason: 'narrow' } }))
+  on('ui.open', () => (opened++, { value: { isPlaced: true as const } }))
   on('ui.toast', (_, e) => (toasts.push(e.text), { value: undefined }))
   on('prompt.submit', (_, e) => ({ text: e.text }))
   on('command.register', () => ({ value: { command: 'screen' } }))
@@ -70,22 +76,24 @@ test('a pane too narrow to seat says how to open it, and /screen opens it', asyn
   await $.prompt.submit({ text: 'scr', wait: false, origin: { kind: 'composer' } })
   await clock.settle()
   expect(toasts).toEqual(['Screen gotowy: /screen otwiera podgląd'])
+  expect(opened).toBe(0)
 
   const ran = await $.command.run({ command: 'screen', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 120 } })
   expect(ran.text).toBe('Podgląd screena otwarty.')
-  expect(opened).toBe(2)
+  expect(opened).toBe(1)
 })
 
 test('the preview closes itself after three minutes', async ($, on) => {
   const clock = mock.clock(on, { now: 100 * MIN })
-  mock.env(on, {})
   const closed: string[] = []
   on('ui.open', () => ({ value: { isPlaced: true as const } }))
   on('ui.close', (_, e) => (closed.push(e.id), { value: undefined }))
-  on('prompt.submit', (_, e) => ({ text: e.text }))
+  on('command.register', () => ({ value: { command: 'screen' } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('fs.list', () => ({ value: [{ name: 'new.png', kind: 'file', size: 1, isLink: false, mtimeMs: 99 * MIN }] }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
-  await $.prompt.submit({ text: 'scr', wait: false, origin: { kind: 'composer' } })
+  await $.command.run({ command: 'screen', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 120 } })
   await clock.advance(2 * MIN)
   expect(closed).toEqual([])
   await clock.advance(MIN)
@@ -94,7 +102,6 @@ test('the preview closes itself after three minutes', async ($, on) => {
 
 test('/screen <folder> shows that folder, newest first, at most four', async ($, on) => {
   mock.clock(on)
-  mock.env(on, {})
   const listed: string[] = []
   on('ui.open', () => ({ value: { isPlaced: true as const } }))
   on('command.register', () => ({ value: { command: 'screen' } }))
@@ -105,29 +112,4 @@ test('/screen <folder> shows that folder, newest first, at most four', async ($,
   const ran = await $.command.run({ command: 'screen', args: '/c/e2e-42', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 120 } })
   expect(ran.text).toBe('Podgląd screena otwarty.')
   expect(listed).toEqual(['/c/e2e-42'])
-})
-
-test('inside tuios a screenshot prompt and /screen <folder> open a kitty-show popup, not the pane', async ($, on) => {
-  const clock = mock.clock(on, { now: 100 * MIN })
-  mock.env(on, { TUIOS_PANE_ID: '7', HOME: '/h' })
-  let opened = 0
-  const runs: string[][] = []
-  on('ui.open', () => (opened++, { value: { isPlaced: true as const } }))
-  on('fs.stat', () => ({ value: { kind: 'file' as const, size: 1, mtimeMs: 0, isLink: false } }))
-  on('process.run', (_, e) => (runs.push([...e.argv]), { value: { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
-  on('prompt.submit', (_, e) => ({ text: e.text }))
-  on('command.register', () => ({ value: { command: 'screen' } }))
-  on('session.start', (_, e) => ({ cwd: e.cwd }))
-  on('fs.list', () => ({ value: [{ name: 'new.png', kind: 'file', size: 1, isLink: false, mtimeMs: 99 * MIN }] }))
-  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
-
-  await $.prompt.submit({ text: 'scr', wait: false, origin: { kind: 'composer' } })
-  await clock.settle()
-  const popup = ['tuios', 'popup', '--width', '90%', '--height', '90%', '--', '/h/bin/kitty-show']
-  expect(runs.filter(r => r[0] === 'tuios')).toEqual([[...popup, '/Users/greg/Library/Caches/shot-pane/new.png']])
-
-  const ran = await $.command.run({ command: 'screen', args: '/c/e2e', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 120 } })
-  expect(ran.text).toBe('Podgląd screena otwarty.')
-  expect(runs.filter(r => r[0] === 'tuios').at(-1)).toEqual([...popup, '/Users/greg/Library/Caches/shot-pane/new.png'])
-  expect(opened).toBe(0)
 })
