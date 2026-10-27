@@ -64,7 +64,7 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 | 31 | `run_onchange_after_31-agent-rules-sync.sh.tmpl` | rsync `agent-rules/` |
 | 32 | `run_onchange_after_32-agent-mcp-sync.sh.tmpl` | apply `agent-mcp/mcp-servers.json.tmpl` |
 | 33 | `run_onchange_after_33-claude-plugins-sync.sh.tmpl` | apply `agent-plugins/plugins.json.tmpl` |
-| 34 | `run_after_34-collie.sh` | install Collie standalone, write `~/.config/herdr/plugins/config/herdr.collie/.env` (Collie reads it before `~/.config/collie`) (`COLLIE_MUX=tuios`), `collie start` |
+| 34 | `run_after_34-collie.sh` | macOS only: install Collie standalone, write `~/.config/herdr/plugins/config/herdr.collie/.env` (Collie reads it before `~/.config/collie`) (`COLLIE_MUX=tuios`), `collie start` |
 | 35 | `run_after_35-raycast-scripts-compat.sh.tmpl` | Raycast compatibility shim |
 | 35 | `run_onchange_after_35-gh-extensions.sh` | install `gh` CLI extensions (gh-dash, gh-stack, …) |
 | 36 | `run_onchange_after_36-git-hooks.sh.tmpl` | wire tracked git hooks (`core.hooksPath` → gitleaks pre-commit/pre-push) |
