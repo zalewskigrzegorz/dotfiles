@@ -288,6 +288,14 @@ CLAUDE_ACTIONS = [
     ("Claude Code · PR: otwórz / ukryj", "o / x", "Claude Code (band pr-band)"),
     ("Claude Code · standup / retro / ukryj", "s / b / u", "Claude Code (band nudge-band)"),
     ("Claude Code · podgląd screena / PR-a", "/screen, /pr", "Claude Code (prompt)"),
+    ("Claude Code · szukaj w rozmowie", "Ctrl O, potem /", "Claude Code (transkrypt, wyjście q)"),
+]
+
+# Searching in tuios windows: its which-key shows the prefix key, not what follows it.
+TUIOS_ACTIONS = [
+    ("tuios · szukaj w oknie (copy mode)", "Ctrl Space /, potem /", "tuios (n/N dalej, q wyjście; w Claude tylko ekran)"),
+    ("tuios · okno bg: zatrzymaj śledzenie i szukaj", "Ctrl C, potem /", "tuios okno bg: (less)"),
+    ("tuios · okno bg: śledź dalej", "F", "tuios okno bg: (less)"),
 ]
 
 VIMMA_ACTIONS = [
@@ -327,6 +335,7 @@ def build_entries():
     entries += WOOSHY_ACTIONS       # Wooshy in-picker actions (not in defaults)
     entries += CLAUDE_ACTIONS       # Claude Code custom prompt bindings
     entries += VIMMA_ACTIONS        # Vimma browser prefix/leader bindings
+    entries += TUIOS_ACTIONS        # tuios search keys
     if "--no-aero" not in sys.argv:
         entries += aero_entries     # HyprMac window-manager bindings
 
