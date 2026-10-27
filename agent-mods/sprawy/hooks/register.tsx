@@ -9,6 +9,7 @@ const TOOL = 'mcp__sprawy__sprawa'
 const STATUSES: readonly Status[] = ['queued', 'in_progress', 'done']
 const MAX_ITEMS = 5 // plus the header: six rows at most
 const POLL_MS = 20_000
+const KEEP_MS = 7 * 24 * 3600_000 // a list untouched this long is dropped at session start
 // Mocha Neon, as nudge-band (docs/mocha-neon-palette.md).
 const GOLD = '#FFD700'
 const PINK = '#FF79C6'
@@ -25,6 +26,14 @@ New items join a queue. Finish the item you are on, then take queued items in qu
 Call action=set with status=in_progress when you start an item, and status=done when it is finished.
 When you hand an item to an agent that keeps running (a background Agent call, or a tuios agent started with workctl or tuios start-agent), call set with agent=<the agentId the Agent result gave, or the tuios window id>. The list then follows that agent and ticks the item done when the agent finishes.
 Do not add your own sub-steps. action=list returns the items with their ids and queue order.`
+
+// The list lives in $.store under the session id, so `claude --resume` finds it; $.state alone starts empty in a new process.
+type Saved = { at: number; items: Item[] }
+const key = async ($: EngineInterface) => `s:${await $.session.id()}`
+async function commit($: EngineInterface, fn: (list: Item[]) => Item[]) {
+  await update($, items, fn)
+  await $.store.set(await key($), { at: await $.clock.now(), items: await read($, items) } satisfies Saved)
+}
 
 // Queue position (1-based) of each queued item, by order.
 const queuePositions = (all: readonly Item[]) =>
@@ -80,7 +89,7 @@ async function poll($: EngineInterface) {
   if (live.length === 0) return
   const subs = live.some(i => i.agent!.kind === 'sub') ? await $.agent.list() : []
   const windows = live.some(i => i.agent!.kind === 'tuios') ? await tuiosAgents($) : []
-  await update($, items, list =>
+  await commit($, list =>
     list.map(i => {
       if (!live.some(l => l.id === i.id)) return i
       const link = i.agent!
@@ -118,6 +127,14 @@ export const register: Register = on => {
         required: ['action'],
       },
     })
+    const now = await $.clock.now()
+    const mine = await key($)
+    for (const k of await $.store.keys()) {
+      if (!k.startsWith('s:')) continue
+      const saved = (await $.store.get(k)) as Saved | undefined
+      if (!saved || now - saved.at > KEEP_MS) await $.store.delete(k)
+      else if (k === mine && (await read($, items)).length === 0) await update($, items, () => saved.items)
+    }
     $.clock.every(POLL_MS, () => void poll($).catch(() => {}))
     return next(e)
   })
@@ -126,7 +143,7 @@ export const register: Register = on => {
   // shortcut: a teammate ends many turns, so its item ticks after the first; split on teammateId if teammates get used.
   on('turn.complete', async ($, e, next) => {
     if (e.agentId !== undefined) {
-      await update($, items, list =>
+      await commit($, list =>
         list.map(i => (i.agent?.kind === 'sub' && i.agent.id === e.agentId ? withAgentState(i, 'done') : i)),
       )
     }
@@ -141,7 +158,7 @@ export const register: Register = on => {
       const orders = all.filter(i => i.status === 'queued').map(i => i.order)
       const order = e.urgent === true ? Math.min(0, ...orders) - 1 : all.length + 1
       const item: Item = { id: all.length + 1, title: e.title.trim(), status: 'queued', order }
-      await update($, items, list => [...list, item])
+      await commit($, list => [...list, item])
       const pos = queuePositions([...all, item]).get(item.id)
       return { result: `Added ${item.id}. ${item.title}, queue position ${pos}.` }
     }
@@ -157,7 +174,7 @@ export const register: Register = on => {
       }
       const status = STATUSES.find(s => s === e.status) ?? (agent && !target.agent ? 'in_progress' : target.status)
       const note = typeof e.note === 'string' && e.note.trim() ? e.note.trim() : target.note
-      await update($, items, list => list.map(i => (i.id === target.id ? { ...i, status, note, agent } : i)))
+      await commit($, list => list.map(i => (i.id === target.id ? { ...i, status, note, agent } : i)))
       return { result: `${target.id}: ${status}${agent ? `, follows ${agent.kind} agent ${agent.id}` : ''}` }
     }
 
