@@ -8,54 +8,19 @@ alwaysApply: true
 On Greg's Mac, `grep` resolves to **ugrep**, not GNU/BSD grep. ugrep is
 stricter: a leading or operand-less quantifier is a hard error, not a literal.
 
-## The failure you already hit
+ugrep reads BRE `\+ \? \{ \|` as ERE operators and errors out (`invalid syntax`,
+`error at position N`). Use `grep -E` with explicit escapes, `-F` for a fixed
+string, or `rg`. The lab (Debian) has GNU grep; patterns written this way work on both.
 
-```bash
-git diff ... | grep -v '^\+\+\+'
-# ugrep: error at position 5  (?m)^+++  \___invalid syntax
-```
-
-ugrep reads `\+` as the ERE quantifier `+` (repeat previous), so `^+` has
-nothing to repeat → `invalid syntax`. GNU grep would treat `\+` as a literal
-plus and pass. Same trap for `\?`, `\{n,m\}`, `\|` in default mode.
-
-## Rules
-
-1. **To match a literal `+ ? { | ( )`, use `-E` and backslash-escape them, or
-   `-F` for a fixed string.** Don't rely on BRE `\+` meaning "literal plus".
-   - Literal `+++`: `grep -E '^\+\+\+'` or `grep -F '+++'`.
-   - Diff added lines only: `grep -E '^\+[^+]'` (a `+` not followed by `+`).
-2. **`-F` (fixed strings) is the safe default** when the pattern is a plain
-   string with no regex intent — no escaping headaches at all.
-3. **Prefer `rg` (ripgrep) for anything non-trivial.** It's installed, its
-   Rust regex is predictable, and Serena/`rg` are already the house tools for
-   code search. Reach for `grep` only for quick inline pipe filters.
-4. **If a grep errors with `invalid syntax` / `error at position N`**, that's
-   ugrep rejecting a GNU-ism — rewrite with `-E` + explicit escapes or switch
-   to `-F` / `rg`. Don't assume the file or the data is the problem.
-
-macOS only — the lab (Debian) has GNU grep, where `\+` works the old way.
-Patterns written to the rules above are portable to both.
-
-**The lab has no `rg`.** Rule 3 is Mac-only: inside `ssh mrglaszki '…'` or
+**The lab has no `rg`:** inside `ssh mrglaszki '…'` or
 `docker exec` on the lab, `rg` fails with `rg: command not found` (2026-09-29).
 Use `grep -E` / `grep -F` there.
 
-**`rg -E` means `--encoding`** (the `guard` mod denies it). Write `rg 'a|b'`.
-
-**Everything after `--` is a path for `rg`.** `rg -n -- "<pat>" src --max-count
-3` failed with `rg: --max-count: No such file or directory` (2026-10-14). Put
-every flag before `--` (`rg -n -m 3 -- '<pat>' <path>`), and use `--` only when
-the pattern starts with `-`.
+**The `guard` mod denies, with the fix in the deny:** BRE escapes in `grep`,
+`rg -E`, `rg --type tsx`, `2>/dev/null` on `rg`, flags after `--`, `\1` without
+`--pcre2`.
 
 **`rg` skips gitignored dirs, `node_modules` included.** An empty search there
 means "ignored", not "rtk hid it": `rg --no-ignore -l '<term>'
 "$(realpath apps/<app>/node_modules/<pkg>)" -g '*.d.ts'`, with the empty-variable
 guard. Four empty searches came before that on 2026-10-13 (aaee25fc).
-
-**`rg --type tsx` does not exist.** It errors, and `ts` matches `.ts` only:
-use `-g '*.ts' -g '*.tsx'`. Never put `2>/dev/null` on an `rg` whose result
-you need: the swallowed error reads as "no hits" (3e254d67).
-
-**No backreferences in `rg`.** `\1` fails with `backreferences are not
-supported`; use `rg --pcre2 '…\1…'` (e4057025).

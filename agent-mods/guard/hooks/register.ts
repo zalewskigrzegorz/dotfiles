@@ -2,7 +2,9 @@ import type { Register } from 'claude-code'
 
 // Each deny names the rule file, so the model reads the why there.
 // Rules: agent-rules/adhd-actions-not-walls.md, subagent-model-by-weight.md,
-// no-native-worktrees.md, commit-message-rules.md, ugrep-not-gnu-grep.md.
+// no-native-worktrees.md, commit-message-rules.md, ugrep-not-gnu-grep.md,
+// zsh-bash-tool.md, ops-traps.md, memory-location.md. A trap enforced here keeps
+// only a one-line pointer in its rule file: the deny text carries the fix.
 
 type Option = { label: string; description?: string; preview?: string }
 type Question = { question: string; header: string; options: Option[]; multiSelect?: boolean }
@@ -52,7 +54,61 @@ export function bashProblem(command: string): string | undefined {
     return 'unbraced `$var:<letter>` is a zsh modifier (`$c:refs` → `…efs`): write `${var}:…` (zsh traps)'
   if (/(^|[|;&]\s*)rg\b[^|;&]*\s-E\s/.test(bare))
     return '`rg -E` means --encoding, not ERE: drop -E, rg regex is extended already (ugrep-not-gnu-grep.md)'
+  if (/(^|[|;&]\s*)rg\b[^|;&]*\s(--type[= ]|-t\s*)tsx\b/.test(bare))
+    return '`rg --type tsx` does not exist and `ts` skips .tsx: use `-g \'*.ts\' -g \'*.tsx\'` (ugrep-not-gnu-grep.md)'
+  if (/(^|[|;&]\s*)rg\b[^|;&]*\s2>\s*\/dev\/null/.test(bare))
+    return 'no `2>/dev/null` on rg: a swallowed error reads as "no hits" (ugrep-not-gnu-grep.md)'
+  if (/(^|[|;&]\s*)rg\b[^|;&]*\s--\s[^|;&]*\s-[-\w]/.test(bare))
+    return 'everything after `--` is a path for rg: put every flag before `--`, and use `--` only for a pattern starting with `-` (ugrep-not-gnu-grep.md)'
+  if (/\brg\b/.test(bare) && !/--pcre2|\s-P\b|\b(sed|perl|awk)\b/.test(bare) && /\\[1-9]/.test(command))
+    return 'rg has no backreferences: `rg --pcre2 \'…\\1…\'` (ugrep-not-gnu-grep.md)'
+  for (const m of command.matchAll(/(?:^|[|;&(]\s*)grep((?:\s+-[A-Za-z]+)*)\s+(?:-e\s+)?(?:'([^']*)'|"([^"]*)")/g))
+    if (!/[EFP]/.test(m[1] ?? '') && /\\[+?{|]/.test(m[2] ?? m[3] ?? ''))
+      return 'grep is ugrep: BRE `\\+ \\? \\{ \\|` are errors here; use `grep -E` with escapes, `grep -F`, or rg (ugrep-not-gnu-grep.md)'
+  if (/(^|[;&|]\s*)echo\s+=/.test(bare))
+    return 'zsh reads a word starting with `=` as a command lookup: quote it, `echo \'====\'` (zsh-bash-tool.md)'
+  if (/\becho\s+"?\$\{?\w+\}?"?\s*\|\s*jq\b/.test(command))
+    return '`echo` expands `\\n` inside JSON: pipe curl straight into jq, or `printf \'%s\' "$x" | jq`. A parse error after a send means check the channel, never resend (zsh-bash-tool.md)'
+  if (/\b(while|until)\b/.test(command) && /\bpgrep\s+-\w*f\w*\s+(?!['"]?\[)/.test(command))
+    return '`pgrep -f` in a wait loop matches its own shell: bracket trick `pgrep -f "[a]rtisan …"`, `pgrep -x`, or poll a log/marker; every loop gets a `timeout` (zsh-bash-tool.md)'
+  if (/\b(while|until)\b/.test(command) && /\bsleep\b/.test(command) && /\bgh\s+(pr|run)\s+(checks|view|list)\b/.test(command))
+    return 'no hand-written loop around gh: `gh-run-wait <workflow> --sha <sha>`, `timeout 1800 gh run watch <id> --exit-status`, or `timeout 3000 gh pr checks <n> --watch --interval 90` in the background. Waiting for a human (merge, approval) ends the turn instead (zsh-bash-tool.md)'
+  if (/\bgh\s+run\s+download\b(?![^|;&]*\s(-D|--dir)\b)/.test(bare))
+    return '`gh run download -D <scratch>/run-<id>`, always a fresh dir: a reused one dies on "file exists" (zsh-bash-tool.md)'
+  if (/(^|[\s;&|])(\.\/)?bin\/gh-run-wait\b/.test(bare))
+    return '`gh-run-wait` is on PATH; `bin/gh-run-wait` is missing in worktrees and the watcher dies silently (zsh-bash-tool.md)'
+  if (/(^|[;&|]\s*)\S+\s+[a-z][\w-]*\s+--help\b[^|;&]*\|\s*head\b/.test(bare))
+    return 'no `<cmd> <sub> --help | head`: a CLI without --help runs the subcommand for real. Read its source/docs, or probe only top-level `-h`/`--version` (ops-traps.md)'
+  if (/(^|[\s;&|])tsc\b(?![^|;&]*\s(-p|--project|-b|--build)\b)[^|;&]*\s\S+\.tsx?\b/.test(bare))
+    return '`tsc <file>.ts` next to a tsconfig dies on TS5112: `pnpm exec tsc -p <dir>/tsconfig.json --noEmit` (`test -f` it first), never `--ignoreConfig` (ops-traps.md)'
+  if (/\bpnpm\s+(run\s+)?test\s+--\s+\S/.test(bare))
+    return '`pnpm test -- <file>` runs the whole nx target: `cd apps/<app> && pnpm exec vitest run <file>` (ops-traps.md)'
+  if (/\bCI=(true|1)\s+pnpm\s+(install|i)\b/.test(bare))
+    return 'no `CI=true pnpm install`, it changes lockfile behaviour: `pnpm install --config.confirmModulesPurge=false` (no-native-worktrees.md)'
+  const install = bare.match(/\bpnpm\s+(?:install|i)((?:\s+-[\w=.-]+)*)\s*($|[;&|)])/)
+  if (install && !install[1]?.includes('confirmModulesPurge'))
+    return 'the Bash tool has no TTY and pnpm asks before purging modules: `pnpm install --config.confirmModulesPurge=false` (no-native-worktrees.md)'
+  if (/\bnpx\s+(-y\s+)?skills\s+add\b/.test(bare))
+    return '`npx skills add` writes into ~/.claude/skills, which stage 30 wipes: `npx skills use <owner/repo@skill>` via skill-scout, or copy into agent-skills/'
+  if (/(^|[|;&]\s*)(rg|grep)\b[^|;&]*\.claude\/projects\/["']?\*/.test(command))
+    return 'never search every session transcript: `mp-search \'<literal token>\'` first, then `recall(max_tokens=512)` (memory-location.md)'
   return undefined
+}
+
+export function mcpProblem(tool: string, e: { max_tokens?: number; limit?: number }): string | undefined {
+  if (tool === 'mcp__hindsight__recall' && !e.max_tokens)
+    return 'pass `max_tokens` to recall (start at 512): the default returns ~82 KB and overflows the client (memory-location.md)'
+  if (tool === 'mcp__mempalace__mempalace_search' && !(e.limit && e.limit <= 3))
+    return 'start mempalace_search at `limit: 2` (5 overflowed twice); for a literal token use `bin/mp-search` (ops-traps.md)'
+  return undefined
+}
+
+type Toaster = { ui: { toast(text: string): unknown } }
+
+/** Every deny also toasts, so Greg sees the guard fire, not only the model. */
+function deny($: Toaster, reason: string) {
+  $.ui.toast(`🛡 guard: ${(reason.split('\n')[0] ?? '').slice(0, 90)}`)
+  return { deny: `guard: ${reason}` }
 }
 
 // First names worn by 2+ people in the work-people matrix: alone in a popup they name nobody.
@@ -115,20 +171,24 @@ export const register: Register = on => {
       $.ui.toast(`guard: popup let through after ${MAX_DENIES} denies`)
       return next(e)
     }
+    $.ui.toast(`🛡 guard: popup — ${(problems[0] ?? '').slice(0, 80)}`)
     return { deny: `guard: fix the popup and ask again (adhd-actions-not-walls.md):\n- ${problems.join('\n- ')}` }
   }).catch(($, e, next) => next(e))
 
   on('tool.call', { tool: 'Agent' }, ($, e, next) => {
     const problem = agentProblem(e)
-    return problem ? { deny: `guard: ${problem}` } : next(e)
+    return problem ? deny($, problem) : next(e)
   }).catch(($, e, next) => next(e))
 
-  on('tool.call', { tool: 'EnterWorktree' }, () => ({
-    deny: 'guard: no Claude-managed worktrees (no-native-worktrees.md); use workctl',
-  }))
+  on('tool.call', { tool: 'EnterWorktree' }, $ => deny($, 'no Claude-managed worktrees (no-native-worktrees.md); use workctl'))
 
   on('tool.call', { tool: 'Bash' }, ($, e, next) => {
     const problem = bashProblem(e.command)
-    return problem ? { deny: `guard: ${problem}` } : next(e)
+    return problem ? deny($, problem) : next(e)
+  }).catch(($, e, next) => next(e))
+
+  on('tool.call', { tool: /^mcp__(hindsight__recall|mempalace__mempalace_search)$/ }, ($, e, next) => {
+    const problem = mcpProblem(e.tool, e as { max_tokens?: number; limit?: number })
+    return problem ? deny($, problem) : next(e)
   }).catch(($, e, next) => next(e))
 }
