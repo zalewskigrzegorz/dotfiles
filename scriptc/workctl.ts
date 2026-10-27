@@ -1285,6 +1285,17 @@ function seedBootstrap(ws: string, cwd: string, cmd: string): boolean {
   return newTab(ws, cwd, "\u{f0493}  bootstrap", cmd, true);
 }
 
+// tuios review has no per-session base for a worktree it did not make: it
+// diffs from the merge base with @{upstream}, else only uncommitted work. So a
+// branch with no upstream gets the PR base (or the one it was cut from) as
+// upstream; push.default=current keeps `git push` going to origin/<branch>, and
+// a branch that already tracks something (origin/<branch>) is left alone.
+function trackBase(wt: string, st: St, head: string): void {
+  if (git(wt, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"]).code === 0) return;
+  const base = st.hasPr && st.baseRefName !== "" ? `origin/${st.baseRefName}` : st.baseRef !== "" ? st.baseRef : `origin/${st.defaultBranch}`;
+  git(wt, ["branch", `--set-upstream-to=${base}`, head]);
+}
+
 // Open-or-create the worktree for st.headRefName. Returns {ws, path}. Handles:
 //   existing checkout → open; fork PR → detached add + `gh pr checkout` (with
 //   rollback — an orphan detached tree at the canonical path blocks the retry);
@@ -1299,7 +1310,10 @@ function ensureWorktree(st: St, focus: boolean): { ws: string; path: string; cre
   const head = st.headRefName;
   const lbl = label(head);
 
-  if (st.worktree !== "") return { ws: openSession(st.worktree, lbl, focus), path: st.worktree, created: false };
+  if (st.worktree !== "") {
+    trackBase(st.worktree, st, head);
+    return { ws: openSession(st.worktree, lbl, focus), path: st.worktree, created: false };
+  }
 
   if (git(parent, ["branch", "--show-current"]).out.trim() === head) {
     die(`'${head}' is checked out in ${parent} — type a new branch name to create it from origin/${st.defaultBranch}`);
@@ -1332,10 +1346,9 @@ function ensureWorktree(st: St, focus: boolean): { ws: string; path: string; cre
   }
   const r = git(parent, args);
   if (r.code !== 0) die(`git worktree add failed: ${r.err.trim()}`);
-  // `worktree add -b X origin/main` makes git track origin/main via
-  // autoSetupMerge, so ahead/behind counts against main forever. Drop it; the
-  // first push sets origin/<branch> through push.autoSetupRemote.
-  if (isNew) git(wtPath, ["branch", "--unset-upstream", head]);
+  // `worktree add -b X origin/main` already tracks the base via autoSetupMerge,
+  // which tuios review needs (see trackBase); a local base does not, so set it.
+  trackBase(wtPath, st, head);
   return { ws: openSession(wtPath, lbl, focus), path: wtPath, created: true };
 }
 
