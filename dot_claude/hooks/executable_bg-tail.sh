@@ -19,6 +19,7 @@ for f in /private/tmp/claude-"$(id -u)"/*/"$sid"/tasks/"$id".output; do
   [ -e "$f" ] || exit 0
   # less +F follows like tail -F; Ctrl+C stops following so / searches, F resumes.
   # tuios's own scrollback editor (prefix+E) garbles the screen on 0.11.1.
-  tuios new-window -s "$TUIOS_SESSION" "bg: $desc" --no-focus -- less -R -~ +F "$f" >/dev/null 2>&1
+  tuios new-window -s "$TUIOS_SESSION" "bg: $desc" --no-focus -- \
+    less -R -~ -Ps'F=sledz dalej   /=szukaj   n/N=nastepne   q=zamknij' +F "$f" >/dev/null 2>&1
   exit 0
 done
