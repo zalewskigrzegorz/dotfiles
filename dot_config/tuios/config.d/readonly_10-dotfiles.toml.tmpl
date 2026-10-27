@@ -66,6 +66,11 @@ mode = "open"
 # no `harness` (every agent is Claude).
 tokens = ["$num", "session", "need", "name", "elapsed", "context", "subagents", "$pr", "meta", "now", "message"]
 
+# Tapes run only from the prefix+r picker: no .tuios.tape detection, so a
+# repo's own project tape never offers itself, let alone runs.
+[tape]
+autorun = "off"
+
 # herdr-equalize-panes: every split back to half when a pane opens or closes.
 [hooks]
 after-new-window = 'tuios set-layout --equalize -s "$TUIOS_SESSION_ID"'
@@ -202,6 +207,16 @@ command = 'printf "remove worktree of %s? [y/N] " "$TUIOS_SESSION"; read -r a; [
 description = "Remove this session's worktree"
 width = "70"
 height = "8"
+
+# Tape picker: fzf over ~/.config/tuios/tapes (public) and the private
+# secrets/tuios-tapes, then `tuios tape exec` of the pick in this session.
+[[keybindings.command]]
+key = "prefix+r"
+type = "popup"
+command = '"$HOME/bin/tuios-tape-pick"'
+description = "Run a tape from the tape folders"
+width = "90%"
+height = "80%"
 
 # tokscale token-usage + cost dashboard (was the herdr-tokscale-dashboard plugin).
 [[keybindings.command]]
