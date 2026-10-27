@@ -46,6 +46,11 @@
       "name": "remember",
       "source": "./remember",
       "description": "/zapamietaj saves the given text or the mouse selection to Hindsight."
+    },
+    {
+      "name": "sprawy",
+      "source": "./sprawy",
+      "description": "Band above the prompt with the session's separate requests, queued in order, each following its agent until done."
     }
   ]
 }
