@@ -80,6 +80,11 @@ reporting a failure. After re-adding a label like `run_e2e`, wait with
 `gh-run-wait e2e-pr.yml --sha <sha>`; a required check that reads labels and
 stayed red is re-evaluated by removing and re-adding that label.
 
+**All checks of a PR → `gh-pr-checks-wait <pr>`** in the background, no `>`
+redirect: it prints `pass/fail/pending` once a minute, so the tuios bg pane
+shows progress. `gh pr checks --watch` prints nothing without a TTY until it
+ends, and a redirect to a file leaves the pane empty too (2026-10-27).
+
 **Waiting for a human is not a loop.** A merge, an approval or a reply from
 Greg or a reviewer ends the turn with one line ("powiedz zmergowane"), or a
 popup if there is a real fork. A background `timeout 43200 … until gh pr view
