@@ -152,7 +152,7 @@ window's scrollback (`tuios capture-pane`).
 Collie is the phone PWA over the tailnet: which agent is blocked, answer it, push. It is a
 **standalone install**, not a tuios plugin (`tuios plugins install` refuses to run in a pane
 and a plugin waits for a per-machine approval, so `chezmoi apply` could not reproduce it):
-`run_onchange_after_34-collie.sh` installs it, writes `~/.config/collie/.env` with
+`run_after_34-collie.sh` installs it, writes `~/.config/collie/.env` with
 `COLLIE_MUX=tuios` + the daemon socket, and runs `collie start` (service + `tailscale serve`).
 Pairings live in `~/.local/state/collie`, so a phone paired under the old herdr plugin stays
 paired. Two steps stay manual: "Enable HTTPS" once in the tailnet admin console, and
