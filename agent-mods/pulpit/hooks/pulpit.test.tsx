@@ -109,6 +109,7 @@ test('a background command shows its last line, repeats fold, the end toasts', a
 
 test('log lines: colours go, the last one counts, failures are spotted', () => {
   expect(lastLine('a\n\x1b[31mb\x1b[0m\n\n')).toBe('b')
+  expect(lastLine('\x1b]0;evil title\x07ok \x1b]8;;https://x\x1b\\link\x1b]8;;\x1b\\\x07\x00')).toBe('ok link')
   expect(failedLine('[exited with code 4]')).toBe(true)
   expect(failedLine('pass=78 fail=2 pending=1')).toBe(false)
 })
