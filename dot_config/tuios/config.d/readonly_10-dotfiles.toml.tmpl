@@ -209,6 +209,13 @@ key = "prefix+m"
 type = "popup"
 command = "bunx tokscale@latest"
 description = "Tokscale token-usage dashboard"
+
+# zoetrope (herdr plugin, installed by hand: tuios refuses installs from a pane).
+[[keybindings.command]]
+key = "prefix+Z"
+type = "plugin_action"
+command = "furkankly.zoetrope.open"
+description = "zoetrope: the focused agent's session as a flow graph"
 {{- if eq .chezmoi.os "darwin" }}
 
 # hd-mrglaszki: `tuios attach --host mrglaszki` draws the lab's sessions here.
