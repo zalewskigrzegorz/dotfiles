@@ -31,8 +31,8 @@ test('chips run the commands, hide keeps what is beneath', async ($, on) => {
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  expect((await ui.find({ type: 'Button', key: 'standup' }))?.text).toContain('standup (13)')
-  expect((await ui.find({ type: 'Button', key: 'retro' }))?.text).toContain('retro (8)')
+  expect((await ui.find({ type: 'Button', key: 'standup' }))?.text).toContain(' 13')
+  expect((await ui.find({ type: 'Button', key: 'retro' }))?.text).toContain('󰑓 8')
   await ui.press({ key: 'standup' })
   await ui.press({ key: 'retro' })
   expect(submitted).toEqual(['g-standup', 'retro-backlog'])
@@ -66,7 +66,7 @@ test('a hidden band comes back when the counts change', async ($, on) => {
   retro = 'retro-pending: 9 session(s) in 3 repo(s)'
   await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
   await clock.settle()
-  expect((await ui.find({ type: 'Button', key: 'retro' }))?.text).toContain('retro (9)')
+  expect((await ui.find({ type: 'Button', key: 'retro' }))?.text).toContain('󰑓 9')
   await ui.unmount()
 })
 
