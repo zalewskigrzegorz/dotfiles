@@ -198,8 +198,8 @@ A renderer flag goes into the process env (`with-env` for one session, nushell
 `env.nu` for new ones), never into settings.json. Removing a key from the
 template does not remove it from the live file: `modify_settings.json.tmpl`
 merges keys in, so `jq 'del(.env.X)'` the live file as well. The scroll jumps
-themselves are upstream anthropics/claude-code#34845 (fullscreen tui), not the
-setup; Greg chose to wait for the fix rather than run without the alt screen.
+themselves are upstream anthropics/claude-code#34845 (fullscreen tui); they
+do not happen inside tuios, so the alt screen is on again since 2026-10-27.
 The live-reload blanking is filed as anthropics/claude-code#104064. Blank
 sessions do not come back after the revert: `/exit` + `claude --continue`.
 
