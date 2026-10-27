@@ -16,6 +16,8 @@ const PEEK_CLOSE_MS = 5 * 60_000
 // Shared with shot-pane: its daily cleanup sweeps this folder too.
 const CACHE = '/Users/greg/Library/Caches/shot-pane'
 const REVIEW_COMMANDS = new Set(['g-pr-review', 'code-review'])
+// Mocha Neon, the statusline's colours (docs/mocha-neon-palette.md).
+const C = { green: '#50FA7B', red: '#FF6B9D', gold: '#FFD700', peach: '#FF8C42', cyan: '#8BE9FD', lavender: '#9580FF', muted: '#A6ADC8' }
 
 let names: Record<string, string> = {}
 let peekTimer: { cancel: () => void } | undefined
@@ -113,15 +115,15 @@ export const register: Register = on => {
           {p.isDraft ? ' · draft' : ''} · +{p.additions} −{p.deletions} · {p.files} plików
         </Text>
         <Box>
-          <Text color="green">✓{p.pass} </Text>
-          {p.fail > 0 && <Text color="red">✗{p.fail} </Text>}
-          {p.pending > 0 && <Text color="yellow">⏳{p.pending} </Text>}
+          <Text color={C.green}>✓{p.pass} </Text>
+          {p.fail > 0 && <Text color={C.red}>✗{p.fail} </Text>}
+          {p.pending > 0 && <Text color={C.gold}>⏳{p.pending} </Text>}
           <Text dimColor>
             {p.merge.toLowerCase()}
             {p.review && ` · ${p.review.toLowerCase().replace('_', ' ')}`}
           </Text>
         </Box>
-        {p.failed.length > 0 && <Text color="red">{p.failed.join(', ')}</Text>}
+        {p.failed.length > 0 && <Text color={C.red}>{p.failed.join(', ')}</Text>}
         <Box>
           <Button key="open" plain hotkey="o" label="otwórz" onPress={() => void $.process.run(['open', p.url])} />
           {p.e2eRun && <Button key="e2e" plain hotkey="e" label="screeny e2e" onPress={() => void showE2e($, p)} />}
@@ -142,11 +144,13 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column">
         <Box>
-          <Text>PR #{now.number} </Text>
-          <Text color="green">✓{now.pass} </Text>
-          {now.fail > 0 && <Text color="red">✗{now.fail} </Text>}
-          {now.pending > 0 && <Text color="yellow">⏳{now.pending} </Text>}
-          <Text dimColor>
+          <Text color={C.green} bold>
+            󰘬 #{now.number}{' '}
+          </Text>
+          <Text color={C.green}>✓{now.pass} </Text>
+          {now.fail > 0 && <Text color={C.red}>✗{now.fail} </Text>}
+          {now.pending > 0 && <Text color={C.gold}>⏳{now.pending} </Text>}
+          <Text color={needsRebase(now) || now.merge === 'BLOCKED' ? C.peach : C.muted}>
             {now.merge.toLowerCase()}
             {now.review && ` · ${now.review.toLowerCase().replace('_', ' ')}`}{' '}
           </Text>
@@ -157,14 +161,24 @@ export const register: Register = on => {
               hotkey="f"
               label="log-failed"
               onPress={ask(`Przeczytaj gh run view --log-failed dla padniętych checków PR #${now.number} (${now.failed.join(', ')}) i powiedz, co padło.`)}
-            />
+            >
+              <Text color={C.red}>log-failed</Text>
+            </Button>
           )}
-          {now.e2eRun && <Button key="e2e" plain hotkey="e" label="screeny e2e" onPress={() => void showE2e($, now)} />}
+          {now.e2eRun && (
+            <Button key="e2e" plain hotkey="e" label="screeny e2e" onPress={() => void showE2e($, now)}>
+              <Text color={C.red}>screeny e2e</Text>
+            </Button>
+          )}
           {needsRebase(now) && (
-            <Button key="rebase" plain hotkey="r" label="rebase" onPress={ask(`Branch PR #${now.number} jest ${now.merge}: zrebase'uj go na bazę PR-a i uruchom lokalnie to, co CI.`)} />
+            <Button key="rebase" plain hotkey="r" label="rebase" onPress={ask(`Branch PR #${now.number} jest ${now.merge}: zrebase'uj go na bazę PR-a i uruchom lokalnie to, co CI.`)}>
+              <Text color={C.peach}>rebase</Text>
+            </Button>
           )}
-          <Button key="open" plain hotkey="o" label="otwórz" onPress={() => void $.process.run(['open', now.url])} />
-          <Button key="hide" plain hotkey="x" label="ukryj" onPress={() => update($, hiddenFor, () => now.number)} />
+          <Button key="open" plain hotkey="o" label="otwórz" onPress={() => void $.process.run(['open', now.url])}>
+            <Text color={C.cyan}>otwórz</Text>
+          </Button>
+          <Button key="hide" plain hotkey="x" label="ukryj" dimColor onPress={() => update($, hiddenFor, () => now.number)} />
         </Box>
         {below}
       </Box>
