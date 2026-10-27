@@ -14,10 +14,11 @@ const PANE = 'pulpit'
 const POLL_MS = 15_000
 const KEEP_DONE = 5
 
-// The last non-empty line of a log tail, colours stripped.
+// The last non-empty line of a log tail, every escape sequence and control character stripped (a log may set titles or links).
 export const lastLine = (tail: string) =>
   tail
-    .replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '')
+    .replace(/\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[PX^_][^\x1b]*\x1b\\|.)/g, '')
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/g, '')
     .split(/\r?\n|\r/)
     .map(l => l.trim())
     .filter(Boolean)
