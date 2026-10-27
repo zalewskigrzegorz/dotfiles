@@ -10,10 +10,16 @@ def tv_smart_autocomplete [] {
     let output = (^tv --no-status-bar --autocomplete-prompt $lhs | str trim)
 
     if ($output | str length) > 0 {
-        let needs_space = not ($lhs | str ends-with " ")
-        let lhs_with_space = if $needs_space { $"($lhs) " } else { $lhs }
-        let new_line = $lhs_with_space + $output + $rhs
-        let new_cursor = ($lhs_with_space + $output | str length)
+        # the pick replaces the half-typed word (`z dotfi` → `z /…/dotfiles`); a lone word is the command, keep it
+        let prefix = if ($lhs | str ends-with " ") {
+            $lhs
+        } else if ($lhs | str contains " ") {
+            $lhs | str replace -r '\S+$' ''
+        } else {
+            $"($lhs) "
+        }
+        let new_line = $prefix + $output + $rhs
+        let new_cursor = ($prefix + $output | str length)
         commandline edit --replace $new_line
         commandline set-cursor $new_cursor
     }
