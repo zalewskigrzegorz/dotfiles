@@ -130,8 +130,10 @@ grant: `[agents.permissions] mode = "open"` in the config (a strict mode would b
 
 Orchestration recipes live in the `tuios-orchestration` skill: `tuios start-agent`, `queue`,
 `ask-agent`, `wait-for agent-state`, `peek-prompt` / `respond`, plus `agent-status`.
-Reading a window: `tuios-peek` (skill `tuios-peek`, wraps `tuios capture-pane`). Typing into
-Greg's shell window (`sudo` steps): `tuios send-text -w <window> '<cmd>'` with no newline.
+Reading a window: `tuios-peek` (skill `tuios-peek`, wraps `tuios capture-pane`). A command Greg
+runs himself (`sudo` steps): `tuios split-window horizontal -w "$TUIOS_PANE_ID" --name do-wpisania`,
+then `tuios send-text -w <new> '<cmd>'` with no newline. A one-off secret: `tuios popup --wait --
+secret-in <scratchpad>/secrets/<name>` (`agent-rules/ops-traps.md`).
 
 ## Tab / window naming (our own)
 

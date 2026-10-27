@@ -50,6 +50,9 @@ authorized_keys*
 .chezmoidata/private*.toml
 *secret*
 !docs/secrets.md
+!bin/secret-in
+!bin/tests/secret-in.test.sh
+!dot_claude/hooks/executable_secrets-cleanup.sh
 *token*
 *password*
 .config/nushell/autoload/private.nu

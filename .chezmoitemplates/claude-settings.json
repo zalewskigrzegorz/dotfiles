@@ -372,6 +372,16 @@
         ]
       },
       {
+        "matcher": "Read|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/pre-tool-use/block-credential-files.sh",
+            "timeout": 5000
+          }
+        ]
+      },
+      {
         "matcher": "mcp__.*",
         "hooks": [
           {
@@ -673,6 +683,15 @@
         "hooks": [
           {
             "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/secrets-cleanup.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
             "command": "tuios agent-hook claude-code --integration 3",
             "timeout": 5
           }
@@ -743,6 +762,15 @@
       }
     ],
     "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/secrets-cleanup.sh",
+            "timeout": 5
+          }
+        ]
+      },
       {
         "hooks": [
           {
