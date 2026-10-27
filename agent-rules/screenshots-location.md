@@ -34,3 +34,12 @@ zrzut already carries the newest CleanShot paths from
 `dot_claude/hooks/executable_screenshot-attach.sh`; read those first and fall
 back to the Drive folder only when none were added. A session started before
 the hook needs `/exit` + `claude --continue`.
+
+## "Zobacz okno X" is a tuios window, not CleanShot
+
+"zobacz okno <nazwa>", "spójrz na lazygit / nvim / deploy", "co jest w oknie
+bg:" mean a pane in his tuios session. Find it with `tuios list-windows -s
+"$TUIOS_SESSION"` (match the name), render it with `tuios screenshot -s
+"$TUIOS_SESSION" -w <id> -o <scratchpad>/<name>.png` and `Read` the PNG. The
+daemon draws it, so it works without focus and on another workspace
+(2026-10-27). Text only → `tuios capture-pane -w <id> --lines 40` is cheaper.
