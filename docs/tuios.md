@@ -42,7 +42,7 @@ Env in every pane: `TUIOS_SESSION`, `TUIOS_PANE_ID` (= `TUIOS_WINDOW_ID`), `TUIO
   Mocha Neon palette, the terminal-mode border is mauve `#B347FF`.
 - `[daemon] resume_agents = "auto"` is the "continuum for agents": after a daemon restart tuios
   types each harness's resume command (`claude --resume <id>`).
-- Launcher: plain `tuios` (start/attach). Helpers in `dot_config/nushell/autoload/tuios.nu`: `os-reload`,
+- Launcher: plain `tuios` or `os` (start/attach). Helpers in `dot_config/nushell/autoload/tuios.nu`: `os-reload`,
   `os-restart`, `os-stop` (`tuios kill-server`), `os-mrglaszki`.
 
 ## Key bindings (prefix `ctrl+space`, keys kept from herdr)
