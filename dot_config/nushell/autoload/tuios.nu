@@ -2,14 +2,15 @@
 
 # Short launcher: `os` = `tuios`, flags and subcommands pass through.
 # Bare `os` attaches (or creates) a session named after the repo you stand in
-# (`dotfiles`, `homelab`), or `global` from ~, instead of tuios's `session-N`.
+# (`dotfiles`, `homelab`), or the machine name from ~ (`Wintermute`), instead
+# of tuios's `session-N`.
 def --wrapped os [...rest] {
     if ($rest | is-not-empty) { ^tuios ...$rest; return }
     # the common dir, so a worktree still names its main repo
     let git = (^git rev-parse --path-format=absolute --git-common-dir | complete)
     let name = if $git.exit_code == 0 {
         $git.stdout | str trim | path dirname | path basename
-    } else if $env.PWD == $env.HOME { 'global' } else { $env.PWD | path basename }
+    } else if $env.PWD == $env.HOME { sys host | get hostname } else { $env.PWD | path basename }
     ^tuios attach -c $name
 }
 
