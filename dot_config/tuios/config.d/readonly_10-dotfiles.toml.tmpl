@@ -14,6 +14,8 @@ start_in_terminal_mode = true
 daemon = true
 tiled = true
 layout = "bsp"
+# A new session (prefix+N) is empty by default: nothing to type into.
+open_default_window = true
 
 [appearance]
 # Per-OS: Mac uses the homebrew nu path; the lab has nu under linuxbrew.
@@ -98,7 +100,8 @@ prefix_last_message = []
 rename_session = ["W"]
 prefix_workspace_switcher = []
 prefix_close_session = ["D"]
-prefix_debug = []
+# D closes the session (herdr's key); the debug menu (logs, showkeys) moves to B.
+prefix_debug = ["B"]
 prev_session = [","]
 next_session = ["."]
 # agents: next one that needs you (also prefix+0), unseen finished turns
