@@ -210,7 +210,7 @@ sessions do not come back after the revert: `/exit` + `claude --continue`.
 
 `claude -p --model claude-haiku-5-5 --no-session-persistence --strict-mcp-config
 --tools "" --setting-sources "" --system-prompt "…" "<input>" </dev/null`, with
-an env guard (`HD_TITLE_CHILD=1`) that your own hook checks first. No hooks,
+an env guard (`OS_TITLE_CHILD=1`) that your own hook checks first. No hooks,
 plugins, MCP or CLAUDE.md load: ~600 tokens, ~2 s, $0.0002. `--bare` is not an
 option here, it reads only `ANTHROPIC_API_KEY`, never the OAuth login. Haiku
 sometimes reasons before the answer, so take the last line. Without

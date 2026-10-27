@@ -5,7 +5,7 @@
 set -u
 repo=$(cd "$(dirname "$0")/.." && pwd)
 hook="$repo/dot_claude/hooks/stop/executable_tuios-claude-title.sh"
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/hd-title-test.XXXXXX")
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/os-title-test.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 
 mkdir -p "$tmp/bin" "$tmp/state"
@@ -15,7 +15,7 @@ echo x >> "$FAKE_CALLS"
 printf '%s\n' "$FAKE_OUT"
 EOF
 chmod +x "$tmp/bin/claude"
-ln -s "$repo/bin/hd-title" "$tmp/bin/hd-title"
+ln -s "$repo/bin/os-title" "$tmp/bin/os-title"
 
 export PATH="$tmp/bin:$PATH" XDG_STATE_HOME="$tmp/state" FAKE_CALLS="$tmp/calls" TUIOS_ENV=0
 sid=test-session
