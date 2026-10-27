@@ -1,6 +1,6 @@
 ---
 name: g-orch
-description: Greg's standing agent orchestrator. Takes a list of things to do (private and work, mixed), splits it into agent briefs, picks model and effort per task weight, spawns herdr agents or worktrees, supervises with one watcher, and comes back with results and the decisions only Greg can make. Trigger on "będziesz moim orchestratorem", "orkiestruj", "rozdziel to agentom", "odpal to agentami", "lista rzeczy do zrobienia na dziś", "/g-orch", or any message that is a list of 3+ unrelated tasks. Builds on herdr-orchestration (the mechanics) and subagent-model-by-weight (the model table).
+description: Greg's standing agent orchestrator. Takes a list of things to do (private and work, mixed), splits it into agent briefs, picks model and effort per task weight, spawns tuios agents or worktrees, supervises with one watcher, and comes back with results and the decisions only Greg can make. Trigger on "będziesz moim orchestratorem", "orkiestruj", "rozdziel to agentom", "odpal to agentami", "lista rzeczy do zrobienia na dziś", "/g-orch", or any message that is a list of 3+ unrelated tasks. Builds on herdr-orchestration (the mechanics) and subagent-model-by-weight (the model table).
 ---
 
 # g-orch — the day's orchestrator
@@ -42,7 +42,7 @@ Every brief is the child's whole world. Always:
 - a closing line: "3–5 lines: done, missing, what you need from Greg";
 - for code: the base, the worktrees other agents own, "present a plan and
   wait for ok", `g-commit` + `g-pr` draft, and the "is the bug still there"
-  check from herdr-orchestration before the first edit.
+  check from tuios-orchestration before the first edit.
 
 Greg's stance goes into the brief verbatim when the task is an argument (a
 review, a reply): the agent argues it with evidence from the repo, it doesn't
@@ -50,35 +50,34 @@ invent a position.
 
 ## 3. Spawn
 
-herdr-orchestration owns the mechanics; the order that works:
+tuios-orchestration owns the mechanics; the order that works:
 
 ```bash
-herdr tab create --workspace <ws> --cwd <dir> --label <slug>      # one tab per read-only agent
-herdr agent start <slug> --kind claude --pane <pane> -- --model <opus|sonnet>
-herdr agent wait <pane> --until idle --timeout 60000               # mine 5: start returns early
-herdr agent prompt <pane> "$(cat brief.md)" && herdr agent send-keys <pane> Enter
-herdr agent read <pane> | grep -v '^\s*$' | tail -3                  # the title shows the brief → landed
+tuios start-agent claude --name <slug> -s <session> --cwd <dir> --grants read \
+  --prompt "$(cat brief.md)" -- --model <opus|sonnet>           # one window per read-only agent; returns once claude is ready and submits the brief
+tuios list-agents -s <session> --json | jq -c '.agents[] | {window_id,state}'   # the state turns working → the brief landed
 ```
 
-Code tasks: `workctl … --action wt-full --yes --no-focus`, find the pane by
-`cwd` in `herdr agent list`, `/model opus` first, then the brief. Say the
+Code tasks: `workctl … --action wt-full --yes --no-focus`, find the window by
+`cwd` in `tuios list-agents --all-sessions`, then `tuios queue -s <session> -w <window> "$(cat brief.md)"`
+(a model other than the default is a `start-agent … -- --model opus` in that session, not `/model`). Say the
 spawn line once: "5 agentów: 2× Opus (PR, review), 3× Sonnet (maile, Slack),
 ETA ~15 min".
 
 ## 4. Supervise
 
-One background watcher for all panes:
+One background watcher for all windows:
 
 ```bash
-scripts/agent-status --wait --timeout 1500 <pane> <pane> …   # from herdr-orchestration
+scripts/agent-status --wait --timeout 1500 <id-prefix> <id-prefix> …   # from tuios-orchestration
 ```
 
-On return: `agent_status` per pane; `blocked` → read the popup in full (mine
-7) and answer only what Greg already decided; `done` → read the report file,
-not the pane. A pane that looks stuck → transcript mtime (mine 6).
+On return: `state` per window; `needs_input` → `tuios peek-prompt` and read the popup in full (mine
+6) and answer only what Greg already decided; `done` → read the report file,
+not the window. A window that looks stuck → transcript mtime (mine 5).
 
 Greg hears from the orchestrator when: a result needs his decision, an agent
-is blocked on something only he knows, or everything is done. Not per pane.
+is blocked on something only he knows, or everything is done. Not per window.
 
 ## 5. Hand back
 
@@ -96,5 +95,5 @@ one or two things the orchestrator skipped.
 - Spawn on Fable without Greg naming it for that spawn.
 - Let a child post, send or commit on its own; the brief forbids it by
   command name.
-- Poll panes in a loop; one watcher, then act.
+- Poll windows in a loop; one watcher, then act.
 - Ask Greg about the split or the model when the table answers it.

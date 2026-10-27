@@ -83,7 +83,7 @@ git -C "$WORK_PROJECT_DIR" log --author='zalewski\|Grzegorz\|maksim009' \
 # Meetings attended in the window (transcript optional for a 1-line takeaway)
 spark meetings --filter "newer_than:<N>d"
 
-# What the Claude sessions worked on: the herdr title hook logs every title check
+# What the Claude sessions worked on: the tuios title hook logs every title check
 # (day, folder, branch, 3–4 word task, session id). Catches analysis and review
 # work that leaves no PR or commit.
 jq -r --arg cut "$CUT" 'select(.ts >= $cut)
@@ -102,7 +102,7 @@ transcript (`~/.claude/projects/*/<sid>.jsonl`); don't skim transcripts wholesal
 
 **Work with no PR yet** (a Grafana board, a branch never pushed): `git -C <wt>
 status -sb` and `git -C <wt> log --oneline origin/main..HEAD` over
-`~/.herdr/worktrees/<repo>/*` and `~/Code/tree/wt-<repo>/*`, then the task log
+`~/Code/tree/wt-<repo>/*` (and old trees in `~/.herdr/worktrees/<repo>/*`), then the task log
 above. It goes into the draft as "bez PR-a" for Greg to confirm.
 
 Ambient context (don't over-weight): `mcp__hindsight__recall query="work shipped

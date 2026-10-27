@@ -20,7 +20,7 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 ├── dot_Brewfile.tmpl               # brew bundle source (templated by profile)
 ├── nushell-mcp.json.tmpl           # MCP servers for the nushell mcp integration
 ├── dot_claude/                     # → ~/.claude (settings, hooks, output-styles, skills/, statusline)
-├── dot_config/                     # → ~/.config (nushell, herdr, nvim, ghostty, sketchybar, ...)
+├── dot_config/                     # → ~/.config (nushell, tuios, nvim, ghostty, sketchybar, ...)
 ├── private_dot_ssh/                # → ~/.ssh (mode 0600, templated)
 ├── agent-plugins/plugins.json.tmpl # Claude Code plugin install list
 ├── agent-mcp/mcp-servers.json.tmpl # Claude Code MCP server list
@@ -64,6 +64,7 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 | 31 | `run_onchange_after_31-agent-rules-sync.sh.tmpl` | rsync `agent-rules/` |
 | 32 | `run_onchange_after_32-agent-mcp-sync.sh.tmpl` | apply `agent-mcp/mcp-servers.json.tmpl` |
 | 33 | `run_onchange_after_33-claude-plugins-sync.sh.tmpl` | apply `agent-plugins/plugins.json.tmpl` |
+| 34 | `run_onchange_after_34-collie.sh` | install Collie standalone, write `~/.config/collie/.env` (`COLLIE_MUX=tuios`), `collie start` |
 | 35 | `run_after_35-raycast-scripts-compat.sh.tmpl` | Raycast compatibility shim |
 | 35 | `run_onchange_after_35-gh-extensions.sh` | install `gh` CLI extensions (gh-dash, gh-stack, …) |
 | 36 | `run_onchange_after_36-git-hooks.sh.tmpl` | wire tracked git hooks (`core.hooksPath` → gitleaks pre-commit/pre-push) |
@@ -97,7 +98,7 @@ Run **`bin/audit-drift`** first — it prints a classified view of `chezmoi diff
 **Two former sources of permanent fake drift, both fixed 2026-08-20 — don't reintroduce them:**
 
 - **umask.** chezmoi inherits the umask of whatever process ran it, so an apply from a umask-077 shell wrote every managed dir `0700` and the next apply from umask-022 wanted `0755` back — ~816 rows of pure mode churn that `bin/sync` could only bulldoze with `--force`. `umask = 0o022` is now pinned top-level in `~/.config/chezmoi/chezmoi.toml` **and** in the generator in `bootstrap.sh`. `private_*` entries still get `0700`/`0600`.
-- **`bin/` exec bit.** chezmoi takes a target's exec bit from the source *filename* (`executable_foo`), never from the source file's mode — so all 41 scripts (755 on disk, no prefix) landed in `~/bin` at `0644`. Invisible on the Mac, fatal on the lab where `~/bin/sync` **is** `sync`/`chezmoi`. Fixed by ignoring `bin/**` and rsyncing it (stage 28). Do **not** rename them to `executable_*`: `bin/` doubles as a PATH dir and ~10 launchd plists, `herdr/config.toml` and sketchybar items hardcode `~/Code/dotfiles/bin/<name>`.
+- **`bin/` exec bit.** chezmoi takes a target's exec bit from the source *filename* (`executable_foo`), never from the source file's mode — so all 41 scripts (755 on disk, no prefix) landed in `~/bin` at `0644`. Invisible on the Mac, fatal on the lab where `~/bin/sync` **is** `sync`/`chezmoi`. Fixed by ignoring `bin/**` and rsyncing it (stage 28). Do **not** rename them to `executable_*`: `bin/` doubles as a PATH dir and ~10 launchd plists, `tuios/config.d` and sketchybar items hardcode `~/Code/dotfiles/bin/<name>`.
 
 A healthy `chezmoi status` is now ~2 rows, both `R` script rows. Anything more is real.
 
@@ -207,14 +208,14 @@ Jednorazowa wiedza domenowa idzie przez **`skill-scout`** → `npx skills use <o
 
 sketchybar, nushell autoload and workctl / gh-dash gotchas load on demand from `.claude/rules/*.md` (`paths:` frontmatter) when a matching file is read or edited. Put new file-specific gotchas there, not here: instruction files share a 150k-char budget.
 
-## Multiplexer — herdr (Mac)
+## Multiplexer — tuios (Mac)
 
-- **`hd` / `herdr` is the launcher** (`dot_config/nushell/autoload/herdr.nu` → `hd`, `hd-restart`, `hd-stop`, `hd-mrglaszki`). Prefix = `ctrl+space`. The priority-sorted **agent sidebar** (blocked-first) is the core — it replaces the old `claude-agent-presence` stack and the window-wrappers. Worktrees via the herdr-native `work` CLI (`new`/`ls`/`switch`/`rm`/`pr`); `work new` / `work switch` are thin wrappers over **`bin/workctl`** (`scriptc/workctl.ts`), the one branch / PR command that `prefix+shift+g`, `prefix+shift+o`, gh-dash's `w` and lazygit's `w` all open — see `docs/herdr.md`. Nav: `prefix+w` workspace picker · `prefix+g` goto · `prefix+a` agent-cycle · `prefix+0` jump-to-waiting-agent · `prefix+h/j/k/l` panes. Config: `dot_config/herdr/config.toml.tmpl` (a template; live is `~/.config/herdr/config.toml`). Full reference: `docs/herdr.md`.
-- **tmux removed** (2026-08-18). herdr is the only multiplexer on Mac and lab; the old `dot_config/tmux/`, `brew "tmux"`, TPM install script and tmux statusline scripts are gone. Pre-herdr state remains reachable at git tag `pre-herdr` / branch `pre-herdr-backup` if ever needed.
+- **`hd` is the launcher** (`dot_config/nushell/autoload/tuios.nu` → `hd`, `hd-restart`, `hd-stop`, `hd-mrglaszki`; plain `tuios` works too). Vocabulary: a tuios **session** = one repo+branch worktree, a **workspace** = a numbered tab inside it, a **window** = a pane. Prefix = `ctrl+space`. The agent **sidebar** (rail) with the Inbox of agents that need you (`needs_input`, `errored`, finished turns) is the core — it replaces the old `claude-agent-presence` stack. Agent state comes from `tuios agent-hook claude-code` hooks in `.chezmoitemplates/claude-settings.json`; tuios `[notifications.agent]` is the only notifier (the Claude Stop hook that played sounds is gone). Worktrees via the `work` CLI (`new`/`ls`/`switch`/`rm`/`pr`); `work new` / `work switch` are thin wrappers over **`bin/workctl`** (`scriptc/workctl.ts`), the one branch / PR command that `prefix+shift+g`, `prefix+shift+o`, gh-dash's `w` and lazygit's `w` all open — see `docs/tuios.md`. Nav: `prefix+w` session picker · `prefix+g` goto · `prefix+a` / `prefix+0` next item that needs you · `prefix+t` pane finder · `prefix+h/j/k/l` windows. Config: `dot_config/tuios/config.d/readonly_10-dotfiles.toml.tmpl` (live is `~/.config/tuios/config.d/10-dotfiles.toml`; `config.toml` is tuios's own). Full reference: `docs/tuios.md`.
+- **tmux and herdr removed** (tmux 2026-08-18, herdr on the switch to tuios). tuios is the only multiplexer on Mac and lab. The pre-herdr state is at git tag `pre-herdr` / branch `pre-herdr-backup`; herdr is only in git history. No herdr shim: scripts call `tuios` directly.
 - **`disk-sweep` is manual only** (Greg, 2026-09-25): Docker images (22.8 GB reclaimable at the time), `~/.npm`, stale worktrees. Worktree cleanup goes through `workctl prune`, which calls it. Do not schedule it (no launchd, no cron).
 - **`ctrl+space` taken by the input-source switcher** (hotkeys 60/61, once a second layout is added): `defaults write … AppleSymbolicHotKeys` + `activateSettings -u` + `killall TextInputSwitcher` do not release it in a live session (b2750378, ~8 calls). Go straight to `open-here x-apple.systempreferences:com.apple.Keyboard-Settings.extension` → Keyboard Shortcuts… → Input Sources → untick both → Done; if they already look unticked, tick and untick again. The `defaults write` in stage 14 stays for fresh Macs. It comes back after every Mac restart even with `enabled = 0` for 60/61 in the plist, so the plist proves nothing: go straight to the GUI, no `defaults write`, no plist diagnosis. Root cause unknown (a8b9bde2).
 - **Collie after a Mac restart: Tailscale first.** `tailscale status --json` with `BackendState: Stopped` → `tailscale up --accept-routes`; `no host for this node` in the bridge log is then a symptom, not the allowlist. Phone can't reach Collie while the bridge answers on the tailnet → `tailscale ping <iphone>` from the Mac; a timeout on an "online" phone is a hung iOS tunnel: Settings → General → VPN & Device Management → VPN → status off/on, then airplane mode, then a phone restart (6f32e82c).
-- **Collie: check the bridge before handing out a pairing code.** There is no `collie` on PATH: the CLI is `bin/collie` inside the plugin checkout (`~/.config/herdr/plugins/github-installations/herdr.collie-*/*/checkout/`), or `herdr plugin action invoke <action> --plugin herdr.collie`. `collie status` shows `tailnet https://<host>.ts.net`, `curl` there answers 200, and `~/.config/herdr/plugins/config/herdr.collie/collie.log` has no `host not allowed` / `no host for this node`. Only then `collie pair` (one-time, 10 min). An error on the phone → read the bridge log, don't mint a new code (two dead codes on 2026-10-19).
+- **Collie: check the bridge before handing out a pairing code.** Collie is a standalone install (`run_onchange_after_34-collie.sh`, `COLLIE_MUX=tuios` in `~/.config/collie/.env`), `collie` is on PATH via `~/.local/bin`. `collie doctor` first; `collie status` shows `tailnet https://<host>.ts.net`, `curl` there answers 200, and the bridge log has no `host not allowed` / `no host for this node`. Only then `collie pair` (one-time, 10 min). An error on the phone → read the bridge log, don't mint a new code (two dead codes on 2026-10-19).
 
 ## Shell history (nushell)
 
@@ -224,7 +225,7 @@ sketchybar, nushell autoload and workctl / gh-dash gotchas load on demand from `
 ## Lab (`minis`, Debian) — connect & cold-start
 
 - SSH alias: `ssh mrglaszki` (chezmoi-templated `~/.ssh/config`), `HostName 192.168.50.10` on purpose: AdGuard runs on that host, so ssh must not depend on its DNS. The old `lab` name and the `lab` / `*.lab` DNS rewrites were removed 2026-10-23; DNS `mrglaszki` → 192.168.50.10 is an AdGuard rewrite.
-- **herdr runs on the lab too.** Preferred access from the Mac is `hd-mrglaszki` (`herdr --remote mrglaszki --remote-keybindings server`) — a client-server attach to the lab's herdr server from a plain Ghostty window (not nested in a local herdr). Full remote flow in `docs/herdr.md`.
+- **tuios runs on the lab too.** Preferred access from the Mac is `hd-mrglaszki` (`tuios attach --host mrglaszki`, `[hosts.mrglaszki]` in the tuios config) — the lab's session is drawn in a plain Ghostty window with the local keys and theme, nothing nested; run it outside a tuios pane. Full remote flow in `docs/tuios.md`.
 - **One-time terminfo install per remote** so nvim accepts `xterm-ghostty`:
   ```
   infocmp -x xterm-ghostty | ssh <host> -- tic -x -

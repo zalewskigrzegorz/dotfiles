@@ -3,12 +3,12 @@
 // LEFT click  → toggle a popup under the chip listing every open PR from the
 //               pr-watch cache (~/.cache/pr-watch-last.json): action glyph +
 //               "#num  title  <comment count>". Clicking a row opens that PR
-//               in the browser; right-clicking it focuses the herdr workspace
+//               in the browser; right-clicking it switches to the tuios session
 //               on that branch, falling back to the browser when none exists.
 //               Event rows above the list click the same way.
-// RIGHT click → gh-dash flow: open/focus a herdr workspace running `gh dash`
-//               (my work PRs). Reuses an existing workspace if one is open.
-//               No-ops cleanly if the herdr server isn't running.
+// RIGHT click → gh-dash flow: open/switch to a tuios session running `gh dash`
+//               (my work PRs). Reuses the `gh-dash` session if it exists.
+//               No-ops cleanly when tuios is not installed.
 //
 // Ported from bash: killed the two `jq` subprocesses (cache parse + sketchybar
 // --query) in favor of native JSON.parse. sketchybar itself is still shelled
@@ -173,8 +173,19 @@ function truncate(title: string): string {
   return title;
 }
 
+// `tuios ls --json` is a bare array of sessions; with no daemon it lists the
+// saved ones and exits 3 without starting one.
+function tuiosSessions(bin: string): { name?: string; branch?: string }[] {
+  const r = spawnSync(bin, ["ls", "--json"], { encoding: "utf8" });
+  try {
+    return JSON.parse(r.stdout ?? "") as { name?: string; branch?: string }[];
+  } catch {
+    return [];
+  }
+}
+
 function ghDash(): void {
-  const herdrBin = process.env.HERDR_BIN || "/opt/homebrew/bin/herdr";
+  const tuiosBin = process.env.TUIOS_BIN || "/opt/homebrew/bin/tuios";
   let repoDir = process.env.PR_WATCH_REPO_DIR || "";
   if (repoDir === "") {
     // Work monorepo path lives in the private work.env (restored by sync).
@@ -194,79 +205,34 @@ function ghDash(): void {
     return;
   }
   const label = process.env.PR_WATCH_DASH_LABEL || "📋 gh-dash";
-  if (!isExecutable(herdrBin)) return;
+  if (!isExecutable(tuiosBin)) return;
 
-  let ws = "";
-  const listRes = spawnSync(herdrBin, ["workspace", "list"], { encoding: "utf8" });
-  if (listRes.status === 0 && listRes.stdout) {
-    try {
-      const data = JSON.parse(listRes.stdout) as {
-        result?: { workspaces?: { label?: string; workspace_id?: string }[] };
-      };
-      const workspaces = data?.result?.workspaces ?? [];
-      for (const w of workspaces) {
-        if (w?.label === label && w?.workspace_id) {
-          ws = w.workspace_id;
-          break;
-        }
-      }
-    } catch {
-      // leave ws empty — same fallback as `jq` failing silently
-    }
+  const ws = "gh-dash";
+  if (!tuiosSessions(tuiosBin).some((s) => s?.name === ws)) {
+    const made = spawnSync(tuiosBin, ["new", ws, "--detach", "--cwd", repoDir], { stdio: "ignore" });
+    if (made.status !== 0) return;
+    spawnSync(tuiosBin, ["set-session-name", "-s", ws, label], { stdio: "ignore" });
+    // keys typed while nushell's line editor starts are dropped, so wait for
+    // the first prompt to go quiet before typing into the session's window
+    spawnSync(tuiosBin, ["wait-for", "window-idle", "-s", ws, "--idle", "500", "--timeout", "10000"], { stdio: "ignore" });
+    spawnSync(tuiosBin, ["send-text", "-s", ws, "gh dash\n"], { stdio: "ignore" });
   }
-
-  if (ws !== "") {
-    spawnSync(herdrBin, ["workspace", "focus", ws], { stdio: "ignore" });
-  } else {
-    const out = spawnSync(
-      herdrBin,
-      ["workspace", "create", "--cwd", repoDir, "--label", label, "--focus"],
-      { encoding: "utf8" },
-    );
-    let pane = "";
-    if (out.stdout) {
-      try {
-        const data = JSON.parse(out.stdout) as {
-          result?: { root_pane?: { pane_id?: string } };
-        };
-        pane = data?.result?.root_pane?.pane_id ?? "";
-      } catch {
-        // leave pane empty
-      }
-    }
-    if (pane !== "") {
-      spawnSync(herdrBin, ["pane", "run", pane, "gh dash"], { stdio: "ignore" });
-    }
-  }
+  // a click_script runs outside every pane: this switches the one attached client
+  spawnSync(tuiosBin, ["switch-session", ws], { stdio: "ignore" });
   // bring the terminal forward so the focus jump is actually visible
   spawnSync("open", ["-a", "Ghostty"], { stdio: "ignore" });
 }
 
-// Focus the herdr workspace whose worktree has `branch` checked out. Exit 1 when
+// Switch to the tuios session whose focused pane sits on `branch`. Exit 1 when
 // none does, so the row's click_script falls back to the browser.
 function focusBranch(branch: string): number {
-  const herdrBin = process.env.HERDR_BIN || "/opt/homebrew/bin/herdr";
-  if (branch === "" || !isExecutable(herdrBin)) return 1;
-  const listRes = spawnSync(herdrBin, ["workspace", "list"], { encoding: "utf8" });
-  if (listRes.status !== 0 || !listRes.stdout) return 1;
-  let workspaces: { workspace_id?: string; worktree?: { checkout_path?: string } }[] = [];
-  try {
-    const data = JSON.parse(listRes.stdout) as {
-      result?: { workspaces?: { workspace_id?: string; worktree?: { checkout_path?: string } }[] };
-    };
-    workspaces = data?.result?.workspaces ?? [];
-  } catch {
-    return 1;
-  }
-  for (const w of workspaces) {
-    const path = w?.worktree?.checkout_path ?? "";
-    if (path === "" || !w?.workspace_id) continue;
-    const head = spawnSync("git", ["-C", path, "branch", "--show-current"], { encoding: "utf8" });
-    if (head.status === 0 && (head.stdout ?? "").trim() === branch) {
-      spawnSync(herdrBin, ["workspace", "focus", w.workspace_id], { stdio: "ignore" });
-      spawnSync("open", ["-a", "Ghostty"], { stdio: "ignore" });
-      return 0;
-    }
+  const tuiosBin = process.env.TUIOS_BIN || "/opt/homebrew/bin/tuios";
+  if (branch === "" || !isExecutable(tuiosBin)) return 1;
+  for (const s of tuiosSessions(tuiosBin)) {
+    if (s?.branch !== branch || !s?.name) continue;
+    if (spawnSync(tuiosBin, ["switch-session", s.name], { stdio: "ignore" }).status !== 0) return 1;
+    spawnSync("open", ["-a", "Ghostty"], { stdio: "ignore" });
+    return 0;
   }
   return 1;
 }
@@ -503,7 +469,7 @@ function main(): void {
     return;
   }
   if (args[0] === "__ev") {
-    // like a PR row: right → the branch's herdr workspace; left (or no workspace)
+    // like a PR row: right → the branch's tuios session; left (or no session)
     // → a failed check's job log, everything else the PR
     const ev = shownEvent(args[1]);
     const pr = cacheEntry(args[1]);
@@ -515,7 +481,7 @@ function main(): void {
     return;
   }
   if (args[0] === "__row") {
-    // right click → that branch's herdr workspace when one exists, else the browser
+    // right click → that branch's tuios session when one exists, else the browser
     const entry = cacheEntry(args[1]);
     const url = entry.url ?? "";
     if (process.env.BUTTON !== "right" || focusBranch(entry.branch ?? "") !== 0) {

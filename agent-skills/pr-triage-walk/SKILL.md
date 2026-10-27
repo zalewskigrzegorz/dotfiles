@@ -18,7 +18,7 @@ PR he wanted refreshed was reported as "zostawione bez zmian".
    right there ("mówiłeś 9, jest 11: …").
 2. **One popup per PR**, same four options every time, the PR's title, age and
    check state in the question's context line:
-   - **Rebase przez agenta** — spawn per `herdr-orchestration` and the model
+   - **Rebase przez agenta** — spawn per `tuios-orchestration` and the model
      score in `subagent-model-by-weight`.
    - **Odśwież / zaktualizuj** — rebase on `main` and re-check, here or by an
      agent; for an old draft, also re-read whether it still makes sense.

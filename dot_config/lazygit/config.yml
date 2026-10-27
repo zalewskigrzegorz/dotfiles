@@ -1,4 +1,4 @@
-# `w` on a branch opens the SAME command as herdr's prefix+shift+g, `work` and
+# `w` on a branch opens the SAME command as tuios's prefix+shift+g, `work` and
 # gh-dash's `w`/`T` — workctl, straight into that branch's action menu. `output: terminal` suspends
 # lazygit and hands over the real TTY, which fzf needs; `log` or `popup` would
 # give it a pipe and it would refuse to draw.

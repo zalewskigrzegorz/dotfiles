@@ -4,7 +4,7 @@
 
 local map = LazyVim.safe_keymap_set
 
--- Split right on v, as herdr and Vimma do with prefix+v
+-- Split right on v, as tuios and Vimma do with prefix+v
 map("n", "<leader>v", "<C-W>v", { desc = "Split Window Right", remap = true })
 
 -- Close window/buffer safely (only when no unsaved changes)

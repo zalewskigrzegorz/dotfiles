@@ -126,11 +126,11 @@ keybindings:
       # the worktree/agent rows able to find the local checkout when there is
       # one; an empty one is ignored. --pause holds the output because gh-dash
       # repaints the moment the child exits. --bg sends a picked worktree/agent
-      # action to the background (herdr toast when done), so several PRs can be
+      # action to the background (tuios toast when done), so several PRs can be
       # queued without waiting on each.
       #
       # ONE command, no `cd`, no `;`, no `2>/dev/null`: gh-dash runs custom
-      # commands through `$SHELL -c`, and in a herdr pane $SHELL is nushell,
+      # commands through `$SHELL -c`, and in a tuios pane $SHELL is nushell,
       # which rejects POSIX redirection and sequencing outright (exit 1 before
       # workctl ever starts). Keep this line shell-agnostic.
       command: >
@@ -138,7 +138,7 @@ keybindings:
   branches:
     - key: w
       name: branch picker
-      # The SAME picker herdr's prefix+shift+g and lazygit's `w` open — one
+      # The SAME picker tuios's prefix+shift+g and lazygit's `w` open — one
       # command, four triggers. RepoPath (from repoPaths below) scopes it to
       # this repo; HeadRefName jumps straight to that branch's action menu.
       command: >

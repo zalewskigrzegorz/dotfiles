@@ -36,7 +36,7 @@ loud. Formula: ≈30% accent over `base #1E1E2E`.
 
 | Role | Hex | Derived from | Used by |
 |---|---|---|---|
-| active surface | `#423B6D` | lavender @30% | herdr `active_row_bg` (selected sidebar/tab row) |
+| active surface | `#423B6D` | lavender @30% | nothing since tuios (was herdr `active_row_bg`, the selected sidebar/tab row) |
 
 ## Per-app mapping
 
@@ -48,7 +48,7 @@ loud. Formula: ≈30% accent over `base #1E1E2E`.
 | starship | `dot_config/starship/starship.toml` | named palette via `[palettes.mocha-neon]` | imported |
 | nvim | `dot_config/nvim/lua/plugins/catppuccin.lua` | 11 overrides | imported |
 | ghostty | `dot_config/ghostty/config` | ANSI 0–15 + cursor + selection | hand |
-| herdr | `dot_config/herdr/config.toml.tmpl` | base, mauve, blue, green, red, gold + active surface | hand |
+| tuios | `dot_config/tuios/config.d/readonly_10-dotfiles.toml.tmpl` | mauve only (`border_focused_color_terminal`); no theme, panes keep Ghostty's palette | hand |
 
 ## WCAG AA verification on base `#1E1E2E`
 

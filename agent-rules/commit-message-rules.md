@@ -24,7 +24,7 @@ verified, close it with a commit and a push instead of leaving it for Greg.
 This holds in **every repo**.
 
 1. **Stage only what this session touched**, by explicit path. Never `git add
-   -A` / `git add .` — other herdr agents share the checkout, and their dirty
+   -A` / `git add .` — other tuios agents share the checkout, and their dirty
    files stay out. Mention them in one line if there are any.
    **The index may already hold another agent's files**, and `git commit -m`
    commits the whole index: `scriptc/workctl.ts`, staged by someone else, rode

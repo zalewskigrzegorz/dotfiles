@@ -1,0 +1,195 @@
+# tuios configuration — managed by chezmoi (source: dot_config/tuios/config.d/).
+# Read-only on purpose: tuios then writes changes from the settings page, the
+# keybind manager, `tuios pair` and `tuios hosts add` to config.toml, which it
+# owns, instead of into this file (see tuios docs: config-files).
+#
+# Names: a herdr workspace is a tuios session, a herdr tab a tuios workspace,
+# a herdr pane a tuios window. Keys below keep the herdr ones.
+
+[startup]
+# herdr had no window mode: land in the pane, ready to type.
+start_in_terminal_mode = true
+
+[appearance]
+# Per-OS: Mac uses the homebrew nu path; the lab has nu under linuxbrew.
+preferred_shell = "{{ if eq .chezmoi.os "darwin" }}/opt/homebrew/bin/nu{{ else }}/home/linuxbrew/.linuxbrew/bin/nu{{ end }}"
+# No theme: the panes keep Ghostty's Mocha Neon palette. The terminal-mode
+# border carries the Mocha Neon accent herdr used.
+border_focused_color_terminal = "#B347FF"
+
+[daemon]
+# "continuum for agents": type each harness's resume command after a restart.
+resume_agents = "auto"
+
+# The only agent notifier since the Claude Stop hook went (it fired on every
+# turn end). Default states: needs_input, errored, done. `done` fires once per
+# turn end of a pane you are not looking at; subagent rows raise no alert.
+[notifications.agent]
+notify = true
+suppress_focused = true
+# One second over the default: a turn end followed at once by a queued prompt
+# flips done → working inside it and stays quiet.
+settle_seconds = 3
+sound = false
+
+# Every pane started with no grants of its own holds `admin` in open mode.
+# workctl (prefix+G/O popups, gh-dash, lazygit) creates sessions and needs it;
+# tuios has no per-command-key grant, so strict mode would break the picker.
+[agents.permissions]
+mode = "open"
+
+[appearance.sidebar.agent_row]
+# Shipped list with herdr's rows kept: $num (workspace number, from the
+# statusline) first, $pr (the branch's PR, reported per pane with
+# `tuios set-agent-meta --source greg`) in place of the worktree-only `pr`,
+# no `harness` (every agent is Claude).
+tokens = ["$num", "session", "need", "name", "elapsed", "context", "subagents", "$pr", "meta", "now", "message"]
+
+# herdr-equalize-panes: every split back to half when a pane opens or closes.
+[hooks]
+after-new-window = 'tuios set-layout --equalize -s "$TUIOS_SESSION_ID"'
+after-close-window = 'tuios set-layout --equalize -s "$TUIOS_SESSION_ID"'
+
+[keybindings]
+leader_key = "ctrl+space"
+# Option types Polish diacritics (option+l = ł), never a tuios binding.
+option_glyphs = "type"
+
+[keybindings.global]
+# ctrl+p belongs to nu and nvim; the palette is prefix+: below.
+command_palette = []
+
+# Each herdr prefix key on the tuios built-in that does the same job. A tuios
+# default that sat on one of those keys is moved off it ([] = unbound).
+[keybindings.prefix_mode]
+prefix_settings = ["s"]
+prefix_scrollback = []
+prefix_detach = ["q"]
+prefix_quit = []
+# herdr's resize mode has no tuios twin; the layout prefix sets 50-90% sizes.
+prefix_layout = ["R"]
+prefix_rotate_split = []
+# workspace picker / goto / new / rename / close / cycle (herdr workspaces = sessions)
+prefix_session_switcher = ["w"]
+prefix_workspace = []
+goto_picker = ["g"]
+toggle_scratch = []
+new_session = ["N"]
+prefix_last_message = []
+rename_session = ["W"]
+prefix_workspace_switcher = []
+prefix_close_session = ["D"]
+prefix_debug = []
+prev_session = [","]
+next_session = ["."]
+# agents: next one that needs you (also prefix+0), unseen finished turns
+prefix_next_attention = ["a", "0"]
+prefix_next_finished = ["A"]
+launcher = []
+prefix_agents_settings = []
+prefix_select_0 = []
+# tabs (herdr tabs = tuios workspaces)
+new_workspace = ["c"]
+prefix_new_window = []
+rename_workspace = ["T"]
+prefix_tape = []
+prev_workspace = ["p"]
+next_workspace = ["n"]
+close_workspace = ["X"]
+switch_workspace_1 = ["1"]
+switch_workspace_2 = ["2"]
+switch_workspace_3 = ["3"]
+switch_workspace_4 = ["4"]
+switch_workspace_5 = ["5"]
+switch_workspace_6 = ["6"]
+switch_workspace_7 = ["7"]
+switch_workspace_8 = ["8"]
+switch_workspace_9 = ["9"]
+prefix_select_1 = []
+prefix_select_2 = []
+prefix_select_3 = []
+prefix_select_4 = []
+prefix_select_5 = []
+prefix_select_6 = []
+prefix_select_7 = []
+prefix_select_8 = []
+prefix_select_9 = []
+# panes (herdr panes = tuios windows)
+prefix_next_window = ["tab"]
+prefix_prev_window = ["shift+tab"]
+last_pane = ["`"]
+prefix_rename_window = ["P"]
+prefix_command_palette = [":"]
+terminal_focus_left = ["left", "h"]
+terminal_focus_down = ["down", "j"]
+terminal_focus_up = ["up", "k"]
+terminal_focus_right = ["right", "l"]
+prefix_jump_notif = []
+prefix_keybinds = []
+prefix_split_vertical = ["v", "|", "\\"]
+# herdr-nvim's "files the agent touched" + notes back to the agent
+prefix_review = ["o"]
+prefix_explore = []
+# herdr-pick url/file pickers: label every pane's text, ctrl+label opens it
+# (URL in the browser, path in $EDITOR in a new pane)
+hints_all_panes = ["u", "f"]
+prefix_transfers = []
+prefix_file_search = []
+# navigator plugin
+choose_tree = ["t", "/"]
+prefix_window = []
+prefix_minimize = []
+
+# herdr-nvim sidebar: one nvim that survives the toggle.
+[[keybindings.command]]
+key = "prefix+e"
+type = "scratch"
+name = "nvim"
+command = "nvim"
+description = "Toggle the nvim scratch"
+width = "90%"
+height = "90%"
+
+# The branch/worktree picker in the focused pane's repo (bin/tuios-worktree-new
+# → workctl). gh-dash and lazygit open the same thing.
+[[keybindings.command]]
+key = "prefix+G"
+type = "popup"
+command = '"$HOME/bin/tuios-worktree-new"'
+description = "workctl — branch / PR / worktree picker in the focused repo"
+width = "90%"
+height = "90%"
+
+# Same picker, plus the worktrees of every other repo.
+[[keybindings.command]]
+key = "prefix+O"
+type = "popup"
+command = '"$HOME/bin/tuios-worktree-new" --all'
+description = "workctl --all — same picker, other repos' worktrees too"
+width = "90%"
+height = "90%"
+
+# herdr's remove_worktree: remove this session's worktree and the session.
+# tuios refuses a worktree with uncommitted changes.
+[[keybindings.command]]
+key = "prefix+d"
+type = "popup"
+command = 'printf "remove worktree of %s? [y/N] " "$TUIOS_SESSION"; read -r a; [ "$a" = y ] || exit 0; tuios worktree rm "$TUIOS_SESSION" || { echo "press Enter"; read -r _; }'
+description = "Remove this session's worktree"
+width = "70"
+height = "8"
+
+# tokscale token-usage + cost dashboard (was the herdr-tokscale-dashboard plugin).
+[[keybindings.command]]
+key = "prefix+m"
+type = "popup"
+command = "bunx tokscale@latest"
+description = "Tokscale token-usage dashboard"
+{{- if eq .chezmoi.os "darwin" }}
+
+# hd-mrglaszki: `tuios attach --host mrglaszki` draws the lab's sessions here.
+# The command path skips the login-shell lookup: tuios lives under linuxbrew.
+[hosts.mrglaszki]
+addr = "mrglaszki"
+command = "/home/linuxbrew/.linuxbrew/bin/tuios"
+{{- end }}

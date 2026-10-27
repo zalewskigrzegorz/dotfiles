@@ -1,16 +1,17 @@
-# work.nu — git worktree workflow on herdr.
+# work.nu — git worktree workflow on tuios.
 #
-# Each worktree = one herdr workspace (grouped under the source repo, native
-# `prefix+shift+g`). This CLI wraps `herdr worktree …` so the same flow works
-# from the prompt and keeps Greg's path scheme + commitlint branch naming.
+# Each worktree = one tuios session (the rail groups it under the source repo;
+# `prefix+shift+g` opens the picker). workctl makes the worktree with plain git
+# and the session with `tuios`, so the same flow works from the prompt and keeps
+# Greg's path scheme + commitlint branch naming.
 #
 #   work [target]     — THE command: picker over branches / PRs / worktrees →
 #                       action menu (thin wrapper over the `workctl` binary,
 #                       scriptc/workctl.ts). `work new` / `work switch` /
 #                       `work pr` are the same thing with a different opening.
 #   work ls           — list worktrees of the current repo (nu data)
-#   work layout       — apply the claude-tab layout to the current workspace
-#   work rm [branch]  — remove worktree + workspace + git branch
+#   work layout       — apply the claude-tab layout to the current session
+#   work rm [branch]  — remove worktree + session + git branch
 #   work pr [number]  — PR command center (defined in workpr.nu — loads after this
 #                       file, so it can call the primitives here; the reverse is
 #                       impossible, which is why `work pr` does not live here)
@@ -43,9 +44,9 @@ def "work normalize-label" [branch: string]: nothing -> string {
     if ($emoji | is-not-empty) { $"($emoji)($parts.1)" } else { $"($parts.0)-($parts.1)" }
 }
 
-# herdr workspace label for a worktree — just the branch (emoji type prefix kept).
-# herdr already groups the worktree under its source repo in the sidebar, so the
-# repo name in the label is redundant.
+# tuios session label for a worktree — just the branch (emoji type prefix kept).
+# The rail already groups the worktree under its source repo, so the repo name
+# in the label is redundant.
 def "work _label" [repo: string, branch: string]: nothing -> string {
     work normalize-label $branch
 }
@@ -102,13 +103,13 @@ def "work bazgroly-path" []: nothing -> path {
 # Preflight: git always; gh/fzf only where used.
 def "work deps-preflight" []: nothing -> nothing {
     if (which git | is-empty) { error make { msg: "git required." } }
-    if (which herdr | is-empty) { error make { msg: "herdr required: brew install herdr" } }
+    if (which tuios | is-empty) { error make { msg: "tuios required — not on PATH" } }
 }
 
 # Scan worktrees ON DISK, cross-repo — so worktrees made by the old setup (or by
-# hand) show up, not just ones herdr already opened. Two pools: ours
-# (~/Code/tree/wt-<repo>/<branch>) and herdr's native default
-# (~/.herdr/worktrees/<repo>/<slug>), where prefix+shift+g puts them.
+# hand) show up, not just ones a session is open for. Two pools: ours
+# (~/Code/tree/wt-<repo>/<branch>) and the trees herdr made under
+# ~/.herdr/worktrees/<repo>/<slug>, which outlive herdr until `work rm`.
 # Returns records: {repo, root, branch, path, status, head}.
 def "work _scan-worktrees" []: nothing -> list<record> {
     let pools = [
@@ -139,20 +140,11 @@ def "work _scan-worktrees" []: nothing -> list<record> {
     | where { |it| $it != null }
 }
 
-# herdr workspace_id for an open worktree path (empty if not open), via herdr.
-def "work _herdr-ws-for" [repo_root: path, wt_path: path]: nothing -> string {
-    let r = (do { ^herdr worktree list --cwd $repo_root --json } | complete)
-    if $r.exit_code != 0 { return "" }
-    let wts = (try { $r.stdout | from json | get -o result.worktrees | default [] } catch { [] })
-    let want = ($wt_path | path expand)
-    let m = ($wts | where { |w| ($w.path | path expand) == $want })
-    if ($m | is-empty) { "" } else { ($m | first | get -o open_workspace_id | default "") }
-}
-
-# Auto-layout for a worktree workspace: ensure a "claude" tab running claude.
+# Auto-layout for a worktree session: ensure a "claude" tab running claude.
 # Only claude auto-spawns; git/nvim stay on-demand via `lazygit` / `baz` to spare
-# CPU. Idempotent — skips if a claude tab exists.
-def "work _apply-layout" [workspace_id: string, cwd: path]: nothing -> nothing {
+# CPU. Idempotent — skips if a claude tab exists. The same layout as workctl's
+# applyLayout: a herdr tab is a numbered tuios workspace.
+def "work _apply-layout" [session: string, cwd: path]: nothing -> nothing {
     # Every worktree open/create funnels through here, so this is where we ensure
     # the work-scoped skills (g-pr-review, …) exist in the worktree's .claude/skills.
     # The script no-ops outside work repos, so it's safe on any repo.
@@ -165,23 +157,26 @@ def "work _apply-layout" [workspace_id: string, cwd: path]: nothing -> nothing {
     if (which claude-mcp-defaults | is-not-empty) {
         do { ^claude-mcp-defaults $cwd } | complete | ignore
     }
-    if ($workspace_id | is-empty) { return }
-    let tabs = (try { (do { ^herdr tab list --workspace $workspace_id } | complete).stdout | from json | get -o result.tabs | default [] } catch { [] })
-    # Name the bare-numbered terminal tab with a nerd-font terminal icon (nf-fa-terminal).
-    for t in $tabs {
-        if (($t.label? | default "") =~ '^[0-9]+$') {
-            do { ^herdr tab rename $t.tab_id $"\u{f120}  nu" } | complete | ignore
-        }
+    if ($session | is-empty) { return }
+    let info = (try { (do { ^tuios session-info -s $session --json } | complete).stdout | from json } catch { {} })
+    # Name the first workspace with a nerd-font terminal icon (nf-fa-terminal).
+    if ($info | get -o workspace_names | default {} | get -o "1" | is-empty) {
+        do { ^tuios set-workspace-name -s $session 1 $"\u{f120}  nu" } | complete | ignore
     }
-    # Ensure a claude tab (only one auto-spawned; git/nvim stay on-demand).
-    # Match a running claude agent or our exact label: auto-title relabels tabs
-    # freely, so "label contains claude" gave false hits and skipped the tab.
-    let panes = (try { (do { ^herdr pane list --workspace $workspace_id } | complete).stdout | from json | get -o result.panes | default [] } catch { [] })
-    if ($panes | any { |p| ($p.agent? | default "") == "claude" }) { return }
-    if ($tabs | any { |t| ($t.label? | default "") == $"\u{f06a9}  claude" }) { return }
-    let r = (do { ^herdr tab create --workspace $workspace_id --cwd $cwd --label $"\u{f06a9}  claude" --no-focus } | complete)
-    let pane = (try { $r.stdout | from json | get -o result.root_pane.pane_id } catch { "" })
-    if ($pane | is-not-empty) { do { ^herdr pane run $pane "claude" } | complete | ignore }
+    # Ensure a claude tab (only one auto-spawned). Match a pane tuios already
+    # sees as an agent, or our exact name: auto-title renames panes freely, so
+    # "name contains claude" gave false hits and skipped the tab.
+    let label = $"\u{f06a9}  claude"
+    let wins = (try { (do { ^tuios list-windows -s $session --json } | complete).stdout | from json } catch { {} })
+    let windows = ($wins | get -o windows | default [])
+    if ($windows | any { |w| ($w.agent_state? | default "none") not-in ["none" ""] or ($w.custom_name? | default "") == $label }) { return }
+    let slot = ($wins | get -o workspace_windows | default [] | enumerate | where item == 0 | get -o 0.index)
+    if $slot == null { return }
+    let ws = ($slot + 1)
+    # `nu -e` stays a shell after claude exits; keys typed into a fresh pane are
+    # lost while reedline starts.
+    let r = (do { ^tuios new-window $label -s $session --workspace $ws --cwd $cwd --no-focus -- nu -e claude } | complete)
+    if $r.exit_code == 0 { do { ^tuios set-workspace-name -s $session $ws $label } | complete | ignore }
 }
 
 # Path where a branch is already checked out (any worktree), "" if none.
@@ -239,7 +234,7 @@ def "work _seed-untracked" [parent: path, wt_path: path]: nothing -> nothing {
 # commitlint type menu, "branch exists [c/n/a]", and full/light/diff — are two
 # screens there: pick the target (a branch, a PR, a worktree, or "create X from
 # origin/main | from HEAD"), then pick what to do with it from the same action
-# registry `work pr` had. Same flow from herdr, gh-dash and lazygit, which
+# registry `work pr` had. Same flow from tuios, gh-dash and lazygit, which
 # cannot see this autoload dir at all. `workctl --help` lists the flags.
 def --wrapped "work new" [...rest]: nothing -> nothing {
     ^workctl ...$rest
@@ -265,7 +260,7 @@ def "work switch" []: nothing -> nothing {
 
 def "work sw" []: nothing -> nothing { work switch }
 
-# Remove worktree + workspace + git branch. A THIN WRAPPER over `workctl rm`
+# Remove worktree + session + git branch. A THIN WRAPPER over `workctl rm`
 # (scriptc/workctl.ts): a def is frozen into every shell that loaded this file,
 # so a fix here never reached the tabs already open — the binary is re-read on
 # every call.
@@ -294,25 +289,24 @@ def "work prune" [--dry-run]: nothing -> nothing {
     ^workctl prune ...(if $dry_run { ["--dry-run"] } else { [] })
 }
 
-# Recompute the correct label for the CURRENT herdr workspace and rename it back.
-# herdr sometimes auto-relabels a workspace from the branch/tab (e.g. main → a
-# stray tab name); this restores the label `work new`/`work switch` would give it.
+# Recompute the correct label for the CURRENT tuios session and set it back:
+# the label `work new`/`work switch` would give it.
 def "work reset" []: nothing -> any {
     work deps-preflight
-    let info = (work repo-info)
-    let wt_path = (if $info.is_worktree { $info.worktree_path } else { $info.root })
-    let ws = (work _herdr-ws-for $info.root $wt_path)
+    let ws = ($env.TUIOS_SESSION? | default "")
     if ($ws | is-empty) {
-        print -e $"No herdr workspace maps to ($wt_path). Open it with `work switch` first."
+        print -e "not inside a tuios session"
         return
     }
+    let info = (work repo-info)
+    let wt_path = (if $info.is_worktree { $info.worktree_path } else { $info.root })
     let branch = (do { ^git -C $wt_path branch --show-current } | complete | get stdout | str trim)
     let label = (work _label $info.name $branch)
-    let old = (try { (do { ^herdr workspace get $ws } | complete).stdout | from json | get -o result.workspace.label | default "" } catch { "" })
-    let r = (do { ^herdr workspace rename $ws $label } | complete)
-    if $r.exit_code != 0 { error make { msg: $"herdr workspace rename failed: ($r.stderr)" } }
+    let old = (try { (do { ^tuios session-info -s $ws --json } | complete).stdout | from json | get -o display_name | default "" } catch { "" })
+    let r = (do { ^tuios set-session-name -s $ws $label } | complete)
+    if $r.exit_code != 0 { error make { msg: $"tuios set-session-name failed: ($r.stderr)" } }
     print -e $"✅ ($old) → ($label)"
-    { workspace_id: $ws, old: $old, new: $label }
+    { session: $ws, old: $old, new: $label }
 }
 
 # Open nvim in this repo's bazgroly dir.
@@ -322,7 +316,7 @@ def baz []: nothing -> nothing {
     ^nvim $dir
 }
 
-# Bare `work` applies the layout (claude tab) to the current herdr workspace —
+# Bare `work` applies the layout (claude tab) to the current tuios session —
 # that's what it always did. The picker lives behind `work new` / `work switch` /
 # `work pr`, plus `work <branch|#pr>` which goes straight to that target's menu.
 def --wrapped work [--help (-h), ...rest]: nothing -> nothing {
@@ -331,20 +325,20 @@ def --wrapped work [--help (-h), ...rest]: nothing -> nothing {
     ^workctl ...$rest
 }
 
-# Apply the layout (claude tab) to the current herdr workspace.
+# Apply the layout (claude tab) to the current tuios session.
 def "work layout" []: nothing -> nothing {
-    let ws = ($env.HERDR_WORKSPACE_ID? | default "")
-    if ($ws | is-empty) { print -e "not inside a herdr workspace"; return }
+    let ws = ($env.TUIOS_SESSION? | default "")
+    if ($ws | is-empty) { print -e "not inside a tuios session"; return }
     work _apply-layout $ws $env.PWD
     print -e "layout applied (claude tab)"
 }
 
 # Cheatsheet.
 def "work help" []: nothing -> nothing {
-    print "📖 Work — git worktree workflow on herdr"
+    print "📖 Work — git worktree workflow on tuios"
     print ""
     print "WORKFLOW"
-    print "  work             →  tab claude w bieżącym workspace (layout)"
+    print "  work             →  tab claude w bieżącej sesji (layout)"
     print "  work new/switch  →  wybierz cel (branch / PR / worktree / nowy z maina lub HEAD)"
     print "                   →  wybierz akcję (TAB = kilka)  →  menu wraca, aż Esc"
     print "  work <branch>    work <#pr>    prosto do menu akcji tego celu"
@@ -353,21 +347,21 @@ def "work help" []: nothing -> nothing {
     print "  → sugestie na górze wg stanu PR: resolve / fix CI / logs / update / merge …"
     print "  🌱 worktree + .env/node_modules   👓 goły   🚀 secrets.sh && install (własny tab)"
     print "  👀💬🔧🤖📣 agenci (claude z briefem)   🏷 labele   🥞 stack   📄 diff   🗑 rm   🌐 web"
-    print "  te same wejścia: prefix+shift+g / +o (herdr) · T i w (gh-dash) · w (lazygit)"
+    print "  te same wejścia: prefix+shift+g / +o (tuios) · T i w (gh-dash) · w (lazygit)"
     print ""
     print "KOMENDY"
-    print "  work               tab claude w bieżącym workspace (= work layout)"
+    print "  work               tab claude w bieżącej sesji (= work layout)"
     print "  work <target>      picker → menu akcji (--all: worktree z innych repo)"
     print "  work --self / -s   menu akcji bieżącego brancha (jego PR, jeśli jest), bez pickera"
     print "  work new / switch / pr [n]   picker bez argumentu"
     print "  work ls            lista worktree (nu data; `| to json`)"
     print "  work layout        to samo co gołe `work`"
-    print "  work rm [branch]   usuń worktree + workspace + branch (--force / --keep-branch)"
+    print "  work rm [branch]   usuń worktree + sesję + branch (--force / --keep-branch)"
     print "  work prune         batch usuń merged + clean (--dry-run)"
-    print "  work reset         przywróć poprawny label bieżącego workspace herdr"
+    print "  work reset         przywróć poprawny label bieżącej sesji tuios"
     print "  baz                nvim w bazgroly tego repo"
     print ""
-    print "NAWIGACJA herdr:  prefix=ctrl+space · prefix w workspace · prefix g goto · prefix b sidebar · prefix ? help"
+    print "NAWIGACJA tuios:  prefix=ctrl+space · prefix w workspace · prefix g goto · prefix b sidebar · prefix ? help"
 }
 
 # Completer: branches that have a worktree on disk (for `work rm`).

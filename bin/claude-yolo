@@ -8,7 +8,7 @@
 # Writes/removes a marker keyed by $CLAUDE_CODE_SESSION_ID. While the marker
 # exists, the pre-tool-use guard hooks abstain and the yolo-allow catch-all hook
 # auto-allows every tool call — including the "absolute" denies (force-push,
-# rm -rf /, DROP TABLE, curl|sh, …). Scoped to one session, so parallel herdr
+# rm -rf /, DROP TABLE, curl|sh, …). Scoped to one session, so parallel tuios
 # agents keep their guards. Markers auto-expire after 24h and are cleaned on
 # each run (session ids are UUIDs, never reused).
 set -uo pipefail

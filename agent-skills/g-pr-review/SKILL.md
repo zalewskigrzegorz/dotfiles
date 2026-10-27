@@ -195,7 +195,7 @@ Report the review URL (from `html_url` in the response). One line. Don't re-prin
 
 The review worktree is opened by `workctl`'s "review this PR" just for this session. Once the verdict is in, it isn't needed any more. This applies only when **all** of these hold: `git rev-parse --show-toplevel` sits under `~/Code/tree/wt-*`, `git branch --show-current` is the PR head, `git status --porcelain` is empty, and nothing was committed or pushed here (the "Author away, fix on their branch" override keeps its tree). If any check fails, there is nothing to do, so say nothing.
 
-* **`APPROVE` submitted → remove it without asking.** The review URL line ends with "zamykam worktree", and then `workctl rm --self` is the **last tool call** of the session. It deletes the tree and the local branch, then closes this herdr workspace together with this agent, so nothing printed after it will be seen.
+* **`APPROVE` submitted → remove it without asking.** The review URL line ends with "zamykam worktree", and then `workctl rm --self` is the **last tool call** of the session. It deletes the tree and the local branch, then kills this tuios session together with this agent, so nothing printed after it will be seen.
 * **Anything else** (`REQUEST_CHANGES`, `COMMENT`, Don't submit, Flow C without a new verdict) → one `AskUserQuestion`: **Zamknij worktree** (Recommended): a follow-up "review this PR" opens a fresh tree in seconds · **Zostaw**: keeps it for a follow-up in this session. On Zamknij, same call as above.
 
 Never pass `--force`. A dirty tree makes `workctl rm` exit with "has uncommitted changes". Report that in one line and leave the tree in place.

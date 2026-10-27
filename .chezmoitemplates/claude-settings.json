@@ -390,6 +390,15 @@
             "timeout": 5000
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -402,6 +411,92 @@
             "timeout": 30000
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 310
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PermissionDenied": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "ElicitationResult": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 5
+          }
+        ]
       }
     ]{{ if ne .profile "homelab" }},
     "SessionStart": [
@@ -412,16 +507,6 @@
             "command": "mempalace-hook session-start"
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash '{{ .chezmoi.homeDir }}/.claude/hooks/herdr-agent-state.sh' session",
-            "timeout": 10
-          }
-        ],
-        "matcher": "^(startup|resume|clear|compact|fork)$"
       },
       {
         "hooks": [
@@ -456,7 +541,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/stop/herdr-claude-title.sh",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/stop/tuios-claude-title.sh",
             "timeout": 5000
           }
         ]
@@ -475,6 +560,15 @@
           }
         ],
         "matcher": "^(startup|resume)$"
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -484,6 +578,15 @@
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/screenshot-attach.sh",
             "timeout": 5000
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 5
           }
         ]
       }
@@ -501,16 +604,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/stop/stop.sh",
-            "timeout": 5000
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/stop/herdr-claude-title.sh",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/stop/tuios-claude-title.sh",
             "timeout": 5000
           }
         ]
@@ -523,6 +617,15 @@
             "timeout": 30000
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "StopFailure": [
@@ -530,8 +633,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/stop/stop.sh error",
-            "timeout": 5000
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 5
           }
         ]
       }
@@ -555,6 +658,15 @@
             "timeout": 20
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 5
+          }
+        ]
       }
     ]
     {{- else }},
@@ -567,6 +679,15 @@
             "timeout": 30000
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "Stop": [
@@ -576,6 +697,48 @@
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/bazgroly.sh push-on-stop",
             "timeout": 30000
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tuios agent-hook claude-code --integration 3",
+            "timeout": 5
           }
         ]
       }

@@ -88,9 +88,9 @@ Driven by `sketchybar-watcher` Go binary. State glyphs:
 > nu/reedline doesn't expose VISUAL / REPLACE prompt indicators — see
 > polish brainstorm for upstream PR + local-hack workarounds.
 
-### TUI tab wrappers (`dot_config/nushell/autoload/zz-herdr-tui-wrappers.nu`)
+### TUI tab wrappers (`dot_config/nushell/autoload/zz-tuios-tui-wrappers.nu`)
 
-Rename the current herdr tab to this glyph + name while the TUI runs:
+Rename the current tuios workspace (tab) to this glyph + name while the TUI runs:
 
 | Command | Glyph | Codepoint | Nerd-font name |
 |---|---|---|---|
@@ -101,7 +101,7 @@ Rename the current herdr tab to this glyph + name while the TUI runs:
 | `lazydocker` | `󰡨` | U+F0868 | nf-md-docker |
 | `btop` | `` | U+F0E4 | nf-fa-tachometer |
 
-(See `dot_config/nushell/autoload/zz-herdr-tui-wrappers.nu` for exact `\u{xxxx}`
+(See `dot_config/nushell/autoload/zz-tuios-tui-wrappers.nu` for exact `\u{xxxx}`
 escapes — those survive every edit; literal glyphs in source have been silently
 stripped before.)
 
@@ -117,6 +117,6 @@ stripped before.)
 2. Verify it renders in **Iosevka Nerd Font Mono** (the dotfiles font).
 3. Add to the relevant per-surface section here.
 4. Reference by **`\u{xxxxx}` escape** in source where possible
-   (`zz-herdr-tui-wrappers.nu` and Go code do this; Lua uses literal glyphs
+   (`zz-tuios-tui-wrappers.nu` and Go code do this; Lua uses literal glyphs
    because they're rendered through static config files).
 5. Re-shoot screenshots in `~/Code/personal/bazgroly/dotfiles/screenshots/`.

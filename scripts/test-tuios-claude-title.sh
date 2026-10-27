@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Self-check for dot_claude/hooks/stop/executable_herdr-claude-title.sh: when it
+# Self-check for dot_claude/hooks/stop/executable_tuios-claude-title.sh: when it
 # asks Haiku, and that it never overwrites a title the agent set. A fake
-# `claude` stands in for Haiku; nothing leaves the machine, no herdr calls.
+# `claude` stands in for Haiku; nothing leaves the machine, no tuios calls.
 set -u
 repo=$(cd "$(dirname "$0")/.." && pwd)
-hook="$repo/dot_claude/hooks/stop/executable_herdr-claude-title.sh"
+hook="$repo/dot_claude/hooks/stop/executable_tuios-claude-title.sh"
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/hd-title-test.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 
@@ -17,7 +17,7 @@ EOF
 chmod +x "$tmp/bin/claude"
 ln -s "$repo/bin/hd-title" "$tmp/bin/hd-title"
 
-export PATH="$tmp/bin:$PATH" XDG_STATE_HOME="$tmp/state" FAKE_CALLS="$tmp/calls" HERDR_ENV=0
+export PATH="$tmp/bin:$PATH" XDG_STATE_HOME="$tmp/state" FAKE_CALLS="$tmp/calls" TUIOS_ENV=0
 sid=test-session
 t="$tmp/transcript.jsonl"
 store="$tmp/state/dotfiles/claude-session-title/$sid"

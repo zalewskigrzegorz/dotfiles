@@ -1,0 +1,8 @@
+# Owned by tuios: the settings page, the keybind manager, `tuios pair` and
+# `tuios hosts add` write their changes here. chezmoi only creates this file
+# (tuios reads config.d/ only once a config.toml exists) and never rewrites it.
+# The managed settings live in config.d/10-dotfiles.toml.
+
+[startup]
+daemon = true
+tiled = true

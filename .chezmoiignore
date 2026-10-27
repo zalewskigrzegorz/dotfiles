@@ -35,7 +35,7 @@ scriptc/**
 # 0644 — silent on the Mac (bin/ is on PATH from the checkout and wins) but on
 # the lab there is no checkout, so ~/bin/sync IS `sync`/`chezmoi` and could not
 # execute. Renaming to `executable_*` is the idiomatic fix but `bin/` does double
-# duty as a PATH dir, and ~10 launchd plists, herdr config.toml and sketchybar
+# duty as a PATH dir, and ~10 launchd plists and sketchybar
 # items hardcode ~/Code/dotfiles/bin/<name>. rsync -a keeps the real modes and
 # keeps ~/bin out of `chezmoi status` entirely — same pattern as agent-skills/.
 bin/**

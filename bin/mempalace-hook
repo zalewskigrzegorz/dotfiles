@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Serialize MemPalace session-archive hooks.
 #
-# Why: ~5 parallel `mempalace-mcp` / hook processes (one per herdr agent) were
+# Why: ~5 parallel `mempalace-mcp` / hook processes (one per tuios agent) were
 # writing concurrently into a single 3.3GB chromadb sqlite. That produced 12
 # recovery snapshots between 2026-05-22 and 2026-07-30 (2 hard corruptions,
 # 10 drifts) — on 2026-07-31 the FTS5 inverted index was malformed and the HNSW
