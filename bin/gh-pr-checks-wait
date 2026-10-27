@@ -1,0 +1,46 @@
+#!/bin/zsh
+# gh-pr-checks-wait <pr> [--timeout <s>] [--interval <s>] [-R owner/repo]
+#
+# Watch every check on a PR. Prints one status line per interval
+# (`19:21:04  pass=12 fail=0 pending=3 | pending: e2e, build`) so a tuios bg
+# pane shows progress, then the final verdict. `gh pr checks --watch` prints
+# nothing without a TTY until it ends, so its pane stayed empty (2026-10-27).
+# Exit: 0 all passed, 1 a check failed, 4 timeout.
+set -u
+PR=""; TIMEOUT=3000; INTERVAL=60; REPO=()
+usage() { echo "usage: gh-pr-checks-wait <pr> [--timeout <s>] [--interval <s>] [-R owner/repo]" >&2; exit 2; }
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --timeout) shift; TIMEOUT=$1 ;;
+    --interval) shift; INTERVAL=$1 ;;
+    -R) shift; REPO=(-R "$1") ;;
+    -*) usage ;;
+    *) PR=$1 ;;
+  esac
+  shift
+done
+[ -n "$PR" ] || usage
+
+deadline=$(( $(date +%s) + TIMEOUT ))
+while :; do
+  # gh exits 8 while checks are pending; the JSON is still complete
+  json=$(gh pr checks "${REPO[@]}" "$PR" --json name,bucket,link 2>/dev/null)
+  if [ -z "$json" ]; then
+    echo "$(date +%T)  no checks yet"
+  else
+    line=$(printf '%s' "$json" | jq -r '
+      def n(b): map(select(.bucket == b)) | length;
+      "pass=\(n("pass")) fail=\(n("fail")) pending=\(n("pending"))"
+      + (map(select(.bucket == "pending") | .name) | if length > 0 then " | pending: " + join(", ") else "" end)')
+    echo "$(date +%T)  $line"
+    pending=$(printf '%s' "$json" | jq '[.[] | select(.bucket == "pending")] | length')
+    if [ "$pending" -eq 0 ]; then
+      failed=$(printf '%s' "$json" | jq -r '.[] | select(.bucket == "fail") | "failure \(.name) \(.link)"')
+      [ -z "$failed" ] && { echo "success: all checks passed"; exit 0; }
+      echo "$failed"
+      exit 1
+    fi
+  fi
+  [ "$(date +%s)" -ge "$deadline" ] && { echo "timeout after ${TIMEOUT}s, checks still pending" >&2; exit 4; }
+  sleep "$INTERVAL"
+done

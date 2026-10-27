@@ -72,7 +72,7 @@ export function bashProblem(command: string): string | undefined {
   if (/\b(while|until)\b/.test(command) && /\bpgrep\s+-\w*f\w*\s+(?!['"]?\[)/.test(command))
     return '`pgrep -f` in a wait loop matches its own shell: bracket trick `pgrep -f "[a]rtisan …"`, `pgrep -x`, or poll a log/marker; every loop gets a `timeout` (zsh-bash-tool.md)'
   if (/\b(while|until)\b/.test(command) && /\bsleep\b/.test(command) && /\bgh\s+(pr|run)\s+(checks|view|list)\b/.test(command))
-    return 'no hand-written loop around gh: `gh-run-wait <workflow> --sha <sha>`, `timeout 1800 gh run watch <id> --exit-status`, or `timeout 3000 gh pr checks <n> --watch --interval 90` in the background. Waiting for a human (merge, approval) ends the turn instead (zsh-bash-tool.md)'
+    return 'no hand-written loop around gh: `gh-run-wait <workflow> --sha <sha>`, `timeout 1800 gh run watch <id> --exit-status`, or `gh-pr-checks-wait <n>` in the background (never `gh pr checks --watch`: no output without a TTY, the bg pane stays empty). Waiting for a human (merge, approval) ends the turn instead (zsh-bash-tool.md)'
   if (/\bgh\s+run\s+download\b(?![^|;&]*\s(-D|--dir)\b)/.test(bare))
     return '`gh run download -D <scratch>/run-<id>`, always a fresh dir: a reused one dies on "file exists" (zsh-bash-tool.md)'
   if (/(^|[\s;&|])(\.\/)?bin\/gh-run-wait\b/.test(bare))
