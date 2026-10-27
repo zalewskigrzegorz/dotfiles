@@ -1,12 +1,75 @@
-import { atom, read } from 'claude-code'
+import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
+
+import type { BgTask } from '../types'
 
 // The other mods keep the data and the logic; pulpit only draws it, in one line and one pane.
 const items = atom({ plugin: 'sprawy', key: 'items' } as const, [])
 const pr = atom({ plugin: 'pr-band', key: 'pr' } as const, null)
 const nudges = atom({ plugin: 'nudge-band', key: 'nudges' } as const, { standup: 0, retro: 0 })
 
+const bg = atom({ plugin: 'pulpit', key: 'bg' } as const, [])
+
 const PANE = 'pulpit'
+const POLL_MS = 15_000
+const KEEP_DONE = 5
+
+// The last non-empty line of a log tail, colours stripped.
+export const lastLine = (tail: string) =>
+  tail
+    .replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '')
+    .split(/\r?\n|\r/)
+    .map(l => l.trim())
+    .filter(Boolean)
+    .at(-1) ?? ''
+// A watcher prints the same status with a new clock time each minute: compare without the times.
+const sameLine = (a: string, b: string) => a.replace(/\b\d{1,2}:\d{2}(:\d{2})?\b/g, '') === b.replace(/\b\d{1,2}:\d{2}(:\d{2})?\b/g, '')
+export const failedLine = (line: string) => /exit(ed)?( with)? code [1-9]|\btimeout\b|\bfailed\b|\berror\b/i.test(line)
+
+const ago = (ms: number) => (ms < 60_000 ? `${Math.round(ms / 1000)} s` : `${Math.round(ms / 60_000)} min`)
+
+// shortcut: the payload carries no output path, so it is globbed from the layout Claude Code 2.1 uses; fix if it moves.
+async function outputFile($: EngineInterface, id: string): Promise<string> {
+  const sid = await $.session.id()
+  const r = await $.process.run(['sh', '-c', `ls /private/tmp/claude-$(id -u)/*/${sid}/tasks/${id}.output`]).catch(() => null)
+  return r?.stdout.split('\n')[0]?.trim() ?? ''
+}
+
+async function poll($: EngineInterface) {
+  const live = (await read($, bg)).filter(t => t.state === 'running')
+  if (live.length === 0) return
+  const now = await $.clock.now()
+  for (const t of live) {
+    const tail = await $.process.run(['tail', '-n', '40', t.file]).catch(() => null)
+    const last = lastLine(tail?.stdout ?? '') || t.last
+    // The background shell holds the file open while it runs.
+    const open = await $.process.run(['lsof', '-t', '--', t.file]).catch(() => null)
+    const running = !!open?.stdout.trim()
+    const state = running ? 'running' : failedLine(last) ? 'failed' : 'done'
+    await update($, bg, list =>
+      list.map(x =>
+        x.id === t.id ? { ...x, last, repeats: sameLine(last, x.last) ? x.repeats + 1 : 0, state, endedAt: running ? undefined : now } : x,
+      ),
+    )
+    if (!running) $.ui.toast(`${state === 'failed' ? '✗' : '✓'} w tle: ${t.desc}`, { timeoutMs: 10_000 })
+  }
+  // Finished ones stay for a look; only the newest few.
+  await update($, bg, list => {
+    const done = list.filter(x => x.state !== 'running')
+    return list.filter(x => x.state === 'running' || done.indexOf(x) >= done.length - KEEP_DONE)
+  })
+}
+
+async function openLog($: EngineInterface, t: BgTask) {
+  const session = await $.env.get('TUIOS_SESSION')
+  if (!session) return void $.ui.toast(`log: ${t.file}`)
+  // Workspace 2 is the session's back room; the main screen stays claude + nu.
+  await $.process.run([
+    'tuios', 'new-window', '-s', session, `bg: ${t.desc.slice(0, 30)}`, '--workspace', '2', '--', 'less', '-R', '-~',
+    '-PsF=sledz dalej   /=szukaj   q=zamknij', '+F', t.file,
+  ])
+  await $.process.run(['tuios', 'select-workspace', '-s', session, '2'])
+}
 // Mocha Neon, the statusline's colours (docs/mocha-neon-palette.md).
 const C = { green: '#50FA7B', red: '#FF6B9D', gold: '#FFD700', peach: '#FF8C42', cyan: '#8BE9FD', lavender: '#9580FF', pink: '#FF79C6' }
 
@@ -31,8 +94,26 @@ async function toggle($: EngineInterface) {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'pulpit', description: 'Open or close the pane with items, the PR, standup and retro' })
+    await $.command.register({ name: 'pulpit', description: 'Open or close the pane with items, the PR, standup, retro and background tasks' })
+    $.clock.every(POLL_MS, () => void poll($).catch(() => {}))
     return next(e)
+  })
+
+  // A command the model sent to the background joins the "W tle" list.
+  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    const r = await next(e)
+    // The command already ran: a failure here must never run it again, so no .catch with next.
+    try {
+      const id = 'result' in r ? r.result?.backgroundTaskId : undefined
+      const file = id ? await outputFile($, id) : ''
+      if (id && file) {
+        const task: BgTask = { id, desc: e.description ?? e.command.slice(0, 60), file, last: '', repeats: 0, state: 'running', startedAt: await $.clock.now() }
+        await update($, bg, list => [...list, task])
+      }
+    } catch {
+      // the list misses one task; the command's own result goes on untouched
+    }
+    return r
   })
 
   on('command.run', { command: 'pulpit' }, async $ => {
@@ -44,10 +125,13 @@ export const register: Register = on => {
     const all = await read($, items)
     const p = await read($, pr)
     const n = await read($, nudges)
-    if (e.props.hasSurvey || (all.length === 0 && p === null && n.standup === 0 && n.retro === 0)) return next(e)
+    const tasks = await read($, bg)
+    if (e.props.hasSurvey || (all.length === 0 && p === null && n.standup === 0 && n.retro === 0 && tasks.length === 0)) return next(e)
 
     const { Box, Button, Text } = $.ui.resolve(e)
     const count = (s: string) => all.filter(i => i.status === s).length
+    const running = tasks.filter(t => t.state === 'running').length
+    const failed = tasks.filter(t => t.state === 'failed').length
     const waiting = all.some(i => i.agent?.state === 'waiting' && i.status !== 'done')
     const sep = <Text dimColor> │ </Text>
     const below = await next(e)
@@ -72,6 +156,9 @@ export const register: Register = on => {
           {(all.length > 0 || p !== null) && (n.standup > 0 || n.retro > 0) && sep}
           {n.standup > 0 && <Text color={C.gold}> {n.standup} </Text>}
           {n.retro > 0 && <Text color={C.lavender}>󰑓 {n.retro}</Text>}
+          {(running > 0 || failed > 0) && (all.length > 0 || p !== null || n.standup > 0 || n.retro > 0) && sep}
+          {running > 0 && <Text color={C.cyan}>⚙ {running}</Text>}
+          {failed > 0 && <Text color={C.red}> ✗{failed}</Text>}
           <Text dimColor>  ▸ szczegóły</Text>
         </Button>
         {below}
@@ -84,6 +171,8 @@ export const register: Register = on => {
     const all = await read($, items)
     const p = await read($, pr)
     const n = await read($, nudges)
+    const tasks = await read($, bg)
+    const now = await $.clock.now()
     const ask = (text: string) => () => void $.prompt.submit({ text, asUser: true })
     const run = (command: string, args = '') => () => void $.command.run({ command, args })
     const queue = all.filter(i => i.status === 'queued').sort((a, b) => a.order - b.order)
@@ -149,6 +238,26 @@ export const register: Register = on => {
           {n.standup > 0 && <Button key="standup" plain hotkey="s" label={` standup (${n.standup})`} onPress={run('g-standup')} />}
           {n.retro > 0 && <Button key="retro" plain hotkey="b" label={`󰑓 retro (${n.retro})`} onPress={run('retro-backlog')} />}
         </Box>
+
+        <Text> </Text>
+        <Text bold>W tle</Text>
+        {tasks.length === 0 && <Text dimColor>nic nie działa w tle</Text>}
+        {tasks.map(t => (
+          <Box key={`bg-${t.id}`} flexDirection="column">
+            <Box>
+              <Text color={t.state === 'failed' ? C.red : t.state === 'done' ? C.green : C.cyan}>
+                {t.state === 'running' ? '⚙' : t.state === 'failed' ? '✗' : '✓'} {t.desc}
+              </Text>
+              <Text dimColor> · {ago((t.endedAt ?? now) - t.startedAt)} </Text>
+              <Button key={`log-${t.id}`} plain label="log" onPress={() => void openLog($, t)} />
+            </Box>
+            <Text wrap="truncate-end" dimColor>
+              {'  '}
+              {t.last || 'jeszcze nic nie wypisało'}
+              {t.repeats > 0 ? `  (bez zmian ×${t.repeats + 1})` : ''}
+            </Text>
+          </Box>
+        ))}
       </Box>
     )
   })

@@ -20,7 +20,7 @@ calls `tuios` directly. `claude-agent-presence` (sketchybar chip, `bin/claude-ag
 | herdr | tuios | Notes |
 |---|---|---|
 | workspace | **session** | one per repo+branch worktree, named `<repo>-<branch>` (`/` → `-`) |
-| tab | **workspace** | numbered slots 1–9 inside a session; `workctl` puts `nu` and `claude` on 1, `bg:` logs go to 2 |
+| tab | **workspace** | numbered slots 1–9 inside a session; `workctl` puts `nu` and `claude` on 1; 2 is the back room |
 | pane | **window** | a target is `-s <session> -w <window>`: id, 8-char id prefix, index or name |
 | `blocked` | `needs_input` | the other state that needs you is `errored`; a finished turn nobody looked at is `done` |
 
@@ -109,7 +109,8 @@ generator on every keystroke (~10 ms per keystroke over 2800 branches).
 git for them, not `tuios worktree new` (which would put them under
 `~/.local/share/tuios/worktrees/` and skip the seed). Each worktree gets one tuios session
 `<repo>-<branch>`: one screen, workspace 1 with `nu` and `claude` as windows; workspace 2 is
-the back room ("zaplecze": `bg:` logs, a tunnel), opened only when needed. Every session of a
+the back room ("zaplecze": a tunnel, a watcher, a `bg:` log opened from the pulpit mod's "W tle"
+section), opened only when needed. Every session of a
 repo gets the accent and space from `~/.config/tuios/projects.tsv` (`dot_config/tuios/projects.tsv.tmpl`);
 `bin/tuios-colorize` applies it to sessions already open. `~/.herdr/worktrees` is still scanned,
 only so old trees can be listed and removed. `workctl rm` kills the session last, after the
