@@ -1265,13 +1265,17 @@ function newTab(ws: string, cwd: string, lbl: string, cmd: string, focus: boolea
   return true;
 }
 
-// Full layout = prep + one bare claude tab, idempotent on the name. The agent
-// path must NOT call this: it would either drop the brief or start two sessions.
+// Full layout = prep + one bare claude tab, idempotent. hd-title renames the
+// claude window to the task title, so a pane tuios knows as an agent (live, or
+// resumable after claude exited) counts too. The agent path must NOT call
+// this: it would either drop the brief or start two sessions.
 function applyLayout(ws: string, cwd: string): void {
   layoutPrep(cwd);
   if (ws === "") return;
-  const names = jsonValues(run("tuios", ["list-windows", "-s", ws, "--json"]).out, "custom_name");
-  if (names.some((n) => n.includes("claude"))) return;
+  const wins = run("tuios", ["list-windows", "-s", ws, "--json"]).out;
+  if (jsonValues(wins, "custom_name").some((n) => n.includes("claude"))) return;
+  if (jsonValues(wins, "agent_resumable").some((v) => v !== "")) return;
+  if (jsonValues(wins, "agent_state").some((s) => s !== "none" && s !== "")) return;
   newTab(ws, cwd, "\u{f06a9}  claude", "claude", false);
 }
 

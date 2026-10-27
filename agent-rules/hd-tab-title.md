@@ -10,7 +10,8 @@ gives every Claude tab a 3–4 word essence of the task ("Fix: work nie dodaje
 taba", "Review: łączenie zespołów SSO"). After the first answer, and then at
 most once per 3 prompts or 10 min, Haiku reads the recent conversation and
 keeps or replaces the title, through `hd-title`: the tuios workspace name
-(`tuios set-workspace-name`, the tab strip and rail) and the statusline alike. Greg's words: the first prompt and the workspace › topic format "nic
+(`tuios set-workspace-name`, the tab strip), the agent window name
+(`tuios set-window --name`, the rail's agent row) and the statusline alike. Greg's words: the first prompt and the workspace › topic format "nic
 nie mówi".
 
 Tabs without Claude keep the name the shell gives them, except `lg`, `dash`,
