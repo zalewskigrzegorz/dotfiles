@@ -119,6 +119,8 @@ test('a PR link in the prompt opens the peek, the next prompt closes it', async 
   })
   expect((await ui.find({ type: 'Text', text: /Teams in one table/ }))?.text).toBe('#9 Teams in one table')
   expect(await ui.find({ type: 'Text', text: /x \(nie wiem kto to\)/ })).toBeDefined()
+  // A foreign PR gets no prompt actions.
+  expect(await ui.find({ type: 'Button', key: 'log' })).toBeUndefined()
   await ui.unmount()
 
   await $.prompt.submit({ text: 'ok dzięki', wait: false, origin: { kind: 'composer' } })
