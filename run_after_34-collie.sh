@@ -9,6 +9,9 @@
 # for both installs, so a phone paired under the old herdr plugin stays paired.
 set -e
 
+# Mac only (Greg, 2026-10-27): no second remote-control bridge on the lab.
+[[ "$(uname -s)" == Darwin ]] || exit 0
+
 # chezmoi runs hooks with a minimal PATH — surface tuios, collie and tailscale.
 for d in \
   "/opt/homebrew/bin" \
