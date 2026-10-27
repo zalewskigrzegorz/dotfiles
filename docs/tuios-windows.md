@@ -47,4 +47,4 @@ rendered) is a starting point. The heavy config lives on the lab you attach to.
 ## Status
 
 If the Windows build or the host link misbehaves, fall back to `ssh mrglaszki` and run `tuios`
-(`hd`) on the lab directly.
+on the lab directly.

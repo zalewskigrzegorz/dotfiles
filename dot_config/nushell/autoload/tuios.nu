@@ -1,8 +1,5 @@
 # tuios (agent multiplexer) launcher helpers.
 
-# Start or attach the tuios TUI (the most recent session; starts the daemon if needed).
-def --env hd [] { tuios }
-
 # A saved config applies by itself. This pushes the changes that wait for it
 # (a new host, wider grants) into the running daemon.
 def hd-reload [] { tuios config apply }

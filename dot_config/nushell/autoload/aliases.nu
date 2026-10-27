@@ -8,5 +8,3 @@
 alias q = exit
 # open lazygit in the current repo
 alias lg = lazygit
-
-# NB: `hd` is the tuios launcher now (autoload/tuios.nu).
