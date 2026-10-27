@@ -228,15 +228,6 @@ if [ -n "$TUIOS_SESSION" ] && command -v tuios >/dev/null 2>&1; then
     [ -n "$sess_num" ] && printf '%s' "$sess_num" > "$num_cache" 2>/dev/null
   fi
   [ -n "$sess_num" ] && num_seg="${sess_c}${B}▸${sess_num}${N} "
-  # same number as the `$num` rail token (agent meta), so the agent list reads
-  # "7 · <task>" like the sketchybar watcher chip; re-sent on change, like `$pr` below
-  if [ -n "$sess_num" ] && [ -n "$TUIOS_PANE_ID" ]; then
-    num_sent="$cache_dir/numsent-${TUIOS_PANE_ID//[^A-Za-z0-9]/_}"
-    if [ "$(cat "$num_sent" 2>/dev/null)" != "$sess_num" ]; then
-      printf '%s' "$sess_num" > "$num_sent"
-      tuios set-agent-meta -w "$TUIOS_PANE_ID" --source greg "num=$sess_num" </dev/null >/dev/null 2>&1 &
-    fi
-  fi
 fi
 
 # Vim editor-mode badge — Claude's own "-- INSERT --" hint is dim grey, so an
@@ -303,61 +294,7 @@ if [ -n "$cwd" ] && git -C "$cwd" rev-parse --is-inside-work-tree >/dev/null 2>&
   [ -n "$g" ] && git_seg="${SEP}${O}󰊢${N} ${g}"
 fi
 
-# PR number for the tuios rail (`$pr` agent meta token, see [appearance.sidebar.agent_row]
-# in tuios's config.toml; its built-in `pr` token only knows `tuios ship pr`).
-# Not drawn here: the pr-band mod shows the PR above the prompt. Value is
-# "#N", "#N draft", "#N merged" or "#N closed"; empty = no PR.
-# `gh pr view` hits the network, so it never runs in the render path: the cache
-# (per repo+branch, shared by every pane on it) is refreshed by a detached job,
-# single-flight via a mkdir lock, every 10 min with a PR and every 60 s without
-# one — a fresh `gh pr create` shows up within a minute. The rail meta is
-# re-sent on change and every 10 min, so a restarted tuios daemon gets it back.
-pr_val=""
-branch=""
-[ -n "$cwd" ] && branch=$(git -C "$cwd" symbolic-ref --short -q HEAD 2>/dev/null)
-case "$branch" in ""|main|master) branch="" ;; esac
-if [ -n "$branch" ] && command -v gh >/dev/null 2>&1; then
-  top=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)
-  pr_cache="$cache_dir/pr-$(printf '%s|%s' "$top" "$branch" | cksum | cut -d' ' -f1)"
-  pr_age=9999
-  if [ -f "$pr_cache" ]; then
-    pr_val=$(cat "$pr_cache" 2>/dev/null)
-    pr_age=$(( now_ts - $(stat -f %m "$pr_cache" 2>/dev/null || stat -c %Y "$pr_cache" 2>/dev/null || echo 0) ))
-  fi
-  pr_ttl=60; [ -n "$pr_val" ] && pr_ttl=600
-  if [ -d "$pr_cache.lock" ]; then
-    lmtime=$(stat -f %m "$pr_cache.lock" 2>/dev/null || stat -c %Y "$pr_cache.lock" 2>/dev/null || echo 0)
-    [ $(( now_ts - lmtime )) -gt 60 ] && rmdir "$pr_cache.lock" 2>/dev/null
-  fi
-  if [ "$pr_age" -gt "$pr_ttl" ] && mkdir "$pr_cache.lock" 2>/dev/null; then
-    (
-      cd "$cwd" || exit 0
-      if out=$(timeout 20 gh pr view --json number,state,isDraft \
-                 -q 'if .state == "OPEN" then (if .isDraft then "#\(.number) draft" else "#\(.number)" end)
-                     else "#\(.number) \(.state | ascii_downcase)" end' 2>&1); then
-        printf '%s' "$out" > "$pr_cache.tmp" && mv "$pr_cache.tmp" "$pr_cache"
-      elif printf '%s' "$out" | grep -qF 'no pull requests found'; then
-        : > "$pr_cache"
-      else
-        touch "$pr_cache"   # network / auth hiccup: keep the last value, retry after the TTL
-      fi
-      rmdir "$pr_cache.lock"
-    ) </dev/null >/dev/null 2>&1 &
-  fi
-fi
-if [ -n "$TUIOS_PANE_ID" ] && command -v tuios >/dev/null 2>&1; then
-  pr_sent="$cache_dir/prsent-${TUIOS_PANE_ID//[^A-Za-z0-9]/_}"
-  sent_val=""; sent_age=9999
-  if [ -f "$pr_sent" ]; then
-    sent_val=$(cat "$pr_sent" 2>/dev/null)
-    sent_age=$(( now_ts - $(stat -f %m "$pr_sent" 2>/dev/null || stat -c %Y "$pr_sent" 2>/dev/null || echo 0) ))
-  fi
-  if [ "$sent_val" != "$pr_val" ] || { [ -n "$pr_val" ] && [ "$sent_age" -gt 600 ]; }; then
-    printf '%s' "$pr_val" > "$pr_sent"
-    # "pr=" with no value removes the key.
-    tuios set-agent-meta -w "$TUIOS_PANE_ID" --source greg "pr=$pr_val" </dev/null >/dev/null 2>&1 &
-  fi
-fi
+# The `$num` / `$pr` tuios rail meta comes from the pr-band mod (agent-mods/pr-band).
 
 dur_seg="${SEP}${MINT}${dur_fmt}${N}"
 
