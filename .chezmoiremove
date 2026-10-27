@@ -1,0 +1,8 @@
+.claude/hooks/herdr-agent-state.sh
+.claude/hooks/stop/stop.sh
+.claude/hooks/stop/herdr-claude-title.sh
+.claude/hooks/sounds
+.config/nushell/autoload/herdr.nu
+.config/nushell/autoload/herdr-pick.nu
+.config/nushell/autoload/zz-herdr-tui-wrappers.nu
+.config/nvim/lua/plugins/herdr-nvim.lua
