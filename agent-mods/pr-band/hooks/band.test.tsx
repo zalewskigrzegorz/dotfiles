@@ -31,7 +31,7 @@ test('draws the PR above what is beneath, buttons work, toast when checks finish
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...BAND, surface })
-    expect((await ui.find({ type: 'Text', text: /PR #7/ }))?.text).toBe('PR #7 ')
+    expect((await ui.find({ type: 'Text', text: /#7/ }))?.text).toBe('󰘬 #7 ')
     expect(await ui.find({ type: 'Text', text: /beneath/ })).toBeDefined()
     expect(await ui.find({ type: 'Button', key: 'rebase' })).toBeDefined()
     await ui.unmount()

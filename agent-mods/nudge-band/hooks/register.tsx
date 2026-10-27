@@ -9,6 +9,9 @@ const hiddenAt = atom({ plugin: 'nudge-band', key: 'hiddenAt' } as const, null)
 const countsOf = (n: Nudges) => `${n.standup}/${n.retro}`
 
 const POLL_MS = 5 * 60_000
+// Mocha Neon, the statusline's colours (docs/mocha-neon-palette.md).
+const GOLD = '#FFD700'
+const LAVENDER = '#9580FF'
 
 // Reads the counts out of the SessionStart hooks' own lines, so the logic stays in one place.
 export const countOf = (text: string, pattern: RegExp) => Number(pattern.exec(text)?.[1] ?? 0)
@@ -53,11 +56,17 @@ export const register: Register = on => {
       <Box flexDirection="column">
         <Box>
           {now.standup > 0 && (
-            <Button key="standup" plain hotkey="s" label={`standup (${now.standup})`} onPress={run('g-standup')} />
+            <Button key="standup" plain hotkey="s" label={`standup (${now.standup})`} onPress={run('g-standup')}>
+              <Text color={GOLD}>standup ({now.standup})</Text>
+            </Button>
           )}
-          {now.retro > 0 && <Button key="retro" plain hotkey="b" label={`retro (${now.retro})`} onPress={run('retro-backlog')} />}
+          {now.retro > 0 && (
+            <Button key="retro" plain hotkey="b" label={`retro (${now.retro})`} onPress={run('retro-backlog')}>
+              <Text color={LAVENDER}>retro ({now.retro})</Text>
+            </Button>
+          )}
           <Text> </Text>
-          <Button key="hide" plain hotkey="u" label="ukryj" onPress={() => update($, hiddenAt, () => countsOf(now))} />
+          <Button key="hide" plain hotkey="u" label="ukryj" dimColor onPress={() => update($, hiddenAt, () => countsOf(now))} />
         </Box>
         {below}
       </Box>

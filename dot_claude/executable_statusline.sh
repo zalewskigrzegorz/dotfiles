@@ -303,16 +303,14 @@ if [ -n "$cwd" ] && git -C "$cwd" rev-parse --is-inside-work-tree >/dev/null 2>&
   [ -n "$g" ] && git_seg="${SEP}${O}󰊢${N} ${g}"
 fi
 
-# PR segment — the current branch's PR number, so an agent that opened a PR (or
-# works on a branch that has one) shows it here AND in the herdr agent sidebar
-# (`$pr` pane token, see [ui.sidebar.agents] in herdr's config.toml). Value is
+# PR number for the herdr agent sidebar (`$pr` pane token, see [ui.sidebar.agents]
+# in herdr's config.toml). Not drawn here: the pr-band mod shows the PR above the prompt. Value is
 # "#N", "#N draft", "#N merged" or "#N closed"; empty = no PR.
 # `gh pr view` hits the network, so it never runs in the render path: the cache
 # (per repo+branch, shared by every pane on it) is refreshed by a detached job,
 # single-flight via a mkdir lock, every 10 min with a PR and every 60 s without
 # one — a fresh `gh pr create` shows up within a minute. The sidebar token is
 # re-sent on change and every 10 min, so a restarted herdr server gets it back.
-pr_seg=""
 pr_val=""
 branch=""
 [ -n "$cwd" ] && branch=$(git -C "$cwd" symbolic-ref --short -q HEAD 2>/dev/null)
@@ -345,13 +343,6 @@ if [ -n "$branch" ] && command -v gh >/dev/null 2>&1; then
       rmdir "$pr_cache.lock"
     ) </dev/null >/dev/null 2>&1 &
   fi
-  case "$pr_val" in
-    "")         ;;
-    *" draft")  pr_seg="${SEP}${MUTED}󰘬 ${pr_val}${N}" ;;
-    *" merged") pr_seg="${SEP}${PURPLE}󰘬 ${pr_val}${N}" ;;
-    *" closed") pr_seg="${SEP}${MUTED}󰘬 ${pr_val}${N}" ;;
-    *)          pr_seg="${SEP}${G}${B}󰘬 ${pr_val}${N}" ;;
-  esac
 fi
 if [ -n "$HERDR_PANE_ID" ] && command -v herdr >/dev/null 2>&1; then
   pr_sent="$cache_dir/prsent-${HERDR_PANE_ID//[^A-Za-z0-9]/_}"
@@ -499,8 +490,8 @@ if [ -z "$win_title" ] && [ -n "$transcript" ] && [ -f "$transcript" ]; then
 fi
 [ -n "$win_title" ] && win_seg="${SEP}${sess_c}${B}󰖯 ${win_title}${N}"
 
-printf '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' \
+printf '%s%s%s%s%s%s%s%s%s%s%s%s%s%s' \
   "$num_seg" "$vim_seg" \
-  "$model_seg" "$mode_seg" "$proj_seg" "$git_seg" "$pr_seg" "$dur_seg" \
+  "$model_seg" "$mode_seg" "$proj_seg" "$git_seg" "$dur_seg" \
   "$tool_seg" "$comp_seg" \
   "$wait_seg" "$ctx_seg" "$lines_seg" "$style_seg" "$win_seg"
