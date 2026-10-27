@@ -1,7 +1,17 @@
 # tuios (agent multiplexer) launcher helpers.
 
 # Short launcher: `os` = `tuios`, flags and subcommands pass through.
-def --wrapped os [...rest] { ^tuios ...$rest }
+# Bare `os` attaches (or creates) a session named after the repo you stand in
+# (`dotfiles`, `homelab`), or `global` from ~, instead of tuios's `session-N`.
+def --wrapped os [...rest] {
+    if ($rest | is-not-empty) { ^tuios ...$rest; return }
+    # the common dir, so a worktree still names its main repo
+    let git = (^git rev-parse --path-format=absolute --git-common-dir | complete)
+    let name = if $git.exit_code == 0 {
+        $git.stdout | str trim | path dirname | path basename
+    } else if $env.PWD == $env.HOME { 'global' } else { $env.PWD | path basename }
+    ^tuios attach -c $name
+}
 
 # A saved config applies by itself. This pushes the changes that wait for it
 # (a new host, wider grants) into the running daemon.
@@ -30,5 +40,5 @@ def os-mrglaszki [] {
         print -e "You're inside tuios — open a fresh Ghostty window for os-mrglaszki."
         return
     }
-    tuios attach --host mrglaszki
+    tuios attach --host mrglaszki -c mrglaszki
 }
