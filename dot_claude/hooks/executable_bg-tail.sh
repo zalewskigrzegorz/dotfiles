@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # PostToolUse(Bash): a command that went to the background (run_in_background or
-# Ctrl+B) gets a tuios window tailing its output file, so Greg sees the same log
-# the agent watches. The window stays after the task ends; Greg closes it.
+# Ctrl+B) gets a tuios window following its output file in less, so Greg sees and
+# searches the same log the agent watches. The window stays after the task ends.
 set -u
 [ -n "${TUIOS_SESSION:-}" ] || exit 0
 command -v jq >/dev/null 2>&1 || exit 0
@@ -17,8 +17,8 @@ desc=$(printf '%s' "$in" | jq -r '.tool_input.description // "bg"' | cut -c1-30)
 # Claude Code 2.1 uses (/private/tmp/claude-<uid>/<project>/<sid>/tasks); fix the glob if it moves.
 for f in /private/tmp/claude-"$(id -u)"/*/"$sid"/tasks/"$id".output; do
   [ -e "$f" ] || exit 0
-  # Red text: tuios has no per-window border colour.
-  tuios new-window -s "$TUIOS_SESSION" "bg: $desc" --no-focus -- \
-    sh -c 'printf "\033[31m"; exec tail -n +1 -F "$1"' bg-tail "$f" >/dev/null 2>&1
+  # less +F follows like tail -F; Ctrl+C stops following so / searches, F resumes.
+  # tuios's own scrollback editor (prefix+E) garbles the screen on 0.11.1.
+  tuios new-window -s "$TUIOS_SESSION" "bg: $desc" --no-focus -- less -R -~ +F "$f" >/dev/null 2>&1
   exit 0
 done
