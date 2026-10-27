@@ -773,7 +773,10 @@ function stage1Rows(st: RepoState, query: string): string[] {
   // and HEAD when cwd sits on some other branch — "branch off what I'm on".
   const q = query.trim();
   if (q !== "" && !/^\d+$/.test(q)) {
-    const taken = new Set([...wtBranches, ...st.branches.map((b) => b.name)]);
+    // branchesOf and worktreesOf both skip the root checkout's branch, so add it
+    // back: "create main" for a main that is checked out failed in git.
+    const rootBranch = git(st.root, ["branch", "--show-current"]).out.trim();
+    const taken = new Set([...wtBranches, ...st.branches.map((b) => b.name), rootBranch]);
     const names: string[] = st.types.length === 0 || q.includes("/") ? [q] : st.types.map((t) => `${t}/${q}`);
     const bases: string[] = [`origin/${st.defaultBranch}`];
     if (st.currentBranch !== "" && st.currentBranch !== st.defaultBranch) bases.push(st.currentBranch);
