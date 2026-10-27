@@ -48,7 +48,7 @@ loud. Formula: ≈30% accent over `base #1E1E2E`.
 | starship | `dot_config/starship/starship.toml` | named palette via `[palettes.mocha-neon]` | imported |
 | nvim | `dot_config/nvim/lua/plugins/catppuccin.lua` | 11 overrides | imported |
 | ghostty | `dot_config/ghostty/config` | ANSI 0–15 + cursor + selection | hand |
-| tuios | `dot_config/tuios/config.d/readonly_10-dotfiles.toml.tmpl` | mauve only (`border_focused_color_terminal`); no theme, panes keep Ghostty's palette | hand |
+| tuios | `dot_config/tuios/themes/mocha-neon.json` (selected in `config.d/readonly_10-dotfiles.toml.tmpl`) | ANSI 0–15 as in Ghostty, chrome accents; mauve also in `border_focused_color_terminal` | hand |
 
 ## WCAG AA verification on base `#1E1E2E`
 

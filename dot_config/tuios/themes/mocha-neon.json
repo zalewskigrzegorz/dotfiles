@@ -1,0 +1,32 @@
+{
+  "id": "mocha-neon",
+  "display_name": "Mocha Neon",
+  "dark": true,
+  "fg": "#f0f0ff",
+  "bg": "#1e1e2e",
+  "cursor": "#b347ff",
+  "black": "#11111b",
+  "red": "#ff6b9d",
+  "green": "#50fa7b",
+  "yellow": "#ffd700",
+  "blue": "#8ab4f8",
+  "purple": "#b347ff",
+  "cyan": "#8be9fd",
+  "white": "#f0f0ff",
+  "bright_black": "#585b70",
+  "bright_red": "#ff6b9d",
+  "bright_green": "#50fa7b",
+  "bright_yellow": "#ffd700",
+  "bright_blue": "#8ab4f8",
+  "bright_purple": "#ff80bf",
+  "bright_cyan": "#8be9fd",
+  "bright_white": "#f0f0ff",
+  "chrome": {
+    "accent": "#b347ff",
+    "accent_bright": "#9580ff",
+    "success": "#50fa7b",
+    "warning": "#ffd700",
+    "error": "#ff6b9d",
+    "info": "#8be9fd"
+  }
+}

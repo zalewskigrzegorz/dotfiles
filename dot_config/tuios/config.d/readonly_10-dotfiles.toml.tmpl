@@ -18,8 +18,12 @@ layout = "bsp"
 [appearance]
 # Per-OS: Mac uses the homebrew nu path; the lab has nu under linuxbrew.
 preferred_shell = "{{ if eq .chezmoi.os "darwin" }}/opt/homebrew/bin/nu{{ else }}/home/linuxbrew/.linuxbrew/bin/nu{{ end }}"
-# No theme: the panes keep Ghostty's Mocha Neon palette. The terminal-mode
-# border carries the Mocha Neon accent herdr used.
+# Mocha Neon as a named theme: dot_config/tuios/themes/mocha-neon.json, the
+# same 16 colours as Ghostty plus the chrome accents. Pick or edit it from the
+# settings page (Theme row).
+theme = "mocha-neon"
+# Stays an override: the theme's `success` also colours success messages, and
+# only this key sets the terminal-mode border on its own.
 border_focused_color_terminal = "#B347FF"
 
 # Always draw pressed keys. It draws passwords too: toggle it off from the
