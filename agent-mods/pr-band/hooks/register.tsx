@@ -21,6 +21,7 @@ const C = { green: '#50FA7B', red: '#FF6B9D', gold: '#FFD700', peach: '#FF8C42',
 
 let names: Record<string, string> = {}
 let peekTimer: { cancel: () => void } | undefined
+let pinned = false
 // Last `$pr` rail value sent; undefined until the first poll that knows.
 let railSent: string | undefined
 
@@ -70,12 +71,15 @@ async function showE2e($: EngineInterface, now: Pr) {
   else $.ui.toast('W artefaktach e2e nie ma screenów')
 }
 
+const ask = ($: EngineInterface, text: string) => () => void $.prompt.submit({ text, asUser: true })
+
 async function openPeek($: EngineInterface, ref: string) {
   const ran = await $.process.run(['gh', 'pr', 'view', ref, '--json', PEEK_FIELDS], { timeoutMs: 20_000 }).catch(() => null)
   if (ran?.exitCode !== 0) return false
   await update($, peek, () => summarizePeek(JSON.parse(ran.stdout), names))
   const opened = await $.ui.open({ id: PEEK, title: 'PR' })
   if (!opened.isPlaced) $.ui.toast('Podgląd PR-a gotowy: /pr go otwiera')
+  pinned = false
   peekTimer?.cancel()
   peekTimer = $.clock.after(PEEK_CLOSE_MS, () => void $.ui.close({ id: PEEK }).catch(() => {}))
   return true
@@ -126,7 +130,7 @@ export const register: Register = on => {
     const review = e.command && REVIEW_COMMANDS.has(e.command.name) ? (PR_LINK.exec(e.command.args)?.[0] ?? /\d+/.exec(e.command.args)?.[0]) : undefined
     const ref = link ?? review
     if (ref) void openPeek($, ref).catch(() => {})
-    else if (!e.command && !e.isMeta) void $.ui.close({ id: PEEK }).catch(() => {})
+    else if (!e.command && !e.isMeta && !pinned) void $.ui.close({ id: PEEK }).catch(() => {})
     return next(e)
   })
 
@@ -163,6 +167,26 @@ export const register: Register = on => {
         <Box>
           <Button key="open" plain hotkey="o" label="otwórz" onPress={() => void $.process.run(['open', p.url])} />
           {p.e2eRun && <Button key="e2e" plain hotkey="e" label="screeny e2e" onPress={() => void showE2e($, p)} />}
+          {p.fail > 0 && (
+            <Button
+              key="log"
+              plain
+              hotkey="f"
+              label="log-failed"
+              onPress={ask($, `Przeczytaj gh run view --log-failed dla padniętych checków PR #${p.number} (${p.failed.join(', ')}) i powiedz, co padło.`)}
+            />
+          )}
+          {needsRebase(p) && (
+            <Button key="rebase" plain hotkey="r" label="rebase" onPress={ask($, `Branch PR #${p.number} jest ${p.merge}: zrebase'uj go na bazę PR-a i uruchom lokalnie to, co CI.`)} />
+          )}
+          <Button
+            key="hide"
+            plain
+            hotkey="x"
+            label="ukryj z paska"
+            dimColor
+            onPress={() => void update($, hiddenFor, () => p.number).then(() => $.ui.close({ id: PEEK }))}
+          />
         </Box>
       </Box>
     )
@@ -173,49 +197,29 @@ export const register: Register = on => {
     if (e.props.hasSurvey || now === null || (await read($, hiddenFor)) === now.number) return next(e)
 
     const { Box, Button, Text } = $.ui.resolve(e)
-    const ask = (text: string) => () => void $.prompt.submit({ text, asUser: true })
-
     const below = await next(e)
+    // One segment of the shared summary line; a press toggles the PR pane with the actions.
+    const toggle = async () => {
+      if ((await $.ui.panes()).some(p => p.id === PEEK)) await $.ui.close({ id: PEEK })
+      else if (await openPeek($, String(now.number))) {
+        // Opened by hand: it stays until the next press, no prompt or timer closes it.
+        pinned = true
+        peekTimer?.cancel()
+      } else $.ui.toast(`gh nie odczytał PR-a #${now.number}`)
+    }
 
     return (
-      <Box flexDirection="column">
-        <Box>
+      <Box flexDirection="row">
+        <Button key="pr" plain hotkey="p" label={`PR #${now.number}`} onPress={() => void toggle()}>
           <Text color={C.green} bold>
             󰘬 #{now.number}{' '}
           </Text>
-          <Text color={C.green}>✓{now.pass} </Text>
-          {now.fail > 0 && <Text color={C.red}>✗{now.fail} </Text>}
-          {now.pending > 0 && <Text color={C.gold}>⏳{now.pending} </Text>}
-          <Text color={needsRebase(now) || now.merge === 'BLOCKED' ? C.peach : C.muted}>
-            {now.merge.toLowerCase()}
-            {now.review && ` · ${now.review.toLowerCase().replace('_', ' ')}`}{' '}
-          </Text>
-          {now.fail > 0 && (
-            <Button
-              key="log"
-              plain
-              hotkey="f"
-              label="log-failed"
-              onPress={ask(`Przeczytaj gh run view --log-failed dla padniętych checków PR #${now.number} (${now.failed.join(', ')}) i powiedz, co padło.`)}
-            >
-              <Text color={C.red}>log-failed</Text>
-            </Button>
-          )}
-          {now.e2eRun && (
-            <Button key="e2e" plain hotkey="e" label="screeny e2e" onPress={() => void showE2e($, now)}>
-              <Text color={C.red}>screeny e2e</Text>
-            </Button>
-          )}
-          {needsRebase(now) && (
-            <Button key="rebase" plain hotkey="r" label="rebase" onPress={ask(`Branch PR #${now.number} jest ${now.merge}: zrebase'uj go na bazę PR-a i uruchom lokalnie to, co CI.`)}>
-              <Text color={C.peach}>rebase</Text>
-            </Button>
-          )}
-          <Button key="open" plain hotkey="o" label="otwórz" onPress={() => void $.process.run(['open', now.url])}>
-            <Text color={C.cyan}>otwórz</Text>
-          </Button>
-          <Button key="hide" plain hotkey="x" label="ukryj" dimColor onPress={() => update($, hiddenFor, () => now.number)} />
-        </Box>
+          <Text color={C.green}>✓{now.pass}</Text>
+          {now.fail > 0 && <Text color={C.red}> ✗{now.fail}</Text>}
+          {now.pending > 0 && <Text color={C.gold}> ⏳{now.pending}</Text>}
+          {(needsRebase(now) || now.merge === 'BLOCKED') && <Text color={C.peach}> {now.merge.toLowerCase()}</Text>}
+        </Button>
+        {below ? <Text dimColor> │ </Text> : null}
         {below}
       </Box>
     )

@@ -52,22 +52,23 @@ export const register: Register = on => {
 
     const below = await next(e)
 
+    // One segment of the shared summary line, icons for the two nudges; a press runs the command.
     return (
-      <Box flexDirection="column">
-        <Box>
-          {now.standup > 0 && (
-            <Button key="standup" plain hotkey="s" label={`standup (${now.standup})`} onPress={run('g-standup')}>
-              <Text color={GOLD}>standup ({now.standup})</Text>
-            </Button>
-          )}
-          {now.retro > 0 && (
-            <Button key="retro" plain hotkey="b" label={`retro (${now.retro})`} onPress={run('retro-backlog')}>
-              <Text color={LAVENDER}>retro ({now.retro})</Text>
-            </Button>
-          )}
-          <Text> </Text>
-          <Button key="hide" plain hotkey="u" label="ukryj" dimColor onPress={() => update($, hiddenAt, () => countsOf(now))} />
-        </Box>
+      <Box flexDirection="row">
+        {now.standup > 0 && (
+          <Button key="standup" plain hotkey="s" label={`standup (${now.standup})`} onPress={run('g-standup')}>
+            <Text color={GOLD}> {now.standup} </Text>
+          </Button>
+        )}
+        {now.retro > 0 && (
+          <Button key="retro" plain hotkey="b" label={`retro (${now.retro})`} onPress={run('retro-backlog')}>
+            <Text color={LAVENDER}>󰑓 {now.retro} </Text>
+          </Button>
+        )}
+        <Button key="hide" plain hotkey="u" label="ukryj" dimColor onPress={() => update($, hiddenAt, () => countsOf(now))}>
+          <Text dimColor>×</Text>
+        </Button>
+        {below ? <Text dimColor> │ </Text> : null}
         {below}
       </Box>
     )

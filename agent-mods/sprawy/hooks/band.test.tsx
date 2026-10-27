@@ -6,7 +6,14 @@ const BAND = {
   component: 'AbovePrompt',
   props: { hasSurvey: false, isWorking: false, maxRows: 6, bodyColumns: 100, scroll: { offset: 0, bodyRows: 6 }, view: {} },
 } as const
+const PANE = {
+  plugin: 'sprawy',
+  component: 'Pane',
+  requestId: 'sprawy',
+  props: { title: 'Sprawy', isFocused: false, bodyColumns: 80, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} },
+} as const
 const TOOL = 'mcp__sprawy__sprawa' as const
+let panes: string[] = []
 
 const writes: Record<string, unknown> = {}
 const deletes: string[] = []
@@ -36,6 +43,10 @@ async function start(
   on('process.run', () => ({
     value: { exitCode: 0, stdout: JSON.stringify(tuios), stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
   }))
+  panes = []
+  on('ui.panes', () => ({ value: panes.map(id => ({ id, title: 'Sprawy', isShown: true, isFocused: false, isPlaced: true })) as never }))
+  on('ui.open', (_, e) => (panes.push(e.id), { value: { isPlaced: true as const } }))
+  on('ui.close', (_, e) => ((panes = panes.filter(p => p !== e.id)), { value: undefined }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('turn.complete', (_, e) => ({ text: e.answer }))
   on('ui.render', ($, e) => {
@@ -49,7 +60,7 @@ async function start(
 test('items queue, urgent jumps, done stays dimmed, band composes', async ($, on) => {
   await start([$, on])
   const empty = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  expect(await empty.find({ type: 'Text', text: /Sprawy/ })).toBeUndefined()
+  expect(await empty.find({ type: 'Button', key: 'sprawy' })).toBeUndefined()
   expect(await empty.find({ type: 'Text', text: /beneath/ })).toBeDefined()
   await empty.unmount()
 
@@ -58,14 +69,21 @@ test('items queue, urgent jumps, done stays dimmed, band composes', async ($, on
   await $.tool.call({ tool: TOOL, action: 'add', title: 'Popup za szeroki', urgent: true })
   await $.tool.call({ tool: TOOL, action: 'set', id: 1, status: 'done' })
 
-  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  expect((await ui.find({ type: 'Text', text: /Sprawy/ }))?.text).toContain('kolejka 2')
+  const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect((await band.find({ type: 'Button', key: 'sprawy' }))?.text).toContain('◐0 ⧗2 ✓1')
+  expect(await band.find({ type: 'Text', text: /beneath/ })).toBeDefined()
+  await band.press({ key: 'sprawy' })
+  expect(panes).toEqual(['sprawy'])
+  await band.press({ key: 'sprawy' })
+  expect(panes).toEqual([])
+  await band.unmount()
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /Popup/ }))?.text).toContain('[1] 3. Popup za szeroki')
   expect((await ui.find({ type: 'Text', text: /Kolory/ }))?.text).toContain('[2] 2. Kolory w tabach')
   const done = await ui.find({ type: 'Text', text: /Pasek/ })
   expect(done?.text).toContain('✓ 1. Pasek agentów')
   expect(done?.props.dimColor).toBe(true)
-  expect(await ui.find({ type: 'Text', text: /beneath/ })).toBeDefined()
   await ui.unmount()
 
   const bad = await $.tool.call({ tool: TOOL, action: 'set', id: 9, status: 'done' })
@@ -84,7 +102,7 @@ test('an item follows its subagent and its tuios agent, and ticks itself done', 
   const unknown = await $.tool.call({ tool: TOOL, action: 'set', id: 2, agent: 'nope' })
   expect('deny' in unknown && unknown.deny).toContain('No subagent or tuios window')
 
-  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /Review/ }))?.text).toContain('◐ 1. Review PR (agent pracuje)')
 
   tuios = { agents: [{ window_id: 'w1', state: 'needs_input', needs_you: true }] }
@@ -114,7 +132,7 @@ test('a restart with the same session id gets its list back, a different id star
     's:old': { at: 0, items: [] },
   }
   await start([$, on], 'A', entries)
-  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /Wrócił/ }))?.text).toContain('[1] 1. Wrócił po resume')
   await ui.unmount()
 })

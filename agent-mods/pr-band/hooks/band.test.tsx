@@ -6,11 +6,22 @@ const BAND = {
   props: { hasSurvey: false, isWorking: false, maxRows: 6, bodyColumns: 100, scroll: { offset: 0, bodyRows: 6 }, view: {} },
 } as const
 
-const view = (checks: object[]) =>
-  JSON.stringify({ number: 7, url: 'https://x/pr/7', mergeStateStatus: 'DIRTY', reviewDecision: '', statusCheckRollup: checks })
+const PANE = {
+  plugin: 'pr-band',
+  component: 'Pane',
+  requestId: 'pr-peek',
+  props: { title: 'PR', isFocused: false, bodyColumns: 80, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} },
+} as const
 
-test('draws the PR above what is beneath, buttons work, toast when checks finish', async ($, on) => {
+const view = (checks: object[]) =>
+  JSON.stringify({ number: 7, url: 'https://x/pr/7', title: 'Fix', author: { login: 'x' }, mergeStateStatus: 'DIRTY', reviewDecision: '', statusCheckRollup: checks })
+
+test('the PR segment sits beside what is beneath, a press toggles the pane with the actions, toast when checks finish', async ($, on) => {
   const clock = mock.clock(on)
+  let panes: string[] = []
+  on('ui.panes', () => ({ value: panes.map(id => ({ id, title: 'PR', isShown: true, isFocused: false, isPlaced: true })) as never }))
+  on('ui.open', (_, e) => (panes.push(e.id), { value: { isPlaced: true as const } }))
+  on('ui.close', (_, e) => ((panes = panes.filter(p => p !== e.id)), { value: undefined }))
   let checks: object[] = [{ name: 'unit', status: 'IN_PROGRESS' }]
   const toasts: string[] = []
   const submitted: string[] = []
@@ -33,7 +44,7 @@ test('draws the PR above what is beneath, buttons work, toast when checks finish
     const ui = await $.ui.mount({ ...BAND, surface })
     expect((await ui.find({ type: 'Text', text: /#7/ }))?.text).toBe('󰘬 #7 ')
     expect(await ui.find({ type: 'Text', text: /beneath/ })).toBeDefined()
-    expect(await ui.find({ type: 'Button', key: 'rebase' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /dirty/ })).toBeDefined()
     await ui.unmount()
   }
 
@@ -41,11 +52,21 @@ test('draws the PR above what is beneath, buttons work, toast when checks finish
   await clock.advance(90_000)
   expect(toasts).toEqual(['PR #7: 1 checków padło'])
 
-  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  await band.press({ key: 'pr' })
+  expect(panes).toEqual(['pr-peek'])
+  // Opened by hand, a plain prompt leaves it up.
+  await $.prompt.submit({ text: 'ok', wait: false, origin: { kind: 'composer' } })
+  await clock.settle()
+  expect(panes).toEqual(['pr-peek'])
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await ui.find({ type: 'Button', key: 'rebase' })).toBeDefined()
   await ui.press({ key: 'log' })
-  expect(submitted[0]).toContain('--log-failed')
-  expect(submitted[0]).toContain('unit')
+  expect(submitted.find(t => t.includes('--log-failed'))).toContain('unit')
   await ui.unmount()
+  await band.press({ key: 'pr' })
+  expect(panes).toEqual([])
+  await band.unmount()
 })
 
 test('no PR draws only what is beneath', async ($, on) => {
@@ -112,6 +133,8 @@ test('the e2e button pulls the failure shots and hands the folder to /screen', a
   const failed = JSON.stringify({
     number: 7,
     url: 'https://github.com/o/r/pull/7',
+    title: 'Fix',
+    author: { login: 'x' },
     statusCheckRollup: [{ name: 'e2e (reunite, 4)', status: 'COMPLETED', conclusion: 'FAILURE', detailsUrl: 'https://github.com/o/r/actions/runs/42/job/1' }],
   })
   on('process.run', (_, e) => {
@@ -121,6 +144,8 @@ test('the e2e button pulls the failure shots and hands the folder to /screen', a
   })
   on('command.run', (_, e) => (shown.push(`${e.command} ${e.args}`), { text: '' }))
   on('ui.toast', () => ({ value: undefined }))
+  on('ui.panes', () => ({ value: [] }))
+  on('ui.open', () => ({ value: { isPlaced: true as const } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('command.register', () => ({ value: { command: 'pr' } }))
   on('ui.render', ($, e) => {
@@ -130,7 +155,10 @@ test('the e2e button pulls the failure shots and hands the folder to /screen', a
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   await clock.settle()
 
-  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  await band.press({ key: 'pr' })
+  await band.unmount()
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await ui.press({ key: 'e2e' })
   expect(ran).toContain('gh run download')
   expect(shown).toEqual(['screen /Users/greg/Library/Caches/shot-pane/e2e-42'])
