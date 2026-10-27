@@ -99,6 +99,23 @@ brew "zoxide"
 #     | sudo tee /etc/apt/sources.list.d/1password.list
 #   sudo apt update && sudo apt install -y 1password-cli
 # Docs: https://developer.1password.com/docs/cli/get-started/
+
+# Lab tools installed by hand before they were tracked (2026-10-27).
+tap "hashicorp/tap"
+brew "goaccess"
+brew "hashicorp/tap/nomad"
+brew "hashicorp/tap/terraform"
+brew "hashicorp/tap/vault"
+brew "htop"
+brew "k6"
+brew "libpq"
+brew "logdy"
+brew "lynx"
+brew "midnight-commander"
+brew "mkcert"
+brew "mysql-client"
+brew "podman-compose"
+brew "postgresql@14"
 {{ end -}}
 
 {{ if eq .chezmoi.os "darwin" -}}
@@ -146,7 +163,7 @@ cask "font-fira-code-nerd-font"
 cask "font-jetbrains-mono-nerd-font"
 cask "font-sf-pro"         # sketchybar caffeine widget
 cask "ghostty"
-cask "glaze"
+cask "glaze-app"
 cask "google-chrome"
 cask "google-drive"
 cask "zacharytgray/hyprmac/hyprmac" # tiling WM; third-party tap: run `brew trust --cask zacharytgray/hyprmac/hyprmac` once first
