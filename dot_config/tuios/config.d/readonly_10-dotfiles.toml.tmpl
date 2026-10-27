@@ -17,6 +17,11 @@ preferred_shell = "{{ if eq .chezmoi.os "darwin" }}/opt/homebrew/bin/nu{{ else }
 # border carries the Mocha Neon accent herdr used.
 border_focused_color_terminal = "#B347FF"
 
+# Always draw pressed keys. It draws passwords too: toggle it off from the
+# palette (prefix+: → Toggle show keys) before typing a secret.
+[debug]
+show_key_events = true
+
 [daemon]
 # "continuum for agents": type each harness's resume command after a restart.
 resume_agents = "auto"
