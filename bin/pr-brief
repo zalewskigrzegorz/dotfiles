@@ -125,6 +125,9 @@ def brief-review [pr: record, failed: list, threads: list] {
     # anywhere else it reaches the model as prose and no skill is dispatched.
     print $"/g-pr-review ($pr.number)"
     print ""
+    # The tab starts unattended: without this the skill's focus popup held it.
+    print "Fokus: standard"
+    print ""
     # Data only — no task paragraph. The skill already carries the flow (silent
     # analysis, Post/Skip, verdict, voice gate, red-CI rule); repeating it here
     # burned tokens on every review and told the model nothing new.
