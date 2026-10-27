@@ -106,7 +106,7 @@ Then one `AskUserQuestion`, `multiSelect: true`, header `Fokus`:
 
 Picked areas become priority targets in B2: dig into them first, follow call sites beyond the diff if needed, and make sure each picked area yields either a finding or an explicit "checked, clean" line in the B3 batch context. Free text from `Other` is treated the same way.
 
-Skip the popup only when the PR is trivial (≤ 3 files, one obvious change) — the summary still prints.
+Skip the popup when the PR is trivial (≤ 3 files, one obvious change), or when the prompt carries `Fokus: standard` (a review `workctl` started in its own tab: nobody sits there to answer, and the tab waited on this popup) — the summary still prints, and B2 runs the standard full review.
 
 **Pending reviews of mine on linked PRs.** If the body links a pitch, design or parent PR, check those for a review of mine stuck in `PENDING` (never submitted). On 2026-09-29 one sat on pitch #27110 with two comments that decided the direction of #27820, found by accident. Show it in a popup with the comments in `preview` (send / leave / delete) before the findings:
 
