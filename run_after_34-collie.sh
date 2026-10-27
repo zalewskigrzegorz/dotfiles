@@ -84,7 +84,7 @@ fi
 # The old herdr-plugin Collie runs under the same launchd label, driving herdr.
 # `collie start` would take that bridge for its own and leave it running.
 old_plist="${HOME}/Library/LaunchAgents/herdr.collie.plist"
-if [[ -f "$old_plist" ]] && grep -q '/herdr/plugins/' "$old_plist"; then
+if [[ -f "$old_plist" ]] && grep -q '/herdr/plugins/github-installations/' "$old_plist"; then
   launchctl bootout "gui/$(id -u)/herdr.collie" 2>/dev/null || true
   rm -f "$old_plist"
   echo "collie: removed the herdr-plugin bridge."
