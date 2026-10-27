@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Runs on every apply: a first run with tailscale down retries next time.
 # Collie: the phone PWA over the tailnet (which agent is blocked, answer it,
 # push), driving tuios natively (COLLIE_MUX=tuios, needs tuios >= 0.8.3).
 #
@@ -66,6 +67,15 @@ if [[ ! -f "$co_env" ]] && command -v tailscale >/dev/null 2>&1; then
   else
     echo "collie: ⚠️  .env not written — tailscale is down or not logged in."
   fi
+fi
+
+# The old herdr-plugin Collie runs under the same launchd label, driving herdr.
+# `collie start` would take that bridge for its own and leave it running.
+old_plist="${HOME}/Library/LaunchAgents/herdr.collie.plist"
+if [[ -f "$old_plist" ]] && grep -q '/herdr/plugins/' "$old_plist"; then
+  launchctl bootout "gui/$(id -u)/herdr.collie" 2>/dev/null || true
+  rm -f "$old_plist"
+  echo "collie: removed the herdr-plugin bridge."
 fi
 
 # `collie start` writes the service (launchd herdr.collie / systemd --user
