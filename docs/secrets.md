@@ -46,7 +46,7 @@ Those live in three private artifacts, all restored by `run_after_05` from the
 | `WORK_CONTEXT_MD` | `~/.local/state/dotfiles/secrets/work-context.md` | skills at runtime (daily-brief, g-pr-bump, …) — roster, team scope, Slack channel/subteam tables |
 | `WORK_ENV` | `~/.local/state/dotfiles/secrets/work.env` | `bin/prs`, `bin/pr-watch`, `bin/pr-brief`, `bin/pr-watch-open`, g-* skills; loaded into the shell env by `dot_config/nushell/autoload/work-env.nu` (`WORK_GITHUB_ORG`, `WORK_MAIN_REPO`, `WORK_MONOREPO_DIR`, `WORK_TEAM_SLUG`, `WORK_TEAM_LABEL`) |
 | `DOTFILES_WORK_DATA` | `<source-dir>/.chezmoidata/private-work.toml` (gitignored) | chezmoi templates: gh-dash config, mcp-servers, Stream Deck Slack buttons (`{{ index . "work" ... }}`) |
-| `PRIVATE_AGENT_ASSETS_TAR` | `~/.local/state/dotfiles/secrets/private-agent-assets.tar` (auto-extracted) | private skills/rules overlay (`agent-skills/`, `agent-rules/` inside the tar) — layered into `~/.claude` by sync scripts 30/31 after the public rsync |
+| `PRIVATE_AGENT_ASSETS_TAR` | `~/.local/state/dotfiles/secrets/private-agent-assets.tar` (auto-extracted) | private skills/rules overlay (`agent-skills/`, `agent-rules/` inside the tar) — layered into `~/.claude` by sync scripts 30/31 after the public rsync; `tuios-tapes/` inside it lands in `~/.local/state/dotfiles/secrets/tuios-tapes` for the `prefix+r` tape picker |
 
 Password-field items:
 

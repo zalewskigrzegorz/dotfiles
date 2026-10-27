@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# tuios-tape-pick — prefix+r popup: fzf over the tapes, then `tuios tape exec` of the pick
+# in this session. Public tapes: ~/.config/tuios/tapes (dot_config/tuios/tapes). Private,
+# work-specific ones: ~/.local/state/dotfiles/secrets/tuios-tapes (PRIVATE_AGENT_ASSETS_TAR).
+# Nothing runs without a pick; Esc exits.
+set -euo pipefail
+
+pub="$HOME/.config/tuios/tapes"
+priv="$HOME/.local/state/dotfiles/secrets/tuios-tapes"
+
+rows=$(
+  for d in "$pub" "$priv"; do
+    [ -d "$d" ] || continue
+    tag=public; [ "$d" = "$priv" ] && tag=private
+    find "$d" -maxdepth 1 -type f -name '*.tape' | sort | while read -r f; do
+      printf '%s/%s\t%s\n' "$tag" "$(basename "$f" .tape)" "$f"
+    done
+  done
+)
+[ -n "$rows" ] || { echo "no tapes in $pub or $priv"; read -r _; exit 0; }
+
+pick=$(printf '%s\n' "$rows" | fzf --delimiter '\t' --with-nth 1 --reverse \
+  --prompt 'tape> ' --header 'enter: run in this session · esc: nothing' \
+  --preview 'cat {2}' --preview-window 'right,65%,wrap') || exit 0
+file=${pick#*$'\t'}
+[ -f "$file" ] || exit 0
+
+tuios tape validate "$file" >/dev/null || { echo "invalid tape: $file"; read -r _; exit 1; }
+# Detached so the popup closes before the tape opens windows; a failed command
+# shows on screen as FAILED with its line, and the log keeps exec's own error.
+log="${TMPDIR:-/tmp}/tuios-tape-pick.log"
+sess=(); [ -n "${TUIOS_SESSION:-}" ] && sess=(-s "$TUIOS_SESSION")
+perl -e 'use POSIX; setsid; exec @ARGV' -- tuios tape exec ${sess[@]+"${sess[@]}"} "$file" >"$log" 2>&1 &
