@@ -1,6 +1,6 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
-import { cleanChecks } from './register'
+import { cleanChecks, failedLine, lastLine } from './register'
 
 const props = { hasSurvey: false, isWorking: false, maxRows: 6, bodyColumns: 120, scroll: { offset: 0, bodyRows: 6 }, view: {} }
 const LINE = { plugin: 'pulpit', component: 'AbovePrompt', props } as const
@@ -22,6 +22,7 @@ const seeded: Record<string, unknown> = {
 }
 
 test('one line sums up every mod, a press toggles one pane with all the details', async ($, on) => {
+  mock.clock(on)
   const panes: string[] = []
   const commands: string[] = []
   const submitted: string[] = []
@@ -66,6 +67,50 @@ test('nothing to show leaves the line to what is beneath', async ($, on) => {
   expect(await line.find({ type: 'Button', key: 'pulpit' })).toBeUndefined()
   expect(await line.find({ type: 'Text', text: /beneath/ })).toBeDefined()
   await line.unmount()
+})
+
+test('a background command shows its last line, repeats fold, the end toasts', async ($, on) => {
+  const clock = mock.clock(on)
+  let tail = '\x1b[32m21:31:44\x1b[0m  pass=44 fail=0 pending=2\n'
+  let open = '4242\n'
+  const toasts: string[] = []
+  on('session.id', () => ({ value: 'S' }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('command.register', () => ({ value: { command: 'pulpit' } }))
+  on('ui.toast', (_, e) => (toasts.push(e.text), { value: undefined }))
+  on('ui.render', ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return <Text>beneath</Text>
+  })
+  on('tool.call', () => ({ result: { stdout: '', stderr: '', interrupted: false, backgroundTaskId: 'b1' } }))
+  on('process.run', (_, e) => {
+    const stdout = e.argv[0] === 'sh' ? '/private/tmp/claude-501/p/S/tasks/b1.output\n' : e.argv[0] === 'tail' ? tail : e.argv[0] === 'lsof' ? open : ''
+    return { value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'gh-pr-checks-wait 7', description: 'Wait for PR checks', run_in_background: true })
+
+  await clock.advance(15_000)
+  tail += '21:32:46  pass=44 fail=0 pending=2\n'
+  await clock.advance(15_000)
+  const pane = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await pane.find({ type: 'Text', text: /pending=2/ }))?.text).toContain('(bez zmian ×2)')
+  const line = await $.ui.mount({ ...LINE, surface: 'terminal' })
+  expect((await line.find({ type: 'Button', key: 'pulpit' }))?.text).toContain('⚙ 1')
+
+  tail += 'timeout after 5400s, checks still pending\n'
+  open = ''
+  await clock.advance(15_000)
+  expect(toasts).toEqual(['✗ w tle: Wait for PR checks'])
+  expect((await line.find({ type: 'Button', key: 'pulpit' }))?.text).toContain('✗1')
+  await line.unmount()
+  await pane.unmount()
+})
+
+test('log lines: colours go, the last one counts, failures are spotted', () => {
+  expect(lastLine('a\n\x1b[31mb\x1b[0m\n\n')).toBe('b')
+  expect(failedLine('[exited with code 4]')).toBe(true)
+  expect(failedLine('pass=78 fail=2 pending=1')).toBe(false)
 })
 
 test('check names lose newlines and odd characters before a prompt', () => {
