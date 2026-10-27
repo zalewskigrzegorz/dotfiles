@@ -17,6 +17,8 @@ desc=$(printf '%s' "$in" | jq -r '.tool_input.description // "bg"' | cut -c1-30)
 # Claude Code 2.1 uses (/private/tmp/claude-<uid>/<project>/<sid>/tasks); fix the glob if it moves.
 for f in /private/tmp/claude-"$(id -u)"/*/"$sid"/tasks/"$id".output; do
   [ -e "$f" ] || exit 0
-  tuios new-window -s "$TUIOS_SESSION" "bg: $desc" --no-focus -- tail -n +1 -F "$f" >/dev/null 2>&1
+  # Red text: tuios has no per-window border colour.
+  tuios new-window -s "$TUIOS_SESSION" "bg: $desc" --no-focus -- \
+    sh -c 'printf "\033[31m"; exec tail -n +1 -F "$1"' bg-tail "$f" >/dev/null 2>&1
   exit 0
 done
