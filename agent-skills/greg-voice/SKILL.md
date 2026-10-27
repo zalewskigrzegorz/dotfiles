@@ -50,7 +50,9 @@ Greg reads top-down and gets impatient with wind-up.
 
 **Just the meat.** Cut the setup, the play-by-play, the ceremony. No run IDs,
 exit codes, or step-by-step retelling unless they're the actual point. If the
-conclusion fits in two sentences, the whole thing is two sentences.
+conclusion fits in two sentences, the whole thing is two sentences. The reader
+needs the result and the ask, nothing else. Proof (timings, counts, md5s,
+"everything matched") comes back only when someone asks for it.
 
 **Casual but expressive — this is the part that's easy to lose.** Greg doesn't
 write like a status bot or a corporate memo. He types like a real engineer in
@@ -66,10 +68,12 @@ person who's mildly annoyed, relieved, or amused, whatever actually fits.
 "nie dopatrzyłem", "przeoczyłem". State what happened and what you did in one
 breath, no defensive padding. Owning it casually *is* the voice.
 
-**Keep the hard specifics, drop the formal glue.** Hold the exact numbers,
-paths, versions, names — that's the meat (`#24334`, `apps/.../Dockerfile`,
-`2.11.4`). Stitch them with plain connectors ("so", "and", "now", "bo",
-"więc"), never "subsequently" / "as a result" / "in order to".
+**Keep only the specifics the reader acts on, drop the formal glue.** A
+PR number, a path to fix, a version to bump, the name of the instance to kill:
+those are the meat (`#24334`, `apps/.../Dockerfile`, `2.11.4`). A number that
+only proves the result (durations, row counts, md5, "all indexes matched") is
+not meat, leave it out. Stitch what stays with plain connectors ("so", "and",
+"now", "bo", "więc"), never "subsequently" / "as a result" / "in order to".
 
 **No corporate hedging, no signposting.** Kill "I wanted to flag", "just a
 heads up", "circling back", "as discussed", "for visibility", "wanted to
@@ -124,8 +128,9 @@ Greg's real messages are bimodal, and the skill has to cover both ends:
   bullet chain carrying exact paths, line numbers, and limits. Bullets are right
   here, even at 2 parallel items ("Two fixes here: …").
 
-Default to 1–3 sentences in between. Longer only when there are several
-independent things to report — one short line each, still no padding.
+Default to one or two short sentences in between. Longer only when there are
+several independent asks — one short line each, still no padding. Shorthand is
+the norm: arrows for a sequence, lowercase starts, "thx", `:)` / `:pray:`.
 
 ## Examples across registers
 
@@ -155,8 +160,15 @@ don't pattern-match to any single one.
 > Still debugging why the Raycast cache access isn't working. I think I'll add a
 > command to temporarily install the MCP in Claude — WDYT?
 
-**Structured technical answer** — verdict first, then the specifics in a tight
-chain:
+**Status plus ask to a colleague** — result and request in one line, no proof.
+The rejected version carried timings, counts and md5s; Greg cut it to this:
+
+> migration → down → migration again on the copy, all green :) you can kill
+> `<instance>`, thx :pray:
+
+**Structured technical answer** — only when the reader asked for the detail
+("why", "how does it work") or it is an inline comment on a diff. Verdict
+first, then the specifics in a tight chain:
 
 > Confirmed — the sandbox runs inside the portal task, not a separate job.
 >
@@ -283,5 +295,7 @@ Everything else in the catalogue applies as written.
 5. Reread once against the twelve core tells. If something still reads
    synthetic, fix that line — don't rerun the whole rewrite, that is what
    flattens it.
+6. For every number, path or name left: would the reader miss it if it were
+   gone? No → cut it.
 
 Deliver just the message, ready to paste — no "here's your message" preamble.
