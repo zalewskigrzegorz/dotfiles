@@ -1,5 +1,8 @@
 # tuios (agent multiplexer) launcher helpers.
 
+# Short launcher: `os` = `tuios`, flags and subcommands pass through.
+def --wrapped os [...rest] { ^tuios ...$rest }
+
 # A saved config applies by itself. This pushes the changes that wait for it
 # (a new host, wider grants) into the running daemon.
 def os-reload [] { tuios config apply }
