@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # hd-title "<text>" — set the CURRENT Claude session's tab/title to <text>.
-# hd-title --clear  — clear the tuios workspace label (the store is the caller's).
+# hd-title --clear  — clear the tuios workspace label and window name (the store is the caller's).
 #
-# One writer for two surfaces, kept in sync:
+# One writer for three surfaces, kept in sync:
 #   1. the tuios workspace label of this window   (plain text — no colour glyph)
-#   2. a shared title store   (read by the statusline's win_seg)
+#   2. the tuios window name   (the rail's agent row draws it)
+#   3. a shared title store   (read by the statusline's win_seg)
 #
 # Why no colour on the label: an ANSI code or emoji dot in it would eat the
 # narrow tab strip and rail. So the per-session COLOUR lives only in the
@@ -30,15 +31,21 @@ fi
 if [ "${TUIOS_ENV:-}" = "1" ] && [ -n "${TUIOS_PANE_ID:-}" ]; then
   export PATH="$PATH:/opt/homebrew/bin:/home/linuxbrew/.linuxbrew/bin"
   if command -v tuios >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+    t=""
+    if [ "$text" != "--clear" ]; then
+      # Trim to keep the tab strip / rail scannable. Tune via CLAUDE_TUIOS_TITLE_MAX.
+      max="${CLAUDE_TUIOS_TITLE_MAX:-30}"
+      t="$text"
+      [ "${#t}" -gt "$max" ] && t="${t:0:$((max - 1))}…"
+    fi
+    # The rail's agent row draws the window name, which workctl set to "claude review".
+    # An empty name hands it back to the program's own title.
+    tuios set-window -w "$TUIOS_PANE_ID" --name "$t" >/dev/null 2>&1 || true
     ws=$(tuios get-window "$TUIOS_PANE_ID" --json 2>/dev/null | jq -r '.workspace // empty' 2>/dev/null)
     if [ -n "$ws" ]; then
-      if [ "$text" = "--clear" ]; then
+      if [ -z "$t" ]; then
         tuios set-workspace-name "$ws" >/dev/null 2>&1 || true
       else
-        # Trim to keep the tab strip / rail scannable. Tune via CLAUDE_TUIOS_TITLE_MAX.
-        max="${CLAUDE_TUIOS_TITLE_MAX:-30}"
-        t="$text"
-        [ "${#t}" -gt "$max" ] && t="${t:0:$((max - 1))}…"
         tuios set-workspace-name "$ws" "$t" >/dev/null 2>&1 || true
       fi
     fi

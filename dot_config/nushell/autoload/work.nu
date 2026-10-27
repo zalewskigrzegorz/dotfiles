@@ -169,7 +169,7 @@ def "work _apply-layout" [session: string, cwd: path]: nothing -> nothing {
     let label = $"\u{f06a9}  claude"
     let wins = (try { (do { ^tuios list-windows -s $session --json } | complete).stdout | from json } catch { {} })
     let windows = ($wins | get -o windows | default [])
-    if ($windows | any { |w| ($w.agent_state? | default "none") not-in ["none" ""] or ($w.custom_name? | default "") == $label }) { return }
+    if ($windows | any { |w| ($w.agent_state? | default "none") not-in ["none" ""] or ($w.agent_resumable? | default "") != "" or ($w.custom_name? | default "") == $label }) { return }
     let slot = ($wins | get -o workspace_windows | default [] | enumerate | where item == 0 | get -o 0.index)
     if $slot == null { return }
     let ws = ($slot + 1)
