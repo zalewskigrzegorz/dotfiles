@@ -46,8 +46,8 @@ Opus).
 
 ## Rules
 
-1. **Every spawn names the model explicitly** — `Agent(model: …)` or `herdr
-   agent start … -- --model <m>` — and the spawn line states the score: "PR
+1. **Every spawn names the model explicitly** — `Agent(model: …)` or `tuios
+   start-agent … -- --model <m>` — and the spawn line states the score: "PR
    review #31204: 5 pkt → Opus high". Never rely on inheritance or a skill's
    frontmatter; when the parent is Fable, inheritance means Fable.
    `subagent_type: "fork"` always inherits, so no forks for bulk work.
@@ -70,7 +70,7 @@ Opus).
    `web-search-agent` re-reads every result on every step: 37 steps burned
    3.2 M cached tokens on Sonnet (2026-09-08). Cap research agents at ~15 web
    calls per question, forbid them from spawning children, and prefer a
-   `herdr` pane (visible argv, `/clear` between briefs) over the in-process
+   `tuios` window (visible argv, `/clear` between briefs) over the in-process
    Agent tool for anything longer than a few minutes.
 7. **Stopping a parent does not stop its children.** After `TaskStop`, run
    `ListAgents` and kill every orphan; repeat until the list is empty. Report

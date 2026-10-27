@@ -41,7 +41,7 @@ The pattern behind all of these: **a port changes the mechanics, not just the la
    __rows <scratch>/st.txt <query>`, the same path fzf's reload takes.
 4. Force a stale PR cache with `touch -t 202610010000
    ~/.cache/workctl-prs-<org>-<repo>.tsv`.
-5. Not covered: header width in a herdr pane and `--nth` in live fzf; those
+5. Not covered: header width in a tuios pane and `--nth` in live fzf; those
    stay for Greg to look at (b1c79075).
 
 - **`scriptc` stays an npm global.** Moving the globals to pnpm (226a665) broke stage 29 and was reverted (ed44986): pnpm's side-effects cache can skip `install-native.mjs`, which sets the exec bit on `scriptc.exe` and its `tsc`. Before touching the install, `scriptc build hello.ts -o hello && ./hello` must print.

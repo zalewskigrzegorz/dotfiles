@@ -10,16 +10,17 @@ alwaysApply: true
 `sudo -n true` is denied by the guard even in YOLO (2026-09-24), so probing is
 pointless. When a command needs `sudo`:
 
-1. Type it into his shell pane with `herdr pane` (skill `herdr-orchestration`),
-   **without Enter**.
+1. Type it into his shell window with `tuios send-text` (skill `tuios-orchestration`),
+   **without a trailing newline**, so no Enter.
 2. Say in one line that it is waiting and that he presses Enter and gives the
    password.
 3. If it has side effects (`killall coreaudiod` cuts audio for ~2 s), say so and
    ask for "poszło" after.
 
 The same goes for **any command Greg must run himself**, not only `sudo`: find
-the shell pane (`herdr pane list`, `herdr pane read` to confirm an empty `❯`),
-`herdr pane send-text <pane> '<cmd>'`, name the tab in one line, verify the
+the shell window (`tuios list-windows -s "$TUIOS_SESSION" --json`, the one whose `agent_state` is `none`;
+`tuios-peek` to confirm an empty `❯`),
+`tuios send-text -s "$TUIOS_SESSION" -w <window> '<cmd>'`, name the workspace in one line, verify the
 result yourself after "poszło". Greg: "tak masz mi rozwiązywać odpalanie
 poleceń" (2b9b89b1, 2026-10-23).
 
@@ -262,10 +263,11 @@ Greg's: General → AirDrop & Handoff → AirPlay Receiver off, opened with
 The first sentence says why: macOS holds the port local storage needs
 (c333538c: "co?").
 
-## A job that must outlive its herdr workspace: `setsid`
+## A job that must outlive its tuios session: `setsid`
 
-`herdr workspace close` kills the pane's process group, so `&` and `nohup`
-die with it. Detach with `perl -e 'use POSIX; setsid; exec @ARGV' -- <cmd> &`
+On herdr, `workspace close` killed the pane's process group, so `&` and `nohup`
+died with it; tuios `kill-session` / `close-workspace` closing the pty is not
+verified to differ, so the rule stays. Detach with `perl -e 'use POSIX; setsid; exec @ARGV' -- <cmd> &`
 and say what is left behind if it fails (dc819c48).
 
 ## `bin/sync` on a held chezmoi lock

@@ -6,7 +6,7 @@ alwaysApply: true
 # Local Docker Is Shared — Check Before You Disrupt It
 
 The local Docker stack (the `<co>-*` containers, `<co>-postgres-1`, the `main`
-database; `<co>` is `$WORK_COMPANY` lowercased) is not yours alone. Other herdr agents and Greg's own long jobs
+database; `<co>` is `$WORK_COMPANY` lowercased) is not yours alone. Other tuios agents and Greg's own long jobs
 use it at the same time — on 2026-09-23 one of them was dumping production data
 through it for two hours. A single agent session then ran `drop database main
 with (force)`, a `pnpm start` that restarted and rebuilt containers, and a broad
@@ -30,7 +30,7 @@ rebuilds, and any `pkill`/`killall`.
    ps -axo pid,etime,command | rg -i 'pg_dump|pg_restore|psql|docker (exec|run|compose)' | rg -v rg
    ```
 
-   Also check other agents with `ListAgents` / the herdr sidebar.
+   Also check other agents with `ListAgents` / the tuios sidebar.
 2. **Anything long-running you did not start → stop and ask Greg.** Name what
    you found (pid, command, how long it has run). Do not decide it is stale.
 3. **Nothing found → say so in one line, then proceed.**

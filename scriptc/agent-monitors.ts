@@ -1,6 +1,6 @@
-// agent-monitors — which idle herdr agents are waiting on a background Monitor.
+// agent-monitors — which idle tuios agents are waiting on a background Monitor.
 //
-// herdr marks an agent `idle` while its Claude session waits on a `Monitor`
+// tuios marks an agent `idle` while its Claude session waits on a `Monitor`
 // (deploy, CI), so Greg sees "nothing happens". The only place that says
 // otherwise is the TUI footer ("· 1 monitor") in the pane scrollback, so read
 // that. One-shot, run by launchd every 15 s (run_onchange_after_44).
@@ -12,25 +12,12 @@
 
 import { spawnSync } from "node:child_process";
 
-const HERDR = process.env.HERDR_BIN ?? "/opt/homebrew/bin/herdr";
+const TUIOS = process.env.TUIOS_BIN ?? "/opt/homebrew/bin/tuios";
 const SKETCHYBAR = "/opt/homebrew/bin/sketchybar";
 
-function herdr(args: string[]): string {
-  const r = spawnSync(HERDR, args, { encoding: "utf8" });
-  return r.status === 0 ? (r.stdout ?? "") : "";
-}
-
-// herdr emits flat objects with keys in alphabetical order; read one key at a
-// time from per-object chunks (same approach as herdr-worktree-new.ts).
-function jsonChunks(body: string, arrayKey: string): string[] {
-  const at = body.indexOf(`"${arrayKey}":[`);
-  if (at === -1) return [];
-  return body.slice(at + arrayKey.length + 4).split("},{");
-}
-
-function jsonField(chunk: string, name: string): string {
-  const m = new RegExp(`"${name}"\\s*:\\s*"([^"]*)"`).exec(chunk);
-  return m === null ? "" : m[1] ?? "";
+function tuios(args: string[]): { code: number; out: string } {
+  const r = spawnSync(TUIOS, args, { encoding: "utf8" });
+  return { code: r.status === null ? 1 : r.status, out: r.stdout ?? "" };
 }
 
 // Only the footer (last line) counts: an old "✻ … 1 monitor still running"
@@ -94,22 +81,32 @@ if (process.argv[2] === "--selftest") {
   process.exit(0);
 }
 
-const numbers: Record<string, string> = {};
-for (const c of jsonChunks(herdr(["workspace", "list"]), "workspaces")) {
-  const id = jsonField(c, "workspace_id");
-  const n = /"number"\s*:\s*(\d+)/.exec(c);
-  if (id !== "" && n !== null) numbers[id] = n[1] ?? "";
+interface Pane {
+  session?: string;
+  window_id?: string;
+  name?: string;
+  title?: string;
+  agent_state?: string;
+}
+
+// `tuios ls` exits 3 without a daemon and never starts one; every other
+// command would start a daemon from this launchd job every 15 s.
+let panes: Pane[] = [];
+if (tuios(["ls", "--json"]).code === 0) {
+  try {
+    panes = (JSON.parse(tuios(["list-windows", "--all", "--json"]).out) as { windows?: Pane[] }).windows ?? [];
+  } catch {
+    panes = [];
+  }
 }
 
 const labels: string[] = [];
 const rows: string[] = [];
-for (const c of jsonChunks(herdr(["agent", "list"]), "agents")) {
-  const status = jsonField(c, "agent_status");
-  if (status !== "idle" && status !== "done") continue;
-  const pane = jsonField(c, "pane_id");
-  if (pane === "") continue;
+for (const p of panes) {
+  if (p.agent_state !== "idle" && p.agent_state !== "done") continue;
+  if (!p.session || !p.window_id) continue;
 
-  const text = herdr(["pane", "read", pane, "--source", "recent", "--lines", "300"]);
+  const text = tuios(["capture-pane", "-s", p.session, "-w", p.window_id, "--scrollback", "--lines", "300"]).out;
   const count = footerMonitors(text);
   if (count === 0) continue;
 
@@ -118,13 +115,12 @@ for (const c of jsonChunks(herdr(["agent", "list"]), "agents")) {
   const events = text.split("\n").filter((l) => l.includes("Monitor event:"));
   const last = events.length === 0 ? "" : events[events.length - 1] ?? "";
   const ev = last.replace(/^.*Monitor event:\s*/, "");
-  const title = jsonField(c, "name") || jsonField(c, "terminal_title_stripped");
+  const title = p.name || p.title || "";
   const what = ev !== "" ? describe(ev) : "";
 
   const times = count > 1 ? `×${count}` : "";
-  const ws = numbers[jsonField(c, "workspace_id")] ?? "?";
-  labels.push(`${ws} ◔${times} ${progress(text)}`);
-  rows.push(`${ws} · ${title}${what === "" ? "" : " · " + what}`.slice(0, 110));
+  labels.push(`${p.session} ◔${times} ${progress(text)}`);
+  rows.push(`${p.session} · ${title}${what === "" ? "" : " · " + what}`.slice(0, 110));
 }
 
 // chip = progress only; the popup (click) carries the detail, 4 rows max

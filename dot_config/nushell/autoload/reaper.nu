@@ -2,13 +2,13 @@
 # and kill the ones you pick from an fzf checklist. Cross-platform: macOS + the
 # Debian lab both run nushell.
 #
-# Why: with many git worktrees (`work new` → ~/Code/tree/wt-<repo>/, herdr native
-# → ~/.herdr/worktrees/<repo>/, plus ad-hoc dirs) a leftover vite / tsc / eslint /
+# Why: with many git worktrees (`work new` → ~/Code/tree/wt-<repo>/, the old herdr
+# pool ~/.herdr/worktrees/<repo>/, plus ad-hoc dirs) a leftover vite / tsc / eslint /
 # jest — or a forgotten Docker container — keeps chewing CPU in a dir you're no
 # longer sitting in. `pm2 log` can't see them; they're scattered across dirs.
 # reaper gathers every heavy dev process (sampled *current* CPU, not lifetime avg),
 # shows CPU% / RSS / uptime / working dir, and lets you multi-select what to kill.
-# It also lists 👻 orphans: anything left on a pty after its herdr pane died
+# It also lists 👻 orphans: anything left on a pty after its tuios pane died
 # (see reap-orphans), whatever the binary — a stray lazygit steals keys.
 #
 #   reaper                 scan → fzf checklist (Tab marks, Enter kills) → SIGTERM
@@ -19,7 +19,7 @@
 #   reap-mcp               non-interactive: kill LEAKED stdio MCP docker containers
 #   reap-mcp --dry         list what it would kill, kill nothing
 #     Every Claude/Cursor session spawns `docker run --rm -i <mcp image>` servers.
-#     On an unclean exit (herdr pane closed, crash, kill -9) --rm never fires and
+#     On an unclean exit (tuios pane closed, crash, kill -9) --rm never fires and
 #     the container is orphaned, chewing CPU forever. reap-mcp targets MCP-image
 #     containers with Docker's auto-generated `<adjective>_<name>` names (the
 #     stdio spawns) and spares anything you named yourself (e.g. a shared

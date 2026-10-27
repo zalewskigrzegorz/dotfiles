@@ -38,7 +38,7 @@ Adjust the host to whatever `services/firefly/compose.yaml` names the container.
 - `docker logs` shows nothing useful. The log is inside the importer container: `/var/www/html/storage/logs/data-import-<YYYY-MM-DD>.log`.
 - `Add error on index … [a115]` is a **duplicate**, not a failure. `importer:import` still exits 1 on duplicates, which is why the `firefly` loop tolerates that code.
 - A wait loop on `pgrep -f "artisan importer:import"` through `ssh mrglaszki` matches its own shell and never ends — poll the log file or use `pgrep -x` inside the container (see `zsh-bash-tool` rule).
-- `herdr-peek` keeps ~700–999 lines; a DEBUG import floods it. Read the log file.
+- `tuios-peek` keeps ~700–999 lines; a DEBUG import floods it. Read the log file.
 
 ## Facts that shape answers
 

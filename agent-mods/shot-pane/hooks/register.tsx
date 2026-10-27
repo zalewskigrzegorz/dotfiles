@@ -9,7 +9,7 @@ const shots = atom({ plugin: 'shot-pane', key: 'shots' } as const, [])
 // Per-user and 0700: the thumbnails are copies of private screenshots.
 const THUMBS = '/Users/greg/Library/Caches/shot-pane'
 
-// herdr drops kitty images past ~6 M decoded pixels without a word, a 3024 px Retina shot included.
+// herdr dropped kitty images past ~6 M decoded pixels without a word; tuios passes them through, untested at that size.
 async function thumbOf($: EngineInterface, path: string): Promise<string> {
   const out = `${THUMBS}/${path.split('/').pop()}`
   const isMade = await $.fs.stat(out).then(s => s.kind === 'file' && !s.isLink, () => false)
@@ -111,7 +111,7 @@ export const register: Register = on => {
       return <Text>{list.map(p => p.split('/').pop()).join('\n')}</Text>
     }
     const { Box, Image, Text } = $.ui.resolve(e)
-    // Bytes, not the file name: a multiplexer (herdr, tmux) passes kitty bytes on, a name it may not.
+    // Bytes, not the file name: a multiplexer (tuios, tmux) passes kitty bytes on, a name it may not.
     const sources = await Promise.all(
       list.map(async path => {
         const { base64 } = await $.fs.read(await thumbOf($, path), { as: 'bytes' }).catch(() => ({ base64: '' }))

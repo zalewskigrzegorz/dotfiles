@@ -5,8 +5,8 @@ alwaysApply: true
 
 # Do Not Create Native Git Worktrees
 
-Greg manages git worktrees himself through his own `work` CLI (herdr-native:
-`work new/ls/switch/rm/pr`). Worktrees that Claude Code creates on its own — the
+Greg manages git worktrees himself through his own `work` CLI (a nushell
+function over `workctl`: `work new/ls/switch/rm/pr`). Worktrees that Claude Code creates on its own — the
 `.claude/worktrees/agent-*` and `.claude/worktrees/wf_*` directories — are pure
 clutter to him and must not be produced.
 
@@ -18,12 +18,12 @@ clutter to him and must not be produced.
    route around that.
 3. **If a task genuinely needs an isolated checkout, use `workctl`** (his
    tooling, below), or ask him — do not reach for native worktree isolation.
-4. This is about *Claude-created* worktrees only. Greg's own `work`/herdr
+4. This is about *Claude-created* worktrees only. Greg's own `work`/tuios
    worktrees, and reading/searching inside them, are entirely fine.
 
 ## `work` is not callable from the Bash tool
 
-`work` is a herdr-native shell function, not a binary on `PATH`. The Bash tool
+`work` is a nushell function, not a binary on `PATH`. The Bash tool
 runs zsh and reports `command not found: work`; the nushell MCP fails the same
 way (`Command \`work\` not found`). Don't retry it and don't ask Greg to install
 anything — his own shell has it, yours doesn't.
@@ -36,17 +36,18 @@ workctl --branch <branch> [--base origin/<ref>] --action wt-full --yes --no-focu
 ```
 
 That is the same path `work new` takes: the worktree in his layout
-(`~/Code/tree/wt-<repo>/<branch>`), a herdr workspace with the `nu` and `claude`
-tabs, `node_modules` and `.env*` cloned (from the base's worktree for a stacked
+(`~/Code/tree/wt-<repo>/<branch>`), a tuios session `<repo>-<branch>` with the `nu` and `claude`
+workspaces, `node_modules` and `.env*` cloned (from the base's worktree for a stacked
 branch), and the work skills placed. It works for a new branch, an existing
 branch and an existing worktree, with or without a PR. `--base` defaults to
 `origin/<default>`; pass it for a stacked branch.
 
 Plain `git worktree add -b <branch> ~/Code/tree/wt-<repo>/<branch> origin/main`
-is the fallback only where herdr is missing (the lab). It leaves a bare checkout
-with no workspace, no agent tab and no `node_modules`. On 2026-09-29 a worktree
-made that way had to be reopened by hand through `herdr worktree open`, the
-layout and the seed, and Greg asked for the herdr path. Say in one line when you
+is the fallback only where tuios is missing (the lab). It leaves a bare checkout
+with no session, no agent workspace and no `node_modules`. On 2026-09-29 a worktree
+made that way had to be reopened by hand through the multiplexer's worktree
+command (then herdr's, `tuios worktree new` has the same gap), the layout and
+the seed, and Greg asked for the `workctl` path. Say in one line when you
 fall back.
 
 A worktree made either way is one of Greg's, not a Claude-managed one, so rule 4
@@ -96,8 +97,8 @@ pass the Support allowlist to the API (2026-10-12). `workctl` clones it since
 profile default` before the first `pnpm start`.
 
 **Check the worktree at the start of the session, not when a skill misfires.**
-In any `~/Code/tree/wt-*` or `~/.herdr/worktrees/*/worktree-*` path (herdr's
-own worktrees are unseeded too, 03b98f19): `test -d node_modules && test -d
+In any `~/Code/tree/wt-*` or `~/.local/share/tuios/worktrees/*/*` path (tuios's
+own worktrees are unseeded too; so were herdr's `~/.herdr/worktrees/*/worktree-*`, 03b98f19): `test -d node_modules && test -d
 .husky/_` before the first commit, else `pnpm install` as above;
 `.claude/skills/g-pr` missing → run
 `place-work-skills <worktree>` before any PR skill. Skills placed while a
@@ -146,7 +147,7 @@ the same day).
   with "nie, zrób osobny branch i pr teraz" (d3a33909).
 - **The main checkout counts too.** A session that starts on a clean `main` in
   the shared main checkout still goes through `workctl`; `git checkout -b`
-  there moves every other herdr agent onto your branch (02be04c1).
+  there moves every other tuios agent onto your branch (02be04c1).
 - **Already staged on the feature branch?** Move it as a patch:
   `git diff --cached > <scratch>/fix.patch && test -s <scratch>/fix.patch`,
   `git diff --stat HEAD origin/main -- <files>` (empty = files identical on

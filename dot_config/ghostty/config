@@ -107,5 +107,5 @@ keybind = ctrl+w=close_surface
 # Enable macos notifications
 desktop-notifications = true
 
-# Set TERM so the multiplexer (herdr) + nvim get the right terminfo
+# Set TERM so the multiplexer (tuios) + nvim get the right terminfo
 env = TERM=xterm-ghostty

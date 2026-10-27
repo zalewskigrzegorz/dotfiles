@@ -160,8 +160,8 @@ bar() {
 # via ~/.claude/sessions/*.json + kill -0), then takes the lowest free slot —
 # so up to 8 parallel sessions never share a colour. Pool exhausted → hash
 # fallback. Allocation runs ONCE per session (claim file persists); every
-# later render is a single cat. (herdr has no tab-colour CLI, so the colour
-# lives here in the statusline instead.)
+# later render is a single cat. (The tab label stays plain text, see hd-title,
+# so the colour lives here in the statusline instead.)
 sess_c="$PINK"
 if [ -n "$sid" ]; then
   sess_palette=("$PINK" "$CYAN" "$MINT" "$GOLD" "$PURPLE" "$O" "$R" "$LABEL")
@@ -206,15 +206,16 @@ if [ -n "$sid" ]; then
   sess_c="${sess_palette[$slot]}"
 fi
 
-# herdr workspace number — the quick "which session is this" handle. Same 1-9
-# number as prefix+g / prefix+w, read from the pane env (HERDR_WORKSPACE_ID) and
-# mapped via `herdr workspace list`. So Greg can say "sesja 2" and mean this one.
-# Cached ~30s per workspace so we don't shell out to herdr on every render;
-# absent outside herdr (lab / plain terminal) → segment omitted. Coloured with
+# tuios session number — the quick "which session is this" handle: the 1-based
+# position of this pane's session (TUIOS_SESSION) in `tuios ls`, which lists by
+# creation time, the rail's order until a session is dragged. tuios-peek <N>
+# reads the same list. So Greg can say "sesja 2" and mean this one.
+# Cached ~30s per session so we don't shell out to tuios on every render;
+# absent outside tuios (plain terminal) → segment omitted. Coloured with
 # the per-session colour so the number and title share one identity.
 num_seg=""
-if [ -n "$HERDR_WORKSPACE_ID" ] && command -v herdr >/dev/null 2>&1; then
-  num_cache="$cache_dir/wsnum-$HERDR_WORKSPACE_ID"
+if [ -n "$TUIOS_SESSION" ] && command -v tuios >/dev/null 2>&1; then
+  num_cache="$cache_dir/sessnum-${TUIOS_SESSION//[^A-Za-z0-9]/_}"
   if [ -f "$num_cache" ]; then
     nmtime=$(stat -f %m "$num_cache" 2>/dev/null || stat -c %Y "$num_cache" 2>/dev/null || echo 0)
     [ $(( now_ts - nmtime )) -gt 30 ] && rm -f "$num_cache"
@@ -222,19 +223,18 @@ if [ -n "$HERDR_WORKSPACE_ID" ] && command -v herdr >/dev/null 2>&1; then
   if [ -f "$num_cache" ]; then
     sess_num=$(cat "$num_cache" 2>/dev/null)
   else
-    sess_num=$(herdr workspace list 2>/dev/null \
-      | jq -r --arg w "$HERDR_WORKSPACE_ID" \
-          '.result.workspaces[] | select(.workspace_id==$w) | .number' 2>/dev/null)
+    sess_num=$(tuios ls --json 2>/dev/null \
+      | jq -r --arg s "$TUIOS_SESSION" 'map(.name) | index($s) // empty | . + 1' 2>/dev/null)
     [ -n "$sess_num" ] && printf '%s' "$sess_num" > "$num_cache" 2>/dev/null
   fi
   [ -n "$sess_num" ] && num_seg="${sess_c}${B}▸${sess_num}${N} "
-  # same number as the `$num` sidebar token, so the agent list reads "7 · <task>"
-  # like the sketchybar watcher chip; re-sent on change, like `$pr` below
-  if [ -n "$sess_num" ] && [ -n "$HERDR_PANE_ID" ]; then
-    num_sent="$cache_dir/numsent-${HERDR_PANE_ID//[^A-Za-z0-9]/_}"
+  # same number as the `$num` rail token (agent meta), so the agent list reads
+  # "7 · <task>" like the sketchybar watcher chip; re-sent on change, like `$pr` below
+  if [ -n "$sess_num" ] && [ -n "$TUIOS_PANE_ID" ]; then
+    num_sent="$cache_dir/numsent-${TUIOS_PANE_ID//[^A-Za-z0-9]/_}"
     if [ "$(cat "$num_sent" 2>/dev/null)" != "$sess_num" ]; then
       printf '%s' "$sess_num" > "$num_sent"
-      herdr pane report-metadata "$HERDR_PANE_ID" --source greg.num --token "num=$sess_num" </dev/null >/dev/null 2>&1 &
+      tuios set-agent-meta -w "$TUIOS_PANE_ID" --source greg "num=$sess_num" </dev/null >/dev/null 2>&1 &
     fi
   fi
 fi
@@ -303,14 +303,15 @@ if [ -n "$cwd" ] && git -C "$cwd" rev-parse --is-inside-work-tree >/dev/null 2>&
   [ -n "$g" ] && git_seg="${SEP}${O}󰊢${N} ${g}"
 fi
 
-# PR number for the herdr agent sidebar (`$pr` pane token, see [ui.sidebar.agents]
-# in herdr's config.toml). Not drawn here: the pr-band mod shows the PR above the prompt. Value is
+# PR number for the tuios rail (`$pr` agent meta token, see [appearance.sidebar.agent_row]
+# in tuios's config.toml; its built-in `pr` token only knows `tuios ship pr`).
+# Not drawn here: the pr-band mod shows the PR above the prompt. Value is
 # "#N", "#N draft", "#N merged" or "#N closed"; empty = no PR.
 # `gh pr view` hits the network, so it never runs in the render path: the cache
 # (per repo+branch, shared by every pane on it) is refreshed by a detached job,
 # single-flight via a mkdir lock, every 10 min with a PR and every 60 s without
-# one — a fresh `gh pr create` shows up within a minute. The sidebar token is
-# re-sent on change and every 10 min, so a restarted herdr server gets it back.
+# one — a fresh `gh pr create` shows up within a minute. The rail meta is
+# re-sent on change and every 10 min, so a restarted tuios daemon gets it back.
 pr_val=""
 branch=""
 [ -n "$cwd" ] && branch=$(git -C "$cwd" symbolic-ref --short -q HEAD 2>/dev/null)
@@ -344,8 +345,8 @@ if [ -n "$branch" ] && command -v gh >/dev/null 2>&1; then
     ) </dev/null >/dev/null 2>&1 &
   fi
 fi
-if [ -n "$HERDR_PANE_ID" ] && command -v herdr >/dev/null 2>&1; then
-  pr_sent="$cache_dir/prsent-${HERDR_PANE_ID//[^A-Za-z0-9]/_}"
+if [ -n "$TUIOS_PANE_ID" ] && command -v tuios >/dev/null 2>&1; then
+  pr_sent="$cache_dir/prsent-${TUIOS_PANE_ID//[^A-Za-z0-9]/_}"
   sent_val=""; sent_age=9999
   if [ -f "$pr_sent" ]; then
     sent_val=$(cat "$pr_sent" 2>/dev/null)
@@ -353,11 +354,8 @@ if [ -n "$HERDR_PANE_ID" ] && command -v herdr >/dev/null 2>&1; then
   fi
   if [ "$sent_val" != "$pr_val" ] || { [ -n "$pr_val" ] && [ "$sent_age" -gt 600 ]; }; then
     printf '%s' "$pr_val" > "$pr_sent"
-    if [ -n "$pr_val" ]; then
-      herdr pane report-metadata "$HERDR_PANE_ID" --source greg.pr --token "pr=$pr_val" </dev/null >/dev/null 2>&1 &
-    else
-      herdr pane report-metadata "$HERDR_PANE_ID" --source greg.pr --clear-token pr </dev/null >/dev/null 2>&1 &
-    fi
+    # "pr=" with no value removes the key.
+    tuios set-agent-meta -w "$TUIOS_PANE_ID" --source greg "pr=$pr_val" </dev/null >/dev/null 2>&1 &
   fi
 fi
 

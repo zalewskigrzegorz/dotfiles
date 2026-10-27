@@ -12,7 +12,7 @@
 # only they referenced. `du` overstates a worktree: its node_modules are APFS
 # clones and store hardlinks, the real gain is mostly built output.
 #
-# Docker is shared with other herdr agents (agent-rules/shared-local-docker.md),
+# Docker is shared with other tuios agents (agent-rules/shared-local-docker.md),
 # so that step is skipped while a build, compose, pg_dump or pg_restore runs.
 # The pnpm store is skipped while a pnpm install runs, uv while another uv
 # process holds its cache lock. ~/.npm/_npx stays: running MCP servers live there.

@@ -1,5 +1,5 @@
 ---
-description: The Bash tool runs zsh, not bash — `=word` expands, unquoted $vars do not word-split, `[]` and unmatched `*` glob; the cwd resets outside the project; plus pgrep self-match and the nushell side of herdr
+description: The Bash tool runs zsh, not bash — `=word` expands, unquoted $vars do not word-split, `[]` and unmatched `*` glob; the cwd resets outside the project; plus pgrep self-match and the nushell side of tuios
 alwaysApply: true
 ---
 
@@ -124,14 +124,14 @@ popup if there is a real fork. A background `timeout 43200 … until gh pr view
 <n> … MERGED; sleep 300` (2026-10-12) polled for hours while Greg answered the
 popup anyway. Loops are for machine state: CI, deploys, builds.
 
-## The other side of herdr is nushell
+## The other side of tuios is nushell
 
-- **Steps Greg runs himself in a herdr pane are written in nushell**, not bash.
+- **Steps Greg runs himself in a tuios window are written in nushell**, not bash.
   `read -s PGPASSWORD && export …` fails there ("komenda z 2 nie działa, mam
   nushell", 2026-09-24). Secrets via `$env.PGPASSWORD = (input -s "hasło: ")`,
   cleared with `hide-env PGPASSWORD`. One numbered step per line, and one
   sentence first saying why the step needs him (why you cannot fetch it yourself).
-- **Text sent to a pane (`herdr pane run`, `workctl` bootstrap) is parsed by
+- **Text sent to a window (`tuios send-text`, `workctl` bootstrap) is parsed by
   nushell.** `&&`, `||`, `2>/dev/null` and `$(…)` fail with
   `nu::parser::shell_andand` and friends. Wrap POSIX syntax as `sh -c '…'`, or
   write nu syntax with `;`. `workctl` was fixed for this on 2026-09-23.

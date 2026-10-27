@@ -26,15 +26,13 @@ if not DRY and subprocess.run(["pgrep", "-x", "afplay"], capture_output=True).re
 
 
 def claude_last():
-    """Last assistant text from the FOCUSED herdr pane's project session."""
+    """Last assistant text from the FOCUSED tuios pane's project session."""
     files = []
     cwd = ""
     try:
-        out = subprocess.run(["herdr", "pane", "list"], capture_output=True, text=True).stdout
-        panes = json.loads(out)["result"]["panes"]
-        focused = next((p for p in panes if p.get("focused")), None)
-        if focused:
-            cwd = (focused.get("foreground_cwd") or focused.get("cwd") or "").strip()
+        # No window = the focused one, in the most recently active session.
+        out = subprocess.run(["tuios", "get-window", "--json"], capture_output=True, text=True).stdout
+        cwd = (json.loads(out).get("cwd") or "").strip()
     except Exception:
         cwd = ""
     if cwd:

@@ -15,7 +15,7 @@
 //               comes back, until Esc or until a worktree/agent takes over.
 //
 // Triggers (all end here): `work` / `work new` / `work switch` / `work pr` in
-// nushell (thin wrappers in work.nu + workpr.nu), herdr prefix+shift+g / +o,
+// nushell (thin wrappers in work.nu + workpr.nu), tuios prefix+shift+g / +o,
 // gh-dash `T` (PRs) and `w` (branches), lazygit `w`.
 //
 // Headless contract kept from `work pr`:
@@ -54,7 +54,8 @@ import { dirname, join } from "node:path";
 
 const HOME = process.env.HOME ?? "";
 const TREE_ROOT = join(HOME, "Code", "tree");
-const HERDR_TREE_ROOT = join(HOME, ".herdr", "worktrees");
+// Trees herdr made outlive herdr; rm, prune and `rm --self` must still reach them.
+const LEGACY_TREE_ROOT = join(HOME, ".herdr", "worktrees");
 const CACHE_DIR = join(HOME, ".cache");
 const NU_AUTOLOAD = join(HOME, ".config", "nushell", "autoload");
 // Shared with stage 30 of the dotfiles apply (agent-skills placement).
@@ -62,8 +63,8 @@ const PLACEMENT_LOCK = join(HOME, ".local", "state", "dotfiles", "worktree-place
 const PR_LIST_TTL_S = 300;
 const US = "\x1f";
 
-// Commitlint type → emoji, mirroring WORK_PREFIX_EMOJI in work.nu. The herdr
-// workspace label must come out byte-identical to what `work new` produced or
+// Commitlint type → emoji, mirroring WORK_PREFIX_EMOJI in work.nu. The tuios
+// session label must come out byte-identical to what `work new` produced or
 // every existing worktree is relabelled the first time it is reopened.
 const TYPE_EMOJI = new Map<string, string>([
   ["feat", "✨"],
@@ -199,29 +200,21 @@ function die(msg: string): never {
   process.exit(1);
 }
 
-// ── herdr JSON ──────────────────────────────────────────────────────────────
-// herdr's --json payloads are flat objects inside one array with keys emitted
-// in ALPHABETICAL order ("label" before "tab_id", "open_workspace_id" before
-// "path"), so a regex spanning two keys only matches by luck. Split into
-// per-object chunks and read one key at a time.
-
-function jsonChunks(body: string, arrayKey: string): string[] {
-  const at = body.indexOf(`"${arrayKey}":[`);
-  if (at === -1) return [];
-  return body.slice(at + arrayKey.length + 4).split("},{");
-}
+// ── tuios JSON ──────────────────────────────────────────────────────────────
+// No JSON.parse (see the header): read one key at a time, never a regex that
+// spans two keys.
 
 function jsonField(chunk: string, name: string): string {
   const m = new RegExp(`"${name}"\\s*:\\s*"([^"]*)"`).exec(chunk);
   return m === null ? "" : m[1] ?? "";
 }
 
-function herdrWorkspaceId(o: string): string {
-  return jsonField(o, "workspace_id");
-}
-
-function herdrPaneId(o: string): string {
-  return jsonField(o, "pane_id");
+// Every string value of `key` in `body`, in order.
+function jsonValues(body: string, key: string): string[] {
+  return body
+    .split(`"${key}"`)
+    .slice(1)
+    .map((p) => jsonField(`"${key}"${p}`, key));
 }
 
 // ── fzf ─────────────────────────────────────────────────────────────────────
@@ -400,7 +393,7 @@ function worktreesOf(root: string, repo: string): Worktree[] {
 // left mid-rebase, the other callers key on the branch name (2026-10-12).
 function foreignWorktrees(skipRoot: string, detached: boolean): Worktree[] {
   const r = sh(
-    `find ${shq(TREE_ROOT)} ${shq(HERDR_TREE_ROOT)} -maxdepth 4 -name .git 2>/dev/null | ` +
+    `find ${shq(TREE_ROOT)} ${shq(LEGACY_TREE_ROOT)} -maxdepth 4 -name .git 2>/dev/null | ` +
       `while read -r g; do d=$(dirname "$g"); ` +
       `c=$(git -C "$d" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || continue; ` +
       `b=$(git -C "$d" branch --show-current 2>/dev/null); ` +
@@ -430,7 +423,7 @@ function foreignWorktrees(skipRoot: string, detached: boolean): Worktree[] {
       if (line.startsWith("worktree ")) path = line.slice("worktree ".length);
       const branch = line.startsWith("branch refs/heads/") ? line.slice("branch refs/heads/".length) : "";
       if (branch === "" && !(detached && line === "detached")) continue;
-      const pooled = path.startsWith(`${TREE_ROOT}/`) || path.startsWith(`${HERDR_TREE_ROOT}/`);
+      const pooled = path.startsWith(`${TREE_ROOT}/`) || path.startsWith(`${LEGACY_TREE_ROOT}/`);
       if (!pooled || seen.has(path) || !existsSync(path)) continue;
       seen.add(path);
       wts.push({ repo: basename(root), root, branch, path });
@@ -697,7 +690,7 @@ function typeEmoji(branch: string): string {
   return cut === -1 ? "" : TYPE_EMOJI.get(branch.slice(0, cut)) ?? "";
 }
 
-// herdr workspace label — byte-identical to `work _label` / `work normalize-label`.
+// tuios session label — byte-identical to `work _label` / `work normalize-label`.
 function label(branch: string): string {
   const cut = branch.indexOf("/");
   if (cut === -1) return branch;
@@ -1218,70 +1211,91 @@ function seedClone(parent: string, wt: string): number {
   return copied;
 }
 
-// Pre-layout side effects every worktree gets: work-scoped skills, seeded
-// claude MCP defaults, and the bare numbered tab renamed.
-function layoutPrep(ws: string, cwd: string): void {
+// Pre-layout side effects every worktree gets: work-scoped skills and seeded
+// claude MCP defaults.
+function layoutPrep(cwd: string): void {
   if (have("place-work-skills")) run("place-work-skills", [cwd]);
   if (have("claude-mcp-defaults")) run("claude-mcp-defaults", [cwd]);
-  if (ws === "") return;
-  const tabs = run("herdr", ["tab", "list", "--workspace", ws]);
-  for (const chunk of jsonChunks(tabs.out, "tabs")) {
-    const id = jsonField(chunk, "tab_id");
-    const lbl = jsonField(chunk, "label");
-    if (id !== "" && /^[0-9]+$/.test(lbl)) run("herdr", ["tab", "rename", id, "\uf120  nu"]);
-  }
 }
 
-// Full layout = prep + one bare claude tab, idempotent on the label. The agent
+// One tuios session per worktree, named from its path the way `tuios worktree
+// new` names one (<repo>-<branch>, `/` → `-`), so rm and prune find it by name.
+function sessionName(path: string): string {
+  const pool = `${TREE_ROOT}/wt-`;
+  return (path.startsWith(pool) ? path.slice(pool.length) : basename(path)).split("/").join("-");
+}
+
+// The worktree's session, or "". `tuios ls` reads the saved sessions when no
+// daemon runs (exit 3), so it never starts one.
+function tuiosSession(path: string): string {
+  const name = sessionName(path);
+  return jsonValues(run("tuios", ["ls", "--json"]).out, "name").includes(name) ? name : "";
+}
+
+// The session for `path`, created with its first workspace named like the old
+// herdr tab, labelled `lbl` on every open.
+function openSession(path: string, lbl: string, focus: boolean): string {
+  let ws = tuiosSession(path);
+  if (ws === "") {
+    ws = sessionName(path);
+    const r = run("tuios", ["new", ws, "--detach", "--cwd", path]);
+    if (r.code !== 0) die(`tuios new failed: ${r.err.trim()}`);
+    run("tuios", ["set-workspace-name", "-s", ws, "1", "  nu"]);
+  }
+  run("tuios", ["set-session-name", "-s", ws, lbl]);
+  if (focus) run("tuios", ["switch-session", ws]);
+  return ws;
+}
+
+// A herdr tab is a numbered tuios workspace: take the first empty one, open a
+// window named `lbl` there and give the workspace the same name. `nu -e` runs
+// the line and stays a shell after it exits, as herdr's `pane run` did; typing
+// into a fresh pane instead loses keys while reedline starts.
+function newTab(ws: string, cwd: string, lbl: string, cmd: string, focus: boolean): boolean {
+  const m = /"workspace_windows"\s*:\s*\[([^\]]*)\]/.exec(run("tuios", ["list-windows", "-s", ws, "--json"]).out);
+  const counts = (m === null ? "" : m[1] ?? "").split(",");
+  let slot = "";
+  for (let i = 0; i < counts.length && slot === ""; i += 1) if ((counts[i] ?? "").trim() === "0") slot = String(i + 1);
+  if (slot === "") return false;
+  const args = ["new-window", lbl, "-s", ws, "--workspace", slot, "--cwd", cwd];
+  if (!focus) args.push("--no-focus");
+  if (cmd !== "") args.push("--", "nu", "-e", cmd);
+  if (run("tuios", args).code !== 0) return false;
+  run("tuios", ["set-workspace-name", "-s", ws, slot, lbl]);
+  return true;
+}
+
+// Full layout = prep + one bare claude tab, idempotent on the name. The agent
 // path must NOT call this: it would either drop the brief or start two sessions.
 function applyLayout(ws: string, cwd: string): void {
-  layoutPrep(ws, cwd);
+  layoutPrep(cwd);
   if (ws === "") return;
-  const tabs = run("herdr", ["tab", "list", "--workspace", ws]);
-  for (const chunk of jsonChunks(tabs.out, "tabs")) {
-    if (jsonField(chunk, "label").includes("claude")) return;
-  }
-  const r = run("herdr", ["tab", "create", "--workspace", ws, "--cwd", cwd, "--label", "\u{f06a9}  claude", "--no-focus"]);
-  const pane = herdrPaneId(r.out);
-  if (pane !== "") run("herdr", ["pane", "run", pane, "claude"]);
+  const names = jsonValues(run("tuios", ["list-windows", "-s", ws, "--json"]).out, "custom_name");
+  if (names.some((n) => n.includes("claude"))) return;
+  newTab(ws, cwd, "\u{f06a9}  claude", "claude", false);
 }
 
 // The bootstrap seed runs in its own tab: minutes of output Greg wants to see.
 function seedBootstrap(ws: string, cwd: string, cmd: string): boolean {
   if (cmd === "" || ws === "") return false;
-  const r = run("herdr", ["tab", "create", "--workspace", ws, "--cwd", cwd, "--label", "\u{f0493}  bootstrap", "--focus"]);
-  const pane = herdrPaneId(r.out);
-  if (pane === "") return false;
-  run("herdr", ["pane", "run", pane, cmd]);
-  return true;
-}
-
-function herdrWsFor(root: string, wtPath: string): string {
-  const list = run("herdr", ["worktree", "list", "--cwd", root, "--json"]);
-  for (const chunk of jsonChunks(list.out, "worktrees")) {
-    if (jsonField(chunk, "path") === wtPath) return jsonField(chunk, "open_workspace_id");
-  }
-  return "";
+  return newTab(ws, cwd, "\u{f0493}  bootstrap", cmd, true);
 }
 
 // Open-or-create the worktree for st.headRefName. Returns {ws, path}. Handles:
 //   existing checkout → open; fork PR → detached add + `gh pr checkout` (with
 //   rollback — an orphan detached tree at the canonical path blocks the retry);
-//   remote/PR branch → herdr create tracking origin/<head>; new → --base.
+//   remote/PR branch → `git worktree add` tracking origin/<head>; new → --base.
+// Plain git, not `tuios worktree new`: that one ignores the ~/Code/tree layout
+// and runs git without hooks.
 function ensureWorktree(st: St, focus: boolean): { ws: string; path: string; created: boolean } {
-  if (!have("herdr")) die("herdr required: brew install herdr");
+  if (!have("tuios")) die("tuios required — not on PATH");
   if (st.root === "") die(`worktree/agent intents need a local checkout of ${st.repo === "" ? "this repo" : st.repo} — cd into it first, or pick a gh-only action`);
   if (st.headRefName === "") die(st.hasPr ? `PR #${st.num} has no head branch.` : "no branch name");
   const parent = st.root;
   const head = st.headRefName;
   const lbl = label(head);
-  const focusFlag = focus ? "--focus" : "--no-focus";
 
-  if (st.worktree !== "") {
-    const r = run("herdr", ["worktree", "open", "--cwd", parent, "--path", st.worktree, "--label", lbl, focusFlag, "--json"]);
-    if (r.code !== 0) die(`herdr worktree open failed: ${r.err.trim()}`);
-    return { ws: herdrWorkspaceId(r.out), path: st.worktree, created: false };
-  }
+  if (st.worktree !== "") return { ws: openSession(st.worktree, lbl, focus), path: st.worktree, created: false };
 
   if (git(parent, ["branch", "--show-current"]).out.trim() === head) {
     die(`'${head}' is checked out in ${parent} — type a new branch name to create it from origin/${st.defaultBranch}`);
@@ -1297,8 +1311,7 @@ function ensureWorktree(st: St, focus: boolean): { ws: string; path: string; cre
       die(`gh pr checkout #${st.num} failed: ${co.err.trim()}`);
     }
     if (git(wtPath, ["branch", "--show-current"]).out.trim() === "") git(wtPath, ["checkout", "-B", head]);
-    const o = run("herdr", ["worktree", "open", "--cwd", parent, "--path", wtPath, "--label", lbl, focusFlag, "--json"]);
-    return { ws: herdrWorkspaceId(o.out), path: wtPath, created: true };
+    return { ws: openSession(wtPath, lbl, focus), path: wtPath, created: true };
   }
 
   const isNew = st.kind === "new";
@@ -1306,22 +1319,20 @@ function ensureWorktree(st: St, focus: boolean): { ws: string; path: string; cre
   if (isNew) {
     const base = st.baseRef === "" ? `origin/${st.defaultBranch}` : st.baseRef;
     if (base.startsWith("origin/")) git(parent, ["fetch", "origin", base.slice("origin/".length)]);
-    args = ["worktree", "create", "--cwd", parent, "--branch", head, "--base", base, "--path", wtPath, "--label", lbl, focusFlag, "--json"];
+    args = ["worktree", "add", "-b", head, wtPath, base];
   } else if (st.isLocalBranch) {
-    args = ["worktree", "create", "--cwd", parent, "--branch", head, "--path", wtPath, "--label", lbl, focusFlag, "--json"];
+    args = ["worktree", "add", wtPath, head];
   } else {
     git(parent, ["fetch", "origin", head]);
-    args = ["worktree", "create", "--cwd", parent, "--branch", head, "--base", `origin/${head}`, "--path", wtPath, "--label", lbl, focusFlag, "--json"];
+    args = ["worktree", "add", "-b", head, wtPath, `origin/${head}`];
   }
-  const r = run("herdr", args);
-  if (r.code !== 0) die(`herdr worktree create failed: ${r.err.trim()}`);
+  const r = git(parent, args);
+  if (r.code !== 0) die(`git worktree add failed: ${r.err.trim()}`);
   // `worktree add -b X origin/main` makes git track origin/main via
   // autoSetupMerge, so ahead/behind counts against main forever. Drop it; the
   // first push sets origin/<branch> through push.autoSetupRemote.
   if (isNew) git(wtPath, ["branch", "--unset-upstream", head]);
-  let ws = herdrWorkspaceId(r.out);
-  if (ws === "") ws = herdrWsFor(parent, wtPath);
-  return { ws, path: wtPath, created: true };
+  return { ws: openSession(wtPath, lbl, focus), path: wtPath, created: true };
 }
 
 // ── actions — every one returns a failure count ─────────────────────────────
@@ -1842,14 +1853,14 @@ function doRemove(st: St, ctx: Ctx): number {
 }
 
 // Plain git removes the checkout, then the branch goes with `branchDel` ("-d",
-// "-D", or "" to keep it), and an open herdr workspace is closed LAST. Not
-// `herdr worktree remove`: it closes the workspace first, which kills this
-// process inside `rm --self` before the branch is deleted (2026-10-02, three
-// merged branches survived their worktrees).
+// "-D", or "" to keep it), and an open tuios session is killed LAST. Not
+// `tuios worktree rm`: it never deletes the branch, and closing the session
+// first kills this process inside `rm --self` before the branch is deleted
+// (2026-10-02, three merged branches survived their worktrees).
 function removeWorktree(root: string, path: string, branch: string, branchDel: string): number {
   // Stop the fsmonitor daemon first: deleting the tree under a live one segfaults it (git bug).
   git(path, ["fsmonitor--daemon", "stop"]);
-  const ws = herdrWsFor(root, path);
+  const ws = tuiosSession(path);
   // Stage 30 holds this lock while it places skills into worktrees, so a
   // bin/sync either finishes before the delete or no longer sees the tree.
   // Only the unregister runs under it: the tree is renamed aside (same fs,
@@ -1883,10 +1894,10 @@ function removeWorktree(root: string, path: string, branch: string, branchDel: s
     err(`git worktree remove failed: ${r.err.trim()}`);
     return 1;
   }
-  // Detached, so the workspace closes now: a synchronous delete kept the
-  // workspace's shells in the moved-away dir for ~45 s, each prompt failing
+  // Detached, so the session closes now: a synchronous delete kept the
+  // session's shells in the moved-away dir for ~45 s, each prompt failing
   // with `$env.PWD points to a non-existent directory` (2026-10-20). Only a
-  // new session survives `herdr workspace close`, which kills the pane's
+  // new process session survives closing the panes, which takes the pane's
   // process group, `nohup` and a plain `&` included.
   // shortcut: a failed delete leaves `.rm-*` behind unreported, sweep them if they pile up.
   if (existsSync(trash))
@@ -1902,7 +1913,7 @@ function removeWorktree(root: string, path: string, branch: string, branchDel: s
   // child process cannot cd its parent.
   const here = trimSlash(process.env.PWD ?? "");
   if (ws === "" && (here === path || here.startsWith(`${path}/`))) err(`↩️  you were inside it — \`cd ${root}\``);
-  if (ws !== "") run("herdr", ["workspace", "close", ws]);
+  if (ws !== "") run("tuios", ["kill-session", ws]);
   return 0;
 }
 
@@ -2007,7 +2018,7 @@ function pruneCmd(args: string[]): number {
       if (inDef && ts < weekAgo) why = `in origin/${def}`;
     }
     if (why === "") continue;
-    if (herdrWsFor(w.root, w.path) !== "") why = `${why} · open in herdr`;
+    if (tuiosSession(w.path) !== "") why = `${why} · open in tuios`;
     cands.set(w.path, { w, branchDel });
     rows.push(`${w.path}\t${w.repo}/${w.branch}\t${why}`);
   }
@@ -2070,21 +2081,12 @@ function writeBrief(st: St, intent: string): string {
   return p;
 }
 
-// Always a FRESH tab: `herdr pane run` TYPES the line into whatever owns the
-// pane, so reusing a tab that already runs claude would paste it as prose. The
-// label contains "claude" so a later applyLayout does not add a bare one.
-// The command is ONE argv element of nushell syntax — `pane run` joins argv
-// with spaces, so a `bash -lc '…'` wrapper would arrive split.
+// Always a FRESH tab, its name contains "claude" so a later applyLayout does
+// not add a bare one. The command is ONE argv element of nushell syntax.
 function agentTab(ws: string, cwd: string, intent: string, brief: string): number {
-  const cmd = `claude (open --raw "${brief}")`;
-  const r = run("herdr", ["tab", "create", "--workspace", ws, "--cwd", cwd, "--label", `\u{f06a9}  claude ${intent}`, "--no-focus"]);
-  const pane = herdrPaneId(r.out);
-  if (pane === "") {
-    err(`herdr tab create returned no pane: ${r.err.trim()}`);
-    return 1;
-  }
-  run("herdr", ["pane", "run", pane, cmd]);
-  return 0;
+  if (newTab(ws, cwd, `\u{f06a9}  claude ${intent}`, `claude (open --raw "${brief}")`, false)) return 0;
+  err(`tuios: no claude ${intent} tab opened in session ${ws}`);
+  return 1;
 }
 
 // mode: clone | none (worktree seed) | nowt (no worktree — bump)
@@ -2096,7 +2098,7 @@ function doAgent(st: St, intent: string, mode: string, ctx: Ctx): number {
   if (mode === "nowt") {
     const brief = writeBrief(st, intent);
     if (brief === "") return 1;
-    const ws = process.env.HERDR_WORKSPACE_ID ?? "";
+    const ws = process.env.TUIOS_SESSION ?? "";
     if (ws === "") {
       out(`claude (open --raw "${brief}")`);
       return 0;
@@ -2105,7 +2107,7 @@ function doAgent(st: St, intent: string, mode: string, ctx: Ctx): number {
   }
   const wt = ensureWorktree(st, ctx.focus);
   if (wt.created && mode === "clone") seedClone(st.root, wt.path);
-  layoutPrep(wt.ws, wt.path);
+  layoutPrep(wt.path);
   const brief = writeBrief(st, intent);
   if (brief === "") return 1;
   const rc = agentTab(wt.ws, wt.path, intent, brief);
@@ -2368,7 +2370,8 @@ function bgPick(ids: string[], reg: Row[]): string {
 // `--bg` (gh-dash `T`): the slow worktree/agent action runs detached as a
 // headless `--action … --no-focus`, so gh-dash is free for the next PR at once.
 // One flock per repo queues them: parallel fetches and `worktree add` in one
-// checkout trip over git's ref locks. A herdr toast reports the end.
+// checkout trip over git's ref locks. A tuios toast reports the end (no sound:
+// ShowNotification takes one line and a kind).
 function spawnBg(st: St, id: string, o: Opts): void {
   const tag = st.hasPr ? `#${st.num}` : st.headRefName;
   const slug = st.repo === "" ? basename(o.cwd) : st.repo.split("/").join("-");
@@ -2378,13 +2381,12 @@ function spawnBg(st: St, id: string, o: Opts): void {
   const target = st.hasPr ? ["--repo", st.repo, "--pr", String(st.num)] : ["--branch", st.headRefName];
   const cmd = [selfPath(), ...target, "--repo-path", o.cwd, "--action", id, "--yes", "--no-focus"].map(shq).join(" ");
   const queued = have("flock") ? `flock -w 900 ${shq(lock)} ${cmd}` : cmd;
-  const note = (title: string, body: string, sound: string): string =>
-    `herdr notification show ${shq(title)} --body ${shq(body)} --sound ${sound}`;
+  const note = (msg: string, kind: string): string => `tuios run-command ShowNotification ${shq(msg)} ${kind}`;
   sh(
-    `( ${queued} > ${shq(log)} 2>&1 && ${note(`✅ ${tag} ${id}`, st.headRefName, "done")}` +
-      ` || ${note(`❌ ${tag} ${id}`, log, "request")} ) >/dev/null 2>&1 &`,
+    `( ${queued} > ${shq(log)} 2>&1 && ${note(`✅ ${tag} ${id} · ${st.headRefName}`, "success")}` +
+      ` || ${note(`❌ ${tag} ${id} · ${log}`, "error")} ) >/dev/null 2>&1 &`,
   );
-  run("herdr", ["notification", "show", `⏳ ${tag} ${id}`, "--body", "running in the background", "--sound", "none"]);
+  run("tuios", ["run-command", "ShowNotification", `⏳ ${tag} ${id} · running in the background`, "info"]);
 }
 
 const REPORT_ROWS = ["blockers", "why-review"];

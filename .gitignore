@@ -117,7 +117,7 @@ bin/pr-watch-open
 bin/claude-mcp-defaults
 bin/place-work-skills
 bin/workctl
-bin/herdr-worktree-new
+bin/tuios-worktree-new
 bin/agent-monitors
 bin/why-review
 # LLVM IR scriptc drops next to the binary when invoked by hand.

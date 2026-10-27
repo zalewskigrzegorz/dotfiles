@@ -47,8 +47,8 @@ instructions.
 
 - "No Browsentic daemon is running" → `browsentic status`, then
   `browsentic start`. A Bridge started from the Claude Code sandbox may not be
-  reachable from Vimma: start it from Greg's shell pane (`herdr pane
-  send-text`, no Enter) instead.
+  reachable from Vimma: start it from Greg's shell window (`tuios send-text -s <session> -w <window>
+  'browsentic start'`, no newline, so no Enter) instead.
 - `browsers: none paired` → `browsentic pair`, Greg types the code in the
   side panel → **Connect**.
 - Panel still offline: Vimma `about:debugging#/runtime/this-firefox` →

@@ -40,7 +40,7 @@ previous_tab = ["prefix+p", "ctrl+shift+tab", "ctrl+pageup", "cmd+alt+left"]
 # swap_pane_right = ["prefix+shift+l"]
 # zoom = ["prefix+z"]
 # close_pane = ["prefix+x"]
-# herdr parity (dot_config/herdr/config.toml.tmpl): resize, workspace cycling, picker-plus
+# tuios parity (dot_config/tuios/config.d): resize, workspace cycling, pane finder
 resize_mode = ["prefix+shift+r"]
 # new_pane = ["prefix+enter"]
 # next_layout = ["prefix+space"]

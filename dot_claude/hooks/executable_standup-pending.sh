@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # standup-pending — SessionStart nudge, like retro-pending: on a weekday with no
-# standup sent yet, say how many work tasks the herdr title hook logged since the
+# standup sent yet, say how many work tasks the tuios title hook logged since the
 # last one, so the agent can offer /g-standup.
 #
-# Reads  $XDG_STATE_HOME/dotfiles/claude-task-log.jsonl  (herdr-claude-title.sh)
+# Reads  $XDG_STATE_HOME/dotfiles/claude-task-log.jsonl  (tuios-claude-title.sh)
 #        $XDG_STATE_HOME/dotfiles/standup-last           (bin/standup-send, ISO time)
 set -u
 command -v jq >/dev/null 2>&1 || exit 0

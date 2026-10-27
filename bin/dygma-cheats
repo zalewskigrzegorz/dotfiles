@@ -362,7 +362,7 @@ def build_entries():
         ("Read reset talk", "2×tap"): "Slack channel/contact search (Raycast)",
         ("Windows", "tap"): "HyprMac workspace overview", ("Windows", "hold"): "Wooshy (click UI by typing)",
         ("Windows", "2×tap"): "Ctrl [, wolne (kindaVim jest na Esc)",
-        ("leaders", "tap"): "herdr prefix (ctrl+space)", ("leaders", "hold"): "— (free, was aerospace leader)",
+        ("leaders", "tap"): "tuios prefix (ctrl+space)", ("leaders", "hold"): "— (free, was aerospace leader)",
     }
     slot = ["tap", "hold", "tap&hold", "2×tap", "2×hold"]
     for sk in n.get("superkeys", []):

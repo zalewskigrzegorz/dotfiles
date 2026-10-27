@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# herdr tab / statusline title — a 3–4 word essence of the task, written by Haiku
+# tuios workspace / statusline title — a 3–4 word essence of the task, written by Haiku
 # (drives bin/hd-title).
 #
 #   * Stop — after the first answer, then at most once per 3 prompts or 10 min,
 #     Haiku reads the recent conversation and keeps or replaces the title. Runs
 #     in the background, so the hook returns at once.
-#   * SessionStart source=clear — forget the title and hand the tab back to the
-#     herdr auto-title plugin until the next answer.
+#   * SessionStart source=clear — forget the title and clear the workspace label
+#     until the next answer.
 #
 # A title the agent set itself with `hd-title` (store differs from <sid>.auto) is
 # never overwritten. The first prompt is no longer used as a title: it rarely
 # said what the session was about (2026-10-21).
 #
-#   herdr-claude-title.sh --retitle <transcript>   one pass now, guard ignored
+#   tuios-claude-title.sh --retitle <transcript>   one pass now, guard ignored
 #                                                   (needs CLAUDE_CODE_SESSION_ID)
 set -u
 
@@ -121,9 +121,7 @@ case "$event" in
     src=$(printf '%s' "$INPUT" | jq -r '.source // empty' 2>/dev/null)
     if [ "$src" = "clear" ]; then
       rm -f "$title_dir/$sid" "$title_dir/$sid.auto" "$title_dir/$sid.meta"
-      # An empty name hands the tab back to auto-title.
-      [ "${HERDR_ENV:-}" = "1" ] && [ -n "${HERDR_TAB_ID:-}" ] \
-        && herdr tab rename "$HERDR_TAB_ID" "" >/dev/null 2>&1
+      "$HD" --clear
     fi
     ;;
   Stop)

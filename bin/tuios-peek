@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# tuios-peek — read a tuios pane's recent scrollback, so Claude can see what a
+# command or an agent did without Greg pasting.
+#
+#   tuios-peek            # current session's shell pane (see a command's output)
+#   tuios-peek -n 100     # more lines
+#   tuios-peek 8          # session number 8's AGENT pane (statusline "▸8") — what that agent reported
+#   tuios-peek work       # same, by session name
+#   tuios-peek work:2     # an exact pane, verbatim (anything tuios -w takes with a ":")
+#
+# A bare number is the session's 1-based position in `tuios ls` (creation order),
+# the same number the statusline shows (▸8). It resolves to that session's agent
+# pane, because that is what "look what the agent reported" means. No arg = the
+# CURRENT session's shell pane (a pane with no agent), to read the output of a
+# command Greg just ran.
+export PATH="$PATH:/opt/homebrew/bin:/home/linuxbrew/.linuxbrew/bin"
+
+N=25
+TARGET=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -n) N="${2:-25}"; shift 2 ;;
+    -n*) N="${1#-n}"; shift ;;
+    *) TARGET="$1"; shift ;;
+  esac
+done
+
+SESSION=""
+PANE=""
+case "$TARGET" in
+  *:*) PANE="$TARGET" ;;   # an explicit pane is used verbatim — no lookup
+  "") SESSION="${TUIOS_SESSION:-}"; want=shell ;;
+  *[!0-9]*) SESSION="$TARGET"; want=agent ;;
+  *) SESSION=$(tuios ls --json 2>/dev/null | jq -r --argjson n "$TARGET" '.[$n - 1].name // empty' 2>/dev/null); want=agent ;;
+esac
+
+if [ -z "$PANE" ] && [ -n "$SESSION" ]; then
+  # A shell pane has agent_state "none"; an agent pane anything else. Prefer
+  # the wanted kind, fall back to the other, never this pane itself.
+  PANE=$(tuios list-windows -s "$SESSION" --json 2>/dev/null | jq -r --arg me "${TUIOS_PANE_ID:-}" --arg want "$want" '
+    [.windows[]? | select(.window_id != $me)] as $c
+    | ($c | map(select((.agent_state // "none") == "none"))) as $shells
+    | ($c | map(select((.agent_state // "none") != "none"))) as $agents
+    | (if $want == "agent" then $agents + $shells else $shells + $agents end)
+    | .[0].window_id // empty' 2>/dev/null)
+fi
+
+if [ -z "$PANE" ]; then
+  if [ -n "$TARGET" ]; then
+    echo "tuios-peek: no pane found for '$TARGET' (not a live session number/name). Try: tuios ls"
+  else
+    echo "tuios-peek: no shell pane found in this session (TUIOS_SESSION=${TUIOS_SESSION:-unset}). Pass one: tuios-peek <N|session|session:pane>"
+  fi
+  exit 0
+fi
+tuios capture-pane ${SESSION:+-s "$SESSION"} -w "$PANE" --scrollback --lines "$N" --trim

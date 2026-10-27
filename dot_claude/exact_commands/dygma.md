@@ -67,7 +67,7 @@ Super 8 is Greg's leader key; don't repurpose it without asking.
 | 4 | vs autocomplete | autocomplete | AI hard-rewrite ADHD-Slack (⌃⌘G) | read selection (⌥Esc system TTS) |
 | 5 | Read reset talk | reset layers→base | — (free) | Slack channel/contact search |
 | 6 | Windows | workspace overview (⌃⌘L, ⌃⌥Space) | Wooshy (⌃⌘/) | kindaVim Normal Mode (⌃[) |
-| 7 | leaders | herdr prefix (⌃Space) | — (free, was AeroSpace leader) | — (free) |
+| 7 | leaders | tuios prefix (⌃Space) | — (free, was AeroSpace leader) | — (free) |
 - Free slots to fill later: `[3]2×tap, [5]hold, [7]2×tap`.
 - AI prompts (grammar/light/hard) live in Raycast AI commands; Defy just sends
   ⇧⌘G / ⌘G / ⌃⌘G. Use a cheap fast model (Haiku/4o-mini) for grammar/light.

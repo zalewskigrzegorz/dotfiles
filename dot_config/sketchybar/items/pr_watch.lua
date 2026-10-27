@@ -7,7 +7,7 @@ local settings = require("settings")
 -- (red=needs fix, gold=new comment, green=ready to merge).
 -- Click (bin/pr-watch-open): LEFT → popup listing my open PRs from the
 -- pr-watch cache (row click opens the PR in the browser); RIGHT → gh-dash
--- in a herdr workspace.
+-- in a tuios session.
 local pr_watch = sbar.add("item", "pr_watch", {
     position = "right",
     drawing = false,
