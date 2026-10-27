@@ -9,6 +9,11 @@
 [startup]
 # herdr had no window mode: land in the pane, ready to type.
 start_in_terminal_mode = true
+# A config.toml that exists and omits these reads them as false (floating,
+# standalone), and the equalize hooks below then fail on every new window.
+daemon = true
+tiled = true
+layout = "bsp"
 
 [appearance]
 # Per-OS: Mac uses the homebrew nu path; the lab has nu under linuxbrew.
