@@ -170,4 +170,15 @@ SCRIPTS="${G_PR_REVIEW_SCRIPTS:-$(git rev-parse --show-toplevel)/.claude/skills/
    ```
 3. If that fails too, print the voiced reply as plain paragraphs with the thread URL and end the turn ("wklej ręcznie albo powiedz wyślij"). No further REST variants.
 
+## P10. Unattended tuios tab: ask in the Inbox, close with a mail
+
+Applies when the first message carried a `Raport:` line (a `workctl` tab, `bin/pr-brief`) and `TUIOS_PANE_ID` is set. Every `AskUserQuestion` of the flow becomes `tuios ask-human` (`agent-rules/adhd-actions-not-walls.md`, unattended section). The last step of the run, after the URL or summary line:
+
+```bash
+tuios send-agent-message -w human --from "$TUIOS_PANE_ID" --subject 'PR #<n>: <verdict>' '<≤5 lines: done, posted, what waits on Greg>'
+```
+
+* Subject at most 120 chars (`PR #31204: approved`, `PR #31204: 3 replies posted, 1 skipped`). Body in Polish, plain, no recap of the comments.
+* The mail lives in this session's ring, and `workctl rm --self` kills it with the session (checked 2026-10-27: the Inbox row went with `kill-session`). A run that closes its worktree (g-pr-review B6) carries the verdict in the closing question instead, or on APPROVE leaves the review on GitHub as the report.
+
 ---

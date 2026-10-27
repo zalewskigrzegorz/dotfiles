@@ -46,6 +46,11 @@ suppress_focused = true
 settle_seconds = 3
 sound = false
 
+# Mail between agents alerts too: a g-orch worker's result mail to the
+# orchestrator. Every other key follows [notifications.agent].
+[notifications.mail]
+between_agents = true
+
 # Every pane started with no grants of its own holds `admin` in open mode.
 # workctl (prefix+G/O popups, gh-dash, lazygit) creates sessions and needs it;
 # tuios has no per-command-key grant, so strict mode would break the picker.
