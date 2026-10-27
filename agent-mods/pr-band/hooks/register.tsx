@@ -144,6 +144,9 @@ export const register: Register = on => {
     const { Box, Button, Text } = $.ui.resolve(e)
     const p = await read($, peek)
     if (p === null) return <Text dimColor>Brak PR-a.</Text>
+    // Prompt actions only for this branch's own PR: a peeked foreign PR's check names are not ours to send as a prompt.
+    const own = (await read($, pr))?.url === p.url
+    const checks = p.failed.map(n => n.replace(/[^\p{L}\p{N} ._()/,:-]/gu, '').slice(0, 60)).join(', ')
 
     return (
       <Box flexDirection="column">
@@ -167,16 +170,16 @@ export const register: Register = on => {
         <Box>
           <Button key="open" plain hotkey="o" label="otwórz" onPress={() => void $.process.run(['open', p.url])} />
           {p.e2eRun && <Button key="e2e" plain hotkey="e" label="screeny e2e" onPress={() => void showE2e($, p)} />}
-          {p.fail > 0 && (
+          {own && p.fail > 0 && (
             <Button
               key="log"
               plain
               hotkey="f"
               label="log-failed"
-              onPress={ask($, `Przeczytaj gh run view --log-failed dla padniętych checków PR #${p.number} (${p.failed.join(', ')}) i powiedz, co padło.`)}
+              onPress={ask($, `Przeczytaj gh run view --log-failed dla padniętych checków PR #${p.number} (${checks}) i powiedz, co padło.`)}
             />
           )}
-          {needsRebase(p) && (
+          {own && needsRebase(p) && (
             <Button key="rebase" plain hotkey="r" label="rebase" onPress={ask($, `Branch PR #${p.number} jest ${p.merge}: zrebase'uj go na bazę PR-a i uruchom lokalnie to, co CI.`)} />
           )}
           <Button
