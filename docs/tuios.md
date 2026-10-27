@@ -50,7 +50,8 @@ Env in every pane: `TUIOS_SESSION`, `TUIOS_PANE_ID` (= `TUIOS_WINDOW_ID`), `TUIO
 | Key | Action |
 |---|---|
 | `prefix+q` | detach · `prefix+s` settings · `prefix+:` command palette (`ctrl+p` belongs to nu/nvim) |
-| `prefix+w` / `prefix+g` | session picker / goto · `N` new session · `W` rename · `D` close · `,` `.` prev/next |
+| `prefix+w` / `prefix+g` | session picker / goto · `N` new session · `W` rename · `D` close · `,` `.` prev/next · `L` last session |
+| `prefix+y` / `M` / `S` | scratch terminal · last message in full · keyboard into the sidebar and back. `prefix+H` (opposite sidebar, a copy of the same rail) is unbound |
 | `prefix+a` / `prefix+0` | jump to the next item that needs you (Inbox) · `prefix+A` next unseen finished turn |
 | `prefix+c` `T` `X` | new / rename / close workspace (tab) · `1`–`9`, `p`, `n` switch |
 | `prefix+h/j/k/l` | focus window · `prefix+tab` next · `` prefix+` `` last · `P` rename window |
