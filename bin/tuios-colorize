@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Gives the tuios sessions that are already open their project's accent and space
+# (~/.config/tuios/projects.tsv), the way workctl does for the sessions it opens.
+# A session matches a repo by name (<repo> or <repo>-<branch>) or by its folder.
+# Sessions named session-N stay as they are when their folder matches nothing.
+set -eu
+map="$HOME/.config/tuios/projects.tsv"
+[ -s "$map" ] || { echo "no $map: run bin/sync" >&2; exit 1; }
+
+tuios list-sessions --json | jq -r '.[] | [.name, (.dir // ""), (.global // false | tostring)] | @tsv' |
+  while IFS=$'\t' read -r name dir global; do
+    while IFS=$'\t' read -r repo accent; do
+      case "$repo" in '' | '#'*) continue ;; esac
+      if [ "$name" = "$repo" ] || [ "${name#"$repo"-}" != "$name" ] || [ "$dir" = "$repo" ]; then
+        tuios set-session-accent -s "$name" "$accent" >/dev/null
+        # tuios refuses a space on a global session.
+        [ "$global" = true ] || tuios set-session-space -s "$name" "$repo" >/dev/null
+        echo "$name → $repo $accent"
+        break
+      fi
+    done < "$map"
+  done

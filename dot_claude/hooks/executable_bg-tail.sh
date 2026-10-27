@@ -19,7 +19,10 @@ for f in /private/tmp/claude-"$(id -u)"/*/"$sid"/tasks/"$id".output; do
   [ -e "$f" ] || exit 0
   # less +F follows like tail -F; Ctrl+C stops following so / searches, F resumes.
   # tuios's own scrollback editor (prefix+E) garbles the screen on 0.11.1.
-  tuios new-window -s "$TUIOS_SESSION" "bg: $desc" --no-focus -- \
+  # Workspace 2 is the session's back room: tab 1 stays claude + nu (workctl's mainWindow).
+  empty=$(tuios list-windows -s "$TUIOS_SESSION" --json 2>/dev/null | jq -r '.workspace_windows[1] == 0')
+  tuios new-window -s "$TUIOS_SESSION" "bg: $desc" --workspace 2 --no-focus -- \
     less -R -~ -Ps'F=sledz dalej   /=szukaj   n/N=nastepne   q=zamknij' +F "$f" >/dev/null 2>&1
+  [ "$empty" = true ] && tuios set-workspace-name -s "$TUIOS_SESSION" 2 "zaplecze" >/dev/null 2>&1
   exit 0
 done

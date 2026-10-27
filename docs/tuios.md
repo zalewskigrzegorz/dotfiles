@@ -20,7 +20,7 @@ calls `tuios` directly. `claude-agent-presence` (sketchybar chip, `bin/claude-ag
 | herdr | tuios | Notes |
 |---|---|---|
 | workspace | **session** | one per repo+branch worktree, named `<repo>-<branch>` (`/` → `-`) |
-| tab | **workspace** | numbered slots 1–9 inside a session; `workctl` makes `nu` and `claude` |
+| tab | **workspace** | numbered slots 1–9 inside a session; `workctl` puts `nu` and `claude` on 1, `bg:` logs go to 2 |
 | pane | **window** | a target is `-s <session> -w <window>`: id, 8-char id prefix, index or name |
 | `blocked` | `needs_input` | the other state that needs you is `errored`; a finished turn nobody looked at is `done` |
 
@@ -108,7 +108,10 @@ generator on every keystroke (~10 ms per keystroke over 2800 branches).
 **Where things live.** Worktrees stay in `~/Code/tree/wt-<repo>/<branch>`; `workctl` uses plain
 git for them, not `tuios worktree new` (which would put them under
 `~/.local/share/tuios/worktrees/` and skip the seed). Each worktree gets one tuios session
-`<repo>-<branch>` with a `nu` and a `claude` workspace. `~/.herdr/worktrees` is still scanned,
+`<repo>-<branch>`: one screen, workspace 1 with `nu` and `claude` as windows; workspace 2 is
+the back room ("zaplecze": `bg:` logs, a tunnel), opened only when needed. Every session of a
+repo gets the accent and space from `~/.config/tuios/projects.tsv` (`dot_config/tuios/projects.tsv.tmpl`);
+`bin/tuios-colorize` applies it to sessions already open. `~/.herdr/worktrees` is still scanned,
 only so old trees can be listed and removed. `workctl rm` kills the session last, after the
 tree and the branch are gone. The pickers run in a popup, so every pane needs the `admin`
 grant: `[agents.permissions] mode = "open"` in the config (a strict mode would break them).
@@ -140,7 +143,7 @@ secret-in <scratchpad>/secrets/<name>` (`agent-rules/ops-traps.md`).
 
 ## Tab / window naming (our own)
 
-- `work` / `workctl` name a worktree's workspaces (`󰚩 claude`, ` nu`).
+- `work` / `workctl` name a worktree's first workspace (` nu`); `claude` is a window on it.
 - `zz-tuios-tui-wrappers.nu`: `lg`, `dash`, `nvim`, `lazydocker`, `btop` rename the *current*
   workspace to a nerd-font icon while the TUI runs and restore the old name on exit.
 - `dot_claude/hooks/stop/tuios-claude-title.sh` (Stop hook, Haiku) names the Claude workspace

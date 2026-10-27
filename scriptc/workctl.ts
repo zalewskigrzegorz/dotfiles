@@ -1246,8 +1246,39 @@ function openSession(path: string, lbl: string, focus: boolean): string {
     run("tuios", ["set-workspace-name", "-s", ws, "1", "  nu"]);
   }
   run("tuios", ["set-session-name", "-s", ws, lbl]);
+  colorSession(ws, path);
   if (focus) run("tuios", ["switch-session", ws]);
   return ws;
+}
+
+// The repo a session belongs to: the first segment under the worktree pool, else the checkout's folder.
+function projectOf(path: string): string {
+  const pool = `${TREE_ROOT}/wt-`;
+  return path.startsWith(pool) ? (path.slice(pool.length).split("/")[0] ?? "") : basename(path);
+}
+
+// Every session of a repo shares its accent and space (~/.config/tuios/projects.tsv; bin/tuios-colorize reads it too).
+function colorSession(ws: string, path: string): void {
+  const repo = projectOf(path);
+  let map = "";
+  try {
+    map = readFileSync(`${process.env.HOME ?? ""}/.config/tuios/projects.tsv`, "utf8");
+  } catch {
+    return;
+  }
+  const row = map.split("\n").find((l) => l.split("\t")[0] === repo);
+  if (row === undefined) return;
+  run("tuios", ["set-session-accent", "-s", ws, (row.split("\t")[1] ?? "").trim()]);
+  run("tuios", ["set-session-space", "-s", ws, repo]);
+}
+
+// A session is one screen: claude and agents open as windows on workspace 1, beside the nu shell.
+// Other workspaces are the back room (bootstrap, bg logs, a tunnel).
+function mainWindow(ws: string, cwd: string, lbl: string, cmd: string, focus: boolean): boolean {
+  const args = ["new-window", lbl, "-s", ws, "--workspace", "1", "--cwd", cwd];
+  if (!focus) args.push("--no-focus");
+  if (cmd !== "") args.push("--", "nu", "-e", cmd);
+  return run("tuios", args).code === 0;
 }
 
 // A herdr tab is a numbered tuios workspace: take the first empty one, open a
@@ -1279,7 +1310,7 @@ function applyLayout(ws: string, cwd: string): void {
   if (jsonValues(wins, "custom_name").some((n) => n.includes("claude"))) return;
   if (jsonValues(wins, "agent_resumable").some((v) => v !== "")) return;
   if (jsonValues(wins, "agent_state").some((s) => s !== "none" && s !== "")) return;
-  newTab(ws, cwd, "\u{f06a9}  claude", "claude", false);
+  mainWindow(ws, cwd, "\u{f06a9}  claude", "claude", false);
 }
 
 // The bootstrap seed runs in its own tab: minutes of output Greg wants to see.
@@ -2119,10 +2150,10 @@ function writeBrief(st: St, intent: string): string {
   return p;
 }
 
-// Always a FRESH tab, its name contains "claude" so a later applyLayout does
+// Always a FRESH window, its name contains "claude" so a later applyLayout does
 // not add a bare one. The command is ONE argv element of nushell syntax.
 function agentTab(ws: string, cwd: string, intent: string, brief: string): number {
-  if (newTab(ws, cwd, `\u{f06a9}  claude ${intent}`, `claude (open --raw "${brief}")`, false)) return 0;
+  if (mainWindow(ws, cwd, `\u{f06a9}  claude ${intent}`, `claude (open --raw "${brief}")`, false)) return 0;
   err(`tuios: no claude ${intent} tab opened in session ${ws}`);
   return 1;
 }
