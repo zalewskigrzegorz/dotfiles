@@ -5,7 +5,6 @@ import type { Pr } from '../types'
 import { PR_LINK, namesFrom, needsRebase, railPr, repoOf, summarize, summarizePeek } from './pr'
 
 const pr = atom({ plugin: 'pr-band', key: 'pr' } as const, null)
-const hiddenFor = atom({ plugin: 'pr-band', key: 'hiddenFor' } as const, null)
 const peek = atom({ plugin: 'pr-band', key: 'peek' } as const, null)
 
 const FIELDS = 'number,url,state,isDraft,mergeStateStatus,reviewDecision,statusCheckRollup'
@@ -182,48 +181,7 @@ export const register: Register = on => {
           {own && needsRebase(p) && (
             <Button key="rebase" plain hotkey="r" label="rebase" onPress={ask($, `Branch PR #${p.number} jest ${p.merge}: zrebase'uj go na bazę PR-a i uruchom lokalnie to, co CI.`)} />
           )}
-          <Button
-            key="hide"
-            plain
-            hotkey="x"
-            label="ukryj z paska"
-            dimColor
-            onPress={() => void update($, hiddenFor, () => p.number).then(() => $.ui.close({ id: PEEK }))}
-          />
         </Box>
-      </Box>
-    )
-  })
-
-  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const now = await read($, pr)
-    if (e.props.hasSurvey || now === null || (await read($, hiddenFor)) === now.number) return next(e)
-
-    const { Box, Button, Text } = $.ui.resolve(e)
-    const below = await next(e)
-    // One segment of the shared summary line; a press toggles the PR pane with the actions.
-    const toggle = async () => {
-      if ((await $.ui.panes()).some(p => p.id === PEEK)) await $.ui.close({ id: PEEK })
-      else if (await openPeek($, String(now.number))) {
-        // Opened by hand: it stays until the next press, no prompt or timer closes it.
-        pinned = true
-        peekTimer?.cancel()
-      } else $.ui.toast(`gh nie odczytał PR-a #${now.number}`)
-    }
-
-    return (
-      <Box flexDirection="row">
-        <Button key="pr" plain hotkey="p" label={`PR #${now.number}`} onPress={() => void toggle()}>
-          <Text color={C.green} bold>
-            󰘬 #{now.number}{' '}
-          </Text>
-          <Text color={C.green}>✓{now.pass}</Text>
-          {now.fail > 0 && <Text color={C.red}> ✗{now.fail}</Text>}
-          {now.pending > 0 && <Text color={C.gold}> ⏳{now.pending}</Text>}
-          {(needsRebase(now) || now.merge === 'BLOCKED') && <Text color={C.peach}> {now.merge.toLowerCase()}</Text>}
-        </Button>
-        {below ? <Text dimColor> │ </Text> : null}
-        {below}
       </Box>
     )
   })

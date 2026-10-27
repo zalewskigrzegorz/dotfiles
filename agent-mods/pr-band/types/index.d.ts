@@ -22,6 +22,6 @@ export type Peek = Pr & {
 
 declare module 'claude-code' {
   interface PluginState {
-    'pr-band': { pr: Pr | null; hiddenFor: number | null; peek: Peek | null }
+    'pr-band': { pr: Pr | null; peek: Peek | null }
   }
 }

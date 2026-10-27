@@ -51,6 +51,11 @@
       "name": "sprawy",
       "source": "./sprawy",
       "description": "Band above the prompt with the session's separate requests, queued in order, each following its agent until done."
+    },
+    {
+      "name": "pulpit",
+      "source": "./pulpit",
+      "description": "One summary line above the prompt (items, PR, standup, retro); a press opens one pane with every mod's details and actions."
     }
   ]
 }
