@@ -34,8 +34,7 @@ is the API.
 - **A pane opened unasked seats only from 144 columns**; a tiled tuios window is
   often narrower, so it waits undrawn (`isPlaced: false`). Give the mod a command that opens it
   (asked = any width) and toast that command when `isPlaced` is false.
-- **`Image` inside tuios** (shot-pane): tuios passes kitty graphics through from
-  Ghostty (experimental) and then sets `TERM_PROGRAM=ghostty`, so Claude Code
-  should draw the image without `CLAUDE_CODE_FORCE_TERMINAL_IMAGES` (unverified).
-  herdr dropped pictures over ~6 M decoded pixels silently; until that is checked
-  under tuios, keep `sips -Z 1600` first.
+- **`Image` inside tuios** (shot-pane): tuios 0.11 drops the images Claude Code
+  draws (`a=T,U=1`, Unicode placeholders), so the Pane stays an empty frame; a
+  direct `a=T,i=<n>` placement shows. In tuios shot-pane runs `bin/kitty-show`
+  in a `tuios popup` instead. Keep `sips -Z 1600` first (herdr dropped > ~6 M px).

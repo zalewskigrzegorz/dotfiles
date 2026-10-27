@@ -9,7 +9,7 @@ const shots = atom({ plugin: 'shot-pane', key: 'shots' } as const, [])
 // Per-user and 0700: the thumbnails are copies of private screenshots.
 const THUMBS = '/Users/greg/Library/Caches/shot-pane'
 
-// herdr dropped kitty images past ~6 M decoded pixels without a word; tuios passes them through, untested at that size.
+// herdr dropped kitty images past ~6 M decoded pixels without a word; the thumbnails stay under that.
 async function thumbOf($: EngineInterface, path: string): Promise<string> {
   const out = `${THUMBS}/${path.split('/').pop()}`
   const isMade = await $.fs.stat(out).then(s => s.kind === 'file' && !s.isLink, () => false)
@@ -17,6 +17,16 @@ async function thumbOf($: EngineInterface, path: string): Promise<string> {
   await $.process.run(['mkdir', '-p', '-m', '700', THUMBS]).catch(() => null)
   const ran = await $.process.run(['sips', '-Z', '1600', path, '--out', out]).catch(() => null)
   return ran?.exitCode === 0 ? out : path
+}
+
+// tuios 0.11 drops the images Claude Code draws (a=T,U=1, Unicode placeholders) but shows
+// ones placed directly with an id, which bin/kitty-show sends, in a popup.
+async function tuiosPopup($: EngineInterface, paths: string[]): Promise<boolean> {
+  if (!(await $.env.get('TUIOS_PANE_ID'))) return false
+  const show = `${await $.env.get('HOME')}/bin/kitty-show`
+  const thumbs = await Promise.all(paths.map(p => thumbOf($, p)))
+  await $.process.run(['tuios', 'popup', '--width', '90%', '--height', '90%', '--', show, ...thumbs])
+  return true
 }
 
 // Same trigger as hooks/screenshot-attach.sh, on the prompt's head only.
@@ -63,6 +73,7 @@ export const register: Register = on => {
         const picked = (recent.length > 0 ? recent : pngs.slice(0, 1)).map(f => `${DIR}/${f.name}`)
         if (picked.length === 0) return
         await update($, shots, () => picked)
+        if (await tuiosPopup($, picked)) return
         // An unasked pane seats only from 144 columns; below that it waits undrawn.
         const opened = await $.ui.open({ id: PANE, title: 'Screen' })
         if (!opened.isPlaced) $.ui.toast('Screen gotowy: /screen otwiera podgląd')
@@ -99,8 +110,10 @@ export const register: Register = on => {
       if (!newest) return { text: 'Brak screenów w folderze CleanShota.' }
       await update($, shots, () => [`${DIR}/${newest.name}`])
     }
-    await $.ui.open({ id: PANE, title: 'Screen' })
-    closeLater($)
+    if (!(await tuiosPopup($, await read($, shots)))) {
+      await $.ui.open({ id: PANE, title: 'Screen' })
+      closeLater($)
+    }
     return { text: 'Podgląd screena otwarty.' }
   })
 
@@ -111,7 +124,7 @@ export const register: Register = on => {
       return <Text>{list.map(p => p.split('/').pop()).join('\n')}</Text>
     }
     const { Box, Image, Text } = $.ui.resolve(e)
-    // Bytes, not the file name: a multiplexer (tuios, tmux) passes kitty bytes on, a name it may not.
+    // Bytes, not the file name: tmux passes kitty bytes on, a name it may not (tuios goes through tuiosPopup).
     const sources = await Promise.all(
       list.map(async path => {
         const { base64 } = await $.fs.read(await thumbOf($, path), { as: 'bytes' }).catch(() => ({ base64: '' }))
