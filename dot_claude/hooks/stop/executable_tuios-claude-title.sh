@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tuios workspace / statusline title — a 3–4 word essence of the task, written by Haiku
-# (drives bin/hd-title).
+# (drives bin/os-title).
 #
 #   * Stop — after the first answer, then at most once per 3 prompts or 10 min,
 #     Haiku reads the recent conversation and keeps or replaces the title. Runs
@@ -8,7 +8,7 @@
 #   * SessionStart source=clear — forget the title and clear the workspace label
 #     until the next answer.
 #
-# A title the agent set itself with `hd-title` (store differs from <sid>.auto) is
+# A title the agent set itself with `os-title` (store differs from <sid>.auto) is
 # never overwritten. The first prompt is no longer used as a title: it rarely
 # said what the session was about (2026-10-21).
 #
@@ -17,10 +17,10 @@
 set -u
 
 # The Haiku call below is a Claude session too; never recurse into it.
-[ -n "${HD_TITLE_CHILD:-}" ] && exit 0
+[ -n "${OS_TITLE_CHILD:-}" ] && exit 0
 command -v jq >/dev/null 2>&1 || exit 0
 
-HD=$(command -v hd-title 2>/dev/null || echo "$HOME/Code/dotfiles/bin/hd-title")
+HD=$(command -v os-title 2>/dev/null || echo "$HOME/Code/dotfiles/bin/os-title")
 [ -x "$HD" ] || exit 0
 title_dir="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/claude-session-title"
 task_log="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/claude-task-log.jsonl"
@@ -64,7 +64,7 @@ retitle() {
   local transcript="$1" force="$2" sid="$CLAUDE_CODE_SESSION_ID"
   local store="$title_dir/$sid" auto="$title_dir/$sid.auto" meta="$title_dir/$sid.meta" lock="$title_dir/$sid.lock"
   mkdir -p "$title_dir"
-  # A store that is not ours is the agent's own hd-title: hands off.
+  # A store that is not ours is the agent's own os-title: hands off.
   if [ "$force" != 1 ] && [ -s "$store" ] && [ "$(cat "$store")" != "$(cat "$auto" 2>/dev/null)" ]; then
     return 0
   fi
@@ -87,7 +87,7 @@ retitle() {
 
   local to; to=$(command -v timeout || command -v gtimeout) || return 0
   local out
-  out=$(cd /tmp && HD_TITLE_CHILD=1 "$to" 30 claude -p --model claude-haiku-5-5 \
+  out=$(cd /tmp && OS_TITLE_CHILD=1 "$to" 30 claude -p --model claude-haiku-5-5 \
           --no-session-persistence --strict-mcp-config --tools "" --setting-sources "" \
           --system-prompt "$SYSTEM" "$(printf '%s\n' "$ctx" | tail -n +2)" </dev/null 2>/dev/null)
   printf '%s %s\n' "$n" "$now" > "$meta"

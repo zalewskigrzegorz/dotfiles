@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# hd-title "<text>" — set the CURRENT Claude session's tab/title to <text>.
-# hd-title --clear  — clear the tuios workspace label and window name (the store is the caller's).
+# os-title "<text>" — set the CURRENT Claude session's tab/title to <text>.
+# os-title --clear  — clear the tuios workspace label and window name (the store is the caller's).
 #
 # One writer for three surfaces, kept in sync:
 #   1. the tuios workspace label of this window   (plain text — no colour glyph)
@@ -17,7 +17,7 @@
 set -u
 
 text="${1:-}"
-[ -n "$text" ] || { echo "usage: hd-title <text> | --clear" >&2; exit 2; }
+[ -n "$text" ] || { echo "usage: os-title <text> | --clear" >&2; exit 2; }
 
 if [ "$text" != "--clear" ]; then
   sid="${CLAUDE_CODE_SESSION_ID:-}"

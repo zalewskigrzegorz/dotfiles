@@ -35,15 +35,15 @@ Env in every pane: `TUIOS_SESSION`, `TUIOS_PANE_ID` (= `TUIOS_WINDOW_ID`), `TUIO
   `config.toml` (settings page, keybind manager, `tuios pair`, `tuios hosts add` write
   there); `dot_config/tuios/create_config.toml` only creates it once, because tuios reads
   `config.d/` only when a `config.toml` exists.
-- A saved config applies by itself; `hd-reload` (`tuios config apply`) pushes what waits
-  (a new host, wider grants). `hd-restart` (`tuios restart-server`) only after an upgrade,
+- A saved config applies by itself; `os-reload` (`tuios config apply`) pushes what waits
+  (a new host, wider grants). `os-restart` (`tuios restart-server`) only after an upgrade,
   from outside tuios.
 - nu is the shell (per-OS path in the template), no tuios theme: panes keep Ghostty's
   Mocha Neon palette, the terminal-mode border is mauve `#B347FF`.
 - `[daemon] resume_agents = "auto"` is the "continuum for agents": after a daemon restart tuios
   types each harness's resume command (`claude --resume <id>`).
-- Launcher: plain `tuios` (start/attach). Helpers in `dot_config/nushell/autoload/tuios.nu`: `hd-reload`,
-  `hd-restart`, `hd-stop` (`tuios kill-server`), `hd-mrglaszki`.
+- Launcher: plain `tuios` (start/attach). Helpers in `dot_config/nushell/autoload/tuios.nu`: `os-reload`,
+  `os-restart`, `os-stop` (`tuios kill-server`), `os-mrglaszki`.
 
 ## Key bindings (prefix `ctrl+space`, keys kept from herdr)
 
@@ -143,9 +143,9 @@ secret-in <scratchpad>/secrets/<name>` (`agent-rules/ops-traps.md`).
 - `zz-tuios-tui-wrappers.nu`: `lg`, `dash`, `nvim`, `lazydocker`, `btop` rename the *current*
   workspace to a nerd-font icon while the TUI runs and restore the old name on exit.
 - `dot_claude/hooks/stop/tuios-claude-title.sh` (Stop hook, Haiku) names the Claude workspace
-  with a 3–4 word task title through `bin/hd-title` (`tuios set-workspace-name`) and puts the same
+  with a 3–4 word task title through `bin/os-title` (`tuios set-workspace-name`) and puts the same
   title on the agent's window (`tuios set-window --name`), which the rail's agent row draws in
-  place of workctl's `claude review`; it also feeds the statusline. `CLAUDE_TUIOS_TITLE_MAX` trims it. Rule: `agent-rules/hd-tab-title.md`.
+  place of workctl's `claude review`; it also feeds the statusline. `CLAUDE_TUIOS_TITLE_MAX` trims it. Rule: `agent-rules/os-tab-title.md`.
 
 ## url / of pickers
 
@@ -174,7 +174,7 @@ paired. Two steps stay manual: "Enable HTTPS" once in the tailnet admin console,
 
 ## The lab (`mrglaszki`)
 
-tuios runs on the lab too. From the Mac, `hd-mrglaszki` = `tuios attach --host mrglaszki`:
+tuios runs on the lab too. From the Mac, `os-mrglaszki` = `tuios attach --host mrglaszki`:
 the local daemon holds an ssh link (`[hosts.mrglaszki]` in the config, `command` points at the
 linuxbrew `tuios`), and the lab's session is drawn in a plain Ghostty window with local keys
 and theme, nothing nested. Run it **outside** a tuios pane (inside, it refuses). If the link
@@ -190,4 +190,4 @@ Fallback: `ssh mrglaszki` then `tuios`.
 - tokscale dashboard → `prefix+m` popup.
 - window-title-sync, herdr-remote, herdr-pr-tracker: not ported (gh-dash covers PRs, Collie the phone).
 - `herdr update --handoff` broke `op`/1Password TCC attribution (herdr #808). For tuios,
-  upgrade with `brew upgrade tuios` + `hd-restart`; not verified against `op`.
+  upgrade with `brew upgrade tuios` + `os-restart`; not verified against `op`.

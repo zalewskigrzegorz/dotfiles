@@ -1268,7 +1268,7 @@ function newTab(ws: string, cwd: string, lbl: string, cmd: string, focus: boolea
   return true;
 }
 
-// Full layout = prep + one bare claude tab, idempotent. hd-title renames the
+// Full layout = prep + one bare claude tab, idempotent. os-title renames the
 // claude window to the task title, so a pane tuios knows as an agent (live, or
 // resumable after claude exited) counts too. The agent path must NOT call
 // this: it would either drop the brief or start two sessions.

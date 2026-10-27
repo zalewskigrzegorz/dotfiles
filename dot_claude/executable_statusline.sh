@@ -158,7 +158,7 @@ bar() {
 # via ~/.claude/sessions/*.json + kill -0), then takes the lowest free slot —
 # so up to 8 parallel sessions never share a colour. Pool exhausted → hash
 # fallback. Allocation runs ONCE per session (claim file persists); every
-# later render is a single cat. (The tab label stays plain text, see hd-title,
+# later render is a single cat. (The tab label stays plain text, see os-title,
 # so the colour lives here in the statusline instead.)
 sess_c="$PINK"
 if [ -n "$sid" ]; then
@@ -396,7 +396,7 @@ fi
 style_seg=""
 [ -n "$style" ] && [ "$style" != "default" ] && style_seg="${SEP}${GOLD}${style}${N}"
 
-# Session title — the semantic checkpoint title set via `hd-title` (shared store,
+# Session title — the semantic checkpoint title set via `os-title` (shared store,
 # keyed by <sid>), falling back to the native aiTitle from the transcript when no
 # checkpoint has been set yet. Coloured with the per-session colour (sess_c); the
 # text changes at checkpoints, the colour stays constant for the session.
