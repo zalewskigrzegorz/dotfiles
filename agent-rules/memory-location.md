@@ -69,14 +69,8 @@ mcp__hindsight__list_memories()            # paginated listing
 mcp__hindsight__get_memory(memory_id="...")  # single record by id
 ```
 
-**Always pass `max_tokens` to `recall`.** Its default of 4096 counts only memory
-text, not the JSON envelope around each record — a broad query came back with
-114 results / **82 KB** (2026-09-18) and overflowed the MCP client limit, so the
-result landed in a file that never reached the answer. Measured on the same
-query: `max_tokens=512` → 10.8 KB, default → 81.8 KB. `budget` is **not** the
-lever (low 80.1 KB vs high 82.2 KB); the MCP tool also can't disable the
-`entities` block (~15 KB) because it doesn't expose `include`, so the cap is the
-only control you have. Start at 512 and only raise it if the answer is thin.
+**`recall` always gets `max_tokens`** (`guard` denies it without): the default
+returned 82 KB and overflowed the client. Start at 512; `budget` is not the lever.
 
 The `memory` skill (formerly `hindsight`) triggers automatically on phrases
 like "remember", "recall", "co wiem o X", "zapisz", "sprawdź pamięć" — follow

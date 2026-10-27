@@ -23,14 +23,10 @@ into his existing shell window was easy to miss (2026-10-27).
 No `TUIOS_PANE_ID` (outside tuios) → a numbered step in chat. Greg: "tak masz
 mi rozwiązywać odpalanie poleceń" (2b9b89b1, 2026-10-23).
 
-## Unknown CLI: no `<cmd> <sub> --help | head`
+## Unknown CLI
 
-`collie update --help | head -30` started a real update (Collie has no
-`--help`), and `head` closing the pipe left a half-built `web/dist-staging/`
-(2026-09-29). On a CLI you have not used: read its source or docs first, or
-probe only top-level `-h` / `--version` (`--dry-run` if documented). Never
-pipe a subcommand into `head`. If a probe may have mutated state, check
-(`ps`, `git status`, `<cmd> version`) before going on.
+`guard` denies `<cmd> <sub> --help | head`. If a probe may have mutated state,
+check (`ps`, `git status`, `<cmd> version`) before going on.
 
 ## Transient `index.lock` during husky
 
@@ -106,19 +102,9 @@ approval; when he is away from the Mac, don't run `op` or `bin/sync`: leave
 the `*.pending.tar` and end with "powiedz zatwierdzę". Don't re-fire the
 approval prompt (2026-10-13, two `authorization timeout`s).
 
-## Type-checking an e2e suite: `tsc -p`
+## `tsc <file>`, `pnpm test -- <file>`
 
-`tsc <file>.ts` next to a `tsconfig.json` dies with `TS5112: tsconfig.json is
-present but will not be loaded if files are specified on commandline`. Use
-`pnpm exec tsc -p e2e/<suite>/tsconfig.json --noEmit`; not every suite has one,
-so `test -f` first. No `--ignoreConfig`: it drops `paths` and the Playwright
-types (2026-10-14).
-
-## One spec file: `vitest run`, not `pnpm test --`
-
-`pnpm test -- <file>` in an app runs the whole `nx` target (4 tasks, ~50 s) and
-buries the file's result in the tail. For one file: `cd apps/<app> && pnpm exec
-vitest run <file>`. The full target only before a PR (2026-10-14).
+Both denied by `guard` with the replacement (`tsc -p`, `vitest run`).
 
 ## A batch of `git mv` is one transaction
 
@@ -245,11 +231,9 @@ first: 100){issueCount}`). After a 403, wait ~2 min once; don't retry in a loop.
 
 ## A big MCP search result: narrow it, never re-run it
 
-`slack_search_public_and_private` came back at 88 KB and the same query went
-out again (aed1533e); `mempalace_search` with `limit=5` overflowed twice in a
-row (3905c082). Start Slack searches with `response_format: "concise"`,
-`limit ≤ 20`, `include_bots: false`; MemPalace with `limit=2`, or
-`bin/mp-search` for a literal token. After "exceeds maximum allowed tokens",
+Start Slack searches with `response_format: "concise"`, `limit ≤ 20`,
+`include_bots: false` (an 88 KB result went out twice, aed1533e). `guard`
+caps `mempalace_search` at `limit` 3. After "exceeds maximum allowed tokens",
 `rg`/`jq` the saved `tool-results/*.txt` or send one narrower query (date,
 channel, `from:`).
 

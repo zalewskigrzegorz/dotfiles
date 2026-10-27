@@ -8,11 +8,7 @@ alwaysApply: true
 The Bash tool runs commands in zsh. These zsh defaults break bash-style
 one-liners and each cost a retry or more (2026-09-23 … 09-28):
 
-1. **A word that starts with `=` is a command lookup (`EQUALS`).**
-   `echo ======` fails with `(eval):1: ===== not found`. Quote it:
-   `echo "----"` or `echo '===='`. Same for any separator or argument that starts
-   with `=`.
-2. **An unquoted `$var` is one word, not split on spaces or newlines.**
+1. **An unquoted `$var` is one word, not split on spaces or newlines.**
    `files=$(git diff --name-only); oxfmt --check $files` passes the whole list as a
    single path, and the tool reports "no files found". Use `${=files}`, or pipe
    the list: `git diff --name-only | xargs pnpm exec oxfmt --check`. A command
@@ -21,7 +17,7 @@ one-liners and each cost a retry or more (2026-09-23 … 09-28):
    (2026-10-06). Use a function (`ab() { agent-browser --session-name x "$@"; }`)
    or `${=A}`.
 
-3. **`[]` and an unmatched `*` are globs (`NOMATCH`).** `gh api … -f parents[]=$SHA`
+2. **`[]` and an unmatched `*` are globs (`NOMATCH`).** `gh api … -f parents[]=$SHA`
    dies with `no matches found: parents[]=…`, `gh` gets an empty value and the
    API answers "At least 40 characters are required". Quote every `[]` arg:
    `-f 'parents[]'="$SHA"`, `-f 'labels[]=bug'`, `-F 'ids[]=1'`. An unmatched
@@ -30,12 +26,7 @@ one-liners and each cost a retry or more (2026-09-23 … 09-28):
    `(N)` must sit outside the quotes: `"…/Skaner/Epson_*.pdf"(N)` is a literal
    and still dies (2026-10-09). Quote only the fixed prefix,
    `"$dir"/Epson_*.pdf(N)`, or use `find "$dir" -name 'Epson_*.pdf'`.
-4. **`echo` expands `\n` inside JSON.** `echo "$resp" | jq` died with `Invalid
-   string: control characters` on a Slack response, and the exit 1 looked like
-   a failed send after the message was already posted (2026-10-08). Pipe curl
-   straight into `jq`, or use `printf '%s' "$resp" | jq`. A parse error after a
-   send means "check the channel", never "resend".
-5. **An unquoted `&` or `;` in a URL ends the command.** `DATABASE_URL=postgres://…/db?a=1&b=2
+3. **An unquoted `&` or `;` in a URL ends the command.** `DATABASE_URL=postgres://…/db?a=1&b=2
    pnpm prisma migrate deploy` ran the first half in the background, and the
    migrate fell back to the default database: 13 migrations landed in the
    shared local `main` (2026-10-12). A URL with `&`, `?` or `;` always goes in
@@ -44,10 +35,12 @@ one-liners and each cost a retry or more (2026-09-23 … 09-28):
    password) and check it is the one you meant. **An env file sourced with
    `. file` is the same trap:** write `DATABASE_URL='…'` in single quotes there
    too, then print host and database from the loaded variable (2f5fe621).
-6. **`$?` after a pipe is the last command's status.** `git apply x.patch |
+4. **`$?` after a pipe is the last command's status.** `git apply x.patch |
    tail -5; echo "exit=$?"` printed `exit=0` for a patch that did not exist,
    because `tail` succeeded (2026-10-15). Read `${pipestatus[1]}`, and check a
    file you produced with `test -s <file>` before using it.
+
+The `guard` mod denies `echo ===` (`EQUALS`) and `echo "$x" | jq` with the fix.
 
 When a one-liner that works in bash fails with `not found`, "no files" or
 `no matches found`, check these before you suspect the tool or the data.
@@ -74,49 +67,18 @@ apps/api/node_modules/<pkg>` from `~` (empty variable, then `ls /dist/…`),
 - **Don't allowlist the `cd <abs> && …` shapes** this produces. They are a
   symptom, not a command.
 
-## Wait loops: `pgrep -f` matches its own shell
+## Wait loops and CI waits
 
-`while pgrep -f "artisan importer:import"; do sleep 10; done` run through
-`ssh mrglaszki '…'` never ends: `pgrep -f` matches the remote shell whose command
-line contains the pattern (2026-09-27, cost ~150 turns). Never `pgrep -f
-"<pattern>"` inside a command that contains the pattern itself. Use the bracket
-trick (`pgrep -f "[a]rtisan importer:import"`), `pgrep -x` inside the
-container, or poll a log line or marker file. Every wait loop gets a timeout
-(`timeout 600 …`) and exits on the first actionable state. A multi-line loop
-with `$SECONDS`, `$(…)` and `while` goes into a `#!/bin/bash` file in the
-scratchpad, run as `bash <file> <secs>`, not inline in zsh; after a failed
-background run, read its `.output` before retrying (b33cce3d).
-
-**A CI run is not a hand-written loop.** `until s=$(gh run view …); do sleep 60;
-done` (2026-09-30, twice, no timeout) → `gh-run-wait <workflow> [--sha
-<sha>]` for the run of a pushed commit, or `timeout 1800 gh run watch <id>
---exit-status` for a known run; `gh run view <id> --log-failed` only on a
-non-zero exit. A run longer than ~10 min goes through `Monitor` with an `until`
-loop that prints one line per step or job change, so Greg doesn't have to ask
-"jak tam deploy?". Say the ETA in one line at the start ("~40–60 min, next
-step: migrations"). A watcher that exits on a network error is not a failed
-run: on wifi loss `gh run watch` exits 1 too, so check `gh run view <id> --json
-status,conclusion` before reporting a failure (2026-10-01).
-
-**PR checks get one watcher too.** `timeout 3000 gh pr checks <n> --watch
---interval 90 > <scratch>/checks.log` with `run_in_background`, then one `gh pr
-checks <n> --json name,state,link` after it exits. Never `sleep N;` before a
-poll (the harness blocks it), and never an `until`/`while` around `gh pr
-checks`: one session wrote three of them after the block (2026-10-08). A
-non-zero exit from `--watch` means a failed or pending check, not a tool error.
-
-**A run retriggered by a label is still a run of a pushed commit.** After
-removing and re-adding a label like `run_e2e`: `gh-run-wait e2e-pr.yml
---sha <sha>`, not `until gh run list … | grep -q <sha>; do sleep 15; done`
-(4× in one session, ffea8ff9). A required check that reads labels and stayed
-red after the label was added (it ran before the label) is re-evaluated by
-removing and re-adding that label: `gh pr edit <n> --remove-label <l> && gh pr
-edit <n> --add-label <l>` (~10 calls of diagnosis, d3a33909).
-
-**`gh run download` always into a fresh directory.** `-D <scratch>/run-<id>`,
-never reused: a second download into a leftover dir dies with `error
-extracting zip archive … file exists`. After `i/o timeout`, retry once into a
-new dir (01c308cf).
+The `guard` mod denies `pgrep -f` without the bracket trick in a loop, a
+`while`/`until` + `sleep` around `gh pr|run`, `gh run download` without `-D`,
+and `bin/gh-run-wait`; each deny names the replacement. Beyond that: every wait
+loop gets a `timeout` and exits on the first actionable state; a multi-line loop
+goes into a `#!/bin/bash` file in the scratchpad. A run longer than ~10 min goes
+through `Monitor`, with the ETA in one line at the start. `gh run watch` exits 1
+on wifi loss too: check `gh run view <id> --json status,conclusion` before
+reporting a failure. After re-adding a label like `run_e2e`, wait with
+`gh-run-wait e2e-pr.yml --sha <sha>`; a required check that reads labels and
+stayed red is re-evaluated by removing and re-adding that label.
 
 **Waiting for a human is not a loop.** A merge, an approval or a reply from
 Greg or a reviewer ends the turn with one line ("powiedz zmergowane"), or a
@@ -151,9 +113,7 @@ script was rewritten twice inline on 2026-10-08.
 
 ## CI waits: more than `gh-run-wait` finds
 
-- `gh-run-wait` is on PATH; from a worktree `bin/gh-run-wait` does not exist
-  and the watcher died silently for ~20 min (9adba92d). After `gh run rerun`,
-  wait for the new attempt, not the old run id.
+- After `gh run rerun`, wait for the new attempt, not the old run id.
 - **Before toggling `run_e2e`:** `gh pr view <n> --json
   mergeable,mergeStateStatus`. `CONFLICTING`/`DIRTY` → rebase first; GitHub
   does not run `pull_request` workflows on a conflicting PR, and two toggles

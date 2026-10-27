@@ -95,10 +95,7 @@ Run **`bin/audit-drift`** first — it prints a classified view of `chezmoi diff
 
 `bin/audit-drift` is a **compiled binary, gitignored** — the source is `scriptc/audit-drift.ts` and stage 29 builds it (see "Native helpers" below). Edit the `.ts`, never the binary.
 
-**Two former sources of permanent fake drift, both fixed 2026-08-20 — don't reintroduce them:**
-
-- **umask.** chezmoi inherits the umask of whatever process ran it, so an apply from a umask-077 shell wrote every managed dir `0700` and the next apply from umask-022 wanted `0755` back — ~816 rows of pure mode churn that `bin/sync` could only bulldoze with `--force`. `umask = 0o022` is now pinned top-level in `~/.config/chezmoi/chezmoi.toml` **and** in the generator in `bootstrap.sh`. `private_*` entries still get `0700`/`0600`.
-- **`bin/` exec bit.** chezmoi takes a target's exec bit from the source *filename* (`executable_foo`), never from the source file's mode — so all 41 scripts (755 on disk, no prefix) landed in `~/bin` at `0644`. Invisible on the Mac, fatal on the lab where `~/bin/sync` **is** `sync`/`chezmoi`. Fixed by ignoring `bin/**` and rsyncing it (stage 28). Do **not** rename them to `executable_*`: `bin/` doubles as a PATH dir and ~10 launchd plists, `tuios/config.d` and sketchybar items hardcode `~/Code/dotfiles/bin/<name>`.
+**Fake-drift traps fixed 2026-08-20** (details: `docs/dotfiles-inventory.md` → "Fake drift"): keep `umask = 0o022` pinned in `chezmoi.toml` + `bootstrap.sh`, and never rename `bin/*` to `executable_*` (stage 28 rsyncs them).
 
 A healthy `chezmoi status` is now ~2 rows, both `R` script rows. Anything more is real.
 
@@ -179,19 +176,11 @@ Installed as a **uv tool** (→ `~/.local/bin`) by
 
 #### Browser automation — three stacks (Mac)
 
-| Stack | Reach for it when | Source of truth |
-|---|---|---|
-| `agent-browser` (skill, Chrome/CDP) | **Quick shot, no human needed** — public page, docs scrape, DOM read, test a deployed page. Cheaper in tokens. | `agent-skills/agent-browser/` |
-| **`browsentic`** (MCP → Vimma) | **Logged-in work in Greg's daily browser**, on trial since 2026-10-25 against `bsk`. | `run_onchange_after_12-npm-globals.sh.tmpl` + `agent-mcp/mcp-servers.json.tmpl` + `agent-skills/browsentic/` |
-| **`bsk`** (BrowserSkill → Comet Agent Window) | **Greg wants to watch, joint research, behind a login, or bot-blocked/captcha.** Also long multi-step flows. | `run_onchange_after_27-browserskill.sh.tmpl` + `agent-skills/bsk/` |
-
-Policy: `agent-rules/browserskill-agent-window.md`. Install, `bsk doctor`, skill refresh and the retired `claude-in-chrome`: `docs/browser-automation.md`.
+When to use which: `agent-rules/browserskill-agent-window.md`. Sources: `agent-browser` → `agent-skills/agent-browser/`; `browsentic` → stage 12 npm globals + `agent-mcp/mcp-servers.json.tmpl` + `agent-skills/browsentic/`; `bsk` → stage 27 + `agent-skills/bsk/`. Install, `bsk doctor`, skill refresh, retired `claude-in-chrome`: `docs/browser-automation.md`.
 
 ### Skille z skills.sh (ephemeral)
 
-Jednorazowa wiedza domenowa idzie przez **`skill-scout`** → `npx skills use <owner/repo@skill>`, który wypisuje SKILL.md na stdout i **niczego nie instaluje**. `npx skills add` jest zakazany — pisze do `~/.claude/skills/`, które `run_onchange_after_30` czyści przez `rsync --delete`, więc skill i tak zniknie, a do tego czasu obciąża kontekst każdej sesji.
-
-Żeby obcy skill został na stałe: `cp -r <temp-dir>/<skill> agent-skills/<skill>` + commit. `agent-skills/` jest jedynym źródłem prawdy.
+Jednorazowa wiedza domenowa: **`skill-scout`** → `npx skills use <owner/repo@skill>` (nic nie instaluje; `npx skills add` blokuje guard). Na stałe: `cp -r <temp-dir>/<skill> agent-skills/<skill>` + commit.
 
 ## Secrets & private data
 
@@ -213,9 +202,7 @@ sketchybar, nushell autoload and workctl / gh-dash gotchas load on demand from `
 - **`tuios` is the launcher** (helpers in `dot_config/nushell/autoload/tuios.nu`: `hd-restart`, `hd-stop`, `hd-mrglaszki`). Vocabulary: a tuios **session** = one repo+branch worktree, a **workspace** = a numbered tab inside it, a **window** = a pane. Prefix = `ctrl+space`. The agent **sidebar** (rail) with the Inbox of agents that need you (`needs_input`, `errored`, finished turns) is the core — it replaces the old `claude-agent-presence` stack. Agent state comes from `tuios agent-hook claude-code` hooks in `.chezmoitemplates/claude-settings.json`; tuios `[notifications.agent]` is the only notifier (the Claude Stop hook that played sounds is gone). Worktrees via the `work` CLI (`new`/`ls`/`switch`/`rm`/`pr`); `work new` / `work switch` are thin wrappers over **`bin/workctl`** (`scriptc/workctl.ts`), the one branch / PR command that `prefix+shift+g`, `prefix+shift+o`, gh-dash's `w` and lazygit's `w` all open — see `docs/tuios.md`. Nav: `prefix+w` session picker · `prefix+g` goto · `prefix+a` / `prefix+0` next item that needs you · `prefix+t` pane finder · `prefix+h/j/k/l` windows. Config: `dot_config/tuios/config.d/readonly_10-dotfiles.toml.tmpl` (live is `~/.config/tuios/config.d/10-dotfiles.toml`; `config.toml` is tuios's own). Full reference: `docs/tuios.md`.
 - **tmux and herdr removed** (tmux 2026-08-18, herdr on the switch to tuios). tuios is the only multiplexer on Mac and lab. The pre-herdr state is at git tag `pre-herdr` / branch `pre-herdr-backup`; herdr is only in git history. No herdr shim: scripts call `tuios` directly.
 - **`disk-sweep` is manual only** (Greg, 2026-09-25): Docker images (22.8 GB reclaimable at the time), `~/.npm`, stale worktrees. Worktree cleanup goes through `workctl prune`, which calls it. Do not schedule it (no launchd, no cron).
-- **`ctrl+space` taken by the input-source switcher** (hotkeys 60/61, once a second layout is added): `defaults write … AppleSymbolicHotKeys` + `activateSettings -u` + `killall TextInputSwitcher` do not release it in a live session (b2750378, ~8 calls). Go straight to `open-here x-apple.systempreferences:com.apple.Keyboard-Settings.extension` → Keyboard Shortcuts… → Input Sources → untick both → Done; if they already look unticked, tick and untick again. The `defaults write` in stage 14 stays for fresh Macs. It comes back after every Mac restart even with `enabled = 0` for 60/61 in the plist, so the plist proves nothing: go straight to the GUI, no `defaults write`, no plist diagnosis. Root cause unknown (a8b9bde2).
-- **Collie after a Mac restart: Tailscale first.** `tailscale status --json` with `BackendState: Stopped` → `tailscale up --accept-routes`; `no host for this node` in the bridge log is then a symptom, not the allowlist. Phone can't reach Collie while the bridge answers on the tailnet → `tailscale ping <iphone>` from the Mac; a timeout on an "online" phone is a hung iOS tunnel: Settings → General → VPN & Device Management → VPN → status off/on, then airplane mode, then a phone restart (6f32e82c).
-- **Collie: check the bridge before handing out a pairing code.** Collie is a standalone install (`run_after_34-collie.sh`, `COLLIE_MUX=tuios` in `~/.config/herdr/plugins/config/herdr.collie/.env` (Collie reads it before `~/.config/collie`)), `collie` is on PATH via `~/.local/bin`. `collie doctor` first; `collie status` shows `tailnet https://<host>.ts.net`, `curl` there answers 200, and the bridge log has no `host not allowed` / `no host for this node`. Only then `collie pair` (one-time, 10 min). An error on the phone → read the bridge log, don't mint a new code (two dead codes on 2026-10-19).
+- **`ctrl+space` stolen by the input-source switcher, or Collie broken / pairing a phone** → read `docs/tuios.md` (sections "ctrl+space and input sources", "Collie (phone)") first.
 
 ## Shell history (nushell)
 

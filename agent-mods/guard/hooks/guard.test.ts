@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { agentProblem, ambiguousFirstNames, bareFirstNames, bashProblem, popupProblems } from './register'
+import { agentProblem, ambiguousFirstNames, bareFirstNames, bashProblem, mcpProblem, popupProblems } from './register'
 
 const good = {
   question: 'Który mod budujemy?',
@@ -82,4 +82,58 @@ test('an unbraced zsh modifier after a variable is denied, ports and paths pass'
   expect(bashProblem('export PATH=$PATH:/usr/bin')).toBeUndefined()
   expect(bashProblem('curl http://$host:8080')).toBeUndefined()
   expect(bashProblem("rg '$x:t' file")).toBeUndefined()
+})
+
+test('rule-file traps are denied, their correct forms pass', () => {
+  const cases: [string, string | undefined][] = [
+    ["rg --type tsx foo src", "-g '*.tsx'"],
+    ["rg -n -g '*.ts' -g '*.tsx' foo src", undefined],
+    ['rg -l foo src 2>/dev/null', '2>/dev/null'],
+    ['rg -n -- "x" src --max-count 3', 'after `--`'],
+    ["rg -n -m 3 -- '-x' src", undefined],
+    ["rg '(a)\\1' f", 'backreferences'],
+    ["rg --pcre2 '(a)\\1' f", undefined],
+    ["git diff | grep -v '^\\+\\+\\+'", 'ugrep'],
+    ["git diff | grep -E '^\\+[^+]'", undefined],
+    ['echo ======', 'command lookup'],
+    ['echo "===="', undefined],
+    ['echo "$resp" | jq .ok', 'printf'],
+    ["printf '%s' \"$resp\" | jq .ok", undefined],
+    ['while pgrep -f "artisan import"; do sleep 5; done', 'bracket trick'],
+    ['timeout 600 sh -c \'while pgrep -f "[a]rtisan import"; do sleep 5; done\'', undefined],
+    ['until gh pr checks 12 | grep -q pass; do sleep 60; done', 'gh-run-wait'],
+    ['while read n; do gh pr view $n --json state; done < prs', undefined],
+    ['gh run download 123', 'fresh dir'],
+    ['gh run download 123 -D /tmp/x/run-123', undefined],
+    ['bin/gh-run-wait e2e.yml', 'on PATH'],
+    ['collie update --help | head -30', '--help | head'],
+    ['collie -h', undefined],
+    ['pnpm exec tsc e2e/a/spec.ts --noEmit', 'TS5112'],
+    ['pnpm exec tsc -p e2e/a/tsconfig.json --noEmit', undefined],
+    ['pnpm test -- src/a.spec.ts', 'vitest run'],
+    ['pnpm install', 'confirmModulesPurge'],
+    ['CI=true pnpm install', 'lockfile'],
+    ['pnpm install --config.confirmModulesPurge=false', undefined],
+    ['pnpm install zod', undefined],
+    ['npx skills add foo/bar@baz', 'skills use'],
+    ['rg -l dagr ~/.claude/projects/*/*.jsonl', 'mp-search'],
+  ]
+  for (const [cmd, want] of cases) {
+    const got = bashProblem(cmd)
+    if (want === undefined) expect(got).toBeUndefined()
+    else expect(got).toContain(want)
+  }
+})
+
+test('mcp calls without a size cap are denied', () => {
+  expect(mcpProblem('mcp__hindsight__recall', {})).toContain('max_tokens')
+  expect(mcpProblem('mcp__hindsight__recall', { max_tokens: 512 })).toBeUndefined()
+  expect(mcpProblem('mcp__mempalace__mempalace_search', { limit: 5 })).toContain('limit: 2')
+  expect(mcpProblem('mcp__mempalace__mempalace_search', { limit: 2 })).toBeUndefined()
+})
+
+test('a denied command also toasts', async ($, on) => {
+  on('tool.call', () => ({ result: {} }))
+  const r = await $.tool.call({ tool: 'Bash', command: 'pnpm install' })
+  expect(JSON.stringify(r)).toContain('guard:')
 })

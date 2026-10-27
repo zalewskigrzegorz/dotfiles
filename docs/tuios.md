@@ -163,7 +163,14 @@ and a plugin waits for a per-machine approval, so `chezmoi apply` could not repr
 Pairings live in `~/.local/state/collie`, so a phone paired under the old herdr plugin stays
 paired. Two steps stay manual: "Enable HTTPS" once in the tailnet admin console, and
 `collie pair` (code shown once, valid 10 min). Diagnose with `collie doctor` and
-`collie status`. After a Mac restart check Tailscale first (see `CLAUDE.md`).
+`collie status`.
+
+- **Collie after a Mac restart: Tailscale first.** `tailscale status --json` with `BackendState: Stopped` → `tailscale up --accept-routes`; `no host for this node` in the bridge log is then a symptom, not the allowlist. Phone can't reach Collie while the bridge answers on the tailnet → `tailscale ping <iphone>` from the Mac; a timeout on an "online" phone is a hung iOS tunnel: Settings → General → VPN & Device Management → VPN → status off/on, then airplane mode, then a phone restart (6f32e82c).
+- **Collie: check the bridge before handing out a pairing code.** Collie is a standalone install (`run_after_34-collie.sh`, `COLLIE_MUX=tuios` in `~/.config/herdr/plugins/config/herdr.collie/.env` (Collie reads it before `~/.config/collie`)), `collie` is on PATH via `~/.local/bin`. `collie doctor` first; `collie status` shows `tailnet https://<host>.ts.net`, `curl` there answers 200, and the bridge log has no `host not allowed` / `no host for this node`. Only then `collie pair` (one-time, 10 min). An error on the phone → read the bridge log, don't mint a new code (two dead codes on 2026-10-19).
+
+## ctrl+space and input sources
+
+- **`ctrl+space` taken by the input-source switcher** (hotkeys 60/61, once a second layout is added): `defaults write … AppleSymbolicHotKeys` + `activateSettings -u` + `killall TextInputSwitcher` do not release it in a live session (b2750378, ~8 calls). Go straight to `open-here x-apple.systempreferences:com.apple.Keyboard-Settings.extension` → Keyboard Shortcuts… → Input Sources → untick both → Done; if they already look unticked, tick and untick again. The `defaults write` in stage 14 stays for fresh Macs. It comes back after every Mac restart even with `enabled = 0` for 60/61 in the plist, so the plist proves nothing: go straight to the GUI, no `defaults write`, no plist diagnosis. Root cause unknown (a8b9bde2).
 
 ## The lab (`mrglaszki`)
 

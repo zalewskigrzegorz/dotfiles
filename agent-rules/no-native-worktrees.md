@@ -66,11 +66,8 @@ instead and Greg had to stop it) and `pnpm start` died on a missing
 fail on `.husky/_/husky.sh: No such file or directory`; earlier commits on the
 branch had skipped lint-staged, which surfaced later as a red `oxfmt --check`
 in CI. The fix is `pnpm install --config.confirmModulesPurge=false` in the
-worktree (~40 s, no `./install.sh`), never `--no-verify`. The flag matters:
-pnpm 11 asks before purging modules, the Bash tool has no TTY, and a bare
-`pnpm install` dies with "If you are running pnpm in CI, set …
-confirmModulesPurge to false" (2026-10-01). Don't reach for `CI=true`
-instead, it also changes lockfile behaviour.
+worktree (~40 s, no `./install.sh`), never `--no-verify`. `guard` denies a
+bare `pnpm install` (no TTY for pnpm's purge prompt) and `CI=true pnpm install`.
 
 A fourth gap: **built workspace packages.** vitest in a fresh worktree failing
 with `ERR_MODULE_NOT_FOUND` / `Cannot find package '@<org>/<pkg>'` means the

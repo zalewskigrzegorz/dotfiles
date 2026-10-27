@@ -105,3 +105,10 @@ These are no longer part of the active bootstrap flow:
 - `legacy/setup.nu`
 - `legacy/migrate-stow-links-to-chezmoi.sh`
 - `.stowrc` removed
+
+## Fake drift
+
+**Two former sources of permanent fake drift, both fixed 2026-08-20 — don't reintroduce them:**
+
+- **umask.** chezmoi inherits the umask of whatever process ran it, so an apply from a umask-077 shell wrote every managed dir `0700` and the next apply from umask-022 wanted `0755` back — ~816 rows of pure mode churn that `bin/sync` could only bulldoze with `--force`. `umask = 0o022` is now pinned top-level in `~/.config/chezmoi/chezmoi.toml` **and** in the generator in `bootstrap.sh`. `private_*` entries still get `0700`/`0600`.
+- **`bin/` exec bit.** chezmoi takes a target's exec bit from the source *filename* (`executable_foo`), never from the source file's mode — so all 41 scripts (755 on disk, no prefix) landed in `~/bin` at `0644`. Invisible on the Mac, fatal on the lab where `~/bin/sync` **is** `sync`/`chezmoi`. Fixed by ignoring `bin/**` and rsyncing it (stage 28). Do **not** rename them to `executable_*`: `bin/` doubles as a PATH dir and ~10 launchd plists, `tuios/config.d` and sketchybar items hardcode `~/Code/dotfiles/bin/<name>`.
