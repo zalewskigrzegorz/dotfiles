@@ -1,0 +1,1 @@
+{ "name": "sprawy", "version": "0.1.0", "description": "Band above the prompt listing the separate things raised in this session, each with a status, kept by the model through a tool.", "types": "./types/index.d.ts" }
