@@ -11,6 +11,9 @@
   ],
   "trustedformulae": [
     "furkankly/tap/zoetrope",
+    "hashicorp/tap/nomad",
+    "hashicorp/tap/terraform",
+    "hashicorp/tap/vault",
     "keith/formulae/reminders-cli"
   ]
 }
