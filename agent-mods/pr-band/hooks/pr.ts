@@ -1,7 +1,7 @@
 import type { Peek, Pr } from '../types'
 
 type Check = { name?: string; context?: string; status?: string; conclusion?: string; state?: string; detailsUrl?: string }
-type View = { number: number; url: string; mergeStateStatus?: string; reviewDecision?: string; statusCheckRollup?: Check[] }
+type View = { number: number; url: string; state?: string; isDraft?: boolean; mergeStateStatus?: string; reviewDecision?: string; statusCheckRollup?: Check[] }
 type PeekView = View & {
   title?: string
   author?: { login?: string }
@@ -38,6 +38,10 @@ export function summarize(view: View): Pr {
   }
   return pr
 }
+
+// The tuios rail's `$pr` value: "#N", "#N draft", "#N merged" or "#N closed".
+export const railPr = (view: View) =>
+  view.state && view.state !== 'OPEN' ? `#${view.number} ${view.state.toLowerCase()}` : view.isDraft ? `#${view.number} draft` : `#${view.number}`
 
 export const needsRebase = (pr: Pr) => pr.merge === 'DIRTY' || pr.merge === 'BEHIND'
 

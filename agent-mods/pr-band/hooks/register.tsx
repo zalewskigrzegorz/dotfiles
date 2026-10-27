@@ -2,13 +2,13 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Pr } from '../types'
-import { PR_LINK, namesFrom, needsRebase, repoOf, summarize, summarizePeek } from './pr'
+import { PR_LINK, namesFrom, needsRebase, railPr, repoOf, summarize, summarizePeek } from './pr'
 
 const pr = atom({ plugin: 'pr-band', key: 'pr' } as const, null)
 const hiddenFor = atom({ plugin: 'pr-band', key: 'hiddenFor' } as const, null)
 const peek = atom({ plugin: 'pr-band', key: 'peek' } as const, null)
 
-const FIELDS = 'number,url,mergeStateStatus,reviewDecision,statusCheckRollup'
+const FIELDS = 'number,url,state,isDraft,mergeStateStatus,reviewDecision,statusCheckRollup'
 const PEEK_FIELDS = `${FIELDS},title,author,isDraft,additions,deletions,changedFiles`
 const POLL_MS = 90_000
 const PEEK = 'pr-peek'
@@ -21,6 +21,32 @@ const C = { green: '#50FA7B', red: '#FF6B9D', gold: '#FFD700', peach: '#FF8C42',
 
 let names: Record<string, string> = {}
 let peekTimer: { cancel: () => void } | undefined
+// Last `$pr` rail value sent; undefined until the first poll that knows.
+let railSent: string | undefined
+
+// The tuios rail tokens `$num` / `$pr` ([appearance.sidebar.agent_row]); "pr=" removes the key.
+// No pane or no tuios daemon: nothing happens. Repeated values change nothing in tuios.
+async function railMeta($: EngineInterface, pairs: string[]) {
+  const pane = await $.env.get('TUIOS_PANE_ID')
+  if (!pane || pairs.length === 0) return
+  await $.process.run(['tuios', 'set-agent-meta', '-w', pane, '--source', 'greg', ...pairs], { timeoutMs: 5_000 })
+}
+
+// 1-based position of this pane's session in `tuios ls` (creation order, the rail's), what "sesja N" means.
+async function sessionNum($: EngineInterface): Promise<string | undefined> {
+  const name = await $.env.get('TUIOS_SESSION')
+  if (!name) return undefined
+  const ran = await $.process.run(['tuios', 'ls', '--json'], { timeoutMs: 5_000 })
+  if (ran.exitCode !== 0) return undefined
+  const i = (JSON.parse(ran.stdout) as { name?: string }[]).findIndex(s => s.name === name)
+  return i < 0 ? undefined : String(i + 1)
+}
+
+// shortcut: no tuios event for a session added or dragged, so num is re-read on session start and each prompt.
+async function sendRail($: EngineInterface) {
+  const num = await sessionNum($).catch(() => undefined)
+  await railMeta($, [...(num ? [`num=${num}`] : []), ...(railSent === undefined ? [] : [`pr=${railSent}`])])
+}
 
 // Failure screenshots sit in blob-report-* → report.zip → resources/*.png.
 async function e2eShots($: EngineInterface, repo: string, run: string): Promise<string | null> {
@@ -69,7 +95,14 @@ export const register: Register = on => {
     const poll = async () => {
       const ran = await $.process.run(['gh', 'pr', 'view', '--json', FIELDS], { timeoutMs: 20_000 }).catch(() => null)
       // shortcut: any gh failure reads as "no PR" (no auth, no network), upgrade if it hides real errors.
-      const now: Pr | null = ran?.exitCode === 0 ? summarize(JSON.parse(ran.stdout)) : null
+      const view = ran?.exitCode === 0 ? JSON.parse(ran.stdout) : null
+      const now: Pr | null = view ? summarize(view) : null
+      // The rail keeps its last value on a gh hiccup and drops it only when gh says there is no PR.
+      const rail = view ? railPr(view) : ran?.stderr.includes('no pull requests found') ? '' : undefined
+      if (rail !== undefined && rail !== railSent) {
+        railSent = rail
+        void railMeta($, [`pr=${rail}`]).catch(() => {})
+      }
       const before = await read($, pr)
       await update($, pr, () => now)
       if (before && now && before.number === now.number && before.pending > 0 && now.pending === 0) {
@@ -80,12 +113,15 @@ export const register: Register = on => {
     }
     void poll()
     $.clock.every(POLL_MS, () => void poll())
+    void sendRail($).catch(() => {})
 
     return next(e)
   })
 
   // A PR link in the prompt, or a review command, opens the peek; a prompt with neither closes it.
   on('prompt.submit', async ($, e, next) => {
+    // Also re-sends pr, so a restarted tuios daemon gets both back.
+    void sendRail($).catch(() => {})
     const link = PR_LINK.exec(e.text)?.[0]
     const review = e.command && REVIEW_COMMANDS.has(e.command.name) ? (PR_LINK.exec(e.command.args)?.[0] ?? /\d+/.exec(e.command.args)?.[0]) : undefined
     const ref = link ?? review
