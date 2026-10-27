@@ -34,7 +34,6 @@ transcript=$(printf '%s' "$input" | jq -r '.transcript_path // ""')
 cwd=$(printf '%s' "$input" | jq -r '.workspace.current_dir // .cwd // ""')
 sid=$(printf '%s' "$input" | jq -r '.session_id // ""')
 perm_mode=$(printf '%s' "$input" | jq -r '.permission_mode // ""')
-vim_mode=$(printf '%s' "$input" | jq -r '.vim.mode // ""')
 
 # Duration format scales with magnitude:
 #   < 1h   → "0m45s" / "37m12s"   (minute precision)
@@ -56,7 +55,6 @@ MUTED=$'\033[38;2;166;173;200m'   # #A6ADC8 subtext
 SEPC=$'\033[38;2;88;91;112m'      # #585B70 surface2 — separator
 TROUGH=$'\033[38;2;49;50;68m'     # #313244 surface0 — bar empty
 TROUGH_BG=$'\033[48;2;49;50;68m'
-BG_RESET=$'\033[49m'
 ACCENT=$'\033[38;2;179;71;255m'   # #B347FF mauve — model
 G=$'\033[38;2;80;250;123m'        # #50FA7B green — success
 Y=$'\033[38;2;255;215;0m'         # #FFD700 gold — warning
@@ -229,19 +227,6 @@ if [ -n "$TUIOS_SESSION" ] && command -v tuios >/dev/null 2>&1; then
   fi
   [ -n "$sess_num" ] && num_seg="${sess_c}${B}▸${sess_num}${N} "
 fi
-
-# Vim editor-mode badge — Claude's own "-- INSERT --" hint is dim grey, so an
-# escape/insert flip is invisible at a glance. Render it as a filled block in a
-# distinct hue per mode instead. `.vim` is only present when vim mode is on, so
-# non-vim sessions get nothing.
-CRUST=$'\033[38;2;17;17;27m'      # #11111B — text on filled blocks
-vim_seg=""
-case "$vim_mode" in
-  INSERT)  vim_seg=$'\033[48;2;80;250;123m'"${CRUST}${B} INSERT ${N}${BG_RESET} " ;;
-  NORMAL)  vim_seg=$'\033[48;2;139;233;253m'"${CRUST}${B} NORMAL ${N}${BG_RESET} " ;;
-  VISUAL)  vim_seg=$'\033[48;2;255;140;66m'"${CRUST}${B} VISUAL ${N}${BG_RESET} " ;;
-  REPLACE) vim_seg=$'\033[48;2;255;107;157m'"${CRUST}${B} REPLACE ${N}${BG_RESET} " ;;
-esac
 
 model_seg="${ACCENT}${B}${model}${N}"
 
@@ -425,8 +410,8 @@ if [ -z "$win_title" ] && [ -n "$transcript" ] && [ -f "$transcript" ]; then
 fi
 [ -n "$win_title" ] && win_seg="${SEP}${sess_c}${B}󰖯 ${win_title}${N}"
 
-printf '%s%s%s%s%s%s%s%s%s%s%s%s%s%s' \
-  "$num_seg" "$vim_seg" \
+printf '%s%s%s%s%s%s%s%s%s%s%s%s%s' \
+  "$num_seg" \
   "$model_seg" "$mode_seg" "$proj_seg" "$git_seg" "$dur_seg" \
   "$tool_seg" "$comp_seg" \
   "$wait_seg" "$ctx_seg" "$lines_seg" "$style_seg" "$win_seg"
