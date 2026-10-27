@@ -1,13 +1,16 @@
 {
   "trustedtaps": [
     "felixkratz/formulae",
+    "furkankly/tap",
     "keith/formulae",
+    "modem-dev/tap",
     "nikitabobko/tap",
     "oven-sh/bun",
     "timescam/tap",
     "timrogers/tap"
   ],
   "trustedformulae": [
+    "furkankly/tap/zoetrope",
     "keith/formulae/reminders-cli"
   ]
 }
