@@ -26,8 +26,9 @@ Conversation can be in any language. **Anything posted to GitHub (review bodies,
 Read `../g-pr-common/PRIMITIVES.md` now. It carries P0 (local-first
 resolution + identity cache), P1 (target resolution), P3 (`AskUserQuestion`
 conventions), P4 (duplicate clustering), P5 and P5.5 (comment rules and the
-mandatory voice gate), P6 (blob links), P7 (scripts location) and P8 (rate
-limits). Everything below assumes it.
+mandatory voice gate), P6 (blob links), P7 (scripts location), P8 (rate
+limits) and P10 (unattended tuios tab: `ask-human`, closing mail).
+Everything below assumes it.
 
 P2 is NOT in that file — the ownership guard differs per flow, so it stays
 here:
@@ -197,6 +198,7 @@ The review worktree is opened by `workctl`'s "review this PR" just for this sess
 
 * **`APPROVE` submitted → remove it without asking.** The review URL line ends with "zamykam worktree", and then `workctl rm --self` is the **last tool call** of the session. It deletes the tree and the local branch, then kills this tuios session together with this agent, so nothing printed after it will be seen.
 * **Anything else** (`REQUEST_CHANGES`, `COMMENT`, Don't submit, Flow C without a new verdict) → one `AskUserQuestion`: **Zamknij worktree** (Recommended): a follow-up "review this PR" opens a fresh tree in seconds · **Zostaw**: keeps it for a follow-up in this session. On Zamknij, same call as above.
+* **Unattended tab (P10)** → the question carries the verdict, since the mail would die with the session: `tuios ask-human 'PR #<n>: <verdict>. Zamknąć worktree?' -o 'zamknij (Recommended)' -o zostaw --timeout 540000`. On zostaw, or when a B6 check failed, send the P10 mail. APPROVE closes with no mail.
 
 Never pass `--force`. A dirty tree makes `workctl rm` exit with "has uncommitted changes". Report that in one line and leave the tree in place.
 

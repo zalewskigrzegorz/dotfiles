@@ -170,6 +170,29 @@ About 15 popups were rejected in one week. Every one broke one of these:
   item gets its own popup; an unticked box never counts as "zostaw"
   (ecc92e2d: a PR he wanted refreshed was reported "zostawione").
 
+## An unattended tuios agent asks through `tuios ask-human`
+
+A session whose first message is a brief, not Greg's typing (a `bin/pr-brief`
+tab from `workctl` with its `Raport:` line, or a parent's `tuios start-agent
+--prompt` / `tuios queue`), runs in a tab he is not looking at: an
+`AskUserQuestion` there waits unseen. With `TUIOS_PANE_ID` set, a
+fixed-answer fork goes to his Inbox (prefix+i) instead:
+
+```bash
+tuios ask-human 'PR #31204: wysłać review jako?' -o 'comment (Recommended)' -o approve -o 'nie wysyłaj' --timeout 540000
+```
+
+- One line, at most 160 bytes; 1–9 answers, at most 60 bytes each,
+  recommended first. A draft or diff he must read goes first as
+  `tuios send-agent-message -w human --from "$TUIOS_PANE_ID" --subject '<one
+  line>' '<the text>'`, then the short question.
+- Exit 0 prints the answer. Exit 2 = no answer within the timeout (the Bash
+  tool caps a call at 10 min): the question stays and the answer is mailed to
+  this pane, so `tuios wait-for agent-message -w "$TUIOS_PANE_ID" --timeout
+  540000`, then `tuios read-agent-messages -w "$TUIOS_PANE_ID" --unread`.
+  Exit 1 = dismissed: stop and report that.
+- Greg's own interactive session keeps `AskUserQuestion`.
+
 ## A live test Greg runs: one step per popup
 
 Five numbered steps at once got "nie działa nic", then "jak chcemy testować coś
