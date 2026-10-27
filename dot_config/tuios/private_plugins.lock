@@ -1,0 +1,10 @@
+version = 1
+
+[[plugin]]
+id = 'furkankly.zoetrope'
+format = 'herdr'
+source = 'https://github.com/furkankly/zoetrope'
+subdir = 'herdr-plugin'
+commit = 'b1f31dd26bd4e9e513885e39edb78d0850a5d1fe'
+tree = '1fa977be50484c527fdfb139007ee4cc386fcf6a'
+approved = 'sha256:861fd6e50eab4f5583cbe05004706500eb6f886dda82329448d4066a73126d83'
