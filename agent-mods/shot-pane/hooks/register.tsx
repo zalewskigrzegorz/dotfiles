@@ -19,16 +19,6 @@ async function thumbOf($: EngineInterface, path: string): Promise<string> {
   return ran?.exitCode === 0 ? out : path
 }
 
-// tuios 0.11 drops the images Claude Code draws (a=T,U=1, Unicode placeholders) but shows
-// ones placed directly with an id, which bin/kitty-show sends, in a popup.
-async function tuiosPopup($: EngineInterface, paths: string[]): Promise<boolean> {
-  if (!(await $.env.get('TUIOS_PANE_ID'))) return false
-  const show = `${await $.env.get('HOME')}/bin/kitty-show`
-  const thumbs = await Promise.all(paths.map(p => thumbOf($, p)))
-  await $.process.run(['tuios', 'popup', '--width', '90%', '--height', '90%', '--', show, ...thumbs])
-  return true
-}
-
 // Same trigger as hooks/screenshot-attach.sh, on the prompt's head only.
 export const TRIGGER = /(^|[^\p{L}\p{N}])(screen(y|a|ie|em|ów|ik|shot\p{L}*)?|scr|ss|zrzut\p{L}*)([^\p{L}\p{N}]|$)/iu
 
@@ -73,11 +63,8 @@ export const register: Register = on => {
         const picked = (recent.length > 0 ? recent : pngs.slice(0, 1)).map(f => `${DIR}/${f.name}`)
         if (picked.length === 0) return
         await update($, shots, () => picked)
-        if (await tuiosPopup($, picked)) return
-        // An unasked pane seats only from 144 columns; below that it waits undrawn.
-        const opened = await $.ui.open({ id: PANE, title: 'Screen' })
-        if (!opened.isPlaced) $.ui.toast('Screen gotowy: /screen otwiera podgląd')
-        closeLater($)
+        // Nothing big opens unasked: the preview is on demand, through /screen.
+        $.ui.toast('Screen gotowy: /screen otwiera podgląd')
       })().catch(() => {})
     } else if (!e.command && !e.isMeta) {
       // The talk moved on: the preview goes with the next prompt that names no screenshot.
@@ -110,10 +97,8 @@ export const register: Register = on => {
       if (!newest) return { text: 'Brak screenów w folderze CleanShota.' }
       await update($, shots, () => [`${DIR}/${newest.name}`])
     }
-    if (!(await tuiosPopup($, await read($, shots)))) {
-      await $.ui.open({ id: PANE, title: 'Screen' })
-      closeLater($)
-    }
+    await $.ui.open({ id: PANE, title: 'Screen' })
+    closeLater($)
     return { text: 'Podgląd screena otwarty.' }
   })
 
@@ -124,7 +109,7 @@ export const register: Register = on => {
       return <Text>{list.map(p => p.split('/').pop()).join('\n')}</Text>
     }
     const { Box, Image, Text } = $.ui.resolve(e)
-    // Bytes, not the file name: tmux passes kitty bytes on, a name it may not (tuios goes through tuiosPopup).
+    // Bytes, not the file name: tmux passes kitty bytes on, a name it may not.
     const sources = await Promise.all(
       list.map(async path => {
         const { base64 } = await $.fs.read(await thumbOf($, path), { as: 'bytes' }).catch(() => ({ base64: '' }))
