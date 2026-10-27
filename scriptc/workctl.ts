@@ -1917,8 +1917,26 @@ function removeWorktree(root: string, path: string, branch: string, branchDel: s
   // child process cannot cd its parent.
   const here = trimSlash(process.env.PWD ?? "");
   if (ws === "" && (here === path || here.startsWith(`${path}/`))) err(`↩️  you were inside it — \`cd ${root}\``);
-  if (ws !== "") run("tuios", ["kill-session", ws]);
+  if (ws !== "") {
+    vacateSession(ws, root);
+    run("tuios", ["kill-session", ws]);
+  }
   return 0;
+}
+
+// kill-session disconnects every client attached to the session, and tuios
+// then drops Greg to a bare shell with an ERROR (2026-10-27). Move those
+// clients to another session first, the repo's own one if nothing else exists.
+function vacateSession(ws: string, root: string): void {
+  const clients = run("tuios", ["list-clients", "--json"]).out.split("{").slice(1);
+  const attached = clients.filter((c) => jsonField(c, "session") === ws).map((c) => jsonField(c, "client_id"));
+  if (attached.length === 0) return;
+  let target = jsonValues(run("tuios", ["ls", "--json"]).out, "name").find((n) => n !== ws) ?? "";
+  if (target === "") {
+    target = sessionName(root);
+    run("tuios", ["new", target, "--detach", "--cwd", root]);
+  }
+  for (const id of attached) run("tuios", ["switch-session", "--client", id, target]);
 }
 
 // `workctl rm` — the body of `work rm`. The nu def is a thin wrapper because a
