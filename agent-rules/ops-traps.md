@@ -5,24 +5,23 @@ alwaysApply: true
 
 # Ops traps — one line each would have saved a retry
 
-## `sudo` goes to Greg's pane, never a probe
+## `sudo` goes to a split under your pane, never a probe
 
 `sudo -n true` is denied by the guard even in YOLO (2026-09-24), so probing is
-pointless. When a command needs `sudo`:
+pointless. A command that needs `sudo`, and **any command Greg must run
+himself**, goes into a new pane right under yours, where he is looking. Typing
+into his existing shell window was easy to miss (2026-10-27).
 
-1. Type it into his shell window with `tuios send-text` (skill `tuios-orchestration`),
-   **without a trailing newline**, so no Enter.
-2. Say in one line that it is waiting and that he presses Enter and gives the
-   password.
-3. If it has side effects (`killall coreaudiod` cuts audio for ~2 s), say so and
-   ask for "poszło" after.
+1. `w=$(tuios split-window horizontal -w "$TUIOS_PANE_ID" --name do-wpisania --json | jq -r .window_id)`,
+   `[ -n "$w" ]`.
+2. `tuios send-text -w "$w" '<cmd>'` **without a trailing newline**, so no
+   Enter. The pane runs nushell (`zsh-bash-tool.md`).
+3. One line: it is waiting below, he presses Enter (and gives the password).
+   Side effects (`killall coreaudiod` cuts audio for ~2 s) go in that line.
+4. After his "poszło", verify the result yourself, then `tuios close-window "$w"`.
 
-The same goes for **any command Greg must run himself**, not only `sudo`: find
-the shell window (`tuios list-windows -s "$TUIOS_SESSION" --json`, the one whose `agent_state` is `none`;
-`tuios-peek` to confirm an empty `❯`),
-`tuios send-text -s "$TUIOS_SESSION" -w <window> '<cmd>'`, name the workspace in one line, verify the
-result yourself after "poszło". Greg: "tak masz mi rozwiązywać odpalanie
-poleceń" (2b9b89b1, 2026-10-23).
+No `TUIOS_PANE_ID` (outside tuios) → a numbered step in chat. Greg: "tak masz
+mi rozwiązywać odpalanie poleceń" (2b9b89b1, 2026-10-23).
 
 ## Unknown CLI: no `<cmd> <sub> --help | head`
 
@@ -171,6 +170,23 @@ that `op item edit` shows the value in the process args for a moment.
   compare in the target file. A pasted Jam SQL token ended up literal in three
   commands, one of them visible in `ps` (cdcd47c4). Close with one line: "token
   jest w historii sesji, rozważ rotację".
+- **A process needs a secret → it reaches the process, never you.** Two
+  routes, by whether the secret outlives the task (2026-10-27):
+  - **Kept in 1Password** (`Dotfiles`/`Homelab`, readable by the service
+    account): `op run --env-file <file of VAR=op://…> -- <cmd>`, or
+    `VAR="$(op read op://…)" <cmd>`. `op run` masks it in stdout.
+  - **One-off** (a password reset on an RDS copy): first `tuios
+    send-agent-message -w human --from "$TUIOS_PANE_ID" --subject 'wpisz
+    sekret: <name>' '<what for>'` (the popup is busy time for tuios, so the
+    Inbox would not flag it), then `tuios popup --wait --width
+    70 --height 7 -- secret-in <scratchpad>/secrets/<name>`. A hidden prompt
+    pops up over his screen, the popup closes itself, exit 0 = stored (0600).
+    No popup (no attached client) → the split from the `sudo` section with
+    `secret-in <path>`.
+  - Hand it on as `VAR="$(< <path>)" <cmd>`, `<cmd> < <path>` or `docker exec
+    -e VAR …` (name only, value from your env). `block-credential-files.sh`
+    denies `cat`/`Read`/`echo` of `secrets/`, `ps -e`/`-E` and a bare `op
+    read`. The SessionEnd hook `secrets-cleanup.sh` removes `secrets/`.
 
 ## Installing software is a decision of its own
 
