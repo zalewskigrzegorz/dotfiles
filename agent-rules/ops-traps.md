@@ -156,6 +156,10 @@ that `op item edit` shows the value in the process args for a moment.
   compare in the target file. A pasted Jam SQL token ended up literal in three
   commands, one of them visible in `ps` (cdcd47c4). Close with one line: "token
   jest w historii sesji, rozważ rotację".
+- **A query never prints a whole row or JSON blob.** `guard` denies `SELECT *`,
+  a raw `details`/`metadata`/`SpanAttributes` column and a token-named field;
+  a raw `details` leaked a customer's billing-portal token (48258e8d). Data
+  already in a file is read by key (`jq '.status'`), never `json.dumps(d)`.
 - **A process needs a secret → it reaches the process, never you.** Two
   routes, by whether the secret outlives the task (2026-10-27):
   - **Kept in 1Password** (`Dotfiles`/`Homelab`, readable by the service
