@@ -8,13 +8,29 @@ const BAND = {
 } as const
 const TOOL = 'mcp__sprawy__sprawa' as const
 
+const writes: Record<string, unknown> = {}
+const deletes: string[] = []
 let agents: { id: string; status: string; description: string; type: string }[] = []
 let tuios = { agents: [] as { window_id: string; state: string; needs_you: boolean }[] }
 
-async function start(...[$, on]: Parameters<TestBody>) {
+async function start(
+  [$, on]: Parameters<TestBody>,
+  id = 'A',
+  entries: Record<string, unknown> = {},
+  now = 0,
+) {
   agents = []
   tuios = { agents: [] }
-  const clock = mock.clock(on)
+  deletes.length = 0
+  for (const k of Object.keys(writes)) delete writes[k]
+  const clock = mock.clock(on, { now })
+  // mock.store, with the writes and deletes exposed (a second on('store.set') would not load).
+  const kv = new Map(Object.entries(entries))
+  on('store.get', (_, e) => ({ value: kv.get(e.key) }))
+  on('store.set', (_, e) => (kv.set(e.key, e.value), writes[e.key] = e.value, { value: undefined }))
+  on('store.delete', (_, e) => (kv.delete(e.key), deletes.push(e.key), { value: undefined }))
+  on('store.keys', () => ({ value: [...kv.keys()] }))
+  on('session.id', () => ({ value: id }))
   on('tool.register', (_, e) => ({ value: { tool: `mcp__sprawy__${e.name}` } }))
   on('agent.list', () => ({ value: agents as never }))
   on('process.run', () => ({
@@ -31,7 +47,7 @@ async function start(...[$, on]: Parameters<TestBody>) {
 }
 
 test('items queue, urgent jumps, done stays dimmed, band composes', async ($, on) => {
-  await start($, on)
+  await start([$, on])
   const empty = await $.ui.mount({ ...BAND, surface: 'terminal' })
   expect(await empty.find({ type: 'Text', text: /Sprawy/ })).toBeUndefined()
   expect(await empty.find({ type: 'Text', text: /beneath/ })).toBeDefined()
@@ -57,7 +73,7 @@ test('items queue, urgent jumps, done stays dimmed, band composes', async ($, on
 })
 
 test('an item follows its subagent and its tuios agent, and ticks itself done', async ($, on) => {
-  const clock = await start($, on)
+  const clock = await start([$, on])
   await $.tool.call({ tool: TOOL, action: 'add', title: 'Review PR' })
   await $.tool.call({ tool: TOOL, action: 'add', title: 'Fix w workctl' })
 
@@ -84,4 +100,34 @@ test('an item follows its subagent and its tuios agent, and ticks itself done', 
   await clock.settle()
   expect((await ui.find({ type: 'Text', text: /workctl/ }))?.text).toContain('✓ 2. Fix w workctl')
   await ui.unmount()
+})
+
+test('the list is stored per session id and loads back on a resume, not on a new id', async ($, on) => {
+  await start([$, on])
+  await $.tool.call({ tool: TOOL, action: 'add', title: 'Przetrwa resume' })
+  expect(JSON.stringify(writes['s:A'])).toContain('Przetrwa resume')
+})
+
+test('a restart with the same session id gets its list back, a different id starts empty', async ($, on) => {
+  const entries = {
+    's:A': { at: 0, items: [{ id: 1, title: 'Wrócił po resume', status: 'queued', order: 1 }] },
+    's:old': { at: 0, items: [] },
+  }
+  await start([$, on], 'A', entries)
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /Wrócił/ }))?.text).toContain('[1] 1. Wrócił po resume')
+  await ui.unmount()
+})
+
+test('a different session id starts empty and old lists are dropped', async ($, on) => {
+  const day = 24 * 3600_000
+  const entries = {
+    's:A': { at: 0, items: [{ id: 1, title: 'Cudza lista', status: 'queued', order: 1 }] },
+    's:old': { at: 0, items: [] },
+  }
+  await start([$, on], 'B', entries, 8 * day)
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /Cudza/ })).toBeUndefined()
+  await ui.unmount()
+  expect(deletes.sort()).toEqual(['s:A', 's:old'])
 })
