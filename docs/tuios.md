@@ -55,7 +55,9 @@ Env in every pane: `TUIOS_SESSION`, `TUIOS_PANE_ID` (= `TUIOS_WINDOW_ID`), `TUIO
 | `prefix+c` `T` `X` | new / rename / close workspace (tab) · `1`–`9`, `p`, `n` switch |
 | `prefix+h/j/k/l` | focus window · `prefix+tab` next · `` prefix+` `` last · `P` rename window |
 | `prefix+v` / `\` / `\|` | split right |
-| `prefix+t` / `prefix+/` | pane finder (tree: sessions, workspaces, windows) |
+| `prefix+t` | pane finder (tree: sessions, workspaces, windows) |
+| `prefix+/` (or `[`) | copy mode = search: `/phrase` · `n`/`N` · `q` out. Sees only the current screen of fullscreen apps (Claude: use `ctrl+o` then `/`). `prefix+E` (scrollback in editor) is unbound: it garbles the screen on 0.11.1 |
+| `bg:` windows | a background command's log in `less +F`: `ctrl+c` stops following, `/` search, `F` follow again, `q` close |
 | `prefix+u` / `prefix+f` | hints: label every pane's text, `ctrl+label` opens a URL in the browser or a path in `$EDITOR` |
 | `prefix+o` | review overlay: what the agent in this window changed, notes sent back as one message |
 | `prefix+e` | nvim scratch (one nvim that survives the toggle) |
