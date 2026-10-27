@@ -125,6 +125,28 @@ test('rule-file traps are denied, their correct forms pass', () => {
   }
 })
 
+test('a query that can print a token is denied, narrow ones pass', () => {
+  const leak = "cat > q1.sql <<'EOF'\nSELECT s.id, o.slug, o.created_at AS org_created, s.details\nFROM t AS s FINAL\nLEFT JOIN (SELECT id, slug FROM o2 FINAL) AS o ON o.id = s.organization_id\nEOF\ngq.sh - < q1.sql"
+  const cases: [string, string | undefined][] = [
+    [leak, 'raw JSON column `s.details`'],
+    ['docker exec pg psql -U u -d main -At -c "select * from main.users"', 'SELECT *'],
+    ['docker exec pg psql -c "select u.* from users u"', 'SELECT u.*'],
+    ["gq.sh \"SELECT JSONExtractString(details, 'billingPortalToken') FROM s\"", 'secret-named'],
+    ['psql -c "select id, api_key from keys"', 'secret-named'],
+    ["gq.sh \"SELECT JSONExtractString(details, 'status') st, count(*) FROM s GROUP BY st\"", undefined],
+    ['psql -c "select length(api_key), left(token, 4) from keys"', undefined],
+    ["gq.sh \"SELECT arrayFilter(x -> NOT x LIKE '%token%', mapKeys(SpanAttributes)) FROM t\"", undefined],
+    ["gq.sh \"SELECT SpanAttributes['http.route'] AS route FROM t\"", undefined],
+    ['psql -c "select * except(details) from t"', undefined],
+    ["rg -n 'select \\* from' src", undefined],
+  ]
+  for (const [cmd, want] of cases) {
+    const got = bashProblem(cmd)
+    if (want === undefined) expect(got).toBeUndefined()
+    else expect(got).toContain(want)
+  }
+})
+
 test('mcp calls without a size cap are denied', () => {
   expect(mcpProblem('mcp__hindsight__recall', {})).toContain('max_tokens')
   expect(mcpProblem('mcp__hindsight__recall', { max_tokens: 512 })).toBeUndefined()

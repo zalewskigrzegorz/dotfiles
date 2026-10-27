@@ -42,9 +42,48 @@ export function agentProblem(e: { model?: string; subagent_type?: string; isolat
   return undefined
 }
 
+// Columns that usually hold a whole JSON blob: one of them raw dumps every key, tokens included.
+const BLOB = /^(\w+\.)?(details|metadata|meta|data|payload|attributes|settings|config|raw|body|extra|spanattributes|logattributes|resourceattributes)$/i
+const SECRET = /token|secret|passw|api_?key|private_?key|credential|session_?id|cookie/i
+
+/** Top-level select-list items of every SELECT in the text, split on commas outside parentheses. */
+function selectItems(sql: string): string[] {
+  const items: string[] = []
+  for (const m of sql.matchAll(/\bselect\b/gi)) {
+    let depth = 0
+    let item = ''
+    for (let i = m.index + m[0].length; i < sql.length; i += 1) {
+      const ch = sql[i]
+      if (ch === '(') depth += 1
+      if (ch === ')' && --depth < 0) break
+      if (depth === 0 && /^from\b/i.test(sql.slice(i)) && /\s/.test(sql[i - 1] ?? ' ')) break
+      if (depth === 0 && ch === ',') (items.push(item), (item = ''))
+      else item += ch
+    }
+    items.push(item)
+  }
+  return items.map(s => s.trim().replace(/\s+(as\s+)?[`"]?\w+[`"]?$/i, '').trim()).filter(Boolean)
+}
+
+export function sqlProblem(sql: string): string | undefined {
+  const fix = 'name only the fields you need (JSONExtract…(col, \'key\'), `col->>\'key\'`, `* EXCEPT(col)`); a secret-named field only as `length(x)` / `left(x, 4)`. A printed token stays in the transcript and in MemPalace (ops-traps.md)'
+  for (const item of selectItems(sql)) {
+    if (/^(\w+\.)?\*$/.test(item)) return `\`SELECT ${item}\` can carry tokens: ${fix}`
+    if (BLOB.test(item)) return `raw JSON column \`${item}\` dumps every key, tokens included: ${fix}`
+    const named = item.replace(/\blike\s+'[^']*'/gi, '')
+    if (SECRET.test(named) && !/^(length|left|substr\w*|count\w*|uniq\w*|md5|sha\w*|cityhash64|isnull|notempty|empty)\s*\(/i.test(named))
+      return `\`${item.slice(0, 60)}\` reads a secret-named field: ${fix}`
+  }
+  return undefined
+}
+
 export function bashProblem(command: string): string | undefined {
   // Quoted text is a pattern or a message, not a command: `rg 'git add -A'` must pass.
   const bare = command.replace(/'[^']*'|"[^"]*"/g, "''")
+  if (/\b(psql|clickhouse(-client)?|ch-query|gq\.sh|mysql|sqlite3|duckdb)\b/.test(bare)) {
+    const problem = sqlProblem(command)
+    if (problem) return problem
+  }
   if (/\bgit\s+add\s+(-A\b|--all\b|\.(\s|$))/.test(bare))
     return 'no `git add -A` / `git add .`: stage only your own paths, other agents share the checkout (commit-message-rules.md)'
   if (/\bgit\s+commit\b[\s\S]*Co-Authored-By/i.test(command))
@@ -184,6 +223,11 @@ export const register: Register = on => {
 
   on('tool.call', { tool: 'Bash' }, ($, e, next) => {
     const problem = bashProblem(e.command)
+    return problem ? deny($, problem) : next(e)
+  }).catch(($, e, next) => next(e))
+
+  on('tool.call', { tool: /^mcp__jamsql__(query_execute\w*|ui_execute_query)$/ }, ($, e, next) => {
+    const problem = sqlProblem(Object.values(e).filter(v => typeof v === 'string').join('\n'))
     return problem ? deny($, problem) : next(e)
   }).catch(($, e, next) => next(e))
 
