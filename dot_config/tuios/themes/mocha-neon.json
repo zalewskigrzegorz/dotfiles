@@ -27,6 +27,7 @@
     "success": "#50fa7b",
     "warning": "#ffd700",
     "error": "#ff6b9d",
-    "info": "#8be9fd"
+    "info": "#8be9fd",
+    "border": { "unfocused": "#585b70" }
   }
 }
