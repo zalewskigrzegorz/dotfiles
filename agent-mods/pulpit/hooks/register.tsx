@@ -84,6 +84,8 @@ type Row = { status: string; note?: string; agent?: { state: string } }
 const extraOf = (i: Row) => [i.note, i.agent && i.status !== 'done' ? AGENT_LABEL[i.agent.state] : undefined].filter(Boolean).join(', ')
 
 const needsRebase =(merge: string) => merge === 'DIRTY' || merge === 'BEHIND'
+// A merged or closed PR: its checks and merge state no longer matter, only that it is done.
+const ended = (p: { state?: string }) => !!p.state && p.state !== 'OPEN'
 // Check names come from CI config: only plain characters go into a prompt.
 export const cleanChecks = (names: readonly string[]) => names.map(n => n.replace(/[^\p{L}\p{N} ._()/,:-]/gu, '').slice(0, 60)).join(', ')
 
@@ -151,7 +153,12 @@ export const register: Register = on => {
             </Text>
           )}
           {all.length > 0 && p !== null && sep}
-          {p !== null && (
+          {p !== null && ended(p) && (
+            <Text color={C.lavender}>
+              󰘬 #{p.number} {p.state?.toLowerCase()}
+            </Text>
+          )}
+          {p !== null && !ended(p) && (
             <Text color={C.green}>
               󰘬 #{p.number} ✓{p.pass}
               {p.fail > 0 ? <Text color={C.red}> ✗{p.fail}</Text> : null}
@@ -208,6 +215,16 @@ export const register: Register = on => {
         <Text bold>PR</Text>
         {p === null ? (
           <Text dimColor>ten branch nie ma PR-a</Text>
+        ) : ended(p) ? (
+          <Box flexDirection="column">
+            <Text color={C.lavender}>
+              󰘬 #{p.number} {p.state === 'MERGED' ? 'zmergowany' : 'zamknięty'}
+            </Text>
+            <Box>
+              <Button key="pr-open" plain hotkey="w" label="otwórz w przeglądarce" onPress={() => void $.process.run(['open', p.url])} />
+              <Button key="pr-peek" plain hotkey="p" label="podgląd PR" onPress={run('pr-peek', String(p.number))} />
+            </Box>
+          </Box>
         ) : (
           <Box flexDirection="column">
             <Text>

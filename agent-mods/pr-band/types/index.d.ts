@@ -1,6 +1,8 @@
 export type Pr = {
   number: number
   url: string
+  // OPEN, MERGED or CLOSED; missing in values stored before it existed.
+  state?: string
   pass: number
   fail: number
   pending: number
