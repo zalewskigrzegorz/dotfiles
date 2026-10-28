@@ -77,7 +77,7 @@ async function openPeek($: EngineInterface, ref: string) {
   if (ran?.exitCode !== 0) return false
   await update($, peek, () => summarizePeek(JSON.parse(ran.stdout), names))
   const opened = await $.ui.open({ id: PEEK, title: 'PR' })
-  if (!opened.isPlaced) $.ui.toast('Podgląd PR-a gotowy: /pr go otwiera')
+  if (!opened.isPlaced) $.ui.toast('Podgląd PR-a gotowy: /pr-peek go otwiera')
   pinned = false
   peekTimer?.cancel()
   peekTimer = $.clock.after(PEEK_CLOSE_MS, () => void $.ui.close({ id: PEEK }).catch(() => {}))
@@ -94,7 +94,10 @@ function openInBrowser($: EngineInterface, url: string) {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'pr', description: 'Show a PR (number or URL) in a pane: checks, merge state, review', argumentHint: '<n|url>' })
+    // A repo's own skill of the same name refuses this; a throw here would also stop the polling below.
+    await $.command
+      .register({ name: 'pr-peek', description: 'Show a PR (number or URL) in a pane: checks, merge state, review', argumentHint: '<n|url>' })
+      .catch(() => {})
     // Full names, never logins: the work-people matrix, found by shape so no org name sits in this public repo.
     void $.process
       .run(['find', '/Users/greg/Code/personal/bazgroly', '-maxdepth', '2', '-name', 'people.md'])
@@ -141,7 +144,7 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('command.run', { command: 'pr' }, async ($, e) => {
+  on('command.run', { command: 'pr-peek' }, async ($, e) => {
     const ref = e.args.trim() || String((await read($, pr))?.number ?? '')
     if (!ref) return { text: 'Podaj numer albo link PR-a.' }
     return { text: (await openPeek($, ref)) ? `Podgląd PR-a ${ref} otwarty.` : `gh nie znalazł PR-a ${ref}.` }

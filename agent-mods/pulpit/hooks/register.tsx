@@ -225,7 +225,7 @@ export const register: Register = on => {
             {p.failed.length > 0 && <Text color={C.red}>padło: {cleanChecks(p.failed)}</Text>}
             <Box>
               <Button key="pr-open" plain hotkey="w" label="otwórz w przeglądarce" onPress={() => void $.process.run(['open', p.url])} />
-              <Button key="pr-peek" plain hotkey="p" label="podgląd PR" onPress={run('pr', String(p.number))} />
+              <Button key="pr-peek" plain hotkey="p" label="podgląd PR" onPress={run('pr-peek', String(p.number))} />
               {p.fail > 0 && (
                 <Button
                   key="log"

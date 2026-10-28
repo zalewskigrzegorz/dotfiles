@@ -11,7 +11,7 @@ test('reports num and pr to the tuios rail, and pr= once the PR is gone', async 
     return { value: { ...out, isStdoutTruncated: false, isStderrTruncated: false } }
   })
   on('session.start', (_, e) => ({ cwd: e.cwd }))
-  on('command.register', () => ({ value: { command: 'pr' } }))
+  on('command.register', () => ({ value: { command: 'pr-peek' } }))
   on('prompt.submit', (_, e) => ({ text: e.text }))
 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
