@@ -148,14 +148,17 @@ Before surfacing each batch, run the drafted `comment_body` values through greg-
 
 ## B4. Verdict
 
-One `AskUserQuestion`, single question: `"<N> comments selected — submit review as?"`. Options:
+One `AskUserQuestion`, single question: `"Jak wysłać review?"`. No digits in the question (the `guard` denies them): the count of selected comments and the PR number go into the option `description`s. Options:
 
 * **Approve** — no blocking issues.
+* **Approve + comment** — approve with a one-sentence body (only for the red-CI case below).
 * **Request changes** — there are unaddressed Critical findings.
 * **Comment only** — feedback without a verdict.
 * **Don't submit** — abort, post nothing.
 
-Recommend **Request changes** if any Critical was selected; otherwise **Approve** (or **Comment only** when there are non-trivial Suggestions). Mark `(Recommended)`. Red CI is the author's job — never fix it here, and never recommend **Approve** while checks are red (recommend **Comment only** and say why).
+Keep 2–4 options; drop the ones that don't apply. Recommend **Request changes** if any Critical was selected; otherwise **Approve** (or **Comment only** when there are non-trivial Suggestions). Mark `(Recommended)`. Red CI is the author's job — never fix it here, and never recommend **Approve** while the red comes from the diff (recommend **Comment only** and say why).
+
+Red CI proven not to come from the PR (the same job red on `main` in `gh run list --branch main --workflow <wf>`, no overlap between the failing files and `git diff --name-only origin/main...HEAD`) with zero findings → recommend **Approve + comment**, body = one sentence naming the unrelated red checks (31f0293b).
 
 ## B5. Submit (two calls — pending review, then event)
 
@@ -183,7 +186,7 @@ Step 2 — submit the verdict, no body:
 gh api --method POST "repos/$OWNER/$REPO/pulls/$NUMBER/reviews/$REVIEW_ID/events" -f event=<EVENT>
 ```
 
-**The review body is always empty** — inline comments carry the feedback, no recap paragraph on the PR, no "see inline comments" filler. One exception: a finding that couldn't be anchored inline (B2) may go in the body — just that finding, nothing else. In that case pass `-f body="<finding>"` on step 2.
+**The review body is always empty** — inline comments carry the feedback, no recap paragraph on the PR, no "see inline comments" filler. One exception: a finding that couldn't be anchored inline (B2) may go in the body — just that finding, nothing else. In that case pass `-f body="<finding>"` on step 2. **Approve + comment** (B4) passes its one sentence about the unrelated red checks the same way.
 
 If you genuinely need a file: `PAYLOAD=$(mktemp -t g-pr-review.XXXXXX.json)` — never a fixed `/tmp/g-pr-review.json`.
 
@@ -306,7 +309,7 @@ If user picks a verdict, submit via B5 (pending review, then event). Either way,
 * A finalizing `gh pr review` (via B5/C5) is allowed **only** after explicit Yes. Never finalize silently.
 * Never delete or edit existing comments on the PR.
 * Never write the review payload to a fixed temp path. Use stdin heredoc, or `mktemp` if a file is required.
-* Never write a summary/recap into the review `body` — it stays empty except the two B5 exceptions (API-required one-liner, un-anchorable finding).
+* Never write a summary/recap into the review `body` — it stays empty except the B5 exceptions (API-required one-liner, un-anchorable finding, Approve + comment on unrelated red CI).
 * **When `MINE=true`, stop and redirect to `g-pr-respond`.** This skill never applies the author's fix, commits, or answers reviewers as the author.
 * Don't resolve threads that belong to another reviewer — a thread opened by X and answered by the author is X's to close.
 

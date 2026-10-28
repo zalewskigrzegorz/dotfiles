@@ -87,7 +87,19 @@ About 15 popups were rejected in one week. Every one broke one of these:
   calls, 02c6f9fd). "Czy X może być przydatne dla mnie / na labie" → one
   `recall(max_tokens=512)` on his stack (lab services, Tina) before naming a
   use case, then the reading in one line, then the verdict (fda7a24d: Laya
-  judged for Firefly, he meant Tina).
+  judged for Firefly, he meant Tina). "Zobacz maila od <X>" → one sentence on
+  who wrote, what they want and what the product they mention is (one check of
+  its repo or site), then the popup. "Co robimy z mailem?" first got "a co to
+  za narzędzie?" (f14da52d).
+- **His own proposal goes first.** When he writes his solution or asks for
+  "za i przeciw", answer in plain text with his proposal named and its pros
+  and cons. A popup comes after that, with his proposal as the first option,
+  never as the alternative to yours (36ce73f9, rejected as "clarify").
+- **A worker does not ask who does the work.** A session briefed by an
+  orchestrator that finds something outside its brief mails the orchestrator
+  (`env -u TUIOS_PANE_ID tuios send-agent-message …`) and tells Greg in one
+  line. Splitting work is the orchestrator's job; "Kto ma zrobić fix?" got
+  "niech orchestrator ogarnia" (32d3bba3).
 - **No approve/send/do-it on something he has not read.** A new idea, a plan,
   a snippet, a reply to a reviewer: explain it in plain paragraphs, end the
   turn, and only then offer the popup. A question that fires right after the

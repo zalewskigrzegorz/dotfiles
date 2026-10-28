@@ -99,12 +99,32 @@ padding per monitor keeps tiles under the 36 pt bar.
 ## Build branch: `greg-nightly`
 
 `greg-nightly` is `upstream/main` plus every still-open PR branch from `origin`
-(73759dde). Run `scripts/rebuild-live.sh` before every build: it rebuilds the
+and every `origin/perf/*` and `origin/nightly/*` branch (73759dde, 32d3bba3).
+Run `scripts/rebuild-live.sh` before every build: it rebuilds the
 branch from scratch, force-pushes with `--force-with-lease` and returns to the
-branch you were on; merged or closed PRs drop out by themselves. With no open PRs
-it exits with "no open PRs found": then nightly is just `upstream/main`, build that.
+branch you were on; merged or closed PRs drop out by themselves. With none of
+them it exits with "no open PRs or perf/*, nightly/* branches found": then
+nightly is just `upstream/main`, build that.
 The script is local-only (`.git/info/exclude`), so say so. Never rebuild `local/live`
 by hand.
+
+Branch prefixes keep tooling out of upstream:
+
+- `nightly/*`: Greg's tools (a usage monitor, a hang detector). They never get a PR.
+- `perf/*`: experiments that ride in nightly without a PR.
+- A fix gets a PR to upstream (perf issue #59) only after a measured gain:
+  `scripts/perf-report.sh` before the change and again after the rebuild. No guess fixes.
+
+### Perf work with several agents
+
+The session in the main checkout `~/Code/personal/HyprMac` is the orchestrator.
+It collects the branches, runs `rebuild-live.sh` (needs a clean `main`) and builds
+nightly. A worker in a worktree commits and pushes its branch, then asks the
+orchestrator for a rebuild with `env -u TUIOS_PANE_ID tuios send-agent-message`.
+A worker never builds nightly itself. A finding outside the worker's brief goes to
+the orchestrator as one message, not to Greg as a "who does it" popup.
+"Where is tool X" → `tuios list-agents` and `git branch -r` first: its agent may not
+have started yet.
 
 ## Focus bugs
 
@@ -126,6 +146,14 @@ by hand.
   edit the file, it would ride into every PR (73759dde).
 - Gate: `find build/sizing/isolated-tests/home -name config.json -delete; ./scripts/test-isolated.sh --debug-variant`
   (~5 min, check `Executed N` > 0, 0 failures), then `ponytail:ponytail-review`.
+  Run the same test class once with a log in the scratchpad, not three times in a row.
+- A change to settle or readback semantics breaks tests that model the assumption,
+  not the function name. Before the gate, `rg -l 'settle|positionFirst|destinationReady'
+  HyprMacTests` and read the `TilingEngine*Tests` (fake AX), not only `FrameSizing*` and
+  `FrameReadbackPoller*` (2ee37734).
+- `TilingEngine.swift` (~33 KB), `FrameReadbackPoller.swift` and `docs/tiling-algorithm.md`
+  go through Serena (`get_symbols_overview`, `find_symbol`) or `Read` with `offset`/`limit`.
+  A full read once per session at most: one session read the engine 17 times (36ce73f9).
 - Live build = throwaway branch `local/live` (the stacked base plus every open fix branch
   merged), built signed so Accessibility survives rebuilds:
   `xcodebuild -project HyprMac.xcodeproj -scheme "HyprMac Debug" -configuration Debug

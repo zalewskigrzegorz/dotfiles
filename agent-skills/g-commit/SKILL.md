@@ -54,7 +54,7 @@ If `$WORK_COMPANY` is available, `$WORK_MAIN_PROJECT` usually is too — you may
 6. **Work mode, branch guard:** if `git rev-parse --abbrev-ref HEAD` is `main` or `master`, create a feature branch first:
    - `git checkout -b <type>/<scope>-<short-slug>` (e.g. `feat/<scope>-short-thing`).
    - Slug: lowercase, hyphens, short. Pick `type`/`scope` consistent with the commit you are about to make.
-7. **Gate.** Run `claude-yolo status`.
+7. **Gate.** Run `claude-yolo status` on its own: it exits 1 when YOLO is off, which is normal, so never put it mid-`&&` chain (ebcbd85f).
    - `YOLO ON` → skip to step 8, no popup.
    - Otherwise → `AskUserQuestion`, header `Commit`. Put the **raw** commit message, a blank line, and `git diff --cached --stat` (max ~10 files, then `+N more`) in the `preview` of the first option — never in prose above the popup. If the branch or worktree differs from the session's cwd or the branch last discussed, the preview opens with `branch: <name> (base <ref> <sha>)` and the worktree path. Options: **Commit + push** (Recommended) · **Tylko commit** · **Jeszcze nie** (leave staged, ask again at the end of the next task).
 8. **Commit** (see Execution), then **push** unless "Tylko commit" was picked: `git push`, or `git push -u origin HEAD` when the branch has no upstream.
