@@ -1,6 +1,6 @@
 #!/usr/bin/osascript -l JavaScript
 // bin/sketchybar-display-listener
-// Resident, event-driven listener that forces `sketchybar --reload` when the
+// Resident, event-driven listener that restarts sketchybar cleanly when the
 // bar is prone to a "render-freeze": it survives as a live, query-responsive
 // process but stops DRAWING. Confirmed 2026-06-26: PID + `--query bar` stayed
 // healthy the whole time the bar was visually gone, so a pgrep/query watchdog
@@ -13,7 +13,9 @@
 // (KeepAlive) via com.greg.sketchybar-display.plist.
 ObjC.import('Cocoa')
 
-const SB = '/opt/homebrew/bin/sketchybar'
+// A full restart, not `--reload`: each reload left its lua config running, and
+// after a wake on 2026-10-28 three of them plus WindowServer at 140% lagged the Mac.
+const RESTART = '"$HOME/Code/dotfiles/bin/sketchybar-restart"'
 const LOG = '/tmp/com.greg.sketchybar-display.log'
 const GEN = '/tmp/com.greg.sketchybar-display.gen'
 let gen = 0
@@ -30,8 +32,8 @@ function reload(reason, settle) {
   t.arguments = ['-c',
     'echo "$(date +%FT%T): ' + reason + '" >> ' + LOG +
     '; sleep ' + settle + '; [ "$(cat ' + GEN + ')" = ' + gen + ' ] || exit 0' +
-    '; echo "$(date +%FT%T): settled -> sketchybar --reload" >> ' + LOG +
-    '; ' + SB + ' --reload >> ' + LOG + ' 2>&1']
+    '; echo "$(date +%FT%T): settled -> sketchybar-restart" >> ' + LOG +
+    '; ' + RESTART + ' >> ' + LOG + ' 2>&1']
   t.launch
 }
 
@@ -40,7 +42,8 @@ const app = $.NSApplication.sharedApplication
 // Screen reconfiguration — posted on the default notification center.
 $.NSNotificationCenter.defaultCenter.addObserverForNameObjectQueueUsingBlock(
   'NSApplicationDidChangeScreenParametersNotification', $(), $(),
-  function (_notif) { reload('screen change', '2') }
+  // 6 s: after a wake the screen changes keep coming for ~7 s, 2 s reloaded twice
+  function (_notif) { reload('screen change', '6') }
 )
 
 // Wake from sleep — posted on the WORKSPACE notification center (not default).
