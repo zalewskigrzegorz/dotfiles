@@ -78,6 +78,15 @@ back() {
         fi
         ;;
       *)
+        # A plain tracked file can hold a token an app wrote (gh's hosts.yml
+        # without the keychain): scan it with both rule sets, and keep it out
+        # of the repo when either finds one or cannot run.
+        if ! command -v gitleaks >/dev/null ||
+          ! gitleaks dir "$target" --no-banner -l fatal -c "$(chezmoi source-path)/.gitleaks.toml" >/dev/null ||
+          ! gitleaks dir "$target" --no-banner -l fatal -c "$HOME/.local/state/dotfiles/secrets/gitleaks-private.toml" >/dev/null; then
+          echo "not taken, may hold a secret: ${line:3}" >&2
+          continue
+        fi
         chezmoi re-add "$target"
         taken+=("$src")
         ;;
