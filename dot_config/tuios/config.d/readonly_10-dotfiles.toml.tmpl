@@ -134,7 +134,10 @@ rename_workspace = ["T"]
 prefix_tape = []
 prev_workspace = ["p"]
 next_workspace = ["n"]
-close_workspace = ["X"]
+# X is "done with this worktree" (workctl done, below); U is our worktree picker:
+# tuios's own new_worktree puts trees in ~/.local/share/tuios/worktrees, not ~/Code/tree.
+close_workspace = []
+new_worktree = []
 switch_workspace_1 = ["1"]
 switch_workspace_2 = ["2"]
 switch_workspace_3 = ["3"]
@@ -200,6 +203,25 @@ command = '"$HOME/bin/tuios-worktree-new"'
 description = "workctl — branch / PR / worktree picker in the focused repo"
 width = "90%"
 height = "90%"
+
+# prefix+U was tuios's new_worktree; the same picker keeps every tree in ~/Code/tree.
+[[keybindings.command]]
+key = "prefix+U"
+type = "popup"
+command = '"$HOME/bin/tuios-worktree-new"'
+description = "New worktree (workctl picker, trees in ~/Code/tree)"
+width = "90%"
+height = "90%"
+
+# Done with this session's work: agent, worktree, branch and session go at once.
+# It stops only for uncommitted changes or commits on no remote, and lists them.
+[[keybindings.command]]
+key = "prefix+X"
+type = "popup"
+command = '"$HOME/bin/workctl" done || { echo "press Enter"; read -r _; }'
+description = "Done: close agent, worktree, branch and session"
+width = "90"
+height = "16"
 
 # Same picker, plus the worktrees of every other repo.
 [[keybindings.command]]
