@@ -49,6 +49,9 @@ HyprMac" (7c37679b).
   screen sharing). A disconnected monitor's workspaces fall back to the formula home
   `(N-1) % screens`, so the laptop alone holds all ten. The same order lives in `spaces.lua`,
   the watcher's `workspaceOrder` and `bin/dygma-cheats`; change all four together.
+- **Pins only catch new windows.** After a pin or numbering change, Greg presses `Ctrl+;` (Retile
+  All) once: every pinned window moves to its workspace, hidden ones included (2026-10-28, three
+  windows in one press).
 
 ## Diagnose from logs, not guesses
 
@@ -59,6 +62,10 @@ HyprMac" (7c37679b).
   'subsystem BEGINSWITH "com.zachgray.HyprMac"'` (`--debug` for more; rolls off fast).
 - **Full state on demand:** `kill -USR1 $(pgrep -x "HyprMac Debug")` writes a state dump
   (`screen=…`, `wsN home=… assigned=[…] hidden=[…]`) to the log.
+- **Driving it from the CLI:** `open -g -b <bundle> "hyprmac://workspace?n=N"` (or
+  `focus?workspace=N`) switches workspaces, then read `state.json`. Chords can't be sent:
+  `osascript` → System Events keystrokes fail with 1002 (no Accessibility), so Retile All and
+  friends are Greg's keypress.
 - **Window geometry:** a 10-line Swift script with `CGWindowListCopyWindowInfo` + `NSScreen`
   frames (CG top-left coordinates) beats reading screenshots; compare with the target in the log.
 
