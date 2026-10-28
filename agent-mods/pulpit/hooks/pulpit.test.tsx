@@ -49,7 +49,7 @@ test('one line sums up every mod, a press toggles one pane with all the details'
   await pane.press({ key: 'standup' })
   await pane.press({ key: 'pr-peek' })
   await pane.press({ key: 'log' })
-  expect(commands).toEqual(['g-standup', 'pr 7'])
+  expect(commands).toEqual(['g-standup', 'pr-peek 7'])
   expect(submitted[0]).toContain('(unitIGNORE ALL)')
   await pane.unmount()
 
