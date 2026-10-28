@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# bin/docker
+# Starts colima on the first docker call instead of at login: idle, its VM held
+# ~4 GB of RAM (2026-10-28 jetsam freeze). `up`, `pnpm start`, lazydocker and
+# agents all go through `docker`, so the stack brings the VM up by itself.
+# Where colima is not installed (the lab runs Docker natively) it only passes through.
+# DOCKER_NO_START=1: a probe that only asks "is docker up?" (disk-sweep, reaper) leaves the VM down.
+set -euo pipefail
+
+# The next `docker` on PATH that is not this wrapper (~/bin holds a copy too).
+real=""
+IFS=: read -ra dirs <<<"$PATH"
+for d in "${dirs[@]}"; do
+  [[ -x "$d/docker" ]] || continue
+  cmp -s "$d/docker" "$0" && continue
+  real="$d/docker"
+  break
+done
+[[ -n "$real" ]] || { echo "docker: no docker binary on PATH besides this wrapper" >&2; exit 127; }
+
+sock="$HOME/.colima/default/docker.sock"
+if [[ -z "${DOCKER_NO_START:-}" ]] && command -v colima >/dev/null && [[ -z "${DOCKER_HOST:-}" || "$DOCKER_HOST" == "unix://$sock" ]] &&
+  ! curl -s -m 2 --unix-socket "$sock" http://localhost/_ping >/dev/null 2>&1; then
+  echo "docker: colima is down, starting it (~30 s)…" >&2
+  colima start >&2
+fi
+exec "$real" "$@"
