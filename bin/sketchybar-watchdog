@@ -45,8 +45,9 @@ if ! pgrep -x sketchybar >/dev/null 2>&1; then
   exit 0
 fi
 
-# Watcher gone (AeroSpace's after-startup-command used to launch it at login) — the
-# bar would sit there with stale workspaces, so relaunch both.
+# Watcher gone (nothing else launches it at login since AeroSpace left; the plist's
+# AbandonProcessGroup keeps it alive after this job exits) — the bar would sit
+# there with stale workspaces, so relaunch both.
 if ! pgrep -f '[s]ketchybar-watcher/sketchybar-watcher' >/dev/null 2>&1; then
   restart "sketchybar-watcher not running"
   exit 0

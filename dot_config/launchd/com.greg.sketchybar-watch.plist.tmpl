@@ -17,6 +17,9 @@
   <true/>
   <key>StartInterval</key>
   <integer>15</integer>
+  <!-- sketchybar-restart spawns the watcher; without this launchd kills it when the job exits -->
+  <key>AbandonProcessGroup</key>
+  <true/>
   <key>StandardOutPath</key>
   <string>/tmp/com.greg.sketchybar-watch.log</string>
   <key>StandardErrorPath</key>
