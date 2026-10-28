@@ -33,6 +33,35 @@ def os-restart [] {
 # Stop the tuios daemon (detaches everything; sessions are saved and restored on the next start).
 def os-stop [] { tuios kill-server }
 
+# Open the project sessions that are not running yet, coloured and filed by
+# projects.tsv. A tape cannot do this: tape commands act inside one session and
+# have no NewSession. After os-stop or a reboot the daemon restores saved
+# sessions by itself, so this is for a clean start or after closing them.
+def os-projects [] {
+    let work = ($env.WORK_MONOREPO_DIR | path dirname)
+    let projects = [
+        $env.WORK_MONOREPO_DIR
+        ($work | path join workflows)
+        ~/Code/dotfiles
+        ~/Code/home-lab
+        ~/Code/personal/bazgroly
+        ~/Code/personal/HyprMac
+    ]
+    let open = (^tuios ls --json | from json | get name)
+    for dir in ($projects | path expand) {
+        let name = ($dir | path basename)
+        if $name in $open { continue }
+        if not ($dir | path exists) { print -e $"skip ($name): ($dir) missing"; continue }
+        ^tuios new $name --cwd $dir --detach
+    }
+    ^tuios-colorize
+    # the lab's first session is session-0; os-mrglaszki attaches to "mrglaszki"
+    let lab = (^ssh mrglaszki '/home/linuxbrew/.linuxbrew/bin/tuios ls --json' | from json | get name)
+    if "session-0" in $lab and "mrglaszki" not-in $lab {
+        ^ssh mrglaszki '/home/linuxbrew/.linuxbrew/bin/tuios rename-session session-0 mrglaszki'
+    }
+}
+
 # Draw the lab's tuios session here, through the local daemon's ssh link
 # ([hosts.mrglaszki] in config.d). Keys are the local ones. Run from a plain
 # Ghostty window, not from a tuios pane.

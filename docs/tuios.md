@@ -50,7 +50,9 @@ Env in every pane: `TUIOS_SESSION`, `TUIOS_PANE_ID` (= `TUIOS_WINDOW_ID`), `TUIO
 | Key | Action |
 |---|---|
 | `prefix+q` | detach · `prefix+s` settings · `prefix+:` command palette (`ctrl+p` belongs to nu/nvim) |
-| `prefix+w` / `prefix+g` | session picker / goto · `N` new session · `W` rename · `D` close · `,` `.` prev/next · `L` last session |
+| `prefix+w` / `prefix+g` | session picker (inside: `ctrl+r` rename, `ctrl+d` delete) / goto |
+| `prefix+N` · `prefix+D` · `prefix+,` `prefix+.` · `prefix+L` | new session (asks the machine, no dir) · close · prev/next · last session |
+| `os-projects` (nushell) | opens the missing project sessions (main checkouts) in their colours, renames the lab's `session-0` to `mrglaszki` |
 | `prefix+y` / `I` / `S` | scratch terminal · last message in full (`M` is the mailbox) · keyboard into the sidebar and back. `prefix+H` (opposite sidebar, a copy of the same rail) is unbound |
 | `prefix+a` / `prefix+0` | jump to the next item that needs you (Inbox) · `prefix+A` next unseen finished turn |
 | `prefix+c` `T` `X` | new / rename / close workspace (tab) · `1`–`9`, `p`, `n` switch |
