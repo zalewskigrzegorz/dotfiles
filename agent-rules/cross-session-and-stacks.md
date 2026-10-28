@@ -14,6 +14,16 @@ sha in it, and reply before moving on to the next item. Greg gets one status
 line, not a relay of the answer. On 2026-10-04 two requests were summarised to
 Greg in prose until he asked "może bezpośrednio napisz do agentów?" (a752428e).
 
+## After a resume, look for a twin before taking the next queued item
+
+A conversation resumed in two panes runs twice: on 2026-10-28 both copies
+worked the same `sprawy` queue and made the pr-band and pulpit changes twice.
+It surfaced only as "File has been modified since read". After a resume or a
+reboot, and before each queued item: `git log --oneline -5` against your own
+last commit and `tuios list-agents -s "$TUIOS_SESSION"`. A commit you did not
+make on your item, or a second pane with your task title → stop, say so in one
+line, leave the item to that pane.
+
 ## A branch stacked on a non-main base tracks that base
 
 When the base is another feature branch (a cycle branch, an earlier PR),

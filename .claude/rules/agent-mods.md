@@ -42,3 +42,5 @@ is the API.
   turns them back on. Verified with the fullscreen (alt screen) renderer. The
   preview is on demand through `/screen`; a screenshot word in a prompt only
   toasts. Keep `sips -Z 1600` first (herdr dropped > ~6 M px).
+- **`greg-mods` mods load from `agent-mods/<mod>` itself.** `~/.claude/plugins/cache/greg-mods/<mod>/0.1.0/` is a stale copy from install day; never diff against it (`claude plugin update` says "read from its folder: nothing to update"). An edit reaches a session through `/reload-plugins` or a new session.
+- **The `[-]` beside an `AbovePrompt` band is the engine's collapse**, not a mod button. A mod cannot draw a `[+]` for a collapsed band; it comes back with `ctrl+x ctrl+a` or a click on the "plugin panel hidden" line.
