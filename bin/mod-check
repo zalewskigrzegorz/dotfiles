@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Checks a mod in agent-mods/ the three ways .claude/rules/agent-mods.md asks:
+# claude plugin validate, tsc, claude plugin test.
+# Usage: mod-check <mod-name|mod-dir>
+set -euo pipefail
+
+# The greg-mods marketplace reads the main checkout; a worktree's mod is passed as a path.
+mods="$HOME/Code/dotfiles/agent-mods"
+arg="${1:?usage: mod-check <mod-name|mod-dir>}"
+dir="$(cd "$([ -d "$arg" ] && echo "$arg" || echo "$mods/$arg")" && pwd)"
+[ -f "$dir/.claude-plugin/plugin.json" ] || { echo "no .claude-plugin/plugin.json in $dir" >&2; exit 2; }
+
+# The engine lays the API types only where the plugin-authoring skill loaded;
+# take the newest build's.
+# shortcut: needs one session that loaded the plugin-authoring skill since the last reboot; upgrade if Claude Code ships the .d.ts on disk.
+api="$(ls -t /private/tmp/claude-"$(id -u)"/bundled-skills/*/*/plugin-authoring/types/claude-code.d.ts 2>/dev/null | head -1 || true)"
+[ -n "$api" ] || { echo "no claude-code.d.ts: load the plugin-authoring skill in any session once, then rerun" >&2; exit 2; }
+
+echo "== validate"
+claude plugin validate "$dir"
+
+echo "== tsc ($(sed -n 1p "$api" | sed 's#^// ##'))"
+tmp="$(mktemp -d)"
+trap 'rm -r "$tmp"' EXIT
+# A dependency's contract types the atoms the mod reads from it.
+include="$(jq -c --arg d "$dir" --arg m "$mods" \
+  '[$d + "/hooks", $d + "/types"] + [(.dependencies // [])[] | $m + "/" + . + "/types"]' \
+  "$dir/.claude-plugin/plugin.json")"
+cat >"$tmp/tsconfig.json" <<EOF
+{
+  "compilerOptions": {
+    "target": "es2023", "lib": ["es2023"], "types": [],
+    "module": "esnext", "moduleResolution": "bundler",
+    "strict": true, "noUncheckedIndexedAccess": true,
+    "noEmit": true, "skipLibCheck": true,
+    "jsx": "react", "jsxFactory": "h", "jsxFragmentFactory": "Fragment"
+  },
+  "files": ["$api"],
+  "include": $include
+}
+EOF
+(cd "$tmp" && bunx -p typescript@5.6.3 tsc -p . | sed "s#^[./]*${dir#/}/##")
+
+echo "== test"
+claude plugin test "$dir"

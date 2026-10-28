@@ -46,7 +46,7 @@ async function poll($: EngineInterface) {
     // The background shell holds the file open while it runs.
     const open = await $.process.run(['lsof', '-t', '--', t.file]).catch(() => null)
     const running = !!open?.stdout.trim()
-    const state = running ? 'running' : failedLine(last) ? 'failed' : 'done'
+    const state: BgTask['state'] = running ? 'running' : failedLine(last) ? 'failed' : 'done'
     await update($, bg, list =>
       list.map(x =>
         x.id === t.id ? { ...x, last, repeats: sameLine(last, x.last) ? x.repeats + 1 : 0, state, endedAt: running ? undefined : now } : x,
@@ -105,7 +105,7 @@ export const register: Register = on => {
     const r = await next(e)
     // The command already ran: a failure here must never run it again, so no .catch with next.
     try {
-      const id = 'result' in r ? r.result?.backgroundTaskId : undefined
+      const id = 'result' in r && !r.isError ? r.result?.backgroundTaskId : undefined
       const file = id ? await outputFile($, id) : ''
       if (id && file) {
         const task: BgTask = { id, desc: e.description ?? e.command.slice(0, 60), file, last: '', repeats: 0, state: 'running', startedAt: await $.clock.now() }
@@ -141,8 +141,12 @@ export const register: Register = on => {
       <Box flexDirection="column">
         <Button key="pulpit" plain hotkey="o" label="pulpit" onPress={() => void toggle($)}>
           {all.length > 0 && (
-            <Text color={waiting ? C.pink : count('in_progress') ? C.gold : undefined}>
-              ☰ ◐{count('in_progress')} ⧗{count('queued')} ✓{count('done')}
+            // ◐ and ⧗ draw wider than their one cell: the space after each keeps the digit readable.
+            <Text>
+              <Text color={waiting ? C.pink : C.lavender}>☰ </Text>
+              <Text color={C.gold}>◐ {count('in_progress')} </Text>
+              <Text color={C.cyan}>⧗ {count('queued')} </Text>
+              <Text color={C.green}>✓ {count('done')}</Text>
             </Text>
           )}
           {all.length > 0 && p !== null && sep}
@@ -186,9 +190,14 @@ export const register: Register = on => {
         {ordered.map(i => {
           const mark = i.status === 'queued' ? `[${queue.indexOf(i) + 1}]` : i.status === 'done' ? '✓' : '◐'
           const waiting = i.agent?.state === 'waiting' && i.status !== 'done'
+          // The band's legend: gold in progress, cyan queued, green done, pink waits for you.
+          const color = waiting ? C.pink : i.status === 'in_progress' ? C.gold : i.status === 'queued' ? C.cyan : C.green
           return (
-            <Text wrap="truncate-end" dimColor={i.status === 'done'} color={waiting ? C.pink : i.status === 'in_progress' ? C.gold : undefined}>
-              {mark} {i.id}. {i.title}
+            <Text wrap="truncate-end">
+              <Text color={color}>{mark} </Text>
+              <Text dimColor={i.status === 'done'} color={waiting || i.status === 'in_progress' ? color : undefined}>
+                {i.id}. {i.title}
+              </Text>
               {extraOf(i) ? ` (${extraOf(i)})` : ''}
             </Text>
           )

@@ -39,7 +39,7 @@ test('one line sums up every mod, a press toggles one pane with all the details'
 
   const line = await $.ui.mount({ ...LINE, surface: 'terminal' })
   const text = (await line.find({ type: 'Button', key: 'pulpit' }))?.text ?? ''
-  for (const part of ['◐1 ⧗1 ✓1', '#7 ✓12', '✗1', '⏳2', 'dirty', ' 3', '󰑓 8']) expect(text).toContain(part)
+  for (const part of ['◐ 1 ⧗ 1 ✓ 1', '#7 ✓12', '✗1', '⏳2', 'dirty', ' 3', '󰑓 8']) expect(text).toContain(part)
   expect(await line.find({ type: 'Text', text: /beneath/ })).toBeDefined()
   await line.press({ key: 'pulpit' })
   expect(panes).toEqual(['pulpit'])
