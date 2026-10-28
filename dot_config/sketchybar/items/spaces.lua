@@ -4,9 +4,10 @@ local settings = require("settings")
 
 -- Workspace labels and highlight state are updated by sketchybar-watcher via --set (no Lua logic)
 
+-- position = HyprMac workspace number = Ctrl+digit, as in aerospace (bin/hyprmac-config keeps the same map)
 local workspace_order = {
-    "chat", "term", "code", "notes", "web",
-    "test", "mail", "media", "misc", "mac"
+    "chat", "term", "code", "misc", "notes",
+    "web", "media", "test", "mail", "mac"
 }
 
 local workspace_icons = {
@@ -24,10 +25,8 @@ local workspace_colors = {
 local current_workspace = nil
 local focused_color = colors.purple
 
--- HyprMac workspace number behind each name (bin/hyprmac-config keeps the same map).
-local hyprmac_ws = { chat = 1, term = 4, code = 7, notes = 10, web = 2, test = 5, mail = 8, media = 3, misc = 6, mac = 9 }
--- The fork's debug build answers hyprmac:// while its PRs wait upstream; with -b the release
--- app, which also claims the scheme, is never launched by a click.
+-- Greg runs the debug build; with -b the release app, which also claims hyprmac://, is never
+-- launched by a click.
 local hyprmac_bundle = "com.zachgray.HyprMac.debug"
 
 -- Two sets: item.N (full size, monitors) and item.N.s (small, laptop screen).
@@ -72,8 +71,8 @@ local function add_workspace(i, workspace, suffix, size)
 
     sbar.add("item", "item." .. i .. suffix .. "padding", { script = "", width = settings.items.gap })
 
-    -- monitor boundaries in the HyprMac key order: Dell 1-4 | Samsung 5-7 | laptop 8-0
-    local sep = ({ [4] = "workspace.dell_ultra_sep", [7] = "workspace.ultra_mac_sep" })[i]
+    -- monitor boundaries (workspaceMonitors in bin/hyprmac-config): Dell 1-5 | Samsung 6-9 | laptop 0
+    local sep = ({ [5] = "workspace.dell_ultra_sep", [9] = "workspace.ultra_mac_sep" })[i]
     if sep and suffix == "" then
         sbar.add("item", sep, {
             label = {
@@ -105,8 +104,8 @@ local function add_workspace(i, workspace, suffix, size)
         if env.BUTTON == "other" then
             space_popup:set({ background = { image = space.name } })
             space:set({ popup = { drawing = "toggle" } })
-        elseif hyprmac_ws[workspace] then
-            sbar.exec(string.format('open -g -b %s "hyprmac://focus?workspace=%d"', hyprmac_bundle, hyprmac_ws[workspace]))
+        else
+            sbar.exec(string.format('open -g -b %s "hyprmac://focus?workspace=%d"', hyprmac_bundle, i))
         end
     end)
 

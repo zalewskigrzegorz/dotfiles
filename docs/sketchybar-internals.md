@@ -5,7 +5,7 @@
 | Process | Owner | Purpose |
 |---|---|---|
 | `sketchybar` | `brew services` LaunchAgent | the bar daemon itself |
-| `sketchybar-watcher` (Go) | started by `bin/sketchybar-restart` | pushes `--set` for: workspace highlighting (`item.1..10`, from HyprMac's `~/Library/Application Support/HyprMac/state.json`, refreshed by its status hook `notify --event hyprmac`; fork build until zacharytgray/HyprMac#44 lands), apple item state (kindavim mode), notif_preview content |
+| `sketchybar-watcher` (Go) | started by `bin/sketchybar-restart` | pushes `--set` for: workspace highlighting (`item.1..10`, from HyprMac's `~/Library/Application Support/HyprMac/state.json`, refreshed by its status hook `notify --event hyprmac`, both set in `monitor-config.json` by `bin/hyprmac-config`), apple item state (kindavim mode), notif_preview content |
 | `cpu_load`, `network_load` | sketchybar event provider helpers | spawned automatically by sketchybar widgets |
 
 `brew services start sketchybar` is the ONLY thing that launches the daemon. Do NOT start sketchybar from another launcher (a window manager startup hook, a login item) — it causes a lock-file race (Bug 2).

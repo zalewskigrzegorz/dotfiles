@@ -62,8 +62,8 @@ var (
 )
 
 var workspaceOrder = []string{
-	// HyprMac key order (Caps/Ctrl+1..0); aerospace had misc and media at 4 and 7.
-	"chat", "term", "code", "notes", "web", "test", "mail", "media", "misc", "mac",
+	// HyprMac workspace 1..10 = Ctrl+1..0, as in aerospace (bin/hyprmac-config, spaces.lua)
+	"chat", "term", "code", "misc", "notes", "web", "media", "test", "mail", "mac",
 }
 
 // Workspace icon colors — Mocha Neon palette (matches dot_config/sketchybar/colors.lua + spaces.lua).
@@ -205,7 +205,7 @@ func runCmd(name string, args ...string) ([]byte, error) {
 	return exec.Command(name, args...).Output()
 }
 
-// HyprMac (fork build, status export opt-in) writes its whole state here on every
+// HyprMac (status export opt-in, monitor-config.json) writes its whole state here on every
 // change and runs `sketchybar-watcher notify --event hyprmac` as its hook.
 var hyprmacStateFile = filepath.Join(os.Getenv("HOME"), "Library/Application Support/HyprMac/state.json")
 

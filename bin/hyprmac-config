@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """hyprmac-config — merge Greg's HyprMac keybinds, app pins and floating apps into its live config.
 
-Only `keybinds`, `windowRules`, `excludedBundleIDs` and `hyprKey` are ours. Everything set in
+In config.json `keybinds`, `windowRules`, `excludedBundleIDs`, `workspaceNames` and `hyprKey` are
+ours; in monitor-config.json `workspaceMonitors`, `outerPaddingPerMonitor` and `statusExport*`. Everything set in
 HyprMac's own Settings (gaps, focus border, dimming, ...) stays as it is, and so does a chord or
 app pin added there on a combo / app this script does not use. HyprMac is quit before the write
 and started again after it; the old file goes to ~/.local/state/hyprmac/backups first.
 
   hyprmac-config            merge, restart HyprMac
-  hyprmac-config --dry-run  print the merged config, change nothing
+  hyprmac-config --dry-run  print both merged files, change nothing
 """
 import json
 import os
@@ -26,14 +27,19 @@ LIVE = os.path.expanduser("~/Library/Application Support/HyprMac/config.json")  
 MONITORS = os.path.expanduser("~/Library/Application Support/HyprMac/monitor-config.json")  # local, not synced
 
 # Top padding per monitor so tiles start just under sketchybar (36pt on the externals, Greg picked 37);
-# the laptop keeps outerPadding. Fork feature (top padding PR pending); a value set in Settings wins.
-TOP_PADDING = {"DELL U3225QE": 37, "C34H89x": 37}
+# the laptop keeps outerPadding. A side set in Settings wins.
+OUTER_PADDING = {"DELL U3225QE": {"top": 37}, "C34H89x": {"top": 37}}
 
-# HyprMac anchors workspace N to screen (N-1) % screens, left to right (Dell, C34H89x, built-in),
-# and that is not configurable (zacharytgray/HyprMac#29). So the digit keys are grouped per monitor
-# and keep the aerospace names. shortcut: assumes 3 enabled screens, regroup when that changes.
-WS = dict(chat=1, term=4, code=7, notes=10, web=2, test=5, mail=8, media=3, misc=6, mac=9)
-KEY_TO_WS = [WS[n] for n in ("chat", "term", "code", "notes", "web", "test", "mail", "media", "misc", "mac")]
+# Key N = workspace N, names and monitors as in aerospace. Dell 1-5 (left hand): its deep blacks
+# keep text sharp for chat and code. Ultrawide 6-9 (right hand, browsers from 6): media, meetings,
+# manual testing. Laptop 0: helper screen, shared in calls. A monitor that is not connected leaves
+# its workspaces on HyprMac's formula home, so the laptop alone gets all ten; aerospace fell back
+# to the other external, HyprMac has no fallback list.
+WS = dict(chat=1, term=2, code=3, misc=4, notes=5, web=6, media=7, test=8, mail=9, mac=10)
+WS_MONITORS = {"DELL U3225QE": [1, 2, 3, 4, 5], "C34H89x": [6, 7, 8, 9], "Built-in Retina Display": [10]}
+# Numbers this script wrote before 0.19 (workspace N on screen (N-1) % 3). Names and pins still on
+# them are ours, not Settings', so merge() renumbers them instead of keeping them.
+OLD_WS = dict(chat=1, term=4, code=7, notes=10, web=2, test=5, mail=8, media=3, misc=6, mac=9)
 
 PINS = {  # aerospace on-window-detected rules by bundle ID; some apps are not installed right now
     "chat": ["com.tinyspeck.slackmacgap", "com.hnc.Discord", "net.whatsapp.WhatsApp",
@@ -70,7 +76,7 @@ def bind(key, mods, action):
 for d, k in zip(["left", "down", "up", "right"], "hjkl"):
     bind(K[k], H, {"focusDirection": {"_0": d}})
     bind(K[k], H | S, {"swapDirection": {"_0": d}})
-for n, key in zip(KEY_TO_WS, DIGITS):
+for n, key in enumerate(DIGITS, 1):
     bind(key, H, {"switchDesktop": {"_0": n}})
     bind(key, H | S, {"moveToWorkspaceAndFollow": {"_0": n}})  # the one Greg uses: 2 keys + digit
     bind(key, H | O | S, {"moveToDesktop": {"_0": n}})
@@ -143,35 +149,52 @@ def merge(live):
         else:
             kept.append(b)
     live["keybinds"] = binds + kept
-    have = {r["bundleID"] for r in live.get("windowRules") or []}
+    old_pins = {(b, OLD_WS[ws]) for ws, ids in PINS.items() for b in ids}
+    rules = [r for r in live.get("windowRules") or [] if (r["bundleID"], r["workspace"]) not in old_pins]
+    have = {r["bundleID"] for r in rules}
     pins = [{"bundleID": b, "workspace": WS[ws]} for ws, ids in PINS.items() for b in ids if b not in have]
-    live["windowRules"] = (live.get("windowRules") or []) + pins
+    live["windowRules"] = rules + pins
     live["excludedBundleIDs"] = sorted(set(live.get("excludedBundleIDs") or []) | set(FLOAT))
-    # names shown instead of numbers (HUD, menu bar, pickers; fork feature, PR pending); a name set in Settings wins
+    # names shown instead of numbers (HUD, menu bar, pickers); a name set in Settings wins
     names = {str(n): name for name, n in WS.items()}
-    live["workspaceNames"] = {**names, **(live.get("workspaceNames") or {})}
-    # sketchybar reads state.json; the hook tells its watcher something changed (fork feature, PR pending)
-    live["statusExportEnabled"] = True
-    live.setdefault("statusHookCommand", f"{BIN}/sketchybar-watcher/sketchybar-watcher notify --event hyprmac")
+    old_names = {str(n): name for name, n in OLD_WS.items()}
+    theirs = {n: name for n, name in (live.get("workspaceNames") or {}).items() if old_names.get(n) != name}
+    live["workspaceNames"] = {**names, **theirs}
+    # moved to monitor-config.json in HyprMac 0.19
+    live.pop("statusExportEnabled", None)
+    live.pop("statusHookCommand", None)
     live["hyprKey"] = "leftControl"
     return live
 
 
 def merge_monitors(mon):
-    mon["topPaddingPerMonitor"] = {**TOP_PADDING, **(mon.get("topPaddingPerMonitor") or {})}
+    # a monitor's list set in Settings wins, and the workspaces it claims leave the other monitors
+    theirs = mon.get("workspaceMonitors") or {}
+    taken = {n for ws in theirs.values() for n in ws}
+    ours = {m: [n for n in ws if n not in taken] for m, ws in WS_MONITORS.items() if m not in theirs}
+    mon["workspaceMonitors"] = {**{m: ws for m, ws in ours.items() if ws}, **theirs}
+    # the fork-era topPaddingPerMonitor became outerPaddingPerMonitor upstream
+    old = {m: {"top": t} for m, t in (mon.pop("topPaddingPerMonitor", None) or {}).items()}
+    pad = mon.get("outerPaddingPerMonitor") or {}
+    mon["outerPaddingPerMonitor"] = {m: {**OUTER_PADDING.get(m, {}), **old.get(m, {}), **pad.get(m, {})}
+                                     for m in {*OUTER_PADDING, *old, *pad}}
+    # sketchybar reads state.json; the hook tells its watcher something changed
+    mon["statusExportEnabled"] = True
+    mon.setdefault("statusHookCommand", f"{BIN}/sketchybar-watcher/sketchybar-watcher notify --event hyprmac")
     return mon
 
 
 def main():
     live = merge(json.load(open(LIVE)))
     if "--dry-run" in sys.argv:
-        json.dump(live, sys.stdout, indent=2)
+        mon = merge_monitors(json.load(open(MONITORS)) if os.path.exists(MONITORS) else {})
+        json.dump({"config.json": live, "monitor-config.json": mon}, sys.stdout, indent=2)
         return
     backups = os.path.expanduser("~/.local/state/hyprmac/backups")
     os.makedirs(backups, exist_ok=True)
     shutil.copy(LIVE, f"{backups}/config-{time.strftime('%Y%m%d-%H%M%S')}.json")
     # HyprMac writes its config back on quit, so the merge goes in only after it is gone.
-    # A build from the fork runs as "HyprMac Debug" while its PRs wait upstream.
+    # A local debug build runs as "HyprMac Debug", the release as "HyprMac".
     app = "HyprMac Debug" if not subprocess.run(["pgrep", "-x", "HyprMac Debug"], capture_output=True).returncode else "HyprMac"
     subprocess.run(["osascript", "-e", f'quit app "{app}"'], timeout=15, check=False)
     for _ in range(20):

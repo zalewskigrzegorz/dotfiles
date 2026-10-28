@@ -6,7 +6,8 @@ description: Greg's tiling window manager HyprMac (replaced AeroSpace 2026-10-25
 # HyprMac
 
 Upstream `zacharytgray/HyprMac` (cask `zacharytgray/hyprmac/hyprmac`). Greg runs **HyprMac Debug**
-built from his fork until his PRs land; open ones are listed in
+built from his fork's `greg-nightly`. Since v0.19.0 (f8d3190) upstream has merged every fork PR, so
+nightly = `upstream/main`; history of the fork work is in
 `~/Code/personal/bazgroly/dotfiles/notes/2026-10-25-hyprmac-test.md`.
 
 ## Choosing a shortcut for another app
@@ -19,10 +20,13 @@ HyprMac" (7c37679b).
 ## Config: merge, never overwrite
 
 - `~/Library/Application Support/HyprMac/config.json` is a **symlink into iCloud Drive**.
-  `monitor-config.json` next to it is local (max splits, top padding per monitor, by
-  `NSScreen.localizedName`).
+  `monitor-config.json` next to it is local, keyed by `NSScreen.localizedName` (`DELL U3225QE`,
+  `C34H89x`, `Built-in Retina Display`): max splits, `workspaceMonitors`,
+  `outerPaddingPerMonitor` (`{"top": 37}`, sides optional), `statusExportEnabled`,
+  `statusHookCommand`. HyprMac watches only config.json, so it is quit before this file is written.
 - **`bin/hyprmac-config` is the only writer.** It owns `keybinds`, `windowRules`,
-  `excludedBundleIDs`, `hyprKey`, `workspaceNames`, `statusExport*` and the top padding,
+  `excludedBundleIDs`, `hyprKey`, `workspaceNames`, and in monitor-config `workspaceMonitors`,
+  `outerPaddingPerMonitor` and `statusExport*`,
   keeps every setting Greg made in HyprMac's UI and every UI chord on a combo it doesn't use,
   backs up to `~/.local/state/hyprmac/backups/`, quits the running app (release or Debug),
   writes, relaunches. Check the relaunch with `pgrep -x "HyprMac Debug"` after ~5 s:
@@ -33,14 +37,15 @@ HyprMac" (7c37679b).
   unreachable chord for that reason. Retired chords go in `RETIRED`, or merge keeps them as
   "UI chords".
 - Hypr = left Control. Each Hypr chord has a twin on plain `control` (bit 8): HyprMac 0.18
-  drops quick Ctrl chords as "stale" (fork PR #47 fixes the cause).
+  dropped quick Ctrl chords as "stale" (fixed upstream by PR #47; the twins stay harmless).
 - Chords Greg can't press on the Dygma (Ctrl+Opt+Shift+…) get moved to 2–3 key chords; ask
   before inventing 4-key ones.
-- Workspace N lives on screen `(N-1) % screens`, left to right; keys are grouped per monitor
-  and keep the AeroSpace names (chat, term, code, notes | web, test, mail | media, misc, mac).
-  **When upstream #29 (assign workspaces to monitors) ships, Greg wants this workaround gone**:
-  workspace N = key N, monitors assigned explicitly. The maps to undo are listed in the test
-  note (`KEY_TO_WS`, `hyprmac_ws`, bar order and separators).
+- Key N = workspace N, exactly the AeroSpace layout, pinned by `workspaceMonitors`:
+  Dell 1–5 chat, term, code, misc, notes (left hand; deep blacks, sharp text) | ultrawide 6–9
+  web, media, test, mail (right hand; media, meetings, manual testing) | laptop 0 mac (helper,
+  screen sharing). A disconnected monitor's workspaces fall back to the formula home
+  `(N-1) % screens`, so the laptop alone holds all ten. The same order lives in `spaces.lua`,
+  the watcher's `workspaceOrder` and `bin/dygma-cheats`; change all four together.
 
 ## Diagnose from logs, not guesses
 
@@ -61,21 +66,21 @@ HyprMac" (7c37679b).
   then `ps -p <pid>`. Terminal.app was it (opened by the default Hypr+Return). Not the fix,
   not the config.
 - **Windows float / drags fail `preflight(noRoom)`** → one failed resize became an app-wide
-  minimum (`min-size app hint … source=appHint`). Restarting HyprMac clears it; fork PR #53
-  fixes it.
+  minimum (`min-size app hint … source=appHint`). Restarting HyprMac clears it; fixed upstream
+  by PR #53.
 - **Window ignores a height and sits on the screen bottom** after it once covered the whole
   screen (slider dragged to 0): new windows behave. The frame check allows +20 pt for
   terminals.
 - **"Could not hide the current workspace" on Hypr+F** → hide corner on a screen that a lower
-  screen shares an edge with, or a window taller than the corner screen (fork PR #55).
+  screen shares an edge with, or a window taller than the corner screen (fixed upstream, PR #55).
 - **A browser won't tile in a 948-wide slot**: Vimma's minimum width is ~980. Correct refusal.
 - **"Arrangement rejected"** = the tiled drag's sizing failed and was rolled back; the
   `actual=` in that line is after rollback, not the failing frame.
 
 ## sketchybar
 
-The fork exports `~/Library/Application Support/HyprMac/state.json` (opt-in
-`statusExportEnabled`) and runs `sketchybar-watcher notify --event hyprmac` as its hook; the
+HyprMac exports `~/Library/Application Support/HyprMac/state.json` (opt-in
+`statusExportEnabled` in monitor-config.json) and runs `sketchybar-watcher notify --event hyprmac` as its hook; the
 watcher reads the file. Clicks call `open -g -b com.zachgray.HyprMac.debug
 "hyprmac://focus?workspace=N"` (`-b` because both installed apps claim the scheme). Top
 padding per monitor keeps tiles under the 36 pt bar.
@@ -85,8 +90,10 @@ padding per monitor keeps tiles under the 36 pt bar.
 `greg-nightly` is `upstream/main` plus every still-open PR branch from `origin`
 (73759dde). Run `scripts/rebuild-live.sh` before every build: it rebuilds the
 branch from scratch, force-pushes with `--force-with-lease` and returns to the
-branch you were on; merged or closed PRs drop out by themselves. The script is
-local-only (`.git/info/exclude`), so say so. Never rebuild `local/live` by hand.
+branch you were on; merged or closed PRs drop out by themselves. With no open PRs
+it exits with "no open PRs found": then nightly is just `upstream/main`, build that.
+The script is local-only (`.git/info/exclude`), so say so. Never rebuild `local/live`
+by hand.
 
 ## Focus bugs
 
