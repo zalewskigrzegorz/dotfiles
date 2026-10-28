@@ -18,8 +18,11 @@ is the API.
   Add the marketplace by local path, never a GitHub `tree/…` URL.
 - **`git check-ignore -v agent-mods/<mod>` before the commit**: root
   `.gitignore` has `*token*`, which silently dropped `agent-mods/token-weather`.
-- **Check in three steps:** `claude plugin validate <dir>`, `tsc` with the
-  tsconfig from the types header, `claude plugin test <dir>`. UI tests
+- **Check in three steps, one command:** `bin/mod-check <mod>` runs
+  `claude plugin validate`, `tsc` (types of the mod's `dependencies` included)
+  and `claude plugin test`. Its tsc needs the `.d.ts` the plugin-authoring
+  skill lays, so load that skill once first. An edit reaches the session only
+  after `/reload-plugins`. UI tests
   (`$.ui.mount`, a `ui.render` hook beneath standing for other plugins) catch
   what types don't: `$.prompt.submit('/cmd')` is refused, a command runs
   through `$.command.run({ command, args })` (e4d8288c).
