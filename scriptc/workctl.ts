@@ -1272,13 +1272,17 @@ function colorSession(ws: string, path: string): void {
   run("tuios", ["set-session-space", "-s", ws, repo]);
 }
 
-// A session is one screen: claude and agents open as windows on workspace 1, beside the nu shell.
-// Other workspaces are the back room (bootstrap, bg logs, a tunnel).
+// claude and agents share workspace 2, the one the session shows; the nu shell
+// tuios starts with stays alone on 1. Other workspaces are the back room
+// (bootstrap, bg logs, a tunnel).
 function mainWindow(ws: string, cwd: string, lbl: string, cmd: string, focus: boolean): boolean {
-  const args = ["new-window", lbl, "-s", ws, "--workspace", "1", "--cwd", cwd];
+  const args = ["new-window", lbl, "-s", ws, "--workspace", "2", "--cwd", cwd];
   if (!focus) args.push("--no-focus");
   if (cmd !== "") args.push("--", "nu", "-e", cmd);
-  return run("tuios", args).code === 0;
+  if (run("tuios", args).code !== 0) return false;
+  run("tuios", ["set-workspace-name", "-s", ws, "2", "\u{f06a9}  claude"]);
+  run("tuios", ["select-workspace", "-s", ws, "2"]);
+  return true;
 }
 
 // A herdr tab is a numbered tuios workspace: take the first empty one, open a
