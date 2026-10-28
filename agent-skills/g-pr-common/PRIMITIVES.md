@@ -89,6 +89,14 @@ export G_PR_REPO="$REPO"
 above — parse it out of that same response, no extra API hit. P2 compares it
 against `$ME`.
 
+**Load `work-people` here, before the first line to Greg**, and resolve
+`AUTHOR` plus every other login the run will name (reviewers, thread authors,
+the author of a linked or competing PR) in one `rg -i 'a|b|c'` on the matrix.
+Chat, popups and the closing mail say the full name, never
+the bare login. A brief that already carries `Autor: @login` does not count as
+resolved. A competing PR's author reached Greg three times as a bare login:
+"kim jest <login>? miałeś mi to tłumaczyć na nazwy ludzi" (da31126c, 2026-10-29).
+
 If no PR exists for HEAD and the user gave no number/URL → stop and ask for one.
 
 ## P3. `AskUserQuestion` conventions
