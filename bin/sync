@@ -9,7 +9,8 @@
 # from ~/.config/op/sa-token, exec's chezmoi, env var dies with the subprocess.
 #
 # Usage:
-#   sync                  → chezmoi apply
+#   sync                  → sync back, then chezmoi apply
+#   sync back             → copy what changed on disk (settings clicked in an app) into the repo
 #   sync update           → chezmoi update (git pull + apply, used on lab)
 #   sync <other> [args]   → chezmoi <other> [args]   (passthrough)
 #
@@ -51,15 +52,55 @@ fi
 # in hooks/cron/Raycast. Claude Code rewrites ~/.claude/settings.json on every
 # /config, model switch or plugin toggle, so without --force that file (and
 # anything else an app owns) stays permanently drifted. The repo is the source
-# of truth; the settings-drift-check SessionStart hook warns before a live edit
-# gets discarded. Use bare `chezmoi apply` when you want the prompts.
+# of truth for what it sends; a change made on disk is first taken into it by
+# `back`, so --force no longer throws a clicked setting away. Use bare
+# `chezmoi apply` when you want the prompts.
+
+# The first `chezmoi status` column is a change on disk since chezmoi last wrote
+# the file (a click in an app's settings); the second, what apply would change
+# (a commit in the repo). Only the first is taken back.
+back() {
+  local line target src taken=()
+  while IFS= read -r line; do
+    [[ "${line:0:1}" == M ]] || continue
+    target="$HOME/${line:3}"
+    src="$(chezmoi source-path "$target")"
+    case "$(basename "$src")" in
+      *.tmpl | modify_*)
+        # A template can't be re-added: show the change to copy by hand.
+        echo "to copy by hand into ${src#"$HOME"/}:"
+        # The rendered side may hold secrets from 1Password: print the diff
+        # only to a terminal, never into a log or an agent's transcript.
+        if [[ -t 1 ]]; then
+          chezmoi diff --reverse "$target" || true
+        else
+          echo "  $(chezmoi diff "$target" | grep -c '^[+-][^+-]') changed lines; see: chezmoi diff --reverse $target"
+        fi
+        ;;
+      *)
+        chezmoi re-add "$target"
+        taken+=("$src")
+        ;;
+    esac
+  done < <(chezmoi status)
+  # Commit these like any other change; other agents' dirty files stay out of the list.
+  ((${#taken[@]})) && git -C "$(chezmoi source-path)" diff --stat -- "${taken[@]}"
+  return 0
+}
+
 case "${1:-apply}" in
   update)
+    # No `back` here: the lab's source checkout is never committed from, and a
+    # dirty one would stop the pull.
     shift
     exec chezmoi update --force "$@"
     ;;
+  back)
+    back
+    ;;
   apply)
     shift 2>/dev/null || true
+    back
     exec chezmoi apply --force "$@"
     ;;
   *)

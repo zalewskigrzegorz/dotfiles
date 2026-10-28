@@ -72,9 +72,11 @@ tokens = ["$num", "session", "need", "name", "elapsed", "context", "subagents", 
 autorun = "off"
 
 # herdr-equalize-panes: every split back to half when a pane opens or closes.
+# --tiling true too: a session made by hand came up untiled (2026-10-28), and
+# --equalize alone then fails with "tiling is not enabled" on every window.
 [hooks]
-after-new-window = 'tuios set-layout --equalize -s "$TUIOS_SESSION_ID"'
-after-close-window = 'tuios set-layout --equalize -s "$TUIOS_SESSION_ID"'
+after-new-window = 'tuios set-layout --tiling true --equalize -s "$TUIOS_SESSION_ID"'
+after-close-window = 'tuios set-layout --tiling true --equalize -s "$TUIOS_SESSION_ID"'
 
 [keybindings]
 leader_key = "ctrl+space"
