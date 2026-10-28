@@ -24,9 +24,12 @@ LAST_RESTART_FILE="$STATE_DIR/last_restart"
 
 now=$(date +%s)
 
+DIAG="$HOME/Code/dotfiles/bin/sketchybar-diag"
+
 restart() {
   echo "$(date +%FT%T): $1 — restarting sketchybar"
-  "$HOME/Code/dotfiles/bin/sketchybar-restart" >> /tmp/com.greg.sketchybar-watch.log 2>&1 || true
+  SKETCHYBAR_RESTART_REASON="watchdog: $1" \
+    "$HOME/Code/dotfiles/bin/sketchybar-restart" >> /tmp/com.greg.sketchybar-watch.log 2>&1 || true
   echo "$now" > "$LAST_RESTART_FILE"
   echo 0 > "$FAIL_FILE"
 }
@@ -53,10 +56,15 @@ if ! pgrep -f '[s]ketchybar-watcher/sketchybar-watcher' >/dev/null 2>&1; then
   exit 0
 fi
 
-# Alive — probe responsiveness.
+# Alive — probe responsiveness. A slow or failed probe gets a `sample` of
+# sketchybar first (sketchybar-diag hang), so a later restart has a stack on record.
+t0=${EPOCHREALTIME/[.,]/}
 if timeout 3 "$SB" --query bar >/dev/null 2>&1; then
+  ms=$(( (${EPOCHREALTIME/[.,]/} - t0) / 1000 ))
+  (( ms > 1000 )) && "$DIAG" hang "query bar took ${ms} ms"
   echo 0 > "$FAIL_FILE"
 else
+  "$DIAG" hang "query bar failed or timed out (3 s)"
   fails=$(( $(cat "$FAIL_FILE" 2>/dev/null || echo 0) + 1 ))
   echo "$fails" > "$FAIL_FILE"
   echo "$(date +%FT%T): query failed/hung (${fails}/${CONSECUTIVE})"

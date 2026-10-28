@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# bin/sketchybar-why [N]
+# Last N anomalies (default 10) that bin/sketchybar-diag recorded about the
+# sketchybar tree, plus whether the bar and the recorder run right now.
+#   -v   also print the samples taken before each restart
+set -u
+DIR="$HOME/Library/Logs/sketchybar-diag"
+verbose=0; [[ "${1:-}" == -v ]] && { verbose=1; shift; }
+n=${1:-10}
+
+pid=$(pgrep -f '^/opt/homebrew/opt/sketchybar/bin/sketchybar$' | head -n1)
+if [[ -n "$pid" ]]; then echo "sketchybar: pid $pid, up $(ps -o etime= -p "$pid" | tr -d ' ')"
+else echo "sketchybar: NOT RUNNING"; fi
+if pgrep -f 'sketchybar-diag run' >/dev/null; then echo "recorder: running"
+else echo "recorder: NOT RUNNING (launchctl kickstart gui/$(id -u)/com.greg.sketchybar-diag)"; fi
+echo "log: $DIR/diag.log"
+# the recorder only sees processes; a bar that stops drawing while alive looks healthy
+echo "bar gone but nothing below? that is the render-freeze (alive, not drawing): not recorded here"
+echo
+
+cat "$DIR/diag.log.1" "$DIR/diag.log" 2>/dev/null | awk -v n="$n" -v v="$verbose" '
+  /^  / { if (v || $1 != "before") body[c] = body[c] $0 "\n"; next }
+  { c++; head[c] = $0; body[c] = "" }
+  END {
+    if (!c) { print "no anomalies recorded yet"; exit }
+    for (i = (c > n ? c - n + 1 : 1); i <= c; i++) printf "%s\n%s", head[i], body[i]
+  }'

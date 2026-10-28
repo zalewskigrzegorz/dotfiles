@@ -33,7 +33,7 @@ function reload(reason, settle) {
     'echo "$(date +%FT%T): ' + reason + '" >> ' + LOG +
     '; sleep ' + settle + '; [ "$(cat ' + GEN + ')" = ' + gen + ' ] || exit 0' +
     '; echo "$(date +%FT%T): settled -> sketchybar-restart" >> ' + LOG +
-    '; ' + RESTART + ' >> ' + LOG + ' 2>&1']
+    '; SKETCHYBAR_RESTART_REASON="display listener: ' + reason + '" ' + RESTART + ' >> ' + LOG + ' 2>&1']
   t.launch
 }
 
