@@ -11,7 +11,11 @@ def --wrapped os [...rest] {
     let name = if $git.exit_code == 0 {
         $git.stdout | str trim | path dirname | path basename
     } else if $env.PWD == $env.HOME { sys host | get hostname } else { $env.PWD | path basename }
-    ^tuios attach -c $name
+    # `attach -c` saves no start dir, so an empty workspace opened ~ instead of
+    # the repo. `new` fails harmlessly when the session already exists.
+    let dir = if $git.exit_code == 0 { ^git rev-parse --show-toplevel | str trim } else { $env.PWD }
+    ^tuios new $name --cwd $dir --detach | complete | ignore
+    ^tuios attach $name
 }
 
 # A saved config applies by itself. This pushes the changes that wait for it
