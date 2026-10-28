@@ -5,9 +5,12 @@ description: Greg's tiling window manager HyprMac (replaced AeroSpace 2026-10-25
 
 # HyprMac
 
-Upstream `zacharytgray/HyprMac` (cask `zacharytgray/hyprmac/hyprmac`). Greg runs **HyprMac Debug**
-built from his fork's `greg-nightly`. Since v0.19.0 (f8d3190) upstream has merged every fork PR, so
-nightly = `upstream/main`; history of the fork work is in
+Upstream `zacharytgray/HyprMac` (cask `zacharytgray/hyprmac/hyprmac`). Since v0.19.0 (f8d3190)
+upstream has merged every fork PR, so Greg runs the **release** `HyprMac.app` (login item) again
+(2026-10-28). `HyprMac Debug.app`, built from the fork's `greg-nightly`, stays installed for the
+next fork fix. **Switching = which one runs**: quit one, `open -a` the other, swap the login item.
+Never both at once: they tile the same windows and write the same config. `bin/hyprmac-config` and
+the sketchybar clicks follow whichever runs (`pgrep -x "HyprMac Debug"`). History of the fork work:
 `~/Code/personal/bazgroly/dotfiles/notes/2026-10-25-hyprmac-test.md`.
 
 ## Choosing a shortcut for another app
@@ -29,8 +32,8 @@ HyprMac" (7c37679b).
   `outerPaddingPerMonitor` and `statusExport*`,
   keeps every setting Greg made in HyprMac's UI and every UI chord on a combo it doesn't use,
   backs up to `~/.local/state/hyprmac/backups/`, quits the running app (release or Debug),
-  writes, relaunches. Check the relaunch with `pgrep -x "HyprMac Debug"` after ~5 s:
-  `pgrep -x HyprMac` always exits 1 on Greg's Debug build (673e7d5e). Copying a whole generated config over the live one wiped Greg's
+  writes, relaunches. Check the relaunch after ~5 s with `pgrep -x HyprMac` (release) or
+  `pgrep -x "HyprMac Debug"`: each matches only its own build (673e7d5e). Copying a whole generated config over the live one wiped Greg's
   settings once ("nie rób tak").
 - Every action needs a chord: `mergeNewDefaults` re-injects a default for any action missing
   from the file. That is how Hypr+Return → Terminal came back; `launchApp` is parked on an
@@ -81,8 +84,9 @@ HyprMac" (7c37679b).
 
 HyprMac exports `~/Library/Application Support/HyprMac/state.json` (opt-in
 `statusExportEnabled` in monitor-config.json) and runs `sketchybar-watcher notify --event hyprmac` as its hook; the
-watcher reads the file. Clicks call `open -g -b com.zachgray.HyprMac.debug
-"hyprmac://focus?workspace=N"` (`-b` because both installed apps claim the scheme). Top
+watcher reads the file. Clicks call `open -g -b <bundle> "hyprmac://focus?workspace=N"`, where the
+bundle is `com.zachgray.HyprMac.debug` while Debug runs, else `com.zachgray.HyprMac` (`-b` because
+both installed apps claim the scheme). Top
 padding per monitor keeps tiles under the 36 pt bar.
 
 ## Build branch: `greg-nightly`
