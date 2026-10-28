@@ -64,12 +64,12 @@ async function poll($: EngineInterface) {
 async function openLog($: EngineInterface, t: BgTask) {
   const session = await $.env.get('TUIOS_SESSION')
   if (!session) return void $.ui.toast(`log: ${t.file}`)
-  // Workspace 2 is the session's back room; the main screen stays claude + nu.
+  // Workspace 3 is the session's back room; 1 is nu, 2 is claude (workctl).
   await $.process.run([
-    'tuios', 'new-window', '-s', session, `bg: ${t.desc.slice(0, 30)}`, '--workspace', '2', '--', 'less', '-R', '-~',
+    'tuios', 'new-window', '-s', session, `bg: ${t.desc.slice(0, 30)}`, '--workspace', '3', '--', 'less', '-R', '-~',
     '-PsF=sledz dalej   /=szukaj   q=zamknij', '+F', t.file,
   ])
-  await $.process.run(['tuios', 'select-workspace', '-s', session, '2'])
+  await $.process.run(['tuios', 'select-workspace', '-s', session, '3'])
 }
 // Mocha Neon, the statusline's colours (docs/mocha-neon-palette.md).
 const C = { green: '#50FA7B', red: '#FF6B9D', gold: '#FFD700', peach: '#FF8C42', cyan: '#8BE9FD', lavender: '#9580FF', pink: '#FF79C6' }
