@@ -1,0 +1,176 @@
+#!/usr/bin/env bash
+# bin/sketchybar-diag
+# Flight recorder for the sketchybar process tree. bin/sketchybar-watchdog restarts
+# the bar when it dies or hangs but records nothing about why; this keeps the why.
+# launchd keeps `run` resident (run_onchange_after_48-sketchybar-diag-launchd.sh.tmpl).
+#
+#   run                 sample the tree every 2 s, append ONLY anomalies to the log
+#   analyze             the anomaly logic alone: ps stream on stdin, events on stdout
+#                       (scripts/test-sketchybar-diag.sh feeds it fixtures)
+#   hang <reason>       `sample` sketchybar for 3 s (the watchdog calls it on a slow probe)
+#   restart-by <pid>    record who started bin/sketchybar-restart (it calls this itself)
+#
+# Anomalies: sketchybar pid changed or gone, a tree process >= CPU_PCT for CPU_TICKS
+# samples, more than CHILD_MAX children under sketchybar, RSS that only grows.
+# Readout: bin/sketchybar-why. Cost per tick: one `ps` and one `sleep`; the state
+# lives in one resident awk, so nothing is re-parsed or re-spawned.
+set -uo pipefail
+
+DIR="$HOME/Library/Logs/sketchybar-diag"
+LOG="$DIR/diag.log"
+mkdir -p "$DIR"
+
+: "${INTERVAL:=2}" "${CPU_PCT:=50}" "${CPU_TICKS:=5}" "${CHILD_MAX:=15}" "${CHILD_TICKS:=3}"
+: "${RSS_EVERY:=150}" "${RSS_N:=6}" "${RSS_GROWTH:=1.2}"
+
+ts() { printf '%(%FT%T)T' -1; }
+
+# One header line per anomaly, details indented below it (sketchybar-why reads that shape).
+emit() {
+  # 1 MB cap, one old generation kept
+  if (( $(stat -f %z "$LOG" 2>/dev/null || echo 0) > 1048576 )); then mv -f "$LOG" "$LOG.1"; fi
+  printf '%s %s\n' "$(ts)" "$1" >> "$LOG"
+  [[ $# -gt 1 ]] && printf '%s\n' "${@:2}" | sed 's/^/  /' >> "$LOG"
+  # keep the newest 20 detail files
+  ls -t "$DIR"/*.txt 2>/dev/null | tail -n +21 | while read -r f; do rm -f "$f"; done
+}
+
+# Ancestry of a pid up to launchd: tells a watchdog restart from the display
+# listener, an agent session or a hand-typed one.
+chain() {
+  local p=$1 out="" line
+  while [[ -n "$p" && "$p" -gt 1 ]]; do
+    line=$(ps -o ppid=,command= -p "$p" 2>/dev/null) || break
+    out+="${out:+ <- }$p $(cut -c1-70 <<<"${line#* }" | sed 's/^ *//')"
+    p=$(awk '{print $1}' <<<"$line")
+  done
+  printf '%s' "$out"
+}
+
+analyze() {
+  awk -v CPU_PCT="$CPU_PCT" -v CPU_TICKS="$CPU_TICKS" -v CHILD_MAX="$CHILD_MAX" \
+      -v CHILD_TICKS="$CHILD_TICKS" -v RSS_EVERY="$RSS_EVERY" -v RSS_N="$RSS_N" \
+      -v RSS_GROWTH="$RSS_GROWTH" '
+    function base(s) { sub(/.*\//, "", s); return s }
+    function secs(t,   n, a) { n = split(t, a, ":"); return n == 3 ? a[1]*3600 + a[2]*60 + a[3] : a[1]*60 + a[2] }
+    function out(s) { print s; fflush() }
+    # A tick is "TICK <epoch> [HH:MM:SS]" followed by `ps -axo pid=,ppid=,time=,rss=,command=` lines.
+    $1 == "TICK" { if (started) finish(); start($2); clock = NF > 2 ? $3 : $2; next }
+    {
+      pid = $1; ppid[pid] = $2; cpu_t[pid] = secs($3); rss[pid] = $4
+      nm = base($5)
+      # scripts run by an interpreter: name them by the script (osascript -l JavaScript <listener>)
+      if (nm ~ /^(bash|sh|zsh|osascript)$/)
+        for (i = 6; i <= 8 && i <= NF; i++) if (base($i) ~ /^sketchybar-/) { nm = base($i); break }
+      name[pid] = nm
+      # the daemon runs without arguments; plugins call `sketchybar --set ...` all the time
+      if (nm == "sketchybar" && NF == 5) daemon = pid
+    }
+    END { if (started) finish() }
+    function start(t) { delete ppid; delete cpu_t; delete rss; delete name; daemon = ""; now = t; started = 1 }
+    function finish(   p, sb, n, kids, intree, changed, summary, pct, i, ok, k) {
+      sb = daemon
+      # tree = sketchybar and its descendants, plus the helpers launchd reparents to 1;
+      # not this recorder: its ps/sleep/awk would fill every "before" line
+      for (p in name) if (name[p] ~ /^(sketchybar|sketchybar-.*|cpu_load|network_load)$/ && name[p] != "sketchybar-diag") intree[p] = 1
+      do { changed = 0
+        for (p in name) if (!(p in intree) && (ppid[p] in intree)) { intree[p] = 1; changed = 1 }
+      } while (changed)
+      kids = 0
+      if (sb != "") for (p in intree) if (p != sb && desc(p, sb)) kids++
+
+      if (sb != prev_sb && ticks > 0) {
+        if (sb == "") out("GONE sketchybar pid " prev_sb " is gone")
+        else if (prev_sb == "") out("BACK sketchybar is back as pid " sb)
+        else out("RESTART sketchybar pid " prev_sb " -> " sb)
+        for (i = 0; i < 5; i++) { k = (ring_i + i) % 5; if (ring[k] != "") out("  before " ring[k]) }
+        out("END")
+      }
+
+      summary = ""
+      for (p in intree) {
+        pct = (p in last_t) && now > last_now ? (cpu_t[p] - last_t[p]) * 100 / (now - last_now) : 0
+        if (pct >= CPU_PCT) {
+          if (++hot[p] == CPU_TICKS) { out("CPU " name[p] " pid " p " at " int(pct) "% for " CPU_TICKS " samples"); hot_since[p] = now; hot_name[p] = name[p] }
+        } else if (hot[p] >= CPU_TICKS) {
+          out("CPU-END " name[p] " pid " p " back under " CPU_PCT "% after " now - hot_since[p] "s"); hot[p] = 0
+        } else hot[p] = 0
+        summary = summary " " name[p] ":" p "/" int(pct) "%/" int(rss[p] / 1024) "M"
+
+        if (++seen[p] % RSS_EVERY == 0) {
+          n = ++rn[p]; rh[p, n] = rss[p]; ok = n >= RSS_N
+          for (i = n - RSS_N + 2; ok && i <= n; i++) if (rh[p, i] <= rh[p, i - 1]) ok = 0
+          if (ok && rh[p, n] >= rh[p, n - RSS_N + 1] * RSS_GROWTH) {
+            out("RSS " name[p] " pid " p " only grew " int(rh[p, n - RSS_N + 1] / 1024) "M -> " int(rh[p, n] / 1024) "M over " RSS_N " checkpoints")
+            rn[p] = 1; rh[p, 1] = rh[p, n]
+          }
+        }
+      }
+      if (kids > CHILD_MAX) { if (++crowd == CHILD_TICKS) out("CHILDREN " kids " processes under sketchybar pid " sb " (max " CHILD_MAX ")") }
+      else crowd = 0
+
+      for (p in last_t) if (!(p in intree)) {
+        if (hot[p] >= CPU_TICKS) out("CPU-END " hot_name[p] " pid " p " exited after " now - hot_since[p] "s hot")
+        delete last_t[p]; delete hot[p]; delete seen[p]; delete rn[p]
+      }
+      for (p in intree) last_t[p] = cpu_t[p]
+      ring[ring_i] = clock " kids=" kids summary; ring_i = (ring_i + 1) % 5
+      last_now = now; prev_sb = sb; ticks++
+    }
+    function desc(p, root,   guard) { while (p in ppid && guard++ < 50) { p = ppid[p]; if (p == root) return 1 } return 0 }
+  '
+}
+
+run() {
+  emit "START sketchybar-diag pid $$ (every ${INTERVAL}s, cpu>=${CPU_PCT}% x${CPU_TICKS}, children>${CHILD_MAX})"
+  while :; do
+    printf 'TICK %(%s)T %(%T)T\n' -1 -1
+    ps -axo pid=,ppid=,time=,rss=,command=
+    sleep "$INTERVAL"
+  done | analyze | while IFS= read -r line; do
+    # a pid change comes as header, "  before" lines (the last samples), END
+    case "$line" in
+      "  before "*) before+=("${line#  }") ;;
+      GONE*|RESTART*|BACK*) pending=$line before=() ;;
+      END) restart_event ;;
+      *) emit "$line" ;;
+    esac
+  done
+}
+
+restart_event() {
+  local f="$DIR/restart-$(printf '%(%Y%m%d-%H%M%S)T' -1).txt"
+  {
+    echo "== log show, last 2 min, sketchybar"
+    # one line per distinct message: a new instance repeats the same error hundreds of times
+    log show --last 2m --style compact --predicate 'process == "sketchybar"' 2>&1 |
+      awk '{ m = $0; sub(/^[^ ]+ [^ ]+ +[A-Za-z]+ +sketchybar\[[0-9a-f:]+\] /, "", m) } !(m in s) { s[m]; print }' | tail -40
+    echo "== crash reports"
+    ls -t ~/Library/Logs/DiagnosticReports 2>/dev/null | grep -i sketchybar | head -3
+    echo "== watchdog log"; tail -5 /tmp/com.greg.sketchybar-watch.log 2>/dev/null
+    echo "== display listener log"; tail -5 /tmp/com.greg.sketchybar-display.log 2>/dev/null
+    echo "== sketchybar stderr"; tail -10 /opt/homebrew/var/log/sketchybar/sketchybar.err.log 2>/dev/null
+  } > "$f"
+  emit "$pending" "${before[@]}" "details: $f"
+}
+
+hang() {
+  local pid stamp="$DIR/.last_hang" f
+  pid=$(pgrep -f '^/opt/homebrew/opt/sketchybar/bin/sketchybar$' | head -n1)
+  [[ -z "$pid" ]] && return 0
+  # one sample per minute: the watchdog probes every 15 s while a hang lasts
+  (( $(printf '%(%s)T' -1) - $(cat "$stamp" 2>/dev/null || echo 0) < 60 )) && return 0
+  printf '%(%s)T' -1 > "$stamp"
+  f="$DIR/hang-$(printf '%(%Y%m%d-%H%M%S)T' -1).txt"
+  sample "$pid" 3 -file "$f" >/dev/null 2>&1
+  emit "HANG sketchybar pid $pid: ${1:-slow probe}" "sample: $f"
+}
+
+case "${1:-}" in
+  run) run ;;
+  analyze) analyze ;;
+  hang) hang "${2:-}" ;;
+  restart-by) emit "RESTART-BY ${SKETCHYBAR_RESTART_REASON:-sketchybar-restart}${TUIOS_PANE_ID:+ (tuios pane $TUIOS_PANE_ID)}" \
+    "started by: $(chain "$(ps -o ppid= -p "${2:?pid}" | tr -d ' ')")" ;;
+  *) echo "usage: sketchybar-diag run|analyze|hang <reason>|restart-by <pid>" >&2; exit 2 ;;
+esac

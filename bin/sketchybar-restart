@@ -9,6 +9,9 @@ RED='\033[38;2;255;107;157m'
 MAUVE='\033[38;2;179;71;255m'
 N='\033[0m'
 
+# Who asked for this restart goes on record (bin/sketchybar-why reads it).
+"$HOME/Code/dotfiles/bin/sketchybar-diag" restart-by $$ 2>/dev/null || true
+
 # 1. Stop watcher first so its retry loop doesn't fight us.
 pkill -9 -f sketchybar-watcher 2>/dev/null || true
 
