@@ -1,0 +1,53 @@
+# Written by tuios: the settings page, the keybind manager, `tuios pair` and
+# `tuios hosts add` save their changes here. Tracked by chezmoi in full, so a
+# change made there shows up as drift: `chezmoi re-add ~/.config/tuios/config.toml`
+# before the next apply, or the apply puts the old value back.
+# Hand-written settings live in config.d/10-dotfiles.toml.
+
+[startup]
+daemon = true
+tiled = true
+layout = "bsp"
+
+[appearance]
+kitty_placeholders = "auto"
+glyphs = "heavy"
+border_style = "glyphs"
+frame_panels = true
+window_title_style = "tab"
+window_title_align = "right"
+shared_borders = false
+hide_window_buttons = false
+window_button_style = "dots"
+window_button_position = "left"
+window_title_position = "top"
+tiling_scheme = "spiral"
+drop_preview = "outline"
+
+[spotlight]
+enabled = false
+
+[appearance.scrollbar]
+style = "track"
+
+[plugins]
+enabled = ["furkankly.zoetrope"]
+
+[debug]
+show_key_events = false
+
+[appearance.sidebar.left]
+enabled = false
+
+[appearance.sidebar]
+enabled = true
+
+[appearance.sidebar.right]
+enabled = true
+
+[notifications]
+duration = 0
+bell = "toast"
+
+[notifications.agent]
+sound = false

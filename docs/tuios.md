@@ -31,10 +31,11 @@ Env in every pane: `TUIOS_SESSION`, `TUIOS_PANE_ID` (= `TUIOS_WINDOW_ID`), `TUIO
 
 - `brew "tuios"` in `dot_Brewfile.tmpl` (Mac + lab).
 - Managed settings: `dot_config/tuios/config.d/readonly_10-dotfiles.toml.tmpl` →
-  `~/.config/tuios/config.d/10-dotfiles.toml`, read-only on purpose. tuios owns
-  `config.toml` (settings page, keybind manager, `tuios pair`, `tuios hosts add` write
-  there); `dot_config/tuios/create_config.toml` only creates it once, because tuios reads
-  `config.d/` only when a `config.toml` exists.
+  `~/.config/tuios/config.d/10-dotfiles.toml`, read-only on purpose. tuios writes
+  `config.toml` (settings page, keybind manager, `tuios pair`, `tuios hosts add`), and
+  `dot_config/tuios/config.toml` tracks it in full (2026-10-28: ~30 clicked settings
+  lived only on the Mac). A change made there is drift: `chezmoi re-add
+  ~/.config/tuios/config.toml` before the next apply, or the apply restores the old value.
 - A saved config applies by itself; `os-reload` (`tuios config apply`) pushes what waits
   (a new host, wider grants). `os-restart` (`tuios restart-server`) only after an upgrade,
   from outside tuios.
