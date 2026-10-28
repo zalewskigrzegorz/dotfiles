@@ -18,6 +18,7 @@ export function summarize(view: View): Pr {
   const pr: Pr = {
     number: view.number,
     url: view.url,
+    state: view.state ?? 'OPEN',
     pass: 0,
     fail: 0,
     pending: 0,

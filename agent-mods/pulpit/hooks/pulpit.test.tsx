@@ -58,6 +58,25 @@ test('one line sums up every mod, a press toggles one pane with all the details'
   await line.unmount()
 })
 
+test('a merged PR shows as merged, without checks or rebase', async ($, on) => {
+  mock.clock(on)
+  const merged = { ...(seeded['pr-band.pr'] as object), state: 'MERGED' }
+  on('state.get', (_, e) => ({ value: { value: e.key === 'pr' ? merged : seeded[`${e.plugin}.${e.key}`], version: 1 } }))
+  on('ui.render', ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return <Text>beneath</Text>
+  })
+  const line = await $.ui.mount({ ...LINE, surface: 'terminal' })
+  const text = (await line.find({ type: 'Button', key: 'pulpit' }))?.text ?? ''
+  expect(text).toContain('#7 merged')
+  expect(text).not.toContain('dirty')
+  const pane = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await pane.find({ type: 'Text', text: /#7 zmergowany/ })).toBeDefined()
+  expect(await pane.find({ type: 'Button', key: 'rebase' })).toBeUndefined()
+  await pane.unmount()
+  await line.unmount()
+})
+
 test('nothing to show leaves the line to what is beneath', async ($, on) => {
   on('ui.render', ($, e) => {
     const { Text } = $.ui.resolve(e)

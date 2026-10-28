@@ -17,7 +17,7 @@ test('counts check runs and status contexts', () => {
       { context: 'ci/wait', state: 'PENDING' },
     ],
   })
-  expect(pr).toEqual({ number: 7, url: 'u', pass: 2, fail: 2, pending: 2, failed: ['unit', 'ci/legacy'], merge: 'DIRTY', review: 'APPROVED', e2eRun: null })
+  expect(pr).toEqual({ number: 7, url: 'u', state: 'OPEN', pass: 2, fail: 2, pending: 2, failed: ['unit', 'ci/legacy'], merge: 'DIRTY', review: 'APPROVED', e2eRun: null })
   expect(needsRebase(pr)).toBe(true)
 })
 
