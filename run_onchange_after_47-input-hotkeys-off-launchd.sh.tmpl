@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Build scripts/input-hotkeys-off.swift and load the com.greg.input-hotkeys-off LaunchAgent: keeps
+# ctrl+space free for the tuios prefix. macOS turns the input-source hotkeys back on after every
+# restart, so it runs at login and then every minute; it only acts (and logs) when one came back.
+#
+# swift: {{ include "scripts/input-hotkeys-off.swift" | sha256sum }}
+# Version: 2026-10-28.1
+set -euo pipefail
+
+{{ if eq .chezmoi.os "darwin" -}}
+bin="$HOME/.local/bin/input-hotkeys-off"
+mkdir -p "$(dirname "$bin")"
+swiftc -O -o "$bin" "{{ .chezmoi.sourceDir }}/scripts/input-hotkeys-off.swift"
+
+plist_dir="$HOME/Library/LaunchAgents"
+plist_file="$plist_dir/com.greg.input-hotkeys-off.plist"
+mkdir -p "$plist_dir"
+
+cat > "$plist_file" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.greg.input-hotkeys-off</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$bin</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>60</integer>
+  <key>StandardOutPath</key>
+  <string>/tmp/com.greg.input-hotkeys-off.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/com.greg.input-hotkeys-off.err</string>
+</dict>
+</plist>
+PLIST
+
+if launchctl list | grep -q "com.greg.input-hotkeys-off"; then
+  launchctl unload "$plist_file" || true
+fi
+launchctl load "$plist_file"
+echo "[ok] com.greg.input-hotkeys-off loaded (at login + every 60s)"
+{{ else -}}
+exit 0
+{{ end -}}
