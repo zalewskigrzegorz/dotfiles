@@ -74,7 +74,7 @@ for those tools, and don't propose bringing the stack back.
 `bin/bsk` (stage 28 → `~/bin`, ahead of `~/.local/bin/bsk` on PATH) wraps the
 real CLI and passes every subcommand straight through. It no longer parks the
 Agent Window: the Comet window lands where HyprMac's window rule for Comet puts
-it (workspace web, `ctrl-5`). Parking on a workspace `test` (`ctrl-8`) went
+it (workspace web, `ctrl-6`). Parking on a workspace `test` (`ctrl-8`) went
 away with AeroSpace (a8481fff).
 
 ## Health check

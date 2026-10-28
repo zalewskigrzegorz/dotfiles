@@ -21,7 +21,7 @@ explicitly `bsk tab borrow`ed. Policy lives in
   `agent skill up to date → N/A` is expected — see the skill bullet below.
 - `bin/bsk` (copied to `~/bin` by stage 28, ahead on PATH) wraps that CLI: it
   is a plain passthrough to that CLI now; the Agent Window lands where
-  HyprMac's window rule for Comet puts it (workspace web, Ctrl+5). If `which bsk`
+  HyprMac's window rule for Comet puts it (workspace web, Ctrl+6). If `which bsk`
   still shows `~/.local/bin/bsk`, restart the shell or run `hash -r`.
 - Extension is **hand-installed** from the [Chrome Web Store](https://chromewebstore.google.com/detail/hhcmgoofomhgciiibhipgmgkgnoenaoi)
   (id `hhcmgoofomhgciiibhipgmgkgnoenaoi`) and lives in Comet's `Default` profile.
