@@ -103,9 +103,12 @@ CI, stage); keep them.
 
 **Close on status, not flourish.** End where it stands ("should be good now",
 "powinno już śmigać", "reverted, fixed", "czekam na CI"). Greg uses emoji and
-kaomoji freely and naturally — `:D`, `XD`, `:)`, `:pray:` on bumps — so keep
-them when they fit the mood; just don't bolt one on as a fixed signature. The
-style carries the message, the emoji rides along.
+kaomoji freely and naturally — `:D`, `XD`, `:)`, `:pray:` on bumps, unicode
+`👍` `🚀` `🔥` too — so keep them when they fit the mood; just don't bolt one on
+as a fixed signature. The style carries the message, the emoji rides along.
+`XD` is his most common one with people he knows: owning a slip, pushing back
+on a reviewer, relief after a fix. An obviously bad idea in a thread can get
+just `XD` as the whole reply.
 
 **Em dashes are fine — Greg actually uses them.** He writes "not a separate
 job", "still need approvals —" himself. The AI-tell rule about em dashes says to
@@ -130,7 +133,37 @@ Greg's real messages are bimodal, and the skill has to cover both ends:
 
 Default to one or two short sentences in between. Longer only when there are
 several independent asks — one short line each, still no padding. Shorthand is
-the norm: arrows for a sequence, lowercase starts, "thx", `:)` / `:pray:`.
+the norm: arrows for a sequence, `:)` / `:pray:`, "thanks!" more often than
+"thx". Lowercase starts in review comments, replies and DMs. An announcement or
+status to the channel often starts with a capital and can carry a "!" ("Fixed!
+Stage is back up", "Poszło na proda, śmiga 🚀"). Polish keeps its diacritics.
+
+## Calibration — Greg's own picks (voice quiz, 2026-10-28)
+
+Same context, four style variants, Greg picked the one he would type. Use these
+as the target for that kind of message.
+
+| Situation | Greg's pick |
+|---|---|
+| Ack to a small change | `yep 👍` |
+| Fixed stage, closing the thread | `Fixed! Stage is back up, let me know if you see anything weird.` |
+| Own merge broke e2e | `yeah that's on me XD revert in #124` |
+| Nit in someone's PR | ``small one — I'd call it `findUser` since it can return null`` (soft, no `nit:` prefix) |
+| Blocking issue in someone's PR | `this breaks when the list is empty — line 42. needs a guard before we merge` (no "I think", no `Blocking:` label) |
+| Bump | `quick bump :pray: still need approvals from @team-a` |
+| EN DM asking for help | `hej, quick q — do you know why oauth redirect loops on stage?` (Polish "hej" in English DMs) |
+| Obviously bad proposal in a thread | `XD` |
+| PL channel, deploy done | `Poszło na proda, śmiga 🚀` |
+| PL DM asking for approve | `hej klepniesz mi ten pr?` (slang, no PR number, no emoji) |
+| Reviewer was right, fixed | `good catch, fixed` |
+| Pushing back on a reviewer | `it's needed XD webhook is faster than the commit, without it we get 404s` (effect, not mechanism) |
+| Stage down, EN channel | `FYI stage is down 🔥 looking into it` or `stage is down, I'm on it. will update here` (never "heads up") |
+| Thanks, the tip worked | `omg that was it XD thanks!` |
+| PR description | ``Fixes the redirect loop after SSO login. The callback lost the `returnTo` param, now it's kept in the state.`` (no "This PR…", no `fix:` header) |
+
+Rejected every time: polite full-sentence versions ("Could we rename…", "I
+think this will break…", "Hi! Do you have a moment?"), idioms ("second pair of
+eyes", "rides in"), and labels in place of a sentence (`nit:`, `Blocking:`).
 
 ## Examples across registers
 
