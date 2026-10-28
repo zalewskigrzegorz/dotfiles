@@ -215,6 +215,8 @@ height = "90%"
 
 # Done with this session's work: agent, worktree, branch and session go at once.
 # It stops only for uncommitted changes or commits on no remote, and lists them.
+# workctl, not `tuios worktree rm`: that one skips the fsmonitor stop, keeps the
+# branch and only knows sessions it created itself.
 [[keybindings.command]]
 key = "prefix+X"
 type = "popup"
@@ -231,17 +233,6 @@ command = '"$HOME/bin/tuios-worktree-new" --all'
 description = "workctl --all — same picker, other repos' worktrees too"
 width = "90%"
 height = "90%"
-
-# herdr's remove_worktree: remove this session's worktree, its branch and the
-# session through `work rm --self`, not `tuios worktree rm`: that one skips the
-# fsmonitor stop, keeps the branch and only knows sessions it created itself.
-[[keybindings.command]]
-key = "prefix+d"
-type = "popup"
-command = 'printf "remove worktree of %s? [y/N] " "$TUIOS_SESSION"; read -r a; [ "$a" = y ] || exit 0; "$HOME/bin/workctl" rm --self || { echo "press Enter"; read -r _; }'
-description = "Remove this session's worktree"
-width = "70"
-height = "8"
 
 # Tape picker: fzf over ~/.config/tuios/tapes (public) and the private
 # secrets/tuios-tapes, then `tuios tape exec` of the pick in this session.
