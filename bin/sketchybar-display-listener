@@ -15,19 +15,23 @@ ObjC.import('Cocoa')
 
 const SB = '/opt/homebrew/bin/sketchybar'
 const LOG = '/tmp/com.greg.sketchybar-display.log'
-let lastFire = 0
+const GEN = '/tmp/com.greg.sketchybar-display.gen'
+let gen = 0
 
-// reason: short label for the log. settle: seconds to wait before reloading,
-// so the display geometry is final (wake needs longer than a resolution flip).
+// reason: short label for the log. settle: seconds of quiet before reloading.
+// Trailing debounce: every event bumps GEN and only the last one reloads. A wake
+// brings a burst (wake, then screen changes ~5 s later); one reload per event
+// redrew the bar ~10 times and orphaned a lua config process per extra reload.
 function reload(reason, settle) {
-  const now = $.NSDate.date.timeIntervalSince1970
-  if (now - lastFire < 2.0) return   // debounce the burst of notifications
-  lastFire = now
+  gen += 1
+  $(String(gen)).writeToFileAtomicallyEncodingError(GEN, true, $.NSUTF8StringEncoding, $())
   const t = $.NSTask.alloc.init
   t.launchPath = '/bin/bash'
-  t.arguments = ['-lc',
-    'echo "$(date +%FT%T): ' + reason + ' -> sketchybar --reload" >> ' + LOG +
-    '; sleep ' + settle + '; ' + SB + ' --reload >> ' + LOG + ' 2>&1']
+  t.arguments = ['-c',
+    'echo "$(date +%FT%T): ' + reason + '" >> ' + LOG +
+    '; sleep ' + settle + '; [ "$(cat ' + GEN + ')" = ' + gen + ' ] || exit 0' +
+    '; echo "$(date +%FT%T): settled -> sketchybar --reload" >> ' + LOG +
+    '; ' + SB + ' --reload >> ' + LOG + ' 2>&1']
   t.launch
 }
 
@@ -36,13 +40,14 @@ const app = $.NSApplication.sharedApplication
 // Screen reconfiguration — posted on the default notification center.
 $.NSNotificationCenter.defaultCenter.addObserverForNameObjectQueueUsingBlock(
   'NSApplicationDidChangeScreenParametersNotification', $(), $(),
-  function (_notif) { reload('screen change', '1') }
+  function (_notif) { reload('screen change', '2') }
 )
 
 // Wake from sleep — posted on the WORKSPACE notification center (not default).
 $.NSWorkspace.sharedWorkspace.notificationCenter.addObserverForNameObjectQueueUsingBlock(
   'NSWorkspaceDidWakeNotification', $(), $(),
-  function (_notif) { reload('wake from sleep', '3') }
+  // 6 s: outlasts the gap to the screen changes that follow a wake
+  function (_notif) { reload('wake from sleep', '6') }
 )
 
 app.run
