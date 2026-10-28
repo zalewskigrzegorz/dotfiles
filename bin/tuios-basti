@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# tuios-basti — prefix+B popup: switch to the `basti` session (made in the work monorepo
+# if missing) and type `basti connect ` without Enter in a fresh window; Alt+T then picks
+# the target through the television `basti` channel. One window per tunnel, so a running
+# tunnel never gets text typed into it and every one stays visible in one place.
+set -euo pipefail
+
+s=basti
+dir=${WORK_MONOREPO_DIR:-}
+[ -d "$dir" ] || { echo "WORK_MONOREPO_DIR is not set or missing: '$dir'"; read -r _; exit 1; }
+
+w=""
+if ! tuios ls --json | jq -e --arg s "$s" 'any(.[]; .name == $s)' >/dev/null; then
+  tuios new "$s" --detach --cwd "$dir" >/dev/null
+  tuios set-workspace-name -s "$s" 1 "  basti" >/dev/null || true
+  # `tuios new` opens one shell window; reuse it instead of leaving it empty.
+  w=$(tuios ls --json | jq -r --arg s "$s" '.[] | select(.name == $s) | .windows[0].id // empty')
+fi
+[ -n "$w" ] || w=$(tuios new-window -s "$s" --cwd "$dir" --json | jq -r '.window_id // empty')
+[ -n "$w" ] || { echo "could not open a window in session $s"; read -r _; exit 1; }
+
+# Text sent before the shell's first prompt is lost: wait for output, then quiet.
+tuios wait-for window-output -s "$s" -w "$w" --pattern . --timeout 5000 >/dev/null 2>&1 || true
+tuios wait-for window-idle -s "$s" -w "$w" --idle 300 --timeout 5000 >/dev/null 2>&1 || true
+tuios send-text -s "$s" -w "$w" 'basti connect '
+tuios switch-session "$s"

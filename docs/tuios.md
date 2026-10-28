@@ -70,7 +70,8 @@ Env in every pane: `TUIOS_SESSION`, `TUIOS_PANE_ID` (= `TUIOS_WINDOW_ID`), `TUIO
 | `prefix+shift+o` | the same picker `--all` (other repos' worktrees too) |
 | `prefix+d` | remove this session's worktree (`tuios worktree rm`; refuses uncommitted changes) |
 | `prefix+m` | Tokscale token-usage dashboard (popup, `bunx tokscale@latest`) |
-| `prefix+r` | tape picker (`bin/tuios-tape-pick`): fzf over `~/.config/tuios/tapes` (public, `dot_config/tuios/tapes/`) and `~/.local/state/dotfiles/secrets/tuios-tapes` (private, `PRIVATE_AGENT_ASSETS_TAR`), `tuios tape exec` of the pick in this session. `[tape] autorun = "off"`: a repo's `.tuios.tape` never offers itself |
+| `prefix+r` | tape picker (`bin/tuios-tape-pick`): fzf over `~/.config/tuios/tapes` (public, `dot_config/tuios/tapes/`) and `~/.local/state/dotfiles/secrets/tuios-tapes` (private, `PRIVATE_AGENT_ASSETS_TAR`), `tuios tape exec` of the pick in this session. `[tape] autorun = "off"`: a repo's `.tuios.tape` never offers itself. A tape with `Run` fails from here: the popup is a pane without the `respond` grant, so tuios refuses the typing (0.11.1) |
+| `prefix+B` | `bin/tuios-basti`: switch to the `basti` session (made in `$WORK_MONOREPO_DIR` if missing) and type `basti connect ` without Enter in a new window, one window per tunnel; Alt+T picks the target (television `basti` channel). The debug menu moved to `prefix+J` |
 
 Every split is equalised when a window opens or closes (`[hooks]` in the config).
 Key search: `tuios keybinds` and the settings page (`prefix+s`).

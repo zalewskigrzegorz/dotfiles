@@ -113,8 +113,9 @@ prefix_last_message = ["I"]
 rename_session = ["W"]
 prefix_workspace_switcher = []
 prefix_close_session = ["D"]
-# D closes the session (herdr's key); the debug menu (logs, showkeys) moves to B.
-prefix_debug = ["B"]
+# D closes the session (herdr's key); the debug menu (logs, showkeys) moves to J,
+# so B can open the basti session.
+prefix_debug = ["J"]
 prefix_toggle_spotlight = []
 prev_session = [","]
 next_session = ["."]
@@ -227,6 +228,16 @@ command = '"$HOME/bin/tuios-tape-pick"'
 description = "Run a tape from the tape folders"
 width = "90%"
 height = "80%"
+
+# The `basti` session: one fixed place for tunnels, so none hides in a random pane.
+# Not a tape: a tape's Run from a popup pane is refused without the respond grant.
+[[keybindings.command]]
+key = "prefix+B"
+type = "popup"
+command = '"$HOME/bin/tuios-basti"'
+description = "basti session: type basti connect, Alt+T picks the target"
+width = "60"
+height = "6"
 
 # tokscale token-usage + cost dashboard (was the herdr-tokscale-dashboard plugin).
 [[keybindings.command]]
