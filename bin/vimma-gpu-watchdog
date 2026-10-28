@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# bin/vimma-gpu-watchdog
+# Kills Vimma's GPU process when it swells; Vimma starts a fresh one, as killing
+# it from about:processes does. Observed 2026-10-28: "Vimma GPU Helper" at 5.2 GB
+# resident after a wake from sleep, RAM ran out and the Mac froze (JetsamEvent).
+# launchd runs this every 60s (dot_config/launchd/com.greg.vimma-gpu-watch.plist.tmpl).
+#
+# Logic: THRESHOLD_MB sustained across CONSECUTIVE checks, so a heavy page that
+# settles back never triggers it; COOLDOWN after each kill.
+# shortcut: SIGTERM and trust Vimma to respawn the GPU process; if it ever stays
+# blank afterwards, restart Vimma here instead.
+set -euo pipefail
+
+THRESHOLD_MB=3072    # resident MB of the GPU helper (normal is ~100-300 MB)
+CONSECUTIVE=2        # consecutive over-threshold checks (~2 min at 60s interval)
+COOLDOWN=900         # seconds to wait after a kill before acting again
+
+STATE_DIR="${TMPDIR:-/tmp}/vimma-gpu-watch"
+mkdir -p "$STATE_DIR"
+COUNT_FILE="$STATE_DIR/count"
+LAST_KILL_FILE="$STATE_DIR/last_kill"
+
+now=$(date +%s)
+
+if [[ -f "$LAST_KILL_FILE" ]]; then
+  last=$(cat "$LAST_KILL_FILE" 2>/dev/null || echo 0)
+  if (( now - last < COOLDOWN )); then
+    exit 0
+  fi
+fi
+
+# pid and resident KB of the GPU helper; empty when Vimma is not running.
+read -r pid rss < <(ps -Ao pid=,rss=,comm= | awk '/Vimma GPU Helper$/ {print $1, $2; exit}') || true
+if [[ -z "${pid:-}" ]]; then
+  echo "0" > "$COUNT_FILE"
+  exit 0
+fi
+mb=$(( rss / 1024 ))
+
+if (( mb >= THRESHOLD_MB )); then
+  count=$(( $(cat "$COUNT_FILE" 2>/dev/null || echo 0) + 1 ))
+  echo "$count" > "$COUNT_FILE"
+  echo "$(date +%FT%T): GPU helper pid $pid at ${mb} MB (${count}/${CONSECUTIVE})"
+  if (( count >= CONSECUTIVE )); then
+    echo "$(date +%FT%T): killing GPU helper pid $pid at ${mb} MB"
+    kill -TERM "$pid" 2>/dev/null || true
+    echo "$now" > "$LAST_KILL_FILE"
+    echo "0" > "$COUNT_FILE"
+    if command -v alerter >/dev/null 2>&1; then
+      alerter -message "GPU Vimmy urósł do ${mb} MB, ubity, Vimma odpali nowy" \
+              -title "vimma-gpu-watch" -timeout 5 >/dev/null 2>&1 || true
+    fi
+  fi
+else
+  echo "0" > "$COUNT_FILE"
+fi

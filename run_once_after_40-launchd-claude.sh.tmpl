@@ -14,6 +14,8 @@
 #                          changes and forces `sketchybar --reload` to fix the
 #                          render-freeze where the bar survives but stops drawing
 #                          — see bin/sketchybar-display-listener)
+#   - com.greg.vimma-gpu-watch (every 60s; kills Vimma GPU Helper past 3 GB for 2
+#                          checks, Vimma respawns it — see bin/vimma-gpu-watchdog)
 # Legacy labels are explicitly torn down below: claude-watcher / claude-idle-timer
 # fed the removed sketchybar claude_sessions widget, aerospace-watchdog went with
 # AeroSpace (HyprMac since 2026-10-25), hyprmac-bar went once HyprMac wrote state.json itself.
@@ -21,7 +23,7 @@
 # changes. To force a re-bootstrap (e.g. after editing the plists), bump the
 # version stamp in the comment below.
 #
-# Version: 2026-10-28.1
+# Version: 2026-10-28.2
 set -eu
 
 SRC_DIR="${HOME}/.config/launchd"
@@ -34,7 +36,7 @@ for legacy in com.greg.claude-watcher com.greg.claude-idle-timer com.greg.aerosp
   rm -f "${DST_DIR}/${legacy}.plist"
 done
 
-for label in com.greg.temp-watch com.greg.slack-watch com.greg.sketchybar-watch com.greg.sketchybar-display; do
+for label in com.greg.temp-watch com.greg.slack-watch com.greg.sketchybar-watch com.greg.sketchybar-display com.greg.vimma-gpu-watch; do
   src="${SRC_DIR}/${label}.plist"
   dst="${DST_DIR}/${label}.plist"
   if [[ ! -f "$src" ]]; then
