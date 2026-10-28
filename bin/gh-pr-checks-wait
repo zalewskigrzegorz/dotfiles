@@ -1,18 +1,21 @@
 #!/bin/zsh
-# gh-pr-checks-wait <pr> [--timeout <s>] [--interval <s>] [-R owner/repo]
+# gh-pr-checks-wait <pr> [--timeout <s>] [--interval <s>] [--ignore <regex>]... [-R owner/repo]
 #
 # Watch every check on a PR. Prints one status line per interval
 # (`19:21:04  pass=12 fail=0 pending=3 | pending: e2e, build`) so a tuios bg
 # pane shows progress, then the final verdict. `gh pr checks --watch` prints
 # nothing without a TTY until it ends, so its pane stayed empty (2026-10-27).
+# Pending checks matching --ignore (default `Visual review`, which waits for a
+# human click) don't hold the wait: two 30-min timeouts on it (c0cc0722).
 # Exit: 0 all passed, 1 a check failed, 4 timeout.
 set -u
-PR=""; TIMEOUT=3000; INTERVAL=60; REPO=()
-usage() { echo "usage: gh-pr-checks-wait <pr> [--timeout <s>] [--interval <s>] [-R owner/repo]" >&2; exit 2; }
+PR=""; TIMEOUT=3000; INTERVAL=60; REPO=(); IGNORE="Visual review"
+usage() { echo "usage: gh-pr-checks-wait <pr> [--timeout <s>] [--interval <s>] [--ignore <regex>]... [-R owner/repo]" >&2; exit 2; }
 while [ $# -gt 0 ]; do
   case "$1" in
     --timeout) shift; TIMEOUT=$1 ;;
     --interval) shift; INTERVAL=$1 ;;
+    --ignore) shift; IGNORE="$IGNORE|$1" ;;
     -R) shift; REPO=(-R "$1") ;;
     -*) usage ;;
     *) PR=$1 ;;
@@ -33,8 +36,10 @@ while :; do
       "pass=\(n("pass")) fail=\(n("fail")) pending=\(n("pending"))"
       + (map(select(.bucket == "pending") | .name) | if length > 0 then " | pending: " + join(", ") else "" end)')
     echo "$(date +%T)  $line"
-    pending=$(printf '%s' "$json" | jq '[.[] | select(.bucket == "pending")] | length')
+    pending=$(printf '%s' "$json" | jq --arg re "$IGNORE" '[.[] | select(.bucket == "pending" and (.name | test($re) | not))] | length')
     if [ "$pending" -eq 0 ]; then
+      manual=$(printf '%s' "$json" | jq -r '[.[] | select(.bucket == "pending") | .name] | join(", ")')
+      [ -n "$manual" ] && echo "only manual checks pending: $manual"
       failed=$(printf '%s' "$json" | jq -r '.[] | select(.bucket == "fail") | "failure \(.name) \(.link)"')
       [ -z "$failed" ] && { echo "success: all checks passed"; exit 0; }
       echo "$failed"

@@ -26,6 +26,7 @@ one-liners and each cost a retry or more (2026-09-23 … 09-28):
    `(N)` must sit outside the quotes: `"…/Skaner/Epson_*.pdf"(N)` is a literal
    and still dies (2026-10-09). Quote only the fixed prefix,
    `"$dir"/Epson_*.pdf(N)`, or use `find "$dir" -name 'Epson_*.pdf'`.
+   `dir/*/` is the same glob and dies on a missing dir: `*/(N)` or `find`.
 3. **An unquoted `&` or `;` in a URL ends the command.** `DATABASE_URL=postgres://…/db?a=1&b=2
    pnpm prisma migrate deploy` ran the first half in the background, and the
    migrate fell back to the default database: 13 migrations landed in the

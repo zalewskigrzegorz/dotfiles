@@ -142,6 +142,10 @@ the **full drafted text in the `preview` of every option**, plus the target
 (channel + thread) in the question. Wait for Greg's explicit yes. He can
 trim/redirect here.
 
+**Another task's go-ahead is not a send.** "Rób PR" authorises the PR, not a
+post with its link in a Slack thread. A link-only message still gets this
+confirm step (ebcbd85f: a PR link went out with Greg's token unasked).
+
 **Never rely on text printed above the popup.** The dialog covers the assistant
 message that precedes it, so a draft shown "in the reply, then a popup" is a
 draft Greg never sees — on 2026-09-20 this happened twice in one session, he

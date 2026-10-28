@@ -322,3 +322,8 @@ the scratchpad. Personal data from there never goes to bazgroly (5666f824).
 A task-notification saying the ponytail `UserPromptSubmit` hook was skipped
 (`cc-plugin-sec-default` runs first) gets no reply and no mention. A first
 reply spent two sentences on it and "Czekam na zadanie" (7c37679b).
+
+## Sentry `search_issues` takes no `OR` / `AND`
+
+`(team OR scim)` answers HTTP 400 "Boolean statements … are not supported".
+Several terms = several calls in one turn (c0cc0722).

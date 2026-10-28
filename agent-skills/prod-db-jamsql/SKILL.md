@@ -77,6 +77,15 @@ by the user"; 2 of 5 certificates landed (a656141a).
 - "Write query was denied" means not run. After the series, a read-only check
   of every row on the same connection, never an assumption.
 
+## A missing grant: live first, then the migration
+
+Worked on US and EU (ebcbd85f):
+
+1. Prove the region, then read-only: `has_table_privilege('<role>', '<schema.table>', 'SELECT')` is false.
+2. One Jam SQL tab per region, region in the title: an idempotent `GRANT` looping over the roles that need it.
+3. After his "poszło": `SELECT` true and `INSERT` false on the same `connectionId`.
+4. Then the same SQL as a plain migration in the repo: a no-op on prod, the grant on stage and labs at deploy.
+
 ## Backups and snapshots
 
 Read-only, first line "read-only, nic nie odtwarzam" (a120142c, 5 calls):

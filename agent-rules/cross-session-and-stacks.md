@@ -82,6 +82,11 @@ silently (c333538c).
   range-diff` against the old ref.
 - Changed test files → the package's `ts:check` too: vitest does not
   type-check, and a PR sat red for a full e2e cycle on that (9adba92d).
+- `git log --merges origin/main..HEAD` not empty → a rebase flattens those
+  merges and drops their hand-resolved conflicts without a conflict. Back up
+  the branch, build the target tree in a scratch `GIT_INDEX_FILE`, and after
+  the rebase `git diff <target-tree> HEAD --stat`: every difference you did not
+  mean is a lost change (three found in c0cc0722).
 
 ## Red check on a stacked branch → compare with the base first
 
@@ -90,3 +95,10 @@ touching code, run `rg-base-head <pattern> [paths] --base origin/<base>` (or
 the check itself on the base). Same hits on both → report in one line
 ("identyczne na base, nie nasze") and leave them. It took ~15 calls twice in
 one session (2026-10-08).
+
+A branch off `main` gets the same check: the failing files from the job log
+against `git diff --name-only origin/main...HEAD`, then one `gh run list
+--branch main --workflow <wf> -L 10 --json conclusion,headSha`. No overlap and
+the job red on `main` too → "nie nasze, flak na main" and `gh run rerun
+--failed`. A flaky `PendingInvites.test.tsx` cost ~60 calls before that
+(c0cc0722).
