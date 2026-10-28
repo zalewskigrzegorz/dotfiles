@@ -85,7 +85,7 @@ const extraOf = (i: Row) => [i.note, i.agent && i.status !== 'done' ? AGENT_LABE
 
 const needsRebase =(merge: string) => merge === 'DIRTY' || merge === 'BEHIND'
 // A merged or closed PR: its checks and merge state no longer matter, only that it is done.
-const ended = (p: { state?: string }) => !!p.state && p.state !== 'OPEN'
+const ended = (p: { state: string }) => p.state === 'MERGED' || p.state === 'CLOSED'
 // Check names come from CI config: only plain characters go into a prompt.
 export const cleanChecks = (names: readonly string[]) => names.map(n => n.replace(/[^\p{L}\p{N} ._()/,:-]/gu, '').slice(0, 60)).join(', ')
 
@@ -155,7 +155,7 @@ export const register: Register = on => {
           {all.length > 0 && p !== null && sep}
           {p !== null && ended(p) && (
             <Text color={C.lavender}>
-              󰘬 #{p.number} {p.state?.toLowerCase()}
+              󰘬 #{p.number} {p.state.toLowerCase()}
             </Text>
           )}
           {p !== null && !ended(p) && (
