@@ -55,7 +55,7 @@ if command -v workctl >/dev/null; then
   echo "✅ worktrees: $(gain $(($(avail_k) - before)))"
 fi
 
-if ! command -v docker >/dev/null || ! docker info >/dev/null 2>&1; then
+if ! command -v docker >/dev/null || ! DOCKER_NO_START=1 docker info >/dev/null 2>&1; then
   echo "⏭️  docker: not running"
 elif ! skip_if_busy docker 'docker (build|buildx|compose)|pg_dump|pg_restore'; then
   step docker docker_prune

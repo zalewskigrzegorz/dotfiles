@@ -2,8 +2,8 @@
 {{- if eq .chezmoi.os "darwin" }}
 # macOS system defaults captured from NeuroMancer on 2026-10-19, so a fresh Mac
 # gets the same Dock, menu bar and Finder behaviour, plus sketchybar as a brew
-# service (it replaces the hidden menu bar), colima as a brew service and the
-# Docker CLI plugin links. Edit a value here and the run_onchange
+# service (it replaces the hidden menu bar), no colima at login (bin/docker
+# starts it on demand) and the Docker CLI plugin links. Edit a value here and the run_onchange
 # hash re-applies it.
 set -eu
 
@@ -82,9 +82,9 @@ for p in docker-compose docker-buildx; do
   fi
 done
 
+# colima no longer starts at login: bin/docker starts it on the first docker call.
+# The plist goes, a VM already running stays up until the next stop or reboot.
 # shortcut: a fresh Mac boots colima with its defaults (2 CPU, 2 GB); size it once with `colima stop && colima start --cpu 8 --memory 20 --disk 100`.
-if [ -x /opt/homebrew/bin/brew ] && /opt/homebrew/bin/brew list colima >/dev/null 2>&1; then
-  /opt/homebrew/bin/brew services start colima >/dev/null 2>&1 || echo "macos-defaults: brew services start colima failed"
-fi
+rm -f "$HOME/Library/LaunchAgents/sh.brew.colima.plist"
 echo "macos-defaults: applied"
 {{- end }}

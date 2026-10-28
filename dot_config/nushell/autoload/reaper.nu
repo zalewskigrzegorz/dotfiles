@@ -145,7 +145,7 @@ export def reaper [
     # --- docker containers (any that are up)
     let docker_rows = (
         if (which docker | is-not-empty) {
-            let r = (do { ^docker ps --format '{{.ID}}||{{.Names}}||{{.Image}}||{{.Status}}' } | complete)
+            let r = (do { with-env {DOCKER_NO_START: '1'} { ^docker ps --format '{{.ID}}||{{.Names}}||{{.Image}}||{{.Status}}' } } | complete)
             if $r.exit_code == 0 {
                 $r.stdout | lines | where {|l| ($l | str trim) != "" } | each {|l|
                     let f = ($l | split row "||")
@@ -243,7 +243,7 @@ export def reap-mcp [--dry] {
         print "reap-mcp: docker not found."
         return
     }
-    let r = (do { ^docker ps --format '{{.ID}}||{{.Names}}||{{.Image}}||{{.Status}}' } | complete)
+    let r = (do { with-env {DOCKER_NO_START: '1'} { ^docker ps --format '{{.ID}}||{{.Names}}||{{.Image}}||{{.Status}}' } } | complete)
     if $r.exit_code != 0 {
         print $"reap-mcp: docker ps failed: ($r.stderr | str trim)"
         return
