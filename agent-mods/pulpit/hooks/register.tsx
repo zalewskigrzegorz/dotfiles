@@ -140,6 +140,7 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column">
         <Button key="pulpit" plain hotkey="o" label="pulpit" onPress={() => void toggle($)}>
+          <Text>🦄 </Text>
           {all.length > 0 && (
             // ◐ and ⧗ draw wider than their one cell: the space after each keeps the digit readable.
             <Text>
@@ -164,7 +165,7 @@ export const register: Register = on => {
           {(running > 0 || failed > 0) && (all.length > 0 || p !== null || n.standup > 0 || n.retro > 0) && sep}
           {running > 0 && <Text color={C.cyan}>⚙ {running}</Text>}
           {failed > 0 && <Text color={C.red}> ✗{failed}</Text>}
-          <Text dimColor>  ▸ szczegóły</Text>
+          <Text color={C.pink}>  ▸ szczegóły</Text>
         </Button>
         {below}
       </Box>
