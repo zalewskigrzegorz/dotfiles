@@ -84,6 +84,14 @@ async function openPeek($: EngineInterface, ref: string) {
   return true
 }
 
+// Reading the PR in the browser takes longer than the auto-close, so opening it pins the peek
+// until the person closes it or another PR replaces it.
+function openInBrowser($: EngineInterface, url: string) {
+  pinned = true
+  peekTimer?.cancel()
+  void $.process.run(['open', url]).catch(() => {})
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'pr', description: 'Show a PR (number or URL) in a pane: checks, merge state, review', argumentHint: '<n|url>' })
@@ -167,7 +175,7 @@ export const register: Register = on => {
         </Box>
         {p.failed.length > 0 && <Text color={C.red}>{p.failed.join(', ')}</Text>}
         <Box>
-          <Button key="open" plain hotkey="o" label="otwórz" onPress={() => void $.process.run(['open', p.url])} />
+          <Button key="open" plain hotkey="o" label="otwórz" onPress={() => openInBrowser($, p.url)} />
           {p.e2eRun && <Button key="e2e" plain hotkey="e" label="screeny e2e" onPress={() => void showE2e($, p)} />}
           {own && p.fail > 0 && (
             <Button
