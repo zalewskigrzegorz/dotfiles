@@ -56,6 +56,8 @@ const HOME = process.env.HOME ?? "";
 const TREE_ROOT = join(HOME, "Code", "tree");
 // Trees herdr made outlive herdr; rm, prune and `rm --self` must still reach them.
 const LEGACY_TREE_ROOT = join(HOME, ".herdr", "worktrees");
+// `tuios worktree new` (prefix+U) makes its trees here, as <repo>/<branch>.
+const TUIOS_TREE_ROOT = join(HOME, ".local", "share", "tuios", "worktrees");
 const CACHE_DIR = join(HOME, ".cache");
 const NU_AUTOLOAD = join(HOME, ".config", "nushell", "autoload");
 // Shared with stage 30 of the dotfiles apply (agent-skills placement).
@@ -393,7 +395,7 @@ function worktreesOf(root: string, repo: string): Worktree[] {
 // left mid-rebase, the other callers key on the branch name (2026-10-12).
 function foreignWorktrees(skipRoot: string, detached: boolean): Worktree[] {
   const r = sh(
-    `find ${shq(TREE_ROOT)} ${shq(LEGACY_TREE_ROOT)} -maxdepth 4 -name .git 2>/dev/null | ` +
+    `find ${shq(TREE_ROOT)} ${shq(LEGACY_TREE_ROOT)} ${shq(TUIOS_TREE_ROOT)} -maxdepth 4 -name .git 2>/dev/null | ` +
       `while read -r g; do d=$(dirname "$g"); ` +
       `c=$(git -C "$d" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || continue; ` +
       `b=$(git -C "$d" branch --show-current 2>/dev/null); ` +
@@ -423,7 +425,7 @@ function foreignWorktrees(skipRoot: string, detached: boolean): Worktree[] {
       if (line.startsWith("worktree ")) path = line.slice("worktree ".length);
       const branch = line.startsWith("branch refs/heads/") ? line.slice("branch refs/heads/".length) : "";
       if (branch === "" && !(detached && line === "detached")) continue;
-      const pooled = path.startsWith(`${TREE_ROOT}/`) || path.startsWith(`${LEGACY_TREE_ROOT}/`);
+      const pooled = [TREE_ROOT, LEGACY_TREE_ROOT, TUIOS_TREE_ROOT].some((p) => path.startsWith(`${p}/`));
       if (!pooled || seen.has(path) || !existsSync(path)) continue;
       seen.add(path);
       wts.push({ repo: basename(root), root, branch, path });
@@ -1224,8 +1226,8 @@ function layoutPrep(cwd: string): void {
 // One tuios session per worktree, named from its path the way `tuios worktree
 // new` names one (<repo>-<branch>, `/` → `-`), so rm and prune find it by name.
 function sessionName(path: string): string {
-  const pool = `${TREE_ROOT}/wt-`;
-  return (path.startsWith(pool) ? path.slice(pool.length) : basename(path)).split("/").join("-");
+  const pool = [`${TREE_ROOT}/wt-`, `${TUIOS_TREE_ROOT}/`].find((p) => path.startsWith(p));
+  return (pool !== undefined ? path.slice(pool.length) : basename(path)).split("/").join("-");
 }
 
 // The worktree's session, or "". `tuios ls` reads the saved sessions when no
@@ -1990,6 +1992,33 @@ function vacateSession(ws: string, root: string): void {
   for (const id of attached) run("tuios", ["switch-session", "--client", id, target]);
 }
 
+// The worktree cwd sits in; a popup on an empty workspace starts in ~, so then the one whose
+// session this is.
+function selfWorktree(wts: Worktree[]): Worktree | undefined {
+  const here = trimSlash(process.env.PWD ?? "");
+  const s = process.env.TUIOS_SESSION ?? "";
+  return wts.find((w) => here === w.path || here.startsWith(`${w.path}/`)) ?? (s === "" ? undefined : wts.find((w) => sessionName(w.path) === s));
+}
+
+// `workctl done` — prefix+X, "this work is finished": the session's agent, worktree, branch and
+// session go at once, no question asked. It stops only when something would be lost
+// (uncommitted changes, commits on no remote) and lists them for lazygit. A session that is no
+// worktree (a repo's main checkout, often shared by several agents) is left alone.
+function doneCmd(): number {
+  const t = selfWorktree(foreignWorktrees("", true));
+  if (t === undefined) die("this session is no worktree — nothing removed (prefix+D closes a session)");
+  const dirty = lines(git(t.path, ["status", "--porcelain"]).out);
+  const unpushed = lines(git(t.path, ["log", "--oneline", "HEAD", "--not", "--remotes"]).out);
+  if (dirty.length > 0 || unpushed.length > 0) {
+    err(`✋ ${t.branch !== "" ? t.branch : basename(t.path)}: nothing removed, this would be lost:`);
+    if (dirty.length > 0) err(`  ${String(dirty.length)} uncommitted:\n${dirty.slice(0, 8).map((l) => `    ${l}`).join("\n")}`);
+    if (unpushed.length > 0) err(`  ${String(unpushed.length)} commit(s) on no remote:\n${unpushed.slice(0, 8).map((l) => `    ${l}`).join("\n")}`);
+    return 1;
+  }
+  // Every commit is on a remote, so -D loses nothing (a squash-merged branch fails -d).
+  return removeWorktree(t.root, t.path, t.branch, t.branch === "" ? "" : "-D");
+}
+
 // `workctl rm` — the body of `work rm`. The nu def is a thin wrapper because a
 // def is frozen into every shell that loaded work.nu, so a fix there never
 // reached tabs already open (the fsmonitor crash, 2026-09-25); a binary is
@@ -2017,8 +2046,7 @@ function rmCmd(args: string[]): number {
   } else if (self) {
     // `-s` removes the worktree cwd sits inside — kept explicit so a bare
     // `work rm` never nukes the current tree by surprise.
-    const here = trimSlash(process.env.PWD ?? "");
-    t = wts.find((w) => here === w.path || here.startsWith(`${w.path}/`));
+    t = selfWorktree(wts);
     if (t === undefined) die("not inside a worktree — `-s` has nothing to remove");
     err(`🎯 current worktree: ${label(t)} (${t.repo})`);
   } else {
@@ -2635,8 +2663,8 @@ function main(): void {
     out(menuRows(st, registry()).join("\n"));
     return;
   }
-  if (a0 === "rm" || a0 === "prune") {
-    const code = a0 === "rm" ? rmCmd(argv.slice(1)) : pruneCmd(argv.slice(1));
+  if (a0 === "rm" || a0 === "prune" || a0 === "done") {
+    const code = a0 === "rm" ? rmCmd(argv.slice(1)) : a0 === "done" ? doneCmd() : pruneCmd(argv.slice(1));
     if (code !== 0) process.exit(code);
     return;
   }

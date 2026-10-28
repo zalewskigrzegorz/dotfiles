@@ -56,7 +56,7 @@ Env in every pane: `TUIOS_SESSION`, `TUIOS_PANE_ID` (= `TUIOS_WINDOW_ID`), `TUIO
 | `os-projects` (nushell) | opens the missing project sessions (main checkouts) in their colours, renames the lab's `session-0` to `mrglaszki` |
 | `prefix+y` / `I` / `S` | scratch terminal · last message in full (`M` is the mailbox) · keyboard into the sidebar and back. `prefix+H` (opposite sidebar, a copy of the same rail) is unbound |
 | `prefix+a` / `prefix+0` | jump to the next item that needs you (Inbox) · `prefix+A` next unseen finished turn |
-| `prefix+c` `T` `X` | new / rename / close workspace (tab) · `1`–`9`, `p`, `n` switch |
+| `prefix+c` `T` | new / rename workspace (tab) · `1`–`9`, `p`, `n` switch. Close-workspace is unbound: `X` is "done" below |
 | `prefix+h/j/k/l` | focus window · `prefix+tab` next · `` prefix+` `` last · `P` rename window |
 | `prefix+v` / `\` / `\|` | split right |
 | `prefix+t` | pane finder (tree: sessions, workspaces, windows) |
@@ -66,9 +66,10 @@ Env in every pane: `TUIOS_SESSION`, `TUIOS_PANE_ID` (= `TUIOS_WINDOW_ID`), `TUIO
 | `prefix+o` | review overlay: what the agent in this window changed, notes sent back as one message |
 | `prefix+e` | nvim scratch (one nvim that survives the toggle) |
 | `prefix+shift+r` | layout menu (50–90 % sizes) |
-| `prefix+shift+g` | **branch / worktree picker** in the focused repo (`bin/tuios-worktree-new` → `workctl`) |
+| `prefix+shift+g` / `prefix+shift+u` | **branch / worktree picker** in the focused repo (`bin/tuios-worktree-new` → `workctl`). `U` replaces tuios's own `new_worktree`, which put trees in `~/.local/share/tuios/worktrees` with no space or accent; every tree lives in `~/Code/tree/wt-<repo>/<branch>` |
+| `prefix+shift+x` | **done** (`workctl done`): the session's agent, worktree, branch and session go at once, no question. It stops only for uncommitted changes or commits on no remote and lists them (go to lazygit). Not a worktree session → nothing happens (`prefix+D` closes a session) |
 | `prefix+shift+o` | the same picker `--all` (other repos' worktrees too) |
-| `prefix+d` | remove this session's worktree (`tuios worktree rm`; refuses uncommitted changes) |
+| `prefix+d` | remove this session's worktree after a y/N (`workctl rm --self`, asks again on uncommitted changes) |
 | `prefix+m` | Tokscale token-usage dashboard (popup, `bunx tokscale@latest`) |
 | `prefix+r` | tape picker (`bin/tuios-tape-pick`): fzf over `~/.config/tuios/tapes` (public, `dot_config/tuios/tapes/`) and `~/.local/state/dotfiles/secrets/tuios-tapes` (private, `PRIVATE_AGENT_ASSETS_TAR`), `tuios tape exec` of the pick in this session. `[tape] autorun = "off"`: a repo's `.tuios.tape` never offers itself. A tape with `Run` fails from here: the popup is a pane without the `respond` grant, so tuios refuses the typing (0.11.1) |
 | `prefix+B` | `bin/tuios-basti`: switch to the `basti` session (made in `$WORK_MONOREPO_DIR` if missing) and type `basti connect ` without Enter in a new window, one window per tunnel; Alt+T picks the target (television `basti` channel). The debug menu moved to `prefix+J` |
