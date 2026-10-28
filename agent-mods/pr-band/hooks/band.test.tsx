@@ -7,6 +7,8 @@ const PANE = {
   props: { title: 'PR', isFocused: false, bodyColumns: 80, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} },
 } as const
 
+const RUN = { origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 120 } } as const
+
 const view = (checks: object[]) =>
   JSON.stringify({ number: 7, url: 'https://x/pr/7', title: 'Fix', author: { login: 'x' }, mergeStateStatus: 'DIRTY', reviewDecision: '', statusCheckRollup: checks })
 
@@ -30,7 +32,7 @@ test('polls the PR into state, toasts when checks finish, the peek holds the act
   await clock.advance(90_000)
   expect(toasts).toEqual(['PR #7: 1 checków padło'])
 
-  await $.command.run({ command: 'pr', args: '7' })
+  await $.command.run({ command: 'pr', args: '7', ...RUN })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await ui.find({ type: 'Button', key: 'rebase' })).toBeDefined()
   await ui.press({ key: 'log' })
@@ -80,6 +82,30 @@ test('a PR link in the prompt opens the peek, the next prompt closes it', async 
   expect(closed).toEqual(['pr-peek'])
 })
 
+test('opening the PR in the browser pins the peek past the timer and the next prompt', async ($, on) => {
+  const clock = mock.clock(on)
+  const closed: string[] = []
+  const ran: string[] = []
+  on('process.run', (_, e) => (ran.push(e.argv.join(' ')), { value: { exitCode: 0, stdout: view([]), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('command.register', () => ({ value: { command: 'pr' } }))
+  on('ui.open', () => ({ value: { isPlaced: true as const } }))
+  on('ui.close', (_, e) => (closed.push(e.id), { value: undefined }))
+  on('prompt.submit', (_, e) => ({ text: e.text }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await clock.settle()
+
+  await $.command.run({ command: 'pr', args: '7', ...RUN })
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'open' })
+  expect(ran).toContain('open https://x/pr/7')
+  await clock.advance(10 * 60_000)
+  await $.prompt.submit({ text: 'ok dzięki', wait: false, origin: { kind: 'composer' } })
+  await clock.settle()
+  expect(closed).toEqual([])
+  await ui.unmount()
+})
+
 test('the e2e button pulls the failure shots and hands the folder to /screen', async ($, on) => {
   const clock = mock.clock(on)
   const shown: string[] = []
@@ -104,7 +130,7 @@ test('the e2e button pulls the failure shots and hands the folder to /screen', a
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   await clock.settle()
 
-  await $.command.run({ command: 'pr', args: '7' })
+  await $.command.run({ command: 'pr', args: '7', ...RUN })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await ui.press({ key: 'e2e' })
   expect(ran).toContain('gh run download')
