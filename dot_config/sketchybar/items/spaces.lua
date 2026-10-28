@@ -25,9 +25,9 @@ local workspace_colors = {
 local current_workspace = nil
 local focused_color = colors.purple
 
--- Greg runs the debug build; with -b the release app, which also claims hyprmac://, is never
--- launched by a click.
-local hyprmac_bundle = "com.zachgray.HyprMac.debug"
+-- Both the release and a local debug build claim hyprmac://; -b sends the click to the one that
+-- runs (release by default), so switching builds needs no edit here or in bin/hyprmac-config.
+local hyprmac_bundle = '"$(pgrep -qx "HyprMac Debug" && echo com.zachgray.HyprMac.debug || echo com.zachgray.HyprMac)"'
 
 -- Two sets: item.N (full size, monitors) and item.N.s (small, laptop screen).
 -- items/compact.lua decides which display each set draws on; the watcher updates both.
