@@ -1500,6 +1500,20 @@ function doDiff(st: St, ctx: Ctx): number {
   return 0;
 }
 
+// --repo-url pins the PR's repo, so this works from any cwd (gh-dash, the picker).
+function doTuicr(st: St, ctx: Ctx): number {
+  const args = ["pr", String(st.num), "--repo-url", `https://github.com/${st.repo}`];
+  if (ctx.dry) {
+    out(`[dry-run] tuicr ${args.join(" ")}`);
+    return 0;
+  }
+  if (!have("tuicr")) {
+    err("tuicr not installed — brew install tuicr");
+    return 1;
+  }
+  return runTty("tuicr", args);
+}
+
 function doWeb(st: St, ctx: Ctx): number {
   if (st.hasPr) {
     if (ctx.dry) {
@@ -2285,6 +2299,7 @@ function registry(): Row[] {
     row("wt-light", "worktree", "👓", "worktree, no seed", (st) => st.worktree === "", (st, c) => doWorktree(st, "none", c), NONE, "", NONE, NONE),
     row("wt-bootstrap", "worktree", "📦", "worktree + secrets + install (own tab)", (st) => st.bootstrap !== "", (st, c) => doWorktree(st, "bootstrap", c), (st) => st.bootstrap, "", NONE, NONE),
     row("diff", "gh", "📄", "diff → pager", (st) => st.kind !== "new", doDiff, NONE, "", NONE, NONE),
+    row("tuicr", "gh", "🔬", "review in tuicr (comment + :submit)", pr, doTuicr, NONE, "", NONE, NONE),
     row("rm", "worktree", "🗑", "remove worktree + branch", (st) => st.worktree !== "", doRemove, NONE, "", NONE, NONE),
     row("web", "gh", "🌐", "open in browser", (st) => st.kind !== "new" && st.repo !== "", doWeb, NONE, "", NONE, NONE),
     row("copy", "gh", "📋", "copy URL", (st) => st.url !== "", doCopy, NONE, "", NONE, NONE),
