@@ -115,8 +115,8 @@ def intent-header [pr: record, failed: list, threads: list] {
     let flag_txt = ($flags | str join " · ")
     let tail = (if ($flag_txt | is-empty) { "" } else { $" · ($flag_txt)" })
     print $"Stan: ($failed | length) czerwonych checków · ($threads | length) nierozwiązanych wątków($tail)"
-    # Marks the tab as unattended: the skills read it as "ask via tuios ask-human,
-    # close with this mail" (agent-rules/adhd-actions-not-walls.md, g-pr-common P10).
+    # Marks the tab as unattended: the skills read it as "close with this mail"
+    # (g-pr-common P10).
     print $"Raport: tuios send-agent-message -w human --from \"$TUIOS_PANE_ID\" --subject 'PR #($pr.number): <werdykt>' '<≤5 linii>'"
 }
 

@@ -182,28 +182,21 @@ About 15 popups were rejected in one week. Every one broke one of these:
   item gets its own popup; an unticked box never counts as "zostaw"
   (ecc92e2d: a PR he wanted refreshed was reported "zostawione").
 
-## An unattended tuios agent asks through `tuios ask-human`
+## Every tuios agent asks through `AskUserQuestion`, never `tuios ask-human`
 
-A session whose first message is a brief, not Greg's typing (a `bin/pr-brief`
-tab from `workctl` with its `Raport:` line, or a parent's `tuios start-agent
---prompt` / `tuios queue`), runs in a tab he is not looking at: an
-`AskUserQuestion` there waits unseen. With `TUIOS_PANE_ID` set, a
-fixed-answer fork goes to his Inbox (prefix+i) instead:
+An `AskUserQuestion` popup in a tuios pane is on the screen **and** a row in
+his Inbox (prefix+i): the `tuios agent-hook claude-code` hooks report it as
+`needs_input`, and a digit on the row answers it (verified with Greg
+2026-10-29). That holds for unattended tabs too: a `workctl` / `bin/pr-brief`
+tab with its `Raport:` line, or a `tuios start-agent --prompt` / `tuios queue`
+worker.
 
-```bash
-tuios ask-human 'PR #31204: wysłać review jako?' -o 'comment (Recommended)' -o approve -o 'nie wysyłaj' --timeout 540000
-```
-
-- One line, at most 160 bytes; 1–9 answers, at most 60 bytes each,
-  recommended first. A draft or diff he must read goes first as
-  `tuios send-agent-message -w human --from "$TUIOS_PANE_ID" --subject '<one
-  line>' '<the text>'`, then the short question.
-- Exit 0 prints the answer. Exit 2 = no answer within the timeout (the Bash
-  tool caps a call at 10 min): the question stays and the answer is mailed to
-  this pane, so `tuios wait-for agent-message -w "$TUIOS_PANE_ID" --timeout
-  540000`, then `tuios read-agent-messages -w "$TUIOS_PANE_ID" --unread`.
-  Exit 1 = dismissed: stop and report that.
-- Greg's own interactive session keeps `AskUserQuestion`.
+`tuios ask-human` puts the question in the Inbox only. The agent's screen
+shows a running Bash call, so a looked-at agent "just hangs" with nothing to
+answer (2026-10-29: "patrzę na agenty i one nic nie robią tylko wiszą"). Don't
+use it. A draft he must read before a popup still goes first as mail
+(`tuios send-agent-message -w human --from "$TUIOS_PANE_ID" --subject '<one
+line>' '<the text>'`) or into the popup's `preview`.
 
 ## A live test Greg runs: one step per popup
 

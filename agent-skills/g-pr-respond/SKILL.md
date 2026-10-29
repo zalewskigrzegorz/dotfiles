@@ -27,7 +27,7 @@ Read `../g-pr-common/PRIMITIVES.md` now. It carries P0 (local-first
 resolution + identity cache), P1 (target resolution), P3 (`AskUserQuestion`
 conventions), P4 (duplicate clustering), P5 and P5.5 (comment rules and the
 mandatory voice gate), P6 (blob links), P7 (scripts location), P8 (rate
-limits) and P10 (unattended tuios tab: `ask-human`, closing mail).
+limits) and P10 (unattended tuios tab: closing mail).
 Everything below assumes it.
 
 P2 is NOT in that file — the ownership guard differs per flow, so it stays
