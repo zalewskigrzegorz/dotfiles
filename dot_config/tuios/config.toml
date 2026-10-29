@@ -23,6 +23,15 @@ window_button_position = "left"
 window_title_position = "top"
 tiling_scheme = "spiral"
 drop_preview = "outline"
+show_cpu = false
+show_ram = false
+dock_prefix_indicator = "pill"
+dock_compact = false
+theme_transition = "circle"
+confirm_quit = true
+whichkey_position = "bottom-right"
+right_click_opens_menu = true
+max_fps = 120
 
 [spotlight]
 enabled = false
@@ -40,7 +49,7 @@ show_key_events = false
 enabled = false
 
 [appearance.sidebar]
-enabled = true
+enabled = false
 
 [appearance.sidebar.right]
 enabled = true
@@ -51,3 +60,6 @@ bell = "toast"
 
 [notifications.agent]
 sound = false
+
+[agents]
+enabled = true
