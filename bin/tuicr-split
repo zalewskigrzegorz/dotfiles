@@ -15,13 +15,18 @@ shift
 command -v tuicr >/dev/null || { echo "tuicr-split: tuicr not installed (brew install tuicr)" >&2; exit 2; }
 dir="$(cd "$dir" && pwd)"
 
+# The pane runs nushell: `;` chains, single quotes keep each word literal, so a
+# quote or a control char (newline = Enter) would break out; refuse those.
+for a in "$dir" "$@"; do
+  [[ "$a" != *"'"* && "$a" != *[[:cntrl:]]* ]] || { echo "tuicr-split: refusing quote/control char in: $a" >&2; exit 2; }
+done
+
 w="$(tuios split-window horizontal -w "$TUIOS_PANE_ID" --name tuicr --json | jq -r .window_id)"
 [ -n "$w" ] && [ "$w" != null ] || { echo "tuicr-split: split-window returned no id" >&2; exit 1; }
 echo "window=$w"
 
-# The pane runs nushell: `;` chains, single quotes keep the path literal.
 args=""
-for a in "$@"; do args+=" '${a//\'/}'"; done
+for a in "$@"; do args+=" '$a'"; done
 tuios send-text -w "$w" "cd '$dir'; tuicr$args; exit
 "
 
