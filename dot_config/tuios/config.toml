@@ -32,6 +32,8 @@ confirm_quit = true
 whichkey_position = "bottom-right"
 right_click_opens_menu = true
 max_fps = 120
+dim_unfocused = 20
+session_border = true
 
 [spotlight]
 enabled = false
