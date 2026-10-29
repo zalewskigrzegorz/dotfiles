@@ -32,6 +32,14 @@ entry per run with `blocked`, `unsubscribed`, `spared`, `findings`. Every action
 
 Never re-derive the white list from a single run — read it from the top level.
 
+**First run:** no file and no directory. Don't hunt for it with `fd`; create it
+and say "pierwszy bieg, brak ledgera" in one line (0303ab99):
+
+```bash
+L=~/.local/state/inbox-sweep/ledger.json
+test -f "$L" || { mkdir -p ~/.local/state/inbox-sweep && echo '{"version":2,"runs":[],"never_touch":[],"vip_primary":[]}' > "$L"; }
+```
+
 Shapes are mixed, so every `jq` over entries starts defensive (3 probes and a
 false exit 5 after a good write, 2026-10-09):
 
@@ -132,6 +140,10 @@ bsk navigate "https://www.bulc.club/bd/<token>" --session <id>
 bsk evaluate "document.body.innerText" --session <id> | head -c 300
 bsk session stop <id>
 ```
+
+`bsk session start` → `no browser is connected to the daemon`: switch to
+`browsentic` (`page_navigate` + `page_extractText`, one link at a time) and
+say so in one line, without asking which stack (0303ab99).
 
 The landing page states the outcome in plain text — `YOU'VE BLOCKED THIS DOMAIN` or
 `YOU'VE ALREADY BLOCKED THIS DOMAIN`, plus the member rating and received/blocks/held

@@ -26,6 +26,18 @@ is the API.
   (`$.ui.mount`, a `ui.render` hook beneath standing for other plugins) catch
   what types don't: `$.prompt.submit('/cmd')` is refused, a command runs
   through `$.command.run({ command, args })` (e4d8288c).
+- **A mod's command name must not collide with a repo skill.** pr-band's `/pr`
+  threw `"/pr" refused: it is the user's /pr` in work worktrees (team skill
+  `pr`), and a throw in `session.start` skips the whole hook: PR polling never
+  started there, silently (30c41c3e). Give commands specific names (`pr-peek`,
+  not `pr`), end `$.command.register(...)` with `.catch(() => {})`, and
+  reproduce with headless `claude -p` run inside a real worktree that has the
+  team skills, not a clean dir.
+- **Headless probe: prompt first.** `claude -p "<prompt>" --allowedTools
+  "Bash(x *)" --plugin-dir <copy> </dev/null`. A list flag before the prompt
+  eats it (`Input must be provided either through stdin or as a prompt
+  argument`). Waiting is the mod's job (`$.clock.sleep`), not a `sleep` in the
+  prompt; Haiku refuses it.
 - **A band composes:** an `AbovePrompt` hook returns
   `<Box flexDirection="column">{own}{await next(e)}</Box>`. A tree returned
   without `next` hides every other mod's band.

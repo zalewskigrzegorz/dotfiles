@@ -72,7 +72,13 @@ monorepo above all). Those prompts are the design.
 - **`git pull --rebase` only after your commit**, right before the push. On a
   dirty shared tree it dies with "commit or stash"; before the commit use
   `git fetch` + `git log --oneline HEAD..origin/<branch> -- <paths>`, and
-  don't repeat the pull after that error (28ca873d).
+  don't repeat the pull after that error (28ca873d). After the commit on a
+  tree with other agents' changes (in dotfiles `dot_config/tuios/config.toml`
+  is dirty most of the time): `git fetch` + `git rev-list --left-right --count
+  HEAD...origin/<branch>`; nothing behind → `git push`, behind → one line, no
+  pull. **Never `git stash` in a shared checkout**, not even for a moment: it
+  hides other agents' files. Compare with HEAD through `git show
+  HEAD:<path> > <scratch>/<file>` (127b663a, 30c41c3e).
 - **Anything that starts CI goes after a verified push.** Chain commit → push
   → label or dispatch with `&&`, or check `git rev-parse HEAD` equals
   `git rev-parse @{u}` first. A commit that died on `index.lock` still let a

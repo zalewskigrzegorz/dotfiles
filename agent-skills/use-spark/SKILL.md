@@ -810,7 +810,7 @@ Do not check on every session or before every command - this skill is the source
 ## Local notes (Greg's dotfiles — re-add after a `spark skill` refresh)
 
 - **`Spark CLI can't access your Spark Desktop application` → stop after one try.** `spark` is an IPC client; the app is not running or the CLI is off in its settings. One line to Greg ("otwórz Spark Desktop i włącz CLI w ustawieniach"), no retry loop, no guessing the app name with `open -a` (`open -a "Spark Desktop"` fails, 2026-09-25). Resume only after his "gotowe".
-- **"wyślij" means sent, not drafted.** Access differs per account (`spark accounts`): the iCloud one is `triage`, so `spark action send <id>` only answers "Waiting for your approval" and runs after Greg approves it in Spark Desktop (2026-10-21); confirm with `spark history` or the `Sent` folder, never assume it went. The flow is: show the text, wait for "wyślij" (or `kk`), `spark draft`, read the echoed `Body:` back, then `spark action send <id>`. Stopping at the draft got "nie tylko szkic!" (2026-10-09). Without a "wyślij", a draft is the end of the task and you say so ("draft 68908 czeka w Sparku").
+- **"wyślij" means sent, not drafted.** Access differs per account (`spark accounts`): the iCloud one is `triage`, so `spark action send <id>` answers "Waiting for your approval", yet it may already be sent (see "`action send` on a triage account" below); confirm with `spark history` and the `Sent` folder, never assume either way. The flow is: show the text, wait for "wyślij" (or `kk`), `spark draft`, read the echoed `Body:` back, then `spark action send <id>`. Stopping at the draft got "nie tylko szkic!" (2026-10-09). Without a "wyślij", a draft is the end of the task and you say so ("draft 68908 czeka w Sparku").
 - **The Gmail signature is a work one** ("Software Engineer" + phone). For private formal mail (notariusz, urząd, bank, dealer) pass `--no-signature` and end the body with his own sign-off; otherwise keep the default and leave the sign-off out, as the upstream tip says.
 - **Long threads with quoted history and signatures:** `scripts/thread-clean.sh <id>` prints only the new text per message (strips `>` quotes, signatures, NIP/address footers). Reach for it before hand-writing an `rg -v` chain.
 - **`--filter` takes only the documented operators.** A bare word (`Elroq`) errors with `unsupported filter(s)` and `OR` or parentheses are silently ignored, returning unrelated mail (2026-10-21). Keywords go in the positional topic: `spark search "elroq zamówienie" --filter "from:x newer_than:2m"`.
@@ -834,13 +834,35 @@ Do not check on every session or before every command - this skill is the source
    (Settings → AI Agents, at least read-only per account). Empty `search`
    results mean nothing until `accounts` lists them.
 
-### `action send` on a triage account only queues
+### `action send` on a triage account: the "Waiting" message lies
 
-`action send` answers "Waiting for your approval … in Spark Desktop" and
-nothing leaves until Greg clicks (354021a2). Say so, end the turn with
-"zatwierdź w Spark Desktop i napisz poszło", never report "wysłane". Verify in
-Sent with `spark search --filter "to:<addr> newer_than:1d"`. Away from the
-Mac → give the draft link and skip `action send`.
+`action send` answers "Waiting for your approval … in Spark Desktop. Nothing
+has been sent yet", but on 2026-10-29 a mail to a kancelaria went out at once
+(it sat in Sent, `spark history` said `action send ok`); twice "nic nie
+wyszło" got "Kłamiesz, bo ja widzę, że jest wysłane". So:
+
+- **Treat `action send` as sending.** Run it only after "wyślij" or `kk` on
+  the final text. "Popraw tekst" opens a new round: show the corrected text
+  again and wait for "wyślij". A footer change is not consent either.
+- **After every `action send`**, before reporting: `spark search --filter
+  "to:<addr> newer_than:1d"` and `spark history`. Report what they show, sent
+  or queued, never the CLI's own message.
+- Away from the Mac → give the draft link and skip `action send`.
+
+### "Przejrzyjmy maile": the list first, then one at a time
+
+A drafted reply in a popup right after "przejrzeć rzeczy z poczty" got
+"najpierw przyjrzyjmy, co tam jest do zrobienia", and a batch "co z resztą"
+got "lecimy po kolei" (0303ab99).
+
+- First a list with no actions: one line per matter, who wrote, what they
+  want, what waits on Greg.
+- Then one matter at a time, in the list's order. No draft and no "wyślij"
+  popup before the list.
+- No batch question about the rest (archive newsletters and the like) until
+  he asks.
+- A matter he has context on from a call or his phone: ask for it in one
+  sentence before drafting, don't guess (the kancelaria had phoned).
 
 ### Mail to a company about an order
 

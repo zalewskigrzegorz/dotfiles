@@ -28,3 +28,11 @@ Silently working around the denial can undo something he was intentionally doing
 3. **Don't retry in a loop.** One failure → report + ask. Do not keep re-firing
    the same command hoping the grant appears.
 4. This applies to any Privacy-gated service on macOS, not just Reminders.
+5. **The switch is on and macOS keeps asking → check the app, not TCC.**
+   Ghostty asked for Screen Recording over and over with the toggle on (~30
+   calls on `tccd` logs): its `macos-icon` setting writes an `Icon` file into
+   the bundle, which breaks the ad-hoc signature, so macOS drops the grant
+   (dca362b1, fixed in `d9db4fb`). First `codesign --verify --deep --strict
+   <app>` and the bundle's mtime, then which process `tccd` names as
+   responsible (a `screencapture` from an agent counts as Ghostty, not tuios),
+   then anything that modifies the bundle. Reset stays Greg's call (rule 1).

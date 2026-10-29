@@ -29,6 +29,23 @@ def work-repo []: nothing -> string {
     open $f | lines | where {|l| $l starts-with "WORK_MAIN_REPO="} | first | str replace "WORK_MAIN_REPO=" ""
 }
 
+# Full name for a GitHub login from the work-people matrix (agent-skills/work-people),
+# so the agent never copies a bare login into a popup. Falls back to the login.
+def person [login: string]: nothing -> string {
+    let org = ($env.WORK_GITHUB_ORG_LOWER? | default "")
+    let env_file = ($nu.home-dir | path join ".local/state/dotfiles/secrets/work.env")
+    let org = (if $org != "" or not ($env_file | path exists) { $org } else {
+        open $env_file | lines | where {|l| $l starts-with "WORK_GITHUB_ORG_LOWER="} | get -o 0 | default "" | str replace "WORK_GITHUB_ORG_LOWER=" ""
+    })
+    let f = ($nu.home-dir | path join "Code/personal/bazgroly" $org "people.md")
+    let row = (if $org != "" and ($f | path exists) {
+        open --raw $f | lines | where {|l| $l | str contains $"| `($login)` |"} | get -o 0 | default ""
+    } else { "" })
+    if $row == "" { return $"@($login) \(nie wiem kto to\)" }
+    let name = ($row | split row "|" | get 1 | str trim)
+    $"($name) \(`($login)`\)"
+}
+
 # Unresolved review threads — only reachable via GraphQL (gh pr view --json has no
 # reviewThreads field). Returns [] on any failure.
 def review-threads [num: int, repo: string]: nothing -> list {
@@ -107,7 +124,7 @@ def intent-header [pr: record, failed: list, threads: list] {
     let author = ($pr | get -o author.login | default "?")
     let head = ($pr | get -o headRefName | default "?")
     let base = ($pr | get -o baseRefName | default "?")
-    print $"Autor: @($author) · ($head) → ($base)"
+    print $"Autor: (person $author) · ($head) → ($base)"
 
     mut flags = []
     if ($pr | get -o isDraft | default false) { $flags = ($flags | append "draft") }

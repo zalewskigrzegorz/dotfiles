@@ -21,7 +21,10 @@ is no separate agent window and no per-step prompt.
 1. `mcp__browsentic__browsentic_status` first. `connected: false` or an error →
    see "Not connected" below, don't retry tools blindly.
 2. `page_openTab {url, active: true}` so Greg sees the tab come up. Every later
-   page tool targets that tab.
+   page tool targets that tab. `loaded: false`, or a later `TAB_UNREACHABLE:
+   Tab N is a browser page` → `page_navigate` with the same absolute URL on the
+   active tab; don't try `page_switchTab`, the MCP refuses it by design (~5
+   wasted calls, 0303ab99).
 3. Read with `page_extractText` or `page_getPageInfo`; the
    `browsentic://page/diagram` resource is the cheapest shape of a page.
 4. Close what you opened with `page_closeTab` when the task ends.
