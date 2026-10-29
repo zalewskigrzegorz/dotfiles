@@ -1,0 +1,23 @@
+# tuicr — PR review TUI. g-pr-review drops Claude's draft comments into a
+# `tuicr pr <n>` session opened by bin/tuicr-split; Greg edits/deletes them and
+# sends with :submit. Keys: docs at github.com/agavra/tuicr/blob/main/docs/CONFIG.md
+theme = "mocha-neon"
+username = "greg"
+no_update_check = true   # brew owns updates
+q_quits = true           # g-pr-review tells Greg "q" closes the split
+
+# Vim comment box: the default box saves on Ctrl-s and breaks lines on Ctrl-j,
+# and HyprMac's hyper key is left Ctrl (Ctrl-s = scratchpad, Ctrl-j = focus down).
+# Vim mode saves with :w and breaks lines with Enter in insert mode.
+comment_vim = true
+
+comment_types = [
+  { id = "issue", definition = "blocking problem to fix before merge", color = "#FF6B9D" },
+  { id = "suggestion", definition = "possible improvement", color = "#9580FF" },
+  { id = "nit", definition = "small optional tweak", color = "#7F849C" },
+  { id = "note", label = "question", definition = "ask for clarification", color = "#8BE9FD" },
+]
+
+[forge]
+# Types are a local triage aid; the PR gets the plain comment in Greg's voice.
+comment_type_prefix = false

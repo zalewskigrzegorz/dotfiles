@@ -1,6 +1,6 @@
 ---
 name: g-pr-review
-description: Review SOMEONE ELSE'S pull request as the reviewer. Two modes, auto-picked — a fresh review (orient with a what/why summary + focus popup → analyze the diff → per-finding Post/Skip → submit one APPROVE/REQUEST_CHANGES/COMMENT verdict), or a follow-up when you already reviewed and the author replied (handle their responses, optionally update the verdict). Fetches unresolved threads and bot inline comments, asks per finding/thread in one AskUserQuestion each, chained (recommendation each), drafts English comments/replies, humanizes them, posts via gh. Use whenever you want to review a PR, leave PR comments, approve/request changes, or respond to the author on a PR you're reviewing — current branch, PR number, or PR URL. If the PR is YOURS and you're answering reviewers, use g-pr-respond instead.
+description: Review SOMEONE ELSE'S pull request as the reviewer. Two modes, auto-picked — a fresh review (orient with a what/why summary + focus popup → analyze the diff → voiced draft comments dropped into a tuicr split under the agent's pane, where Greg edits, deletes and sends them himself with :submit), or a follow-up when you already reviewed and the author replied (handle their responses, optionally update the verdict). Fetches unresolved threads and bot inline comments, asks per finding/thread in one AskUserQuestion each, chained (recommendation each), drafts English comments/replies, humanizes them, posts via gh. Use whenever you want to review a PR, leave PR comments, approve/request changes, or respond to the author on a PR you're reviewing — current branch, PR number, or PR URL. If the PR is YOURS and you're answering reviewers, use g-pr-respond instead.
 ---
 
 # g-pr-review
@@ -62,14 +62,14 @@ State the detected mode in one line before proceeding. User override always wins
 
 | Mode | Meaning | Flow |
 |------|---------|------|
-| `fresh` | Someone else's PR, no prior review from me | **Flow B — Fresh review** (orient: what/why summary + focus popup → analyze diff silently → per-finding Post/Skip → submit one APPROVE/REQUEST_CHANGES/COMMENT review). |
+| `fresh` | Someone else's PR, no prior review from me | **Flow B — Fresh review** (orient: what/why summary + focus popup → analyze diff silently → drafts into tuicr → Greg sends with `:submit`). |
 | `followup` | Someone else's PR, I already left ≥1 review | **Flow C — Follow-up** (handle threads where the author replied to me, optionally finalize an updated verdict). |
 
 **You are the reviewer, not the author.** A thread opened by reviewer X and answered by the PR author is X's to resolve — don't jump in unless you have something to add. Never frame replies as the author "closing" threads. If you find yourself wanting to apply the fix + commit + reply as the author, you're in the wrong skill — that's `g-pr-respond`.
 
 # Flow B — `MODE=fresh` (fresh review on someone else's PR)
 
-Token-frugal: analyze silently, then ask compact batched questions. Never dump the diff or a long markdown report into chat — questions carry the context.
+Token-frugal: analyze silently, then hand the drafts over in tuicr. Never dump the diff or a long markdown report into chat — the drafts sit on their lines in the diff.
 
 ## B1. Get the diff
 
@@ -105,7 +105,7 @@ Then one `AskUserQuestion`, `multiSelect: true`, header `Fokus`:
 * `Standardowy pełny przegląd (Recommended)` — security / perf / quality / tests per B2, nothing singled out.
 * 2–3 concrete areas the summary surfaced as risky or surprising — each label names the spot (`Kolejność gate'ów w WithACL`, `Nowa ścieżka password login`), the description says why it deserves a closer look.
 
-Picked areas become priority targets in B2: dig into them first, follow call sites beyond the diff if needed, and make sure each picked area yields either a finding or an explicit "checked, clean" line in the B3 batch context. Free text from `Other` is treated the same way.
+Picked areas become priority targets in B2: dig into them first, follow call sites beyond the diff if needed, and make sure each picked area yields either a finding or an explicit "checked, clean" line in the B4 hand-over. Free text from `Other` is treated the same way.
 
 Skip the popup when the PR is trivial (≤ 3 files, one obvious change), or when the prompt carries `Fokus: standard` (a review `workctl` started in its own tab: nobody sits there to answer, and the tab waited on this popup) — the summary still prints, and B2 runs the standard full review.
 
@@ -134,33 +134,66 @@ Per finding, record: `severity` (Critical / Suggestion / Nit), `path`, `line`, o
 
 Cluster duplicates (P4).
 
-## B3. Per-finding questions
+## B3. Open tuicr in a split
 
-`AskUserQuestion`, **one finding per popup, chained** (P3). Per finding:
+Greg reviews in **tuicr**, not in popups: he reads the code, edits or deletes Claude's drafts, and sends the review himself. The popup flow (Post/Skip per finding, verdict popup) lives at git tag `g-pr-review-popups` in dotfiles; going back = `git checkout g-pr-review-popups -- agent-skills/g-pr-review`.
 
-* **header:** severity (`Critical`, `Suggestion`, `Nit`).
-* **question:** `<path>:<line> — <title>`.
-* **options:** `Post` and `Skip`. Recommended first with ` (Recommended)`. Each option's `description` = the **why** + the exact body that would be posted.
+A tuicr PR session exists only once the TUI has opened it (`review add` before that fails with `no PR session found`), so the split comes first and the drafts land in it live. Run in the background (`run_in_background: true`); it returns when Greg quits tuicr:
 
-Recommend `Post` for Critical by default; judgment for Suggestion/Nit. Zero findings → skip to B4.
+```bash
+tuicr-split "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" pr "$NUMBER" --repo-url "https://github.com/$OWNER/$REPO"
+```
 
-Before surfacing each batch, run the drafted `comment_body` values through greg-voice (P5.5). The body in the question is the humanized one — that's what gets posted in B5. If a non-empty review body is unavoidable (B5 exceptions), it goes through the same gate.
+The first output line is `window=<id>`. Wait for the session, then take its slug:
 
-## B4. Verdict
+```bash
+tuios wait-for window-output -w <id> --pattern 'PR Mode' --timeout 60000 >/dev/null
+SLUG="gh:$OWNER/$REPO/pr/$NUMBER"
+tuicr review list --repo "$OWNER/$REPO" | jq -e --arg s "$SLUG" '.[] | select(.slug == $s and .active)' >/dev/null
+```
 
-One `AskUserQuestion`, single question: `"Jak wysłać review?"`. No digits in the question (the `guard` denies them): the count of selected comments and the PR number go into the option `description`s. Options:
+No `TUIOS_PANE_ID` (outside tuios) or `tuicr-split` fails → say so in one line and fall back to the popup flow from the tag.
 
-* **Approve** — no blocking issues.
-* **Approve + comment** — approve with a one-sentence body (only for the red-CI case below).
-* **Request changes** — there are unaddressed Critical findings.
-* **Comment only** — feedback without a verdict.
-* **Don't submit** — abort, post nothing.
+## B4. Drop the drafts in
 
-Keep 2–4 options; drop the ones that don't apply. Recommend **Request changes** if any Critical was selected; otherwise **Approve** (or **Comment only** when there are non-trivial Suggestions). Mark `(Recommended)`. Red CI is the author's job — never fix it here, and never recommend **Approve** while the red comes from the diff (recommend **Comment only** and say why).
+Run every `comment_body` through greg-voice (P5.5) first, in one batch. Then one `tuicr review add` per finding, severity mapped to the types in `~/.config/tuicr/config.toml`: Critical → `issue`, Suggestion → `suggestion`, Nit → `nit`, a question to the author → `note`.
 
-Red CI proven not to come from the PR (the same job red on `main` in `gh run list --branch main --workflow <wf>`, no overlap between the failing files and `git diff --name-only origin/main...HEAD`) with zero findings → recommend **Approve + comment**, body = one sentence naming the unrelated red checks (31f0293b).
+```bash
+tuicr review add --session "$SLUG" --username Claude --type issue \
+  --target-file <path> --line <line> [--end-line <n>] --side new "<comment_body>"
+```
 
-## B5. Submit (two calls — pending review, then event)
+`--side old` for removed lines. An un-anchorable finding (B2) is a review-level comment: omit `--target-file`. Duplicates clustered per P4 go in as one comment.
+
+**Verify every anchor.** A comment on a line outside the diff is stored and exits 0, but never renders, so Greg never sees it. After the last add, `tuicr review comments --session "$SLUG"` and check each `start_line` against the diff hunks on the side given. A miss → `tuicr review delete --session "$SLUG" --comment-id <id>` and re-add it at the nearest changed line or as review-level.
+
+Zero findings → no drafts; the split still opens so Greg can look and approve.
+
+Then end the turn with ≤ 3 lines, no popup:
+
+* the verdict you'd pick and why, in one sentence: **Request changes** with any `issue`, **Approve** with only nits or nothing, **Comment** with non-trivial suggestions. Red CI from the diff is never Approve; red CI proven unrelated (same job red on `main`, no overlap with `git diff --name-only origin/main...HEAD`) + zero findings → Approve with one review-level sentence naming the unrelated checks (31f0293b),
+* `N szkiców w tuicr poniżej: :summary lista, m/M skok, dd usuwa, c dodaje, :submit wysyła, q zamyka`.
+
+Greg's `:submit` picks Comment / Approve / Request changes / Draft; nothing reaches GitHub before that. The review summary stays empty unless he writes one.
+
+## B5. Read what went out
+
+When the background `tuicr-split` finishes (Greg quit tuicr):
+
+```bash
+tuicr review comments --session "$SLUG" 2>/dev/null | jq -c '.[] | {author, lifecycle_state, location, content}'
+gh api "repos/$OWNER/$REPO/pulls/$NUMBER/reviews" --jq "[.[] | select(.user.login == \"$ME\")] | last | {state, html_url, submitted_at}"
+```
+
+* A review of mine submitted after B3 started → one line: state + `html_url`. Then B6 (an `APPROVED` state counts as `APPROVE`).
+* No new review and drafts still `local_draft` → he quit without sending: one line "nic nie poszło, szkice zostały w sesji `$SLUG`", and `tuicr-split` again on his word.
+* Session gone and no review → he deleted everything; say so in one line, then B6.
+
+Never run `:submit` for him, and never send the drafts through the API instead.
+
+## C6. Submit via the API (Flow C verdict only)
+
+Flow C posts its thread replies itself and may end with a verdict; that one still goes through the API, two calls — pending review, then event.
 
 Map verdict → event: Approve→`APPROVE`, Request changes→`REQUEST_CHANGES`, Comment only→`COMMENT`, Don't submit→abort.
 
@@ -186,7 +219,7 @@ Step 2 — submit the verdict, no body:
 gh api --method POST "repos/$OWNER/$REPO/pulls/$NUMBER/reviews/$REVIEW_ID/events" -f event=<EVENT>
 ```
 
-**The review body is always empty** — inline comments carry the feedback, no recap paragraph on the PR, no "see inline comments" filler. One exception: a finding that couldn't be anchored inline (B2) may go in the body — just that finding, nothing else. In that case pass `-f body="<finding>"` on step 2. **Approve + comment** (B4) passes its one sentence about the unrelated red checks the same way.
+**The review body is always empty** — inline comments carry the feedback, no recap paragraph on the PR, no "see inline comments" filler. One exception: a finding that couldn't be anchored inline may go in the body — just that finding, nothing else. In that case pass `-f body="<finding>"` on step 2.
 
 If you genuinely need a file: `PAYLOAD=$(mktemp -t g-pr-review.XXXXXX.json)` — never a fixed `/tmp/g-pr-review.json`.
 
@@ -295,21 +328,21 @@ Recommendation:
 | `COMMENT` | Mixed/uncertain, and there is at least one new inline comment |
 | `Skip` | No material change since my last review, or only thread replies this round — they already carry the feedback |
 
-With no new inline comment, `COMMENT` is not an option (see the B5 note on empty `comments`).
+With no new inline comment, `COMMENT` is not an option (see the C6 note on empty `comments`).
 
-If user picks a verdict, submit via B5 (pending review, then event). Either way, finish with B6.
+If user picks a verdict, submit via C6 (pending review, then event). Either way, finish with B6.
 
 ---
 
 # Things to avoid
 
-* Never post a comment or reply without explicit Yes (batched or single).
-* Never surface or post a GitHub-bound body that has not passed greg-voice (P5.5) — except `Modify` text Greg typed himself.
+* Never post a comment or reply without explicit Yes (batched or single). In Flow B Greg's `:submit` in tuicr is the only send.
+* Never put a draft into tuicr or post a GitHub-bound body that has not passed greg-voice (P5.5) — except text Greg typed himself.
 * Never post anything in a language other than English on GitHub.
-* A finalizing `gh pr review` (via B5/C5) is allowed **only** after explicit Yes. Never finalize silently.
+* A finalizing review via the API (C6) is allowed **only** after explicit Yes. Never finalize silently.
 * Never delete or edit existing comments on the PR.
 * Never write the review payload to a fixed temp path. Use stdin heredoc, or `mktemp` if a file is required.
-* Never write a summary/recap into the review `body` — it stays empty except the B5 exceptions (API-required one-liner, un-anchorable finding, Approve + comment on unrelated red CI).
+* Never write a summary/recap into the review `body` — it stays empty except the C6 exceptions (API-required one-liner, un-anchorable finding).
 * **When `MINE=true`, stop and redirect to `g-pr-respond`.** This skill never applies the author's fix, commits, or answers reviewers as the author.
 * Don't resolve threads that belong to another reviewer — a thread opened by X and answered by the author is X's to close.
 
@@ -341,9 +374,9 @@ If user picks a verdict, submit via B5 (pending review, then event). Either way,
 * [ ] P0: `$G_PR_ME` cached for the session
 * [ ] P1: PR resolved (`OWNER`, `REPO`, `NUMBER`, `SHA`, URL)
 * [ ] P2: `MINE=false` confirmed; redirected to `g-pr-respond` if true; `MODE` (`fresh` / `followup`) detected and stated
-* [ ] P3 applied (one finding per `AskUserQuestion`, chained, `(Recommended)` on default)
+* [ ] P3 applied in Flow C (one thread per `AskUserQuestion`, chained, `(Recommended)` on default)
 * [ ] P5 comment-writing rules followed; English only on GitHub
-* [ ] P5.5 greg-voice gate: every GitHub-bound body voiced (full voice, batched); `Modify` text exempt
+* [ ] P5.5 greg-voice gate: every tuicr draft and GitHub-bound body voiced (full voice, batched); Greg's own text exempt
 * [ ] P6 blob links pinned to `SHA`
 
 ## Flow B (`fresh`)
@@ -352,10 +385,9 @@ If user picks a verdict, submit via B5 (pending review, then event). Either way,
 * [ ] B1.5 what/why summary printed (≤ 10 lines) and focus popup asked (skipped only for trivial PRs); picked areas prioritized in B2
 * [ ] Diff analyzed silently (no diff dump in chat)
 * [ ] Findings recorded with severity, anchor, body, recommendation
-* [ ] B3 batched per-finding questions with `(Recommended)`
-* [ ] B4 verdict question with recommendation
-* [ ] B5 submits via stdin heredoc, pending review then event
-* [ ] Review URL reported
+* [ ] B3 tuicr split opened in the background, PR session active
+* [ ] B4 voiced drafts added with `--username Claude`, every anchor verified, verdict hint given in ≤ 3 lines
+* [ ] B5 after Greg quits: what went out read back, review URL reported (or "nic nie poszło")
 * [ ] B6 review worktree closed (auto on `APPROVE`, popup otherwise)
 
 ## Flow C (`followup`)
@@ -364,7 +396,7 @@ If user picks a verdict, submit via B5 (pending review, then event). Either way,
 * [ ] C2 summary table with `Mine?` column
 * [ ] C3 batched questions with Accept/Push back/Ask/Skip
 * [ ] C4 replies posted via batched flow
-* [ ] C5 verdict offered (or skipped on user request)
+* [ ] C5 verdict offered (or skipped on user request), submitted via C6
 * [ ] B6 review worktree closed (auto on `APPROVE`, popup otherwise)
 
 # Running the PR's tests locally

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# tuicr-split — open tuicr in a tuios split under the calling agent's pane and
+# block until it exits. tuicr upstream ships wrappers for tmux/zellij/herdr/cmux
+# only; this is the tuios one, used by g-pr-review.
+#
+#   tuicr-split <dir> [tuicr args...]      e.g. tuicr-split . pr 1234
+#
+# Prints `window=<id>` first, so a caller running this in the background can
+# find the pane, then `exit=<code>` when tuicr quits.
+set -euo pipefail
+
+dir="${1:?usage: tuicr-split <dir> [tuicr args...]}"
+shift
+[ -n "${TUIOS_PANE_ID:-}" ] || { echo "tuicr-split: not in a tuios pane (TUIOS_PANE_ID unset)" >&2; exit 2; }
+command -v tuicr >/dev/null || { echo "tuicr-split: tuicr not installed (brew install tuicr)" >&2; exit 2; }
+dir="$(cd "$dir" && pwd)"
+
+w="$(tuios split-window horizontal -w "$TUIOS_PANE_ID" --name tuicr --json | jq -r .window_id)"
+[ -n "$w" ] && [ "$w" != null ] || { echo "tuicr-split: split-window returned no id" >&2; exit 1; }
+echo "window=$w"
+
+# The pane runs nushell: `;` chains, single quotes keep the path literal.
+args=""
+for a in "$@"; do args+=" '${a//\'/}'"; done
+tuios send-text -w "$w" "cd '$dir'; tuicr$args; exit
+"
+
+tuios wait-for window-exit -w "$w" --timeout "${TUICR_SPLIT_TIMEOUT_MS:-7200000}" --json | jq -r '"exit=\(.exit_code // "?")"'

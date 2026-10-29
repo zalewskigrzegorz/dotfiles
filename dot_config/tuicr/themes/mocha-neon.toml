@@ -1,0 +1,51 @@
+# Mocha Neon for tuicr. Tokens: docs/mocha-neon-palette.md.
+# *_bg tints are ~20% accent over base, text dims are derived from text/overlay.
+panel_bg = "#1E1E2E"            # base
+bg_highlight = "#423B6D"        # active surface (lavender @30%)
+fg_primary = "#F0F0FF"          # text
+fg_secondary = "#B1B1C0"        # text @70% over base
+fg_dim = "#7F849C"              # overlay
+
+diff_add = "#50FA7B"            # green
+diff_add_bg = "#284A3D"
+diff_del = "#FF6B9D"            # red
+diff_del_bg = "#4B2D44"
+diff_context = "#F0F0FF"
+diff_hunk_header = "#8BE9FD"    # sky
+expanded_context_fg = "#7F849C"
+
+syntax_add_bg = "#284A3D"
+syntax_del_bg = "#4B2D44"
+
+file_added = "#50FA7B"
+file_modified = "#FFD700"       # gold
+file_deleted = "#FF6B9D"
+file_renamed = "#9580FF"        # lavender
+
+reviewed = "#50FA7B"
+pending = "#FFD700"
+
+comment_note = "#8BE9FD"
+comment_suggestion = "#9580FF"
+comment_issue = "#FF6B9D"
+comment_praise = "#50FA7B"
+
+border_focused = "#B347FF"      # mauve, primary accent
+border_unfocused = "#45475A"    # surface
+status_bar_bg = "#2A2843"       # lavender @10%
+cursor_color = "#FFD700"
+cursor_line_bg = "#2A2843"
+branch_name = "#B347FF"
+help_indicator = "#7F849C"
+
+message_info_fg = "#1E1E2E"
+message_info_bg = "#8BE9FD"
+message_warning_fg = "#1E1E2E"
+message_warning_bg = "#FFD700"
+message_error_fg = "#1E1E2E"
+message_error_bg = "#FF6B9D"
+update_badge_fg = "#1E1E2E"
+update_badge_bg = "#FFD700"
+
+mode_fg = "#1E1E2E"
+mode_bg = "#B347FF"
