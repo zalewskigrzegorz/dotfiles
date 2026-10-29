@@ -41,3 +41,5 @@ else
 fi
 
 tuios wait-for window-exit ${TUIOS_SESSION:+-s "$TUIOS_SESSION"} -w "$w" --timeout "${TUICR_SPLIT_TIMEOUT_MS:-7200000}" --json | jq -r '"exit=\(.exit_code // "?")"'
+# A new-window program leaves its window behind after it exits; the split's shell is already gone.
+tuios close-window ${TUIOS_SESSION:+-s "$TUIOS_SESSION"} "$w" >/dev/null 2>&1 || true
