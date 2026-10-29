@@ -49,6 +49,7 @@ loud. Formula: ≈30% accent over `base #1E1E2E`.
 | nvim | `dot_config/nvim/lua/plugins/catppuccin.lua` | 11 overrides | imported |
 | ghostty | `dot_config/ghostty/config` | ANSI 0–15 + cursor + selection | hand |
 | tuios | `dot_config/tuios/themes/mocha-neon.json` (selected in `config.d/readonly_10-dotfiles.toml.tmpl`) | ANSI 0–15 as in Ghostty, chrome accents; mauve also in `border_focused_color_terminal` | hand |
+| tuicr | `dot_config/tuicr/themes/mocha-neon.toml` (selected in `dot_config/tuicr/config.toml`) | all accents; diff backgrounds are green/red @20% over base | hand |
 
 ## WCAG AA verification on base `#1E1E2E`
 

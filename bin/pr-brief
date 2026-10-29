@@ -132,7 +132,7 @@ def brief-review [pr: record, failed: list, threads: list] {
     print "Fokus: standard"
     print ""
     # Data only — no task paragraph. The skill already carries the flow (silent
-    # analysis, Post/Skip, verdict, voice gate, red-CI rule); repeating it here
+    # analysis, tuicr drafts, verdict hint, voice gate, red-CI rule); repeating it here
     # burned tokens on every review and told the model nothing new.
     intent-header $pr $failed $threads
     print ""
