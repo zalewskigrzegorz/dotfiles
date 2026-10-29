@@ -88,8 +88,10 @@ font-variation-bold-italic = wght=700
 window-title-font-family = "JetBrainsMono Nerd Font, monospace"
 macos-titlebar-style = native
 macos-titlebar-proxy-icon = hidden
-macos-icon = holographic
-macos-icon-frame = beige
+# No custom icon: Ghostty writes it into its own bundle, which breaks the code signature
+# and makes macOS re-ask for Screen Recording on every capture.
+# macos-icon = holographic
+# macos-icon-frame = beige
 macos-option-as-alt = false
 clipboard-read = allow
 clipboard-write = allow
