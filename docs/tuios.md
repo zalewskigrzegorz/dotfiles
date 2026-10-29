@@ -58,6 +58,7 @@ Env in every pane: `TUIOS_SESSION`, `TUIOS_PANE_ID` (= `TUIOS_WINDOW_ID`), `TUIO
 | `prefix+a` / `prefix+0` | jump to the next item that needs you (Inbox) · `prefix+A` next unseen finished turn |
 | `prefix+c` `T` | new / rename workspace (tab) · `1`–`9`, `p`, `n` switch. Close-workspace is unbound: `X` is "done" below |
 | `prefix+h/j/k/l` | focus window · `prefix+tab` next · `` prefix+` `` last · `P` rename window |
+| `opt+esc` then `opt+shift+1`–`9` | move the focused window to that workspace and go with it (`ctrl+opt+1`–`9`: send it, stay put). `prefix+z` fullscreen toggle |
 | `prefix+v` / `\` / `\|` | split right |
 | `prefix+t` | pane finder (tree: sessions, workspaces, windows) |
 | `prefix+/` (or `[`) | copy mode = search: `/phrase` · `n`/`N` · `q` out. Sees only the current screen of fullscreen apps (Claude: use `ctrl+o` then `/`). `prefix+E` (scrollback in editor) is unbound: it garbles the screen on 0.11.1 |
@@ -65,6 +66,7 @@ Env in every pane: `TUIOS_SESSION`, `TUIOS_PANE_ID` (= `TUIOS_WINDOW_ID`), `TUIO
 | `prefix+u` / `prefix+f` | hints: label every pane's text, `ctrl+label` opens a URL in the browser or a path in `$EDITOR` |
 | `prefix+o` | review overlay: what the agent in this window changed, notes sent back as one message |
 | `prefix+e` | nvim scratch (one nvim that survives the toggle) |
+| `prefix+9` in `dotfiles` | Discord: `concord` (brew) on workspace 9, kept running so its notifications keep coming. Token login only: password + TOTP was rejected |
 | `prefix+shift+r` | layout menu (50–90 % sizes) |
 | `prefix+shift+g` / `prefix+shift+u` | **branch / worktree picker** in the focused repo (`bin/tuios-worktree-new` → `workctl`). `U` replaces tuios's own `new_worktree`, which put trees in `~/.local/share/tuios/worktrees` with no space or accent; every tree lives in `~/Code/tree/wt-<repo>/<branch>` |
 | `prefix+shift+x` | **done** (`workctl done`): the session's agent, worktree, branch and session go at once, no question. It stops only for uncommitted changes or commits on no remote and lists them (go to lazygit). Not a worktree session → nothing happens (`prefix+D` closes a session) |
