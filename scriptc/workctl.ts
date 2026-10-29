@@ -1398,6 +1398,7 @@ interface Ctx {
   yes: boolean;
   dry: boolean;
   focus: boolean;
+  claude: boolean;
   labels: string[];
   drop: string;
   cwd: string;
@@ -1895,7 +1896,16 @@ function doWorktree(st: St, seed: string, ctx: Ctx): number {
     const n = seedClone(seedSource(st), wt.path);
     if (n > 0) err(`🌱 seeded ${n} untracked path(s) (env + node_modules)`);
   }
-  applyLayout(wt.ws, wt.path);
+  // --no-claude: an orchestrator starts its own agent (start-agent --model …); a bare claude beside it is a twin.
+  if (ctx.claude) applyLayout(wt.ws, wt.path);
+  else {
+    layoutPrep(wt.path);
+    // Workspace 2 stays the agents' one: start-agent opens on the current workspace.
+    if (wt.ws !== "") {
+      run("tuios", ["set-workspace-name", "-s", wt.ws, "2", "\u{f06a9}  claude"]);
+      run("tuios", ["select-workspace", "-s", wt.ws, "2"]);
+    }
+  }
   if (seed === "bootstrap") {
     if (st.bootstrap === "") err("⚠️  no bootstrap detected (utils/secrets.sh / lockfile) — nothing run");
     else if (seedBootstrap(wt.ws, wt.path, st.bootstrap)) err(`🚀 bootstrap tab: ${st.bootstrap}`);
@@ -2466,6 +2476,7 @@ interface Opts {
   yes: boolean;
   dry: boolean;
   focus: boolean;
+  claude: boolean;
   drop: string;
   json: boolean;
   pause: boolean;
@@ -2474,7 +2485,7 @@ interface Opts {
 }
 
 function ctxFor(st: St, o: Opts): Ctx {
-  return { yes: o.yes, dry: o.dry, focus: o.focus, labels: st.labels, drop: o.drop, cwd: o.cwd };
+  return { yes: o.yes, dry: o.dry, focus: o.focus, claude: o.claude, labels: st.labels, drop: o.drop, cwd: o.cwd };
 }
 
 // The worktree/agent pick dispatch would run (agent wins, as in dispatch), or "".
@@ -2646,7 +2657,7 @@ function directTarget(rs: RepoState, q: string): Target | null {
 
 function usage(): void {
   out("workctl [target | --self] [--repo owner/name] [--pr N] [--branch NAME [--base REF]] [--all]");
-  out("        [--action ID [--drop a,b]] [--yes] [--dry-run] [--json] [--pause] [--no-focus] [--bg]");
+  out("        [--action ID [--drop a,b]] [--yes] [--dry-run] [--json] [--pause] [--no-focus] [--no-claude] [--bg]");
   out("workctl rm [branch] [--self] [--force] [--keep-branch]");
   out("workctl prune [--dry-run]");
   out("");
@@ -2684,7 +2695,7 @@ function main(): void {
     return;
   }
 
-  const o: Opts = { yes: false, dry: false, focus: true, drop: "", json: false, pause: false, bg: false, cwd: process.env.PWD ?? "." };
+  const o: Opts = { yes: false, dry: false, focus: true, claude: true, drop: "", json: false, pause: false, bg: false, cwd: process.env.PWD ?? "." };
   let repo = "";
   let pr = 0;
   let query = "";
@@ -2714,6 +2725,7 @@ function main(): void {
     else if (a === "--pause") o.pause = true;
     else if (a === "--bg") o.bg = true;
     else if (a === "--no-focus") o.focus = false;
+    else if (a === "--no-claude") o.claude = false;
     else if (a === "-h" || a === "--help") {
       usage();
       return;
