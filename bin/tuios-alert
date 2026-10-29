@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# tuios-alert — [notifications.agent] command (an after-agent-state hook): one
+# sound per state where Greg has to act, needs_input and errored. `done` stays
+# silent, the Inbox shows it; mail plays natively (see the tuios config). Logs
+# one line per alert so a noisy day can be traced: ~/.cache/tuios-alert.log
+set -u
+dir="$HOME/Code/dotfiles/assets/sounds"
+log="$HOME/.cache/tuios-alert.log"
+state="${TUIOS_AGENT_STATE:-}"
+event="${TUIOS_EVENT:-}"
+printf '%s event=%s state=%s prev=%s window=%s\n' "$(date +%T)" "$event" "$state" "${TUIOS_AGENT_PREV_STATE:-}" "${TUIOS_WINDOW_NAME:-}" >>"$log"
+[ "${1:-}" = "--log-only" ] && exit 0
+
+case "$state" in
+  needs_input | errored) kind=$state ;;
+  *) exit 0 ;;
+esac
+f="$dir/tuios-$kind.mp3"
+[ -f "$f" ] && afplay "$f" &
+exit 0

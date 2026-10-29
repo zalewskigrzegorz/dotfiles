@@ -121,8 +121,8 @@ export const register: Register = on => {
       await update($, pr, () => now)
       if (before && now && before.number === now.number && before.pending > 0 && now.pending === 0) {
         const red = now.fail > 0
+        // No sound: pr-watch already rings for the same CI result.
         $.ui.toast(red ? `PR #${now.number}: ${now.fail} checków padło` : `PR #${now.number}: checki zielone`, { timeoutMs: 10_000 })
-        void $.audio.play({ asset: red ? 'sounds/error.mp3' : 'sounds/done.mp3' }).catch(() => {})
       }
     }
     void poll()

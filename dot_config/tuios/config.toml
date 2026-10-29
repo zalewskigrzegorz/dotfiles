@@ -63,3 +63,6 @@ sound = false
 
 [agents]
 enabled = true
+
+[pip]
+corner = "bottom-right"
