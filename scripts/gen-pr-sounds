@@ -6,7 +6,10 @@
 # (same lookup as bin/read-claude). The key goes to curl on stdin, never in argv.
 set -euo pipefail
 
-out="$(cd "$(dirname "$0")/.." && pwd)/assets/sounds"
+# Every run is a new take: generate candidates elsewhere, listen, copy the keepers in by hand.
+# The committed pr-ci_success.mp3 is a ci_success take + the pr-comment plum joined
+# with `sox a.wav b.wav out.wav`, then the same loudnorm + fade as below.
+out="${PR_SOUNDS_OUT:-$(cd "$(dirname "$0")/.." && pwd)/assets/sounds}"
 mkdir -p "$out"
 
 key="${ELEVENLABS_API_KEY:-}"
@@ -16,21 +19,26 @@ fi
 [ -n "$key" ] || { echo "gen-pr-sounds: no ELEVENLABS_API_KEY" >&2; exit 1; }
 
 declare -A prompt=(
-  [ci_fail]="short low two-tone descending UI error buzz, synth, dry, no reverb"
-  [approval]="short bright rising three-note success chime, marimba, clean UI sound"
-  [ci_success]="short satisfying two-note ascending confirmation ding, glassy bell, clean UI success sound"
-  [comment]="two clear bright plucked notification pings, loud and crisp, UI message sound"
-  [ci_start]="punchy engine starting whoosh rising upward, loud short UI launch sound"
+# Cyberpunk HUD palette, soft on purpose: warm analog synth, no bells, glass or metal.
+  [ci_fail]="cyberpunk computer processing fails: quick rising data processing beeps, then they cut off with a digital glitch and a low descending synth error tone, clear failure, not harsh, no buzzer, no bells, no glass"
+  [approval]="soft cyberpunk HUD confirmation, warm rising analog synth pad swell, mellow, gentle, no bells, no glass"
+  [ci_success]="confident cyberpunk task complete sound: a short warm analog synth swell builds up and lands on one solid bright major chord hit, decisive and finished, like a long render finally completing, smooth, no beeps, no bells, no glass, no hesitation"
+  [comment]="quiet single soft synth data blip, cyberpunk terminal message sound, muted, rounded, short"
+  [ci_start]="very subtle soft low synth hum fading in, cyberpunk system boot, muted, quiet, short"
 )
+# seconds per sound, default 1; a build-up needs room
+declare -A dur=([ci_success]=1.5)
 
 for kind in "${@:-ci_fail approval ci_success comment ci_start}"; do
   for k in $kind; do
-    body=$(printf '{"text":"%s","duration_seconds":1,"prompt_influence":0.7}' "${prompt[$k]}")
+    d="${dur[$k]:-1}"
+    body=$(printf '{"text":"%s","duration_seconds":%s,"prompt_influence":0.7}' "${prompt[$k]}" "$d")
     printf 'xi-api-key: %s\n' "$key" | curl -sS --fail-with-body -X POST \
       'https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_128' \
       -H @- -H 'Content-Type: application/json' -d "$body" -o "$out/pr-$k.raw.mp3"
-    # the model's output level varies a lot (one came back 18 dB quieter); even them out
-    ffmpeg -hide_banner -loglevel error -y -i "$out/pr-$k.raw.mp3" -af loudnorm=I=-14:TP=-1 -ar 44100 -b:a 128k "$out/pr-$k.mp3"
+    # the model's output level varies a lot (one came back 18 dB quieter); even them out.
+    # -24 LUFS sits well under music (-14 hit like a slap); the fade kills a clipped tail.
+    ffmpeg -hide_banner -loglevel error -y -i "$out/pr-$k.raw.mp3" -af "loudnorm=I=-24:TP=-3,afade=t=out:st=$(echo "$d - 0.25" | bc):d=0.25" -ar 44100 -b:a 128k "$out/pr-$k.mp3"
     rm "$out/pr-$k.raw.mp3"
     echo "pr-$k.mp3 $(wc -c < "$out/pr-$k.mp3") bytes"
   done
