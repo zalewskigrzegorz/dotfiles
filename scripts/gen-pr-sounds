@@ -31,7 +31,7 @@ for kind in "${@:-ci_fail approval ci_success comment ci_start}"; do
   for k in $kind; do
     d="${dur[$k]:-1}"
     # PR_SOUND_PROMPT: try a one-off direction without editing the table
-    body=$(printf '{"text":"%s","duration_seconds":%s,"prompt_influence":0.7}' "${PR_SOUND_PROMPT:-${prompt[$k]}}" "$d")
+    body=$(printf '{"text":"%s","duration_seconds":%s,"prompt_influence":%s}' "${PR_SOUND_PROMPT:-${prompt[$k]}}" "$d" "${PR_SOUND_INFLUENCE:-0.7}")
     printf 'xi-api-key: %s\n' "$key" | curl -sS --fail-with-body -X POST \
       'https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_128' \
       -H @- -H 'Content-Type: application/json' -d "$body" -o "$out/pr-$k.raw.mp3"

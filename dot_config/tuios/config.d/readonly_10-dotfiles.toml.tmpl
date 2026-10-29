@@ -48,12 +48,22 @@ suppress_focused = true
 # One second over the default: a turn end followed at once by a queued prompt
 # flips done → working inside it and stays quiet.
 settle_seconds = 3
+# Sound only where Greg acts. tuios's own cue stays off for agents; the
+# after-agent-state hook tuios-alert plays needs_input and errored (a hook,
+# so it loads at daemon start, not on a config reload). `done` is silent.
 sound = false
+command = "{{ .chezmoi.homeDir }}/bin/tuios-alert"
+
+# Mail fires no hook. It plays the attention cue file natively, and with agent
+# sound off that file sounds only for mail: the soft pin.
+[notifications.agent.sounds]
+needs_input = "{{ .chezmoi.homeDir }}/Code/dotfiles/assets/sounds/tuios-mail.mp3"
 
 # Mail between agents alerts too: a g-orch worker's result mail to the
 # orchestrator. Every other key follows [notifications.agent].
 [notifications.mail]
 between_agents = true
+sound = true
 
 # Every pane started with no grants of its own holds `admin` in open mode.
 # workctl (prefix+G/O popups, gh-dash, lazygit) creates sessions and needs it;
