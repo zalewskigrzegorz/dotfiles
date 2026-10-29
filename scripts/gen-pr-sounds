@@ -7,8 +7,6 @@
 set -euo pipefail
 
 # Every run is a new take: generate candidates elsewhere, listen, copy the keepers in by hand.
-# The committed pr-ci_success.mp3 is a ci_success take + the pr-comment plum joined
-# with `sox a.wav b.wav out.wav`, then the same loudnorm + fade as below.
 out="${PR_SOUNDS_OUT:-$(cd "$(dirname "$0")/.." && pwd)/assets/sounds}"
 mkdir -p "$out"
 
@@ -20,11 +18,11 @@ fi
 
 declare -A prompt=(
 # Cyberpunk HUD palette, soft on purpose: warm analog synth, no bells, glass or metal.
-  [ci_fail]="cyberpunk computer processing fails: quick rising data processing beeps, then they cut off with a digital glitch and a low descending synth error tone, clear failure, not harsh, no buzzer, no bells, no glass"
+  [ci_fail]="two flat low synth tones, second lower, cyberpunk access denied, muted, firm, no buzzer, no bells, no glass"
   [approval]="soft cyberpunk HUD confirmation, warm rising analog synth pad swell, mellow, gentle, no bells, no glass"
-  [ci_success]="confident cyberpunk task complete sound: a short warm analog synth swell builds up and lands on one solid bright major chord hit, decisive and finished, like a long render finally completing, smooth, no beeps, no bells, no glass, no hesitation"
+  [ci_success]="confident cyberpunk mission complete: one warm bright major synth chord that blooms and resolves, decisive, no beeps, no bells, no glass"
   [comment]="two soft dry muted synth ticks, minimal clean UI tap, close and quiet, no bells, no glass"
-  [ci_start]="very subtle soft low synth hum fading in, cyberpunk system boot, muted, quiet, short"
+  [ci_start]="soft rising synth whoosh, cyberpunk process starting, quiet, short, no bells, no glass"
 )
 # seconds per sound, default 1; a build-up needs room
 declare -A dur=([ci_success]=1.5)
