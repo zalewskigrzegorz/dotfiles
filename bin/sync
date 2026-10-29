@@ -64,6 +64,9 @@ back() {
   while IFS= read -r line; do
     [[ "${line:0:1}" == M ]] || continue
     target="$HOME/${line:3}"
+    # A directory row is only a mode change (0700 vs 0755): apply puts the repo's
+    # mode back. Scanning it would walk all of ~/.config, colima's 47 GB disk included.
+    [[ -d "$target" ]] && continue
     src="$(chezmoi source-path "$target")"
     case "$(basename "$src")" in
       *.tmpl | modify_*)
