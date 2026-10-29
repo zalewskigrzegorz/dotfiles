@@ -91,6 +91,18 @@ pass through here: workers ask him with `AskUserQuestion`, which shows in his In
 Greg hears from the orchestrator when: a result needs his decision, an agent
 is blocked on something only he knows, or everything is done. Not per window.
 
+Every wake-up and every "co z agentami": one line per agent, its state and
+what it waits on (a plan to approve, a push, nothing). When they all wait on
+Greg, that is the first sentence. An agent that pushed and has no task left
+gets `workctl rm <branch> --keep-branch` in the same turn. Twice Greg saw
+silence while every agent waited on his plan approval ("Stoisz na czymś, nic
+się nie dzieje", dca362b1).
+
+**Work on a branch with its own worktree and session goes to that session's
+agent.** Greg watches that window, not the orchestrator's cwd ("nie widzę
+zmian w tym oknie, bo one są na `perf/…`", dca362b1). Commit and push what you
+already did there, then `tuios queue` the rest to the agent in that session.
+
 ## 5. Hand back
 
 Per finished item, 1–3 lines: the result, the file path, what's missing. A

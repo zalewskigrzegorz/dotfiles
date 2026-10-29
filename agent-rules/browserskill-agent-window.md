@@ -62,6 +62,11 @@ from the clipboard straight into the consumer (`pbpaste | docker login
 1Password and say plainly if the consumer keeps it in plaintext
 (`~/.docker/config.json` without a credential helper does).
 
+**A step list for Greg that starts with "open <url>" in his browser: open it
+yourself** with `browsentic` in the same turn, before the list ("moze sam
+otworz?", 127b663a). Login, DevTools and copying a token stay his steps, and
+the token still never reaches the transcript, a file or your clipboard.
+
 **`claude-in-chrome` is retired (2026-08-23).** It kept hanging, and `bsk` +
 `agent-browser` cover everything it did. `mcp__claude-in-chrome__*` is in
 `permissions.deny`. If those tools still show up in a session's registry, the

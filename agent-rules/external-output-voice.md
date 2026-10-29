@@ -45,6 +45,11 @@ scratch/AI artifacts.
    `preview`. An unvoiced DM draft cost "krócej", then "moim glosem" (68513abd).
    Every new draft gets its own `greg-voice` pass: a skill loaded for an
    earlier comment in the session does not voice the next one (f14da52d).
+   **An edit after his remark is a new draft too**: an added paragraph or a
+   cut sentence gets a full `greg-voice` pass over the whole text before he
+   sees it. "puszczałeś przez greg voice?" came twice in one session after
+   hand edits (dca362b1). A comment with measurements: the conclusion first,
+   one line per fix with one number, no mechanism.
 5. **His own pasted draft is not rewritten.** "Popraw / uzupełnij" on text he
    wrote keeps his wording: fix typos, mark added points as `propozycja` and an
    unchecked one "nie weryfikowałem". `greg-voice` only on request ("Greg Voice

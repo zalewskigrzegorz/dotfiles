@@ -126,6 +126,14 @@ the orchestrator as one message, not to Greg as a "who does it" popup.
 "Where is tool X" → `tuios list-agents` and `git branch -r` first: its agent may not
 have started yet.
 
+### Publishing a nightly
+
+Before the release: `lipo -archs` on both apps (universal). The release notes,
+voiced through `greg-voice`, say: a build signed by Greg, for testing only;
+install from the universal zip; grant Accessibility to **both** `HyprMac` and
+`HyprMac Usage.app` (without the second the HUD stays empty, forgotten on
+`nightly-2026-10-28`, dca362b1); link perf issue #59.
+
 ## Focus bugs
 
 - Log: `~/Library/Logs/HyprMac/com.zachgray.HyprMac.debug.log`; patterns

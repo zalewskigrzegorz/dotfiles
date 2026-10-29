@@ -99,7 +99,20 @@ About 15 popups were rejected in one week. Every one broke one of these:
   orchestrator that finds something outside its brief mails the orchestrator
   (`env -u TUIOS_PANE_ID tuios send-agent-message …`) and tells Greg in one
   line. Splitting work is the orchestrator's job; "Kto ma zrobić fix?" got
-  "niech orchestrator ogarnia" (32d3bba3).
+  "niech orchestrator ogarnia" (32d3bba3). Any mail to a pane in another
+  session goes out as `env -u TUIOS_PANE_ID tuios send-agent-message -s
+  <session> …` without `--from`, the sender named in the text: with the env
+  var set it fails `no window found matching` even when `--from` is dropped
+  (da31126c).
+- **"Jak mam X" asks for the shortcut, not for X done.** "Jak ja mam to
+  przenosić ręcznie" answered by moving the window for him got a "clarify"
+  (127b663a). First line is the keys (`prefix+z`, `opt+shift+N`); doing it
+  for him is optional and comes after.
+- **"Nie działa" after both routes means a new route.** "QR ani hasło nie
+  działa" answered with "spróbuj jeszcze raz" got "mówię że nie działa to nie
+  działa" (127b663a). Read the screenshots or `tuios capture-pane`, say the
+  fact in one line ("2FA odrzucone przez Discord"), then a different route
+  with its risk in one line. No "try again".
 - **No approve/send/do-it on something he has not read.** A new idea, a plan,
   a snippet, a reply to a reviewer: explain it in plain paragraphs, end the
   turn, and only then offer the popup. A question that fires right after the
