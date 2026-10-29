@@ -86,7 +86,7 @@ ETA → `scripts/agent-status <id-prefix> …` (tuios-orchestration): `needs_inp
 → `tuios peek-prompt` and read the popup in full (mine 6), answer only what
 Greg already decided; `done` without a mail → read the report file, not the
 window; looks stuck → transcript mtime (mine 5). Questions for Greg do not
-pass through here: workers ask him with `tuios ask-human`.
+pass through here: workers ask him with `AskUserQuestion`, which shows in his Inbox too.
 
 Greg hears from the orchestrator when: a result needs his decision, an agent
 is blocked on something only he knows, or everything is done. Not per window.

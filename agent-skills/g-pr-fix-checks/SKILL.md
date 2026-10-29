@@ -128,7 +128,7 @@ One short message at the end:
 - which were aborted (and why)
 - nothing else — no recap of git output, no "let me know if you need more"
 
-In a `workctl` tab (the first message has a `Raport:` line) with `TUIOS_PANE_ID` set, the same summary also goes to Greg's Inbox, and questions go through `tuios ask-human` (`../g-pr-common/PRIMITIVES.md` P10):
+In a `workctl` tab (the first message has a `Raport:` line) with `TUIOS_PANE_ID` set, the same summary also goes to Greg's Inbox (`../g-pr-common/PRIMITIVES.md` P10). Questions stay `AskUserQuestion`. The mail:
 
 ```bash
 tuios send-agent-message -w human --from "$TUIOS_PANE_ID" --subject 'PR #<n>: rebased, e2e retriggered' '<the summary>'

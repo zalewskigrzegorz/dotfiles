@@ -178,9 +178,9 @@ SCRIPTS="${G_PR_REVIEW_SCRIPTS:-$(git rev-parse --show-toplevel)/.claude/skills/
    ```
 3. If that fails too, print the voiced reply as plain paragraphs with the thread URL and end the turn ("wklej ręcznie albo powiedz wyślij"). No further REST variants.
 
-## P10. Unattended tuios tab: ask in the Inbox, close with a mail
+## P10. Unattended tuios tab: close with a mail
 
-Applies when the first message carried a `Raport:` line (a `workctl` tab, `bin/pr-brief`) and `TUIOS_PANE_ID` is set. Every `AskUserQuestion` of the flow becomes `tuios ask-human` (`agent-rules/adhd-actions-not-walls.md`, unattended section). The last step of the run, after the URL or summary line:
+Applies when the first message carried a `Raport:` line (a `workctl` tab, `bin/pr-brief`) and `TUIOS_PANE_ID` is set. Questions stay `AskUserQuestion`: the popup is on screen and in Greg's Inbox at once, never `tuios ask-human` (`agent-rules/adhd-actions-not-walls.md`). The last step of the run, after the URL or summary line:
 
 ```bash
 tuios send-agent-message -w human --from "$TUIOS_PANE_ID" --subject 'PR #<n>: <verdict>' '<≤5 lines: done, posted, what waits on Greg>'

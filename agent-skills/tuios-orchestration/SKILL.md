@@ -70,7 +70,7 @@ Removal: `workctl rm <branch> [--force] [--keep-branch]` (it kills the session l
 | Leave mail, type nothing | `tuios send-agent-message -w <window> --from "$TUIOS_PANE_ID" "<text>"` |
 | Answer a mail in its thread | `tuios send-agent-message -w <window> --from "$TUIOS_PANE_ID" --reply-to <id> "<text>"` |
 | Collect a worker's result | `tuios wait-for agent-message -w "$TUIOS_PANE_ID" --timeout <ms>`, then `tuios read-agent-messages -w "$TUIOS_PANE_ID" --unread` |
-| Ask Greg a fixed-answer question | `tuios ask-human '<≤160 B>' -o <a> -o <b> --timeout 540000` (exit 2: the answer comes as mail) |
+| Ask Greg a fixed-answer question | the worker's own `AskUserQuestion`: on screen and in his Inbox at once. Never `tuios ask-human` (Inbox only, the pane looks hung) |
 | Press keys | `tuios send-keys -s <session> -w <window> Enter` — several keys per call (`Down Down Enter`), `Escape` is Escape |
 | Type text without running it | `tuios send-text -s <session> -w <window> 'text'` (a trailing newline runs it) |
 | Is it waiting on an answer? | `tuios list-agents --all-sessions --json \| jq -r '.agents[] \| select(.state=="needs_input") \| .window_id'`, then `tuios peek-prompt -s <session> -w <window>` |
