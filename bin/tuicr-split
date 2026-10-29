@@ -21,13 +21,23 @@ for a in "$dir" "$@"; do
   [[ "$a" != *"'"* && "$a" != *[[:cntrl:]]* ]] || { echo "tuicr-split: refusing quote/control char in: $a" >&2; exit 2; }
 done
 
-w="$(tuios split-window horizontal -w "$TUIOS_PANE_ID" --name tuicr --json | jq -r .window_id)"
-[ -n "$w" ] && [ "$w" != null ] || { echo "tuicr-split: split-window returned no id" >&2; exit 1; }
-echo "window=$w"
-
-args=""
-for a in "$@"; do args+=" '$a'"; done
-tuios send-text -w "$w" "cd '$dir'; tuicr$args; exit
+w="$(tuios split-window horizontal -w "$TUIOS_PANE_ID" --name tuicr --json | jq -r '.window_id // empty')" || true
+if [ -n "$w" ]; then
+  echo "window=$w"
+  args=""
+  for a in "$@"; do args+=" '$a'"; done
+  tuios send-text -w "$w" "cd '$dir'; tuicr$args; exit
 "
+else
+  # A detached session (a workctl review tab) has no client, so split-window
+  # refuses; new-window works without one. Greg is not looking there: tell the Inbox.
+  s=(${TUIOS_SESSION:+-s "$TUIOS_SESSION"})
+  ws="$(tuios get-window "${s[@]}" "$TUIOS_PANE_ID" --json | jq -r '.workspace // empty')" || true
+  w="$(tuios new-window "${s[@]}" tuicr ${ws:+--workspace "$ws"} --cwd "$dir" --no-focus --print-id -- tuicr "$@")" || true
+  [ -n "$w" ] || { echo "tuicr-split: new-window returned no id" >&2; exit 1; }
+  echo "window=$w"
+  tuios send-agent-message "${s[@]}" -w human --from "$TUIOS_PANE_ID" --subject "tuicr czeka w sesji ${TUIOS_SESSION:-?}" \
+    "Review otwarty w oknie tuicr (sesja ${TUIOS_SESSION:-?}, prefix+w). Wyjdź z tuicr, żeby agent poszedł dalej." >/dev/null || true
+fi
 
-tuios wait-for window-exit -w "$w" --timeout "${TUICR_SPLIT_TIMEOUT_MS:-7200000}" --json | jq -r '"exit=\(.exit_code // "?")"'
+tuios wait-for window-exit ${TUIOS_SESSION:+-s "$TUIOS_SESSION"} -w "$w" --timeout "${TUICR_SPLIT_TIMEOUT_MS:-7200000}" --json | jq -r '"exit=\(.exit_code // "?")"'

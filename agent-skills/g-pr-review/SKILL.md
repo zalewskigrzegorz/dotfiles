@@ -152,7 +152,9 @@ SLUG="gh:$OWNER/$REPO/pr/$NUMBER"
 tuicr review list --repo "$OWNER/$REPO" | jq -e --arg s "$SLUG" '.[] | select(.slug == $s and .active)' >/dev/null
 ```
 
-No `TUIOS_PANE_ID` (outside tuios) or `tuicr-split` fails → say so in one line and fall back to the popup flow from the tag.
+In a detached session (a `workctl` review tab) `split-window` needs an attached client, so `tuicr-split` opens tuicr as its own window on the agent's workspace and mails Greg's Inbox; the flow is the same. No `TUIOS_PANE_ID` (outside tuios) or `tuicr-split` fails → say so in one line and fall back to the popup flow from the tag.
+
+Every popup in this skill keeps the PR number out of `question` (`guard` denies a digit there): "PR <full name>a: …", the number goes in `description`.
 
 ## B4. Drop the drafts in
 
