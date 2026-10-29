@@ -247,6 +247,15 @@ description = "Run a tape from the tape folders"
 width = "90%"
 height = "80%"
 
+# The `apps` session: one workspace per app that lives in no repo (Discord, …).
+[[keybindings.command]]
+key = "prefix+d"
+type = "popup"
+command = '"$HOME/bin/tuios-apps"'
+description = "apps session: Discord and other repo-less apps, started if missing"
+width = "60"
+height = "6"
+
 # The `basti` session: one fixed place for tunnels, so none hides in a random pane.
 # Not a tape: a tape's Run from a popup pane is refused without the respond grant.
 [[keybindings.command]]

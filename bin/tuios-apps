@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# tuios-apps — prefix+d popup: switch to the `apps` session, one workspace per app that
+# lives in no repo (Discord via concord, …). An app whose workspace is empty is started;
+# a running one is left alone, so a second concord never doubles the notifications.
+set -euo pipefail
+
+s=apps
+# workspace|name|command — add a line per app.
+apps=(
+  "1|Discord|concord"
+)
+
+if ! tuios ls --json | jq -e --arg s "$s" 'any(.[]; .name == $s)' >/dev/null; then
+  tuios new "$s" --detach --cwd "$HOME" >/dev/null
+  # `tuios new` always opens one shell window; the apps get their own below.
+  shell=$(tuios ls --json | jq -r --arg s "$s" '.[] | select(.name == $s) | (.windows // [])[0].id // empty')
+fi
+
+for a in "${apps[@]}"; do
+  IFS='|' read -r ws name cmd <<<"$a"
+  n=$(tuios list-workspaces -s "$s" --json | jq -r --argjson w "$ws" '.workspaces[] | select(.workspace == $w) | .window_count')
+  if [ "${n:-0}" = 0 ] || { [ -n "${shell:-}" ] && [ "$ws" = 1 ]; }; then
+    tuios new-window -s "$s" --workspace "$ws" --cwd "$HOME" --no-focus "$name" -- "$cmd" >/dev/null
+  fi
+  tuios set-workspace-name -s "$s" "$ws" "$name" >/dev/null || true
+done
+
+[ -n "${shell:-}" ] && tuios close-window -s "$s" "$shell" >/dev/null || true
+tuios switch-session "$s"
