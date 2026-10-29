@@ -64,7 +64,7 @@ Removal: `workctl rm <branch> [--force] [--keep-branch]` (it kills the session l
 | One agent's state | `tuios get-agent-state -s <session> -w <window> --json` |
 | Read agent scrollback (**raw text, not JSON**) | `tuios capture-pane -s <session> -w <window> --scrollback --lines 40 --trim \| tail -20` |
 | Create worktree + session | `workctl --branch <b> [--base <ref>] --action wt-full --yes --no-focus` — see above |
-| Start an agent in a new window | `tuios start-agent claude --name <slug> -s <session> --cwd <dir> --prompt "<brief>" -- --model <m>` |
+| Start an agent in a new window | `tuios start-agent claude --name <slug> -s <session> --cwd <dir> --prompt "<brief>" -- --model <m>` — after `wt-full`, only with `--no-claude` on it |
 | Brief an agent that already runs (non-blocking) | `tuios queue -s <session> -w <window> "<text>"` — typed and submitted once it rests, never over a prompt it waits on |
 | Ask and wait for the answer (blocking) | `tuios ask-agent -s <session> -w <window> --from "$TUIOS_PANE_ID" "<question>"` — only for short questions, `--timeout` default 5 min |
 | Leave mail, type nothing | `tuios send-agent-message -w <window> --from "$TUIOS_PANE_ID" "<text>"` |
@@ -98,7 +98,10 @@ Agents working one problem in one session (builder + tester, author + reviewer) 
 
 ## A `workctl` window already runs Claude: no `/model` or `/effort` in it
 
-`workctl --action wt-full` opens the `claude` workspace with Claude running. `/model` and
+`workctl --action wt-full` opens the `claude` workspace with Claude running. An agent you
+start yourself with `start-agent … -- --model <m>` goes into a session made with `wt-full
+--no-claude`; without the flag the session shows a bare claude next to it (2026-10-29: "jest
+claude i 2 claude, po co?"). `/model` and
 `/effort` typed there answer "saved as your
 default for new sessions" and write the **global** `~/.claude/settings.json`,
 which every open session reloads live (415d3e29). Pick the model at spawn
