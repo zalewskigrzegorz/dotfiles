@@ -66,7 +66,7 @@ Env in every pane: `TUIOS_SESSION`, `TUIOS_PANE_ID` (= `TUIOS_WINDOW_ID`), `TUIO
 | `prefix+u` / `prefix+f` | hints: label every pane's text, `ctrl+label` opens a URL in the browser or a path in `$EDITOR` |
 | `prefix+o` | review overlay: what the agent in this window changed, notes sent back as one message |
 | `prefix+e` | nvim scratch (one nvim that survives the toggle) |
-| `prefix+9` in `dotfiles` | Discord: `concord` (brew) on workspace 9, kept running so its notifications keep coming. Token login only: password + TOTP was rejected |
+| `prefix+d` | **`apps` session** (`bin/tuios-apps`): one workspace per repo-less app, started when its workspace is empty. `1` Discord = `concord` (brew), kept running so its notifications keep coming; token login only, password + TOTP was rejected. New app = one line in the script's `apps` list |
 | `prefix+shift+r` | layout menu (50–90 % sizes) |
 | `prefix+shift+g` / `prefix+shift+u` | **branch / worktree picker** in the focused repo (`bin/tuios-worktree-new` → `workctl`). `U` replaces tuios's own `new_worktree`, which put trees in `~/.local/share/tuios/worktrees` with no space or accent; every tree lives in `~/Code/tree/wt-<repo>/<branch>` |
 | `prefix+shift+x` | **done** (`workctl done`): the session's agent, worktree, branch and session go at once, no question. It stops only for uncommitted changes or commits on no remote and lists them (go to lazygit). Not a worktree session → nothing happens (`prefix+D` closes a session) |
