@@ -23,7 +23,7 @@ declare -A prompt=(
   [ci_fail]="cyberpunk computer processing fails: quick rising data processing beeps, then they cut off with a digital glitch and a low descending synth error tone, clear failure, not harsh, no buzzer, no bells, no glass"
   [approval]="soft cyberpunk HUD confirmation, warm rising analog synth pad swell, mellow, gentle, no bells, no glass"
   [ci_success]="confident cyberpunk task complete sound: a short warm analog synth swell builds up and lands on one solid bright major chord hit, decisive and finished, like a long render finally completing, smooth, no beeps, no bells, no glass, no hesitation"
-  [comment]="quiet single soft synth data blip, cyberpunk terminal message sound, muted, rounded, short"
+  [comment]="two soft dry muted synth ticks, minimal clean UI tap, close and quiet, no bells, no glass"
   [ci_start]="very subtle soft low synth hum fading in, cyberpunk system boot, muted, quiet, short"
 )
 # seconds per sound, default 1; a build-up needs room
@@ -32,13 +32,14 @@ declare -A dur=([ci_success]=1.5)
 for kind in "${@:-ci_fail approval ci_success comment ci_start}"; do
   for k in $kind; do
     d="${dur[$k]:-1}"
-    body=$(printf '{"text":"%s","duration_seconds":%s,"prompt_influence":0.7}' "${prompt[$k]}" "$d")
+    # PR_SOUND_PROMPT: try a one-off direction without editing the table
+    body=$(printf '{"text":"%s","duration_seconds":%s,"prompt_influence":0.7}' "${PR_SOUND_PROMPT:-${prompt[$k]}}" "$d")
     printf 'xi-api-key: %s\n' "$key" | curl -sS --fail-with-body -X POST \
       'https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_128' \
       -H @- -H 'Content-Type: application/json' -d "$body" -o "$out/pr-$k.raw.mp3"
     # the model's output level varies a lot (one came back 18 dB quieter); even them out.
     # -24 LUFS sits well under music (-14 hit like a slap); the fade kills a clipped tail.
-    ffmpeg -hide_banner -loglevel error -y -i "$out/pr-$k.raw.mp3" -af "loudnorm=I=-24:TP=-3,afade=t=out:st=$(echo "$d - 0.25" | bc):d=0.25" -ar 44100 -b:a 128k "$out/pr-$k.mp3"
+    ffmpeg -hide_banner -loglevel error -y -i "$out/pr-$k.raw.mp3" -af "loudnorm=I=-24:TP=-3,afade=t=out:st=$(awk "BEGIN{print $d - 0.25}"):d=0.25" -ar 44100 -b:a 128k "$out/pr-$k.mp3"
     rm "$out/pr-$k.raw.mp3"
     echo "pr-$k.mp3 $(wc -c < "$out/pr-$k.mp3") bytes"
   done
