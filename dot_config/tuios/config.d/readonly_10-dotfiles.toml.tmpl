@@ -124,7 +124,10 @@ next_session = ["."]
 # agents: next one that needs you (also prefix+0), unseen finished turns
 prefix_next_attention = ["a", "0"]
 prefix_next_finished = ["A"]
-launcher = []
+# The global alt+space never reaches tuios inside a pane (option_glyphs = "type").
+launcher = ["space"]
+# Default owner of prefix+space; tiling is always on here (hooks re-tile every pane).
+prefix_toggle_tiling = []
 prefix_agents_settings = []
 prefix_select_0 = []
 # tabs (herdr tabs = tuios workspaces)
