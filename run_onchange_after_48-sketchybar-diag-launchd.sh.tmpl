@@ -1,54 +1,15 @@
 #!/usr/bin/env bash
-# Install + (re)load the com.greg.sketchybar-diag LaunchAgent: bin/sketchybar-diag run,
-# resident, samples the sketchybar process tree every 2 s and logs only anomalies to
-# ~/Library/Logs/sketchybar-diag/diag.log (readout: bin/sketchybar-why). Mac-only.
-# Self-contained like run_onchange_after_44.
+# Tear down the com.greg.sketchybar-diag LaunchAgent. Gzyms replaced SketchyBar on 2026-10-30
+# and has its own anomaly detector (~/Library/Logs/Gzyms/anomalies.jsonl) and Usage HUD (`gzyms hud`).
+# bin/sketchybar-diag and bin/sketchybar-why stay for a manual fallback to SketchyBar. Mac-only.
 #
-# Bump this version comment to force re-run when the plist changes.
-# Version: 2026-10-28.1
+# Version: 2026-10-30.1
 set -euo pipefail
 
 {{ if eq .chezmoi.os "darwin" -}}
-plist_dir="$HOME/Library/LaunchAgents"
-plist_file="$plist_dir/com.greg.sketchybar-diag.plist"
-mkdir -p "$plist_dir"
-
-cat > "$plist_file" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>com.greg.sketchybar-diag</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>{{ .chezmoi.homeDir }}/Code/dotfiles/bin/sketchybar-diag</string>
-    <string>run</string>
-  </array>
-  <key>EnvironmentVariables</key>
-  <dict>
-    <key>PATH</key>
-    <string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
-  </dict>
-  <key>RunAtLoad</key>
-  <true/>
-  <key>KeepAlive</key>
-  <true/>
-  <key>ThrottleInterval</key>
-  <integer>30</integer>
-  <key>ProcessType</key>
-  <string>Background</string>
-  <key>StandardOutPath</key>
-  <string>/tmp/com.greg.sketchybar-diag.log</string>
-  <key>StandardErrorPath</key>
-  <string>/tmp/com.greg.sketchybar-diag.err</string>
-</dict>
-</plist>
-PLIST
-
 launchctl bootout "gui/$(id -u)/com.greg.sketchybar-diag" 2>/dev/null || true
-launchctl bootstrap "gui/$(id -u)" "$plist_file"
-echo "[ok] com.greg.sketchybar-diag loaded (resident, samples every 2s)"
+rm -f "$HOME/Library/LaunchAgents/com.greg.sketchybar-diag.plist"
+echo "[ok] com.greg.sketchybar-diag removed (Gzyms replaced SketchyBar)"
 {{ else -}}
 exit 0
 {{ end -}}

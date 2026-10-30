@@ -70,9 +70,8 @@ defaults write mo.com.sleeplessmind.Wooshy targetsColor -string gsFlamboyantFuch
 
 killall Dock Finder SystemUIServer 2>/dev/null || true
 
-if [ -x /opt/homebrew/bin/brew ] && /opt/homebrew/bin/brew list sketchybar >/dev/null 2>&1; then
-  /opt/homebrew/bin/brew services start sketchybar >/dev/null 2>&1 || echo "macos-defaults: brew services start sketchybar failed"
-fi
+# The bar is Gzyms since 2026-10-30 (LaunchAgent dev.gzyms, ~/Code/personal/gzyms/scripts/install-dev.sh).
+# SketchyBar stays installed as a manual fallback (`brew services start sketchybar`) but is not started here.
 
 # Docker CLI ignores brew's plugin dir, so `docker compose` is "unknown command" without these links.
 mkdir -p "$HOME/.docker/cli-plugins"
