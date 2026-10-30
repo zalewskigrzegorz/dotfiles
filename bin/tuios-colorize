@@ -9,6 +9,12 @@ map="$HOME/.config/tuios/projects.tsv"
 
 tuios list-sessions --json | jq -r '.[] | [.name, (.dir // ""), (.global // false | tostring)] | @tsv' |
   while IFS=$'\t' read -r name dir global; do
+    # Utility sessions go under one `apps` space; basti's folder would file it under the work repo.
+    case "$name" in apps | basti)
+      tuios set-session-space -s "$name" apps >/dev/null
+      echo "$name → apps"
+      continue ;;
+    esac
     while IFS=$'\t' read -r repo accent; do
       case "$repo" in '' | '#'*) continue ;; esac
       if [ "$name" = "$repo" ] || [ "${name#"$repo"-}" != "$name" ] || [ "$dir" = "$repo" ]; then

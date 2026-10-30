@@ -31,6 +31,8 @@ def os-restart [] {
         return
     }
     tuios restart-server
+    # A session with no windows is not restored (HyprMac, bazgroly); open the projects again.
+    os-projects
     tuios
 }
 

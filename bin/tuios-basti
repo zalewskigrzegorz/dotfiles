@@ -12,6 +12,7 @@ dir=${WORK_MONOREPO_DIR:-}
 w=""
 if ! tuios ls --json | jq -e --arg s "$s" 'any(.[]; .name == $s)' >/dev/null; then
   tuios new "$s" --detach --cwd "$dir" >/dev/null
+  tuios set-session-space -s "$s" apps >/dev/null
   tuios set-workspace-name -s "$s" 1 "  basti" >/dev/null || true
   # `tuios new` opens one shell window; reuse it instead of leaving it empty.
   w=$(tuios ls --json | jq -r --arg s "$s" '.[] | select(.name == $s) | .windows[0].id // empty')
