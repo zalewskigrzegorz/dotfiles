@@ -50,6 +50,7 @@ loud. Formula: ≈30% accent over `base #1E1E2E`.
 | ghostty | `dot_config/ghostty/config` | ANSI 0–15 + cursor + selection | hand |
 | tuios | `dot_config/tuios/themes/mocha-neon.json` (selected in `config.d/readonly_10-dotfiles.toml.tmpl`) | ANSI 0–15 as in Ghostty, chrome accents; mauve also in `border_focused_color_terminal` | hand |
 | tuicr | `dot_config/tuicr/themes/mocha-neon.toml` (selected in `dot_config/tuicr/config.toml`) | all accents; diff backgrounds are green/red @20% over base | hand |
+| Spotifast | `private_Library/private_Application Support/me.paolino.spotifast/themes/Mocha Neon.json` (picked in the app's Settings → Theme, `spotifast reload-themes` after an edit) | base, surface, overlay, text, mauve (accent), red (danger), gold (warning); active surface `#423B6D` | hand |
 
 ## WCAG AA verification on base `#1E1E2E`
 
