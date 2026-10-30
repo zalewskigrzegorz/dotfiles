@@ -52,6 +52,7 @@ def os-projects [] {
         ~/Code/home-lab
         ~/Code/personal/bazgroly
         ~/Code/personal/HyprMac
+        ~/Code/personal/gzyms
     ]
     let open = (^tuios ls --json | from json | get name)
     for dir in ($projects | path expand) {
