@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# ~/Code/dotfiles/bin/sketchybar-patched [rollback]
+# Builds SketchyBar from upstream master + PR #881 (rebuild only changed bars
+# on display changes) + PR #847 (keep bar windows across wake), merged by hand
+# in scripts/sketchybar-pr881-pr847.diff, and drops the binary into the brew
+# keg so `brew services` keeps working. `rollback` = `brew reinstall`.
+# shortcut: `brew upgrade sketchybar` silently restores stock; rerun this
+# until both PRs ship in a release, then delete it with the .diff.
+set -euo pipefail
+
+BASE=a18fc9488d14cba1f15f2c95e61822dc01b2d032
+PATCH="$HOME/Code/dotfiles/scripts/sketchybar-pr881-pr847.diff"
+SRC="$HOME/.local/src/sketchybar"
+KEG_BIN="$(brew --prefix sketchybar)/bin/sketchybar"
+
+if [[ "${1:-}" == rollback ]]; then
+  brew reinstall felixkratz/formulae/sketchybar
+  exec "$HOME/Code/dotfiles/bin/sketchybar-restart"
+fi
+
+[[ -d "$SRC/.git" ]] || git clone -q https://github.com/FelixKratz/SketchyBar.git "$SRC"
+cd "$SRC"
+git fetch -q origin
+git checkout -q -f -B patched "$BASE"
+git clean -qfd -e bin
+git apply "$PATCH"
+make -j8 >/dev/null
+./bin/sketchybar --version >/dev/null
+
+chmod u+w "$KEG_BIN"
+cp "$SRC/bin/sketchybar" "$KEG_BIN"
+echo "sketchybar-patched: installed into $KEG_BIN"
+exec "$HOME/Code/dotfiles/bin/sketchybar-restart"
