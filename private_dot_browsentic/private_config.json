@@ -15,7 +15,10 @@
   "theme": "midnight",
   "guardrails": {
     "unattended": "deny",
-    "fence": true
+    "fence": true,
+    "rules": {
+      "file-download": "allow"
+    }
   },
   "downloadTtlDays": 14,
   "pairing": {
