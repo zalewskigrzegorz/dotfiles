@@ -12,6 +12,7 @@ apps=(
 
 if ! tuios ls --json | jq -e --arg s "$s" 'any(.[]; .name == $s)' >/dev/null; then
   tuios new "$s" --detach --cwd "$HOME" >/dev/null
+  tuios set-session-space -s "$s" apps >/dev/null
   # `tuios new` always opens one shell window; the apps get their own below.
   shell=$(tuios ls --json | jq -r --arg s "$s" '.[] | select(.name == $s) | (.windows // [])[0].id // empty')
 fi
