@@ -53,7 +53,7 @@ PINS = {  # aerospace on-window-detected rules by bundle ID; some apps are not i
              "com.luckymarmot.Paw", "com.proxyman.NSProxy-setapp"],
     "mail": ["com.readdle.SparkDesktop", "com.apple.mail", "com.apple.iCal", "com.cron.electron",
              "com.flexibits.fantastical2.mac", "info.eurocomp.Timing-setapp"],
-    "media": ["com.spotify.client", "com.colliderli.iina", "com.apple.Music", "com.apple.garageband10",
+    "media": ["rocks.spotifast.Spotifast","com.colliderli.iina", "com.apple.Music", "com.apple.garageband10",
               "com.apple.iMovieApp"],
     "misc": ["com.apple.ActivityMonitor", "com.elgato.StreamDeck", "com.macpaw.CleanMyMac-setapp",
              "com.google.drivefs", "com.google.drivefs.shortcuts.docs", "com.google.drivefs.shortcuts.sheets",

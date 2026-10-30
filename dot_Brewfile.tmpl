@@ -74,7 +74,6 @@ brew "rsync"
 # context. Wired in as a PreToolUse Bash hook — see agent-rules/rtk-output-compression.md.
 brew "rtk"
 brew "rust"
-brew "spicetify-cli"
 brew "starship"
 brew "superfile"
 brew "tesseract-lang"
@@ -120,6 +119,7 @@ brew "postgresql@14"
 {{ end -}}
 
 {{ if eq .chezmoi.os "darwin" -}}
+tap "crmne/tap"
 tap "felixkratz/formulae"
 tap "mickamy/tap"
 tap "nikitabobko/tap"
@@ -183,7 +183,7 @@ cask "rapidapi"
 cask "raycast"
 cask "sf-symbols"
 # slack: MDM-installed (root:admin), see the bitwarden note above.
-cask "spotify"
+cask "crmne/tap/spotifast" # Rust Spotify client, replaced the Electron app (battery drain); needs own Spotify dev app Client ID, stored in its keychain
 cask "tailscale-app"
 cask "vimma-browser/tap/vimma" # not notarised: first launch needs `xattr -dr com.apple.quarantine /Applications/Vimma.app`
 cask "wooshy"
