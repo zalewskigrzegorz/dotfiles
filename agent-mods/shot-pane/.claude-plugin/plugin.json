@@ -1,1 +1,0 @@
-{ "name": "shot-pane", "version": "0.1.0", "description": "When a prompt mentions a screenshot, shows the newest CleanShot PNG in a pane.", "types": "./types/index.d.ts" }

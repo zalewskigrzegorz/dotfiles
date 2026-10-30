@@ -106,7 +106,7 @@ test('opening the PR in the browser pins the peek past the timer and the next pr
   await ui.unmount()
 })
 
-test('the e2e button pulls the failure shots and hands the folder to /screen', async ($, on) => {
+test('the e2e button pulls the failure shots and hands the folder to /shot', async ($, on) => {
   const clock = mock.clock(on)
   const shown: string[] = []
   const ran: string[] = []
@@ -134,6 +134,6 @@ test('the e2e button pulls the failure shots and hands the folder to /screen', a
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await ui.press({ key: 'e2e' })
   expect(ran).toContain('gh run download')
-  expect(shown).toEqual(['screen /Users/greg/Library/Caches/shot-pane/e2e-42'])
+  expect(shown).toEqual(['shot /Users/greg/Library/Caches/shot-pick/e2e-42'])
   await ui.unmount()
 })

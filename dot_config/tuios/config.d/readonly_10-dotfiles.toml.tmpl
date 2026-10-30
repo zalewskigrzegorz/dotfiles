@@ -267,7 +267,19 @@ description = "Run a tape from the tape folders"
 width = "90%"
 height = "80%"
 
-# The `apps` session: one workspace per app that lives in no repo (Discord, …).
+# Screenshot picker (bin/shot-pick): fzf with an image preview in a scratch over the layout,
+# the picked paths typed into the focused window under it. A scratch, not a popup: kitty images
+# draw in a scratch and never in a popup. prefix+z there for full screen. /shot in Claude opens
+# the same picker as a split.
+[[keybindings.command]]
+key = "prefix+Y"
+type = "scratch"
+name = "screen"
+command = '"$HOME/bin/shot-pick" --float'
+description = "Pick screenshots, paths into the focused window"
+width = "90%"
+height = "90%"
+
 [[keybindings.command]]
 key = "prefix+d"
 type = "popup"

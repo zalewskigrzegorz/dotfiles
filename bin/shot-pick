@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# shot-pick [--here | --float | --pick-for <window>] [folder] — fzf over the newest CleanShot
+# screenshots (or folder) with an image preview. Enter picks, Tab marks several, ctrl-o opens one
+# in Quick Look. With no flag it prints the picked paths, one per line.
+#   --here      (/shot in Claude) the picker in a split under this pane, the pick typed into it
+#   --float     (prefix+Y scratch) the picker right here, the pick typed into the window the
+#               scratch floats over
+#   --pick-for  the picker for that window, run inside the split; types the quoted paths, no Enter
+# kitty images draw in a tiled pane and in a scratch, not in a popup (tuios 0.11.1, 2026-10-30):
+# the image showed once from a popup and never again, even after a server restart.
+set -euo pipefail
+
+cache="$HOME/Library/Caches/shot-pick"
+
+# --preview <file>: the image in fzf's preview through the kitty graphics protocol.
+if [ "${1:-}" = --preview ]; then
+  f=$2 cols=${FZF_PREVIEW_COLUMNS:-60} rows=${FZF_PREVIEW_LINES:-30}
+  # An image left under a smaller new one stays visible, so every thumbnail fills the whole box:
+  # padded to the box's aspect (a cell is about twice as tall as wide) in the base colour, sent
+  # with its width only (c=), the height following from the padded aspect.
+  bw=1000 bh=$((1000 * rows * 2 / cols))
+  mkdir -p -m 700 "$cache"
+  t="$cache/$(basename "${f%.*}")-${cols}x${rows}.png"
+  if [ ! -s "$t" ]; then
+    read -r w h < <(sips -g pixelWidth -g pixelHeight "$f" | awk '/pixelWidth/ {w = $2} /pixelHeight/ {h = $2} END {print w, h}')
+    fit=(--resampleWidth "$bw"); [ $((w * bh)) -lt $((h * bw)) ] && fit=(--resampleHeight "$bh")
+    sips -s format png "${fit[@]}" "$f" --out "$t" >/dev/null 2>&1 &&
+      sips -p "$bh" "$bw" --padColor 1E1E2E "$t" >/dev/null 2>&1 || exit 0
+  fi
+  base64 < "$t" | tr -d '\n' | fold -w 4096 | awk -v size="c=$cols" '
+    NR > 1 { printf "\033_G%sm=1;%s\033\\", (NR == 2 ? "f=100,a=T," size "," : ""), prev }
+    { prev = $0 }
+    END { printf "\033_G%sm=0;%s\033\\", (NR == 1 ? "f=100,a=T," size "," : ""), prev }'
+  exit 0
+fi
+
+# Open a split under window $1 and run the picker there for it; [folder] passes on.
+into() {
+  local w
+  w=$(tuios split-window horizontal -w "$1" --name screen --json | jq -r '.window_id // empty')
+  [ -n "$w" ] || { echo "split failed under $1" >&2; exit 1; }
+  # Text sent before the shell's first prompt is lost.
+  tuios wait-for window-output -w "$w" --pattern . --timeout 5000 >/dev/null
+  tuios wait-for window-idle -w "$w" --idle 300 >/dev/null || :
+  # exec: the shell (nushell) becomes the picker, so the split closes when it ends.
+  tuios send-text -w "$w" "exec '$0' --pick-for $1${2:+ '$2'}"$'\n' >/dev/null
+  exit 0
+}
+
+target=
+case ${1:-} in
+  --here) into "${TUIOS_PANE_ID:?not in a tuios pane}" "${2:-}" ;;
+  --float)
+    # The scratch is focused itself but sits on no workspace: the current one keeps its own focus.
+    target=$(tuios list-workspaces -s "${TUIOS_SESSION:?not in a tuios pane}" --json |
+      jq -r '.workspaces[] | select(.current) | .focused_window_id // empty')
+    [ -n "$target" ] || { echo "no focused window on this workspace"; read -r _; exit 1; }
+    shift ;;
+  --pick-for) target=$2; shift 2 ;;
+esac
+
+dirs=("$HOME"/Library/CloudStorage/GoogleDrive-*/"My Drive"/Screenshots)
+dir=${1:-${dirs[0]}}
+[ -d "$dir" ] || { echo "no folder: $dir" >&2; exit 1; }
+cd "$dir"
+
+# CleanShot sometimes writes a .jpeg twin beside the .png: keep the png, drop the twin.
+# ls -t on the dir, not a glob: thousands of names overflow ARG_MAX.
+# The 400 cap sits in awk: a head would close the pipe and kill ls/grep on SIGPIPE under pipefail.
+names=$(ls -t | grep -iE '\.(png|jpe?g)$' | awk '
+  NR > 400 { next }
+  { n[NR] = $0; s = $0; sub(/\.[^.]*$/, "", s); st[NR] = s; if (tolower($0) ~ /\.png$/) png[s] = 1 }
+  END { for (i = 1; i <= NR && i <= 400; i++) if (tolower(n[i]) ~ /\.png$/ || !(st[i] in png)) print n[i] }')
+[ -n "$names" ] || { echo "no screenshots in $dir" >&2; exit 1; }
+
+rows=$(printf '%s\n' "$names" | tr '\n' '\0' | xargs -0 stat -f '%Sm%t%N' -t '%d.%m %H:%M')
+[ "${SHOT_PICK_LIST:-}" = 1 ] && { printf '%s\n' "$rows"; exit 0; }
+
+# fzf runs preview and binds through $SHELL, which is nushell in a tuios pane.
+export SHELL=/bin/bash
+picked=$(printf '%s\n' "$rows" | fzf --multi --reverse --delimiter '\t' \
+  --prompt 'screen> ' --header 'enter: wybierz · tab: kilka · ctrl-o: Quick Look · esc: nic' \
+  --preview "'$0' --preview {2}" --preview-window 'right,60%' \
+  --bind 'ctrl-o:execute-silent(qlmanage -p {2} >/dev/null 2>&1 &)') || exit 0
+paths=$(printf '%s\n' "$picked" | cut -f2 | sed "s|^|$dir/|")
+if [ -n "$target" ]; then
+  # Quoted: CleanShot names carry spaces ("System Settings_…").
+  tuios send-text -w "$target" "$(printf '%s\n' "$paths" | sed 's/.*/"&"/' | tr '\n' ' ')" >/dev/null
+else
+  printf '%s\n' "$paths"
+fi
