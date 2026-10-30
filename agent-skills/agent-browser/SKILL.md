@@ -1,6 +1,6 @@
 ---
 name: agent-browser
-description: The UNATTENDED browser — headless-ish Chrome/CDP on its own profile, accessibility-tree snapshots with @eN refs, cheapest in tokens. Use when Greg says "agent browser", "strzel na tę stronę", "sprawdź tę stronę", "zescrapuj", "odpal test na deployu" — or for any quick browser job that needs no login and no watching: fetch a public page, scrape docs, read the DOM, screenshot, smoke-test a deployed URL. If the task needs his login/session, gets bot-blocked, needs a captcha or 2FA, or he wants to watch it happen, use the `bsk` skill instead.
+description: The UNATTENDED browser — headless-ish Chrome/CDP on its own profile, accessibility-tree snapshots with @eN refs, cheapest in tokens. Use when Greg says "agent browser", "strzel na tę stronę", "sprawdź tę stronę", "zescrapuj", "odpal test na deployu" — or for any quick browser job that needs no login and no watching: fetch a public page, scrape docs, read the DOM, screenshot, smoke-test a deployed URL. If the task needs his login/session, gets bot-blocked, needs a captcha or 2FA, or he wants to watch it happen, use the `browsentic` skill instead.
 allowed-tools: Bash(agent-browser:*) Bash(npx agent-browser:*)
 ---
 
@@ -98,6 +98,6 @@ agent-browser chat "open google.com and search for cats"
 - Default engine is Chrome. `AGENT_BROWSER_ENGINE=lightpanda` for headless light engine.
 - For credentials use `agent-browser auth save/login` instead of shell history.
 - Shell state does not survive between Bash calls, so a helper function has to be redefined in every call (7× in one session, 2026-10-08). For a series of calls, write `agent-browser --session-name <slug> …` in full each time.
-- Classifieds with anti-bot (otomoto.pl) block this browser. Go straight to `bsk`; don't spend 2–3 calls finding out. OLX works here.
+- Classifieds with anti-bot (otomoto.pl) block this browser. Go straight to `browsentic`; don't spend 2–3 calls finding out. OLX works here.
 - Writing actual Playwright `.spec.ts` files in the work repo is a different job — run them with the `pwt` nushell helper (`test e2e`), which uses the repo's local Playwright. That path is alive and unaffected.
 - What is gone: the playwright MCP block and the global `@playwright/cli`, deleted 2026-07-27 (commented out since 2026-05-24) because agent-browser covered every ad-hoc automation case. The recipe to bring the MCP back is in the comment at that spot in `agent-mcp/mcp-servers.json.tmpl`.

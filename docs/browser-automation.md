@@ -1,7 +1,9 @@
 # Browser automation — internals
 
+Which stack to use: `agent-rules/browser-stacks.md`.
+
 **`claude-in-chrome` RETIRED 2026-08-23** — kept hanging, and `agent-browser` and
-`bsk` cover it. It was never a config-file MCP (not in `agent-mcp/`); it ships
+`browsentic` cover it. It was never a config-file MCP (not in `agent-mcp/`); it ships
 with the harness and pairs via the Chrome extension, so the only repo-side gate
 is `mcp__claude-in-chrome__*` in `permissions.deny`
 (`.chezmoitemplates/claude-settings.json`) — that blocks calls but the tools
@@ -10,31 +12,12 @@ still load if the extension is paired. Untrack-able off-switch (lives in
 "Enabled by default", or disable the extension (`fcoeoabgfenejglbffodgkkbkcdhcgfn`)
 in `chrome://extensions`. Don't re-add it.
 
-**BrowserSkill** ([Tencent/BrowserSkill](https://github.com/Tencent/BrowserSkill),
-MIT) drives Greg's **real, logged-in Comet profile** from the CLI in a separate,
-visible **Agent Window** — his own windows are left alone unless a tab is
-explicitly `bsk tab borrow`ed. Policy lives in
-`agent-rules/browserskill-agent-window.md`.
+**BrowserSkill (`bsk`) REMOVED 2026-10-30** once Browsentic was configured: the
+CLI (`~/.local/bin/bsk`, `~/bin/bsk`), its state (`~/.bsk`), stage 27, the skill
+and its permissions are gone. The extension (`hhcmgoofomhgciiibhipgmgkgnoenaoi`)
+is removed from Comet by hand; Comet itself stays. Don't re-add it.
 
-- CLI + daemon → `~/.local/bin/bsk`, state in `~/.bsk` (runtime only, not tracked).
-  Upgrade with `bsk update`; health check `bsk doctor` (all rows `ok`/`N/A`).
-  `agent skill up to date → N/A` is expected — see the skill bullet below.
-- `bin/bsk` (copied to `~/bin` by stage 28, ahead on PATH) wraps that CLI: it
-  is a plain passthrough to that CLI now; the Agent Window lands where
-  HyprMac's window rule for Comet puts it (workspace web, Ctrl+6). If `which bsk`
-  still shows `~/.local/bin/bsk`, restart the shell or run `hash -r`.
-- Extension is **hand-installed** from the [Chrome Web Store](https://chromewebstore.google.com/detail/hhcmgoofomhgciiibhipgmgkgnoenaoi)
-  (id `hhcmgoofomhgciiibhipgmgkgnoenaoi`) and lives in Comet's `Default` profile.
-  A script cannot install it — `0 browsers connected` in `doctor` means it's off.
-- **Skill dir is `bsk`, not `browser-skill`** (renamed 2026-08-23 so Greg can
-  just say "agent-browser" or "bsk" and hit the right one). It comes from
-  `agent-skills/bsk/` via stage 30, **not** from `bsk install-skill` (rsync
-  `--delete` would fight it). Side effect: `bsk doctor` looks for
-  `~/.claude/skills/browser-skill` and now reports `agent skill up to date →
-  N/A no agent skill installed`. That's by design. To refresh after `bsk update`:
-  `bsk install-skill --harness claude-code --yes`, copy
-  `~/.claude/skills/browser-skill/SKILL.md` into `agent-skills/bsk/SKILL.md`,
-  **keep our `name: bsk` frontmatter + trigger phrases**, then `bin/sync` (the
-  rsync deletes the stray `browser-skill/` dir).
-- **`npm install bsk` is the wrong package** — an abandoned 2017 Vue app squatting
-  that name. Only the GitHub release installer is correct.
+**Browsentic** settings that live in the extension, not in
+`~/.browsentic/config.json`, so `chezmoi apply` cannot restore them: Blocked
+sites (`ingbank.pl`, `ing.pl`, `1password.com`) and "Show what the agent does"
+(on). Re-enter them by hand on a new Mac.

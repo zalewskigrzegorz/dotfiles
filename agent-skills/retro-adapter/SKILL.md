@@ -65,8 +65,8 @@ Verified on three dotfiles sessions (2026-09-18):
   `nie, `, `nie rób`, `nie tak`, `przestań`, `źle`, `miałem na myśli`,
   `chodziło mi o`, `mówiłem`, `już mówiłem`.
 - **A18 (permission re-approval)** counts repeated command *shapes*, not actual
-  prompts. `bsk click|fill|press|select|evaluate` prompt **by design** (see the
-  BrowserSkill rule) — never propose allowlisting them. `git commit` no longer
+  prompts. Browsentic refusals of submits, uploads and captchas are **by design**
+  (see `agent-rules/browser-stacks.md`) — never propose loosening them. `git commit` no longer
   prompts at all; its gate is the commit + push popup. Real allowlist
   candidates go through `/g-allow-add`.
 - **A9 (tool n-grams)** is noise here; skip it.
