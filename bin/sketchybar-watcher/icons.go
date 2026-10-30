@@ -70,6 +70,7 @@ var appIcons = map[string]string{
 
 	// Media (music / video / audio)
 	"Spotify":        ":spotify:",
+	"Spotifast":      ":spotify:",
 	"spotify_player": ":spotify:",
 	"IINA":           ":iina:",
 	"Music Decoy":    ":music:",
