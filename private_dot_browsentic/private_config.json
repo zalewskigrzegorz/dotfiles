@@ -1,9 +1,16 @@
 {
   "agent": "claude",
   "agents": {
-    "claude": { "bin": "/Users/greg/.local/bin/claude", "model": "sonnet", "effort": "medium" }
+    "claude": {
+      "bin": "/Users/greg/.local/bin/claude",
+      "model": "opus",
+      "effort": "medium"
+    }
   },
-  "requireApproval": ["page.submitForm", "page.attachFile"],
+  "requireApproval": [
+    "page.submitForm",
+    "page.attachFile"
+  ],
   "maxConcurrentRuns": 3,
   "theme": "midnight",
   "guardrails": {
@@ -11,6 +18,10 @@
     "fence": true
   },
   "downloadTtlDays": 14,
-  "pairing": { "mode": "auto" },
-  "android": { "enabled": false }
+  "pairing": {
+    "mode": "auto"
+  },
+  "android": {
+    "enabled": false
+  }
 }
