@@ -25,8 +25,6 @@ if [[ ! -f "$font" ]]; then
   changed=1
 fi
 
-if [[ "$changed" == 1 ]] && command -v brew >/dev/null 2>&1; then
-  brew services restart sketchybar >/dev/null 2>&1 || true
-fi
+# No restart: Gzyms is the bar since 2026-10-30; these deps only keep the SketchyBar fallback working.
 echo "sketchybar-deps: ok"
 {{- end }}

@@ -7,23 +7,18 @@
 #   - com.greg.slack-watch (polls Slack Helper (Renderer) %CPU every 60s;
 #                          restarts Slack when a renderer hangs >120% for 3
 #                          consecutive checks — see bin/slack-renderer-watchdog)
-#   - com.greg.sketchybar-watch (every 15s; restarts sketchybar when it dies or
-#                          hangs — happens on display reconfig / resolution
-#                          change — see bin/sketchybar-watchdog)
-#   - com.greg.sketchybar-display (resident KeepAlive; listens for screen-param
-#                          changes and forces `sketchybar --reload` to fix the
-#                          render-freeze where the bar survives but stops drawing
-#                          — see bin/sketchybar-display-listener)
 #   - com.greg.vimma-gpu-watch (every 60s; kills Vimma GPU Helper past 3 GB for 2
 #                          checks, Vimma respawns it — see bin/vimma-gpu-watchdog)
 # Legacy labels are explicitly torn down below: claude-watcher / claude-idle-timer
 # fed the removed sketchybar claude_sessions widget, aerospace-watchdog went with
-# AeroSpace (HyprMac since 2026-10-25), hyprmac-bar went once HyprMac wrote state.json itself.
+# AeroSpace (HyprMac since 2026-10-25), hyprmac-bar went once HyprMac wrote state.json itself,
+# sketchybar-watch / sketchybar-display went when Gzyms replaced SketchyBar (2026-10-30;
+# Gzyms runs from its own LaunchAgent dev.gzyms, installed by ~/Code/personal/gzyms/scripts/install-dev.sh).
 # `run_once_*` per chezmoi semantics — re-runs only when this script's content
 # changes. To force a re-bootstrap (e.g. after editing the plists), bump the
 # version stamp in the comment below.
 #
-# Version: 2026-10-28.2
+# Version: 2026-10-30.1
 set -eu
 
 SRC_DIR="${HOME}/.config/launchd"
@@ -31,12 +26,12 @@ DST_DIR="${HOME}/Library/LaunchAgents"
 mkdir -p "$DST_DIR"
 
 # Tear down legacy claude-* agents if they were installed on this machine.
-for legacy in com.greg.claude-watcher com.greg.claude-idle-timer com.greg.aerospace-watchdog com.greg.hyprmac-bar; do
+for legacy in com.greg.claude-watcher com.greg.claude-idle-timer com.greg.aerospace-watchdog com.greg.hyprmac-bar com.greg.sketchybar-watch com.greg.sketchybar-display; do
   launchctl bootout "gui/$(id -u)/${legacy}" 2>/dev/null || true
   rm -f "${DST_DIR}/${legacy}.plist"
 done
 
-for label in com.greg.temp-watch com.greg.slack-watch com.greg.sketchybar-watch com.greg.sketchybar-display com.greg.vimma-gpu-watch; do
+for label in com.greg.temp-watch com.greg.slack-watch com.greg.vimma-gpu-watch; do
   src="${SRC_DIR}/${label}.plist"
   dst="${DST_DIR}/${label}.plist"
   if [[ ! -f "$src" ]]; then
