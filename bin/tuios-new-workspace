@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# tuios-new-workspace — prefix+c popup: open a shell on the first empty workspace and show it.
+# tuios's own new_workspace starts the shell in the attached client's cwd, so a client
+# Ghostty started in ~ opens ~ in every session it switches to (tuios 0.11.1). A window
+# made through the CLI starts in the session's directory instead.
+set -euo pipefail
+
+s=${TUIOS_SESSION:?not in a tuios pane}
+n=$(tuios list-workspaces -s "$s" --json | jq -r '[.workspaces[] | select(.window_count == 0) | .workspace][0] // empty')
+[ -n "$n" ] || { echo "all 9 workspaces hold windows"; read -r _; exit 1; }
+tuios new-window -s "$s" --workspace "$n" >/dev/null
+tuios select-workspace "$n" -s "$s" >/dev/null

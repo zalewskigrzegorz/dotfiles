@@ -141,7 +141,8 @@ prefix_toggle_tiling = []
 prefix_agents_settings = []
 prefix_select_0 = []
 # tabs (herdr tabs = tuios workspaces)
-new_workspace = ["c"]
+# prefix+c is bin/tuios-new-workspace below: the built-in opens the client's cwd.
+new_workspace = []
 prefix_new_window = []
 rename_workspace = ["T"]
 prefix_tape = []
@@ -196,6 +197,15 @@ choose_tree = ["t"]
 prefix_selection = ["[", "/"]
 prefix_window = []
 prefix_minimize = []
+
+# New workspace in the session's directory, not the client's (~ from Ghostty).
+[[keybindings.command]]
+key = "prefix+c"
+type = "popup"
+command = '"$HOME/bin/tuios-new-workspace"'
+description = "New workspace in the session's directory"
+width = "50"
+height = "5"
 
 # herdr-nvim sidebar: one nvim that survives the toggle.
 [[keybindings.command]]
