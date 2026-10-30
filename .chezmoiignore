@@ -75,6 +75,7 @@ raycast-extensions/spam/dist/**
 .config/spotify-player/**
 .config/svim/**
 .config/zed/**
+Library/**
 nushell-mcp.json
 bin/sketchybar-watcher/**
 bin/temp-watch
