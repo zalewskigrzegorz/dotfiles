@@ -132,18 +132,9 @@ spark thread <id> | grep -oE "https://www.bulc.club/(ba|bd)/[^)]*"
 ```
 
 **The links need Greg's logged-in session — `curl` lands on the login page.** Open them
-through `bsk` against his Comet profile instead, one per navigate:
-
-```bash
-bsk session start                                    # 4-letter id
-bsk navigate "https://www.bulc.club/bd/<token>" --session <id>
-bsk evaluate "document.body.innerText" --session <id> | head -c 300
-bsk session stop <id>
-```
-
-`bsk session start` → `no browser is connected to the daemon`: switch to
-`browsentic` (`page_navigate` + `page_extractText`, one link at a time) and
-say so in one line, without asking which stack (0303ab99).
+through `browsentic` in his Vimma session instead, one link at a time:
+`page_openTab` on the first link, then `page_navigate` + `page_extractText`
+(first ~300 chars) per link, `page_closeTab` at the end.
 
 The landing page states the outcome in plain text — `YOU'VE BLOCKED THIS DOMAIN` or
 `YOU'VE ALREADY BLOCKED THIS DOMAIN`, plus the member rating and received/blocks/held
@@ -166,7 +157,7 @@ open on the next; it cannot verify anything.
 The console is still worth reading. `#/forwarders/N` (100 rows/page) lists every
 forwarder with last-used, distinct addresses, distinct domains, received and forwarded
 counts, and a forwarder's Statistics view names its top sending domains — that is how
-you find a leaked alias. Scrape it with `bsk evaluate`, act through the footer links.
+you find a leaked alias. Scrape it with `page_extractText`, act through the footer links.
 
 **c. Direct senders** — Spark handles these:
 

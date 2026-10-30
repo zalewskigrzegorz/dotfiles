@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-# bsk wrapper — under aerospace it parked the new Comet Agent Window on workspace `test`. HyprMac
-# cannot move windows from outside (zacharytgray/HyprMac#44), so the window follows the Comet pin
-# in bin/hyprmac-config (workspace web). Kept so ~/bin/bsk still resolves ahead of the real CLI.
-exec "$HOME/.local/bin/bsk" "$@"

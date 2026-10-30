@@ -5,8 +5,8 @@ description: |
   (mcp__browsentic__*): open a page, read it, click, type, screenshot, search a
   site, watch a progress bar. Use when he says "browsentic", "przez browsentic",
   "wejdź na <site> i pokaż", "zobacz w przeglądarce", "w Vimmie", or the task
-  needs his session and he wants it quick. On trial against `bsk` since
-  2026-10-25: Comet, or a login / 2FA / captcha handed back mid-flow → `bsk`.
+  needs his session. The default stack for his logged-in browser since
+  `bsk` was removed (2026-10-30). Browsentic down → the `vimma` MCP.
   A public page nobody needs to watch → `agent-browser`.
 ---
 
@@ -38,7 +38,7 @@ Less common jobs (monitors, downloads, theming, drag, captcha):
 Form submit, file upload, answering a captcha, off-scope navigation and moving
 to another tab resolve to **deny** for an MCP caller ("only available from the
 side panel"). That matches the read-only-by-default rule in
-`agent-rules/browserskill-agent-window.md`: tell Greg what is ready and let him
+`agent-rules/browser-stacks.md`: tell Greg what is ready and let him
 press the button, or ask him to run it from the Browsentic side panel. Never
 set `guardrails.unattended: "allow"` in `~/.browsentic/config.json` to get
 around it.

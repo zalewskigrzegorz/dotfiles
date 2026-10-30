@@ -17,7 +17,7 @@ calls and an `rg` over the repo first):
    `gh` fails. GitHub goes through the GitHub MCP tools (loaded with an exact
    `ToolSearch select:…`), and hosts the sandbox blocks go through `WebFetch`.
 4. **No delete action.** Disable with `update {enabled:false}`; the actual
-   delete is a click in the UI through `bsk` with `request-help --target` on
-   the Delete button — irreversible, so it stays Greg's click.
+   delete is a click in the UI: open the routine with `browsentic` and leave
+   the Delete button to Greg — irreversible, so it stays his click.
 5. After rewriting a routine, check its first run with `list_runs` before
    calling it fixed; two rewrites from 2026-09-22 were never verified.

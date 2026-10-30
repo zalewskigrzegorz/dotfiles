@@ -31,7 +31,7 @@ worker() {
       --allowedTools "Read" "Grep" "Glob" "Bash" \
       --disallowedTools "Write" "Edit" "NotebookEdit" "Agent" \
       --output-format text \
-      "/retro outcome $id — PROPOSE ONLY. Transcript file: $tp (cwd of that session: $cwd). $mode Run the mechanical pre-pass on that transcript file, do the LLM enrichment, classify, and PRINT the proposals as a markdown list: for each proposal give destination, target file, a one-paragraph Why, and How-to-apply. Drop proposals whose target is a team-owned file (the work monorepo's CLAUDE.md or its tracked .claude/skills). Write nothing, edit nothing, materialize nothing, ask no questions. Skip A6 hits unless confirmed (Polish 'no' = 'well'), skip A9, skip A18 for bsk click/fill/press/select/evaluate. End with a line 'PROPOSALS: <n>'." \
+      "/retro outcome $id — PROPOSE ONLY. Transcript file: $tp (cwd of that session: $cwd). $mode Run the mechanical pre-pass on that transcript file, do the LLM enrichment, classify, and PRINT the proposals as a markdown list: for each proposal give destination, target file, a one-paragraph Why, and How-to-apply. Drop proposals whose target is a team-owned file (the work monorepo's CLAUDE.md or its tracked .claude/skills). Write nothing, edit nothing, materialize nothing, ask no questions. Skip A6 hits unless confirmed (Polish 'no' = 'well'), skip A9. End with a line 'PROPOSALS: <n>'." \
     > "$OUT/$id.md" 2> "$OUT/$id.err")
   rc=$?
   echo "$id exit=$rc $(( $(date +%s) - start ))s $(command rg -o 'PROPOSALS: [0-9]+' "$OUT/$id.md" 2>/dev/null | tail -1)" >> "$OUT/status.log"

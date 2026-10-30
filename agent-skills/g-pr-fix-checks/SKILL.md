@@ -74,7 +74,7 @@ Keep the prompt terse. Do not lecture, do not list clean PRs, do not dump raw TS
 git fetch -q origin && git rev-list --count HEAD..origin/<base>
 ```
 
-More than ~50 commits → the preview fails on a stale dependency (`realm-plus` 625 commits old, 2026-09-28), and the rebase below fixes it. A restart, a redeploy and a `bsk` trip through the build log cost ~40 turns before that count was checked.
+More than ~50 commits → the preview fails on a stale dependency (`realm-plus` 625 commits old, 2026-09-28), and the rebase below fixes it. A restart, a redeploy and a browser trip through the build log cost ~40 turns before that count was checked.
 
 To wait for the rerun without a `sleep`/`gh run list` loop: `gh-run-wait <workflow> --sha HEAD` (in `bin/`) blocks until the run for that SHA finishes and prints one line plus the failed step's log tail.
 

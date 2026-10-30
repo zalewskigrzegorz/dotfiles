@@ -57,7 +57,6 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 | 16 | `run_onchange_after_16-sketchybar-deps.sh.tmpl` | SbarLua + sketchybar-app-font (sketchybar's Lua config is empty without them), macOS only |
 | 20 | `run_onchange_after_20-macos-xdg-launchagent.sh.tmpl` | macOS XDG launch agent |
 | 25 | `run_once_after_25-install-claude.sh.tmpl` | Install Claude Code CLI |
-| 27 | `run_onchange_after_27-browserskill.sh.tmpl` | Install the `bsk` CLI (BrowserSkill), macOS only |
 | 28 | `run_onchange_after_28-bin-exec-bits.sh.tmpl` | rsync `bin/` → `~/bin` (keeps the exec bit; `bin/**` is chezmoi-ignored) |
 | 29 | `run_onchange_after_29-scriptc-build.sh.tmpl` | compile `scriptc/*.ts` → native binaries in `bin/` + `~/bin` |
 | 30 | `run_onchange_after_30-agent-skills-sync.sh.tmpl` | rsync `agent-skills/` → `~/.claude/skills` |
@@ -174,9 +173,9 @@ Installed as a **uv tool** (→ `~/.local/bin`) by
   cost > benefit. Gone from the plugin list, install script, and rules. Don't
   reinstall it or add `ccc` anywhere.
 
-#### Browser automation — three stacks (Mac)
+#### Browser automation (Mac)
 
-When to use which: `agent-rules/browserskill-agent-window.md`. Sources: `agent-browser` → `agent-skills/agent-browser/`; `browsentic` → stage 12 npm globals + `agent-mcp/mcp-servers.json.tmpl` + `agent-skills/browsentic/`; `bsk` → stage 27 + `agent-skills/bsk/`. Install, `bsk doctor`, skill refresh, retired `claude-in-chrome`: `docs/browser-automation.md`.
+When to use which: `agent-rules/browser-stacks.md`. Sources: `agent-browser` → `agent-skills/agent-browser/`; `browsentic` → stage 12 npm globals + `agent-mcp/mcp-servers.json.tmpl` + `agent-skills/browsentic/` + `private_dot_browsentic/` (config, profile); `vimma` MCP → `agent-mcp/mcp-servers.json.tmpl`. `bsk` was removed 2026-10-30. Retired `claude-in-chrome`: `docs/browser-automation.md`.
 
 ### Skille z skills.sh (ephemeral)
 

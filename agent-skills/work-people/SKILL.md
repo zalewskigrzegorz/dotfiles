@@ -87,7 +87,7 @@ overrides a full name the sources get wrong.
 - `WORK_GITHUB_ORG is not set`: `set -a; . ~/.local/state/dotfiles/secrets/work.env; set +a`, then again.
 - `slack users.list: missing_scope (needed: users:read)`: the Slack app
   behind `WORK_SLACK_POSTER_TOKEN` lost the `users:read` /
-  `users:read.email` user scopes. Open the app's OAuth page through `bsk`
+  `users:read.email` user scopes. Open the app's OAuth page through `browsentic`
   and let Greg add them back and reinstall. The token string does not change.
   Don't fall back to a loop of Slack MCP `slack_search_users` (8 calls,
   dffe800a); the MCP is for one person outside the matrix.
