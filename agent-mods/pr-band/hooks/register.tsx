@@ -12,8 +12,8 @@ const PEEK_FIELDS = `${FIELDS},title,author,isDraft,additions,deletions,changedF
 const POLL_MS = 90_000
 const PEEK = 'pr-peek'
 const PEEK_CLOSE_MS = 5 * 60_000
-// Shared with shot-pane: its daily cleanup sweeps this folder too.
-const CACHE = '/Users/greg/Library/Caches/shot-pane'
+// Shared with shot-pick: its daily cleanup sweeps this folder too.
+const CACHE = '/Users/greg/Library/Caches/shot-pick'
 const REVIEW_COMMANDS = new Set(['g-pr-review', 'code-review'])
 // Mocha Neon, the statusline's colours (docs/mocha-neon-palette.md).
 const C = { green: '#50FA7B', red: '#FF6B9D', gold: '#FFD700', peach: '#FF8C42', cyan: '#8BE9FD', lavender: '#9580FF', muted: '#A6ADC8' }
@@ -66,7 +66,7 @@ async function showE2e($: EngineInterface, now: Pr) {
   if (!repo || !now.e2eRun) return
   $.ui.toast(`Ściągam screeny e2e z runu ${now.e2eRun}…`)
   const dir = await e2eShots($, repo, now.e2eRun).catch(() => null)
-  if (dir) await $.command.run({ command: 'screen', args: dir })
+  if (dir) await $.command.run({ command: 'shot', args: dir })
   else $.ui.toast('W artefaktach e2e nie ma screenów')
 }
 

@@ -35,6 +35,9 @@ zrzut already carries the newest CleanShot paths from
 back to the Drive folder only when none were added. A session started before
 the hook needs `/exit` + `claude --continue`.
 
+A quoted Screenshots path in the prompt is one Greg picked with `/shot` or
+`prefix+Y` (`bin/shot-pick`): read exactly that file. The hook adds nothing then.
+
 ## "Zobacz okno X" is a tuios window, not CleanShot
 
 "zobacz okno <nazwa>", "spójrz na lazygit / nvim / deploy", "co jest w oknie

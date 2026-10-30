@@ -38,9 +38,9 @@
       "description": "Pane listing the session's subagents with status, model and age, and a button to view each."
     },
     {
-      "name": "shot-pane",
-      "source": "./shot-pane",
-      "description": "When a prompt mentions a screenshot, shows the newest CleanShot PNG in a pane."
+      "name": "shot-pick",
+      "source": "./shot-pick",
+      "description": "/shot: pick screenshots in a tuios popup with an image preview and put their paths in the prompt."
     },
     {
       "name": "remember",
