@@ -1,40 +1,42 @@
 #!/bin/bash
-# PR watch for Gzyms. bin/pr-watch (launchd) writes ~/.cache/pr-watch-chip.json:
-#   {"fix":1,"merge":2,"comments":3,"run":0,"prs":7}
-# This prints the pill when that file changes and opens GitHub on a click.
-# Protocol: one JSON line per change on stdout, {"event":"click"} lines on stdin, stdin EOF = Gzyms quit.
-chip="$HOME/.cache/pr-watch-chip.json"
+# PR watch for Gzyms, 1:1 with the SketchyBar chip. bin/pr-watch (launchd, every 60–180 s) classifies the PRs and
+# writes ~/.cache/pr-watch-*.json; render.nu turns them into the pill, its list and notifications.
+# Clicks reuse bin/pr-watch-open: a row opens the PR (an event a failed job's log), a right click jumps to the
+# branch's tuios session, a right click on the pill opens gh-dash.
+# Protocol: JSON lines out, {"event":"click|right_click|open","id":…} lines in, stdin EOF = Gzyms quit.
+export PATH="/opt/homebrew/bin:$HOME/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+here="$(cd "$(dirname "$0")" && pwd)"
+open_pr="$HOME/Code/dotfiles/bin/pr-watch-open"
+files=("$HOME/.cache/pr-watch-chip.json" "$HOME/.cache/pr-watch-last.json" "$HOME/.cache/pr-watch-alerts.json" "$HOME/.cache/pr-watch-alerts-shown.json")
 
-count() { /usr/bin/plutil -extract "$1" raw -o - "$chip" 2>/dev/null || echo 0; }
+render() { nu "$here/render.nu"; }
 
-pill() {
-  local fix merge comments run text="" color=green
-  fix=$(count fix); merge=$(count merge); comments=$(count comments); run=$(count run)
-  [ "$fix" -gt 0 ] && text="$text ✗ $fix"
-  [ "$merge" -gt 0 ] && text="$text ✓ $merge"
-  [ "$comments" -gt 0 ] && text="$text 💬 $comments"
-  [ "$run" -gt 0 ] && text="$text ⏳ $run"
-  if [ -z "$text" ]; then echo '{"item":{"id":"prs","remove":true}}'; return; fi
-  # The chip's urgency order: needs a fix > a comment waits > CI runs > ready to merge.
-  if [ "$fix" -gt 0 ]; then color=peach; elif [ "$comments" -gt 0 ]; then color=sky; elif [ "$run" -gt 0 ]; then color=gold; fi
-  echo "{\"item\":{\"id\":\"prs\",\"text\":\"${text# }\",\"icon\":\"arrow.triangle.pull\",\"color\":\"$color\",\"tooltip\":\"✗ to fix · ✓ ready to merge · 💬 comments waiting · ⏳ CI running\"}}"
-}
-
-# Background: print again when the counts file changes (checked every 5 s, a stat only).
+# Background: render again when any cache file changes (a stat every 3 s).
 (
   last=""
   while true; do
-    m=$(/usr/bin/stat -f %m "$chip" 2>/dev/null || echo none)
-    if [ "$m" != "$last" ]; then last=$m; pill; fi
-    sleep 5
+    now=$(/usr/bin/stat -f %m "${files[@]}" 2>/dev/null | tr '\n' ' ')
+    if [ "$now" != "$last" ]; then last=$now; render; fi
+    sleep 3
   done
 ) &
 watcher=$!
 trap 'kill $watcher 2>/dev/null' EXIT
 
-# Foreground: clicks. When Gzyms quits, stdin ends and so does this loop.
+# A cache key is owner/repo#num: only that shape reaches pr-watch-open.
+key_ok() { [[ "$1" =~ ^[A-Za-z0-9._/-]+#[0-9]+$ || "$1" =~ ^[0-9]+$ ]]; }
+
 while read -r line; do
-  case "$line" in
-    *'"click"'*) /usr/bin/open "https://github.com/pulls" ;;
+  event=$(printf '%s' "$line" | /usr/bin/plutil -extract event raw -o - - 2>/dev/null)
+  id=$(printf '%s' "$line" | /usr/bin/plutil -extract id raw -o - - 2>/dev/null)
+  button=left; [ "$event" = "right_click" ] && button=right
+  case "$event:$id" in
+    open:prs)
+      # what a click on the SketchyBar chip did: this batch is seen now, and a fresh poll runs in the background
+      nu "$here/render.nu" seen; render
+      ("$HOME/Code/dotfiles/bin/pr-watch" >/dev/null 2>&1 &) ;;
+    right_click:prs) BUTTON=right "$open_pr" >/dev/null 2>&1 & ;;
+    *:pr:*) k=${id#pr:}; key_ok "$k" && BUTTON=$button "$open_pr" __row "$k" >/dev/null 2>&1 & ;;
+    *:ev:*) k=${id#ev:}; key_ok "$k" && BUTTON=$button "$open_pr" __ev "$k" >/dev/null 2>&1 & ;;
   esac
 done
