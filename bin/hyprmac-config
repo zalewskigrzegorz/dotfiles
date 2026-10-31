@@ -26,9 +26,10 @@ BIN = os.path.expanduser("~/Code/dotfiles/bin")
 LIVE = os.path.expanduser("~/Library/Application Support/HyprMac/config.json")  # symlink into iCloud Drive
 MONITORS = os.path.expanduser("~/Library/Application Support/HyprMac/monitor-config.json")  # local, not synced
 
-# Top padding per monitor so tiles start just under sketchybar (36pt on the externals, Greg picked 37);
-# the laptop keeps outerPadding. A side set in Settings wins.
-OUTER_PADDING = {"DELL U3225QE": {"top": 37}, "C34H89x": {"top": 37}}
+# Top padding per monitor so tiles start 3-4pt under the 36pt Gzyms bar. The C34 and the laptop
+# keep the macOS menu bar (31-32pt) reserved, the Dell has none, so it needs the full 40.
+# A side set in Settings wins.
+OUTER_PADDING = {"DELL U3225QE": {"top": 40}, "C34H89x": {"top": 8}, "Built-in Retina Display": {"top": 8}}
 
 # Key N = workspace N, names and monitors as in aerospace. Dell 1-5 (left hand): its deep blacks
 # keep text sharp for chat and code. Ultrawide 6-9 (right hand, browsers from 6): media, meetings,
