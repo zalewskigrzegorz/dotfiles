@@ -63,6 +63,8 @@ source $ALERTS_NU
 const ALERTS_PATH = ($nu.home-dir | path join ".cache" "pr-watch-alerts.json")
 const SHOWN_PATH = ($nu.home-dir | path join ".cache" "pr-watch-alerts-shown.json")
 const SOUNDS_DIR = (path self "../assets/sounds")
+# The chip's counts for Gzyms: its pr-watch plugin (dot_config/gzyms/plugins/pr-watch) mirrors this file.
+const CHIP_PATH = ($nu.home-dir | path join ".cache" "pr-watch-chip.json")
 
 # Work repo comes from the private work.env (restored from 1Password by `sync`);
 # never hardcode org/repo names here — this file is public.
@@ -279,13 +281,13 @@ def main [] {
     let act = ($enriched | where actionable)
     let n_comments = ($enriched | get outstanding | math sum)
     let n_run = ($enriched | where {|r| (work-pr bucket $r.action) == "ci"} | length)
+    let n_fix = ($act | where {|r| (work-pr bucket $r.action) == "fix"} | length)
+    let n_merge = ($act | where {|r| (work-pr bucket $r.action) == "merge"} | length)
+    {fix: $n_fix, merge: $n_merge, comments: $n_comments, run: $n_run, prs: ($enriched | length)} | to json | save -f $CHIP_PATH
     if ($act | is-empty) and ($n_comments == 0) and ($n_run == 0) and ($unseen | is-empty) {
         set-chip ["drawing=off"]
         return
     }
-
-    let n_fix = ($act | where {|r| (work-pr bucket $r.action) == "fix"} | length)
-    let n_merge = ($act | where {|r| (work-pr bucket $r.action) == "merge"} | length)
 
     mut parts = []
     if $n_fix > 0   { $parts = ($parts | append $"($G_FIX) ($n_fix)") }

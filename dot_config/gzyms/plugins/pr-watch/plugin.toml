@@ -1,0 +1,6 @@
+# Gzyms plugin: my PRs on the bar. The classifying stays in bin/pr-watch (launchd, every 60–180 s);
+# this only mirrors the counts it writes to ~/.cache/pr-watch-chip.json.
+name = "PR watch"
+description = "Your PRs: to fix, ready to merge, comments waiting, CI running. Click opens them on GitHub."
+command = "./plugin.sh"
+icon = "arrow.triangle.pull"
