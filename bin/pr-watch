@@ -176,7 +176,12 @@ def raise-alerts [prev: record, cur: record]: nothing -> record {
     let sound = ($SOUNDS_DIR | path join $"pr-(pr-alert sound $events).mp3")
     # in the foreground: launchd kills a finished job's children, so a backgrounded afplay never sounded
     if ($sound | path exists) { try { ^afplay $sound } }
-    if (which sketchybar | is-empty) { return $unseen }
+    # Without SketchyBar the queue still fills: the Gzyms plugin reads it (and tells each event once).
+    if (which sketchybar | is-empty) {
+        let merged = (pr-alert merge $unseen $events)
+        $merged | to json | save -f $ALERTS_PATH
+        return $merged
+    }
     let popup = (try { ^sketchybar --query pr_watch | from json | get -o popup.drawing } catch { "off" })
     if $popup == "on" {
         # Greg is looking: no blink, but the rows must still reach the open popup's rebuild
