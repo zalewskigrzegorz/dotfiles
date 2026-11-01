@@ -43,6 +43,12 @@
     name = Grzegorz Zalewski
     signingKey = F38BCBF8BCEB902DD0F002F4964AFA51FDB3DDF8
 
+# Personal repos commit from the iCloud address, by remote URL so worktrees match too.
+[includeIf "hasconfig:remote.*.url:https://github.com/zalewskigrzegorz/**"]
+    path = ~/.config/git/personal
+[includeIf "hasconfig:remote.*.url:git@github.com:zalewskigrzegorz/**"]
+    path = ~/.config/git/personal
+
 [gpg]
 {{- if eq .chezmoi.os "darwin" }}
     program = /opt/homebrew/bin/gpg
