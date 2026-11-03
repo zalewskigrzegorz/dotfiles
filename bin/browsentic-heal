@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# bin/browsentic-heal
+# A brew node upgrade deletes the Cellar the Browsentic daemon runs from; the daemon
+# keeps going but starts the side panel's MCP server via process.execPath, which is
+# gone, so every panel run ends in AGENT_FAILED. Restart the daemon when that happens.
+# launchd runs this whenever /opt/homebrew/Cellar/node changes
+# (dot_config/launchd/com.greg.browsentic-heal.plist.tmpl).
+set -u
+
+pid=$(pgrep -f '[d]ist/daemon-main.js' | head -1)
+[ -n "$pid" ] || exit 0
+node=$(ps -o command= -p "$pid" | awk '{print $1}')
+[ -x "$node" ] && exit 0
+
+echo "$(date '+%F %T') daemon pid $pid runs on missing $node, restarting"
+browsentic restart
