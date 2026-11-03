@@ -134,7 +134,7 @@ Per finding, record: `severity` (Critical / Suggestion / Nit), `path`, `line`, o
 
 Cluster duplicates (P4).
 
-## B3. Open tuicr in a split
+## B3. Open tuicr on its own workspace
 
 Greg reviews in **tuicr**, not in popups: he reads the code, edits or deletes Claude's drafts, and sends the review himself. The popup flow (Post/Skip per finding, verdict popup) lives at git tag `g-pr-review-popups` in dotfiles; going back = `git checkout g-pr-review-popups -- agent-skills/g-pr-review`.
 
@@ -152,7 +152,7 @@ SLUG="gh:$OWNER/$REPO/pr/$NUMBER"
 tuicr review list --repo "$OWNER/$REPO" | jq -e --arg s "$SLUG" '.[] | select(.slug == $s and .active)' >/dev/null
 ```
 
-In a detached session (a `workctl` review tab) `split-window` needs an attached client, so `tuicr-split` opens tuicr as its own window on the agent's workspace and mails Greg's Inbox; the flow is the same. No `TUIOS_PANE_ID` (outside tuios) or `tuicr-split` fails → say so in one line and fall back to the popup flow from the tag.
+`tuicr-split` opens tuicr on its own workspace (the first empty one after the agent's, named `tuicr`), never as a split under the agent: Greg keeps the agent on one workspace and tuicr on the next (2026-11-03). It mails his Inbox with the workspace number, so a detached `workctl` tab works the same way. Tell him the workspace number in the hand-over line. No `TUIOS_PANE_ID` (outside tuios) or `tuicr-split` fails → say so in one line and fall back to the popup flow from the tag.
 
 Every popup in this skill keeps the PR number out of `question` (`guard` denies a digit there): "PR <full name>a: …", the number goes in `description`.
 
@@ -161,7 +161,7 @@ Every popup in this skill keeps the PR number out of `question` (`guard` denies 
 Run every `comment_body` through greg-voice (P5.5) first, in one batch. Then one `tuicr review add` per finding, severity mapped to the types in `~/.config/tuicr/config.toml`: Critical → `issue`, Suggestion → `suggestion`, Nit → `nit`, a question to the author → `note`.
 
 ```bash
-tuicr review add --session "$SLUG" --username Claude --type issue \
+tuicr review add --session "$SLUG" --username Wintermute --type issue \
   --target-file <path> --line <line> [--end-line <n>] --side new "<comment_body>"
 ```
 
@@ -388,7 +388,7 @@ If user picks a verdict, submit via C6 (pending review, then event). Either way,
 * [ ] Diff analyzed silently (no diff dump in chat)
 * [ ] Findings recorded with severity, anchor, body, recommendation
 * [ ] B3 tuicr split opened in the background, PR session active
-* [ ] B4 voiced drafts added with `--username Claude`, every anchor verified, verdict hint given in ≤ 3 lines
+* [ ] B4 voiced drafts added with `--username Wintermute`, every anchor verified, verdict hint given in ≤ 3 lines
 * [ ] B5 after Greg quits: what went out read back, review URL reported (or "nic nie poszło")
 * [ ] B6 review worktree closed (auto on `APPROVE`, popup otherwise)
 
