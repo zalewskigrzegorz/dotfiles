@@ -29,7 +29,19 @@ echo "window=$w"
 tuios send-agent-message "${s[@]}" -w human --from "$TUIOS_PANE_ID" --subject "tuicr czeka na workspace ${ws:-?} (${TUIOS_SESSION:-?})" \
   "Review otwarty w oknie tuicr na workspace ${ws:-?}. Wyjdź z tuicr, żeby agent poszedł dalej." >/dev/null || true
 
+# A detached session (workctl review in the background) has no viewport: the
+# window comes up 80x24 floating and the after-new-window hook fails with
+# "needs an attached client". Tile it once Greg is looking at that workspace,
+# then stop; set-layout acts on the session's current workspace only.
+( while tuios get-window "${s[@]}" "$w" --json 2>/dev/null | jq -e '.success' >/dev/null; do
+    cur="$(tuios list-workspaces "${s[@]}" --json 2>/dev/null | jq -r '.current_workspace')"
+    [ "$cur" = "${ws:-}" ] && tuios set-layout --tiling true "${s[@]}" >/dev/null 2>&1 && break
+    sleep 2
+  done ) &
+tiler=$!
+
 tuios wait-for window-exit "${s[@]}" -w "$w" --timeout "${TUICR_SPLIT_TIMEOUT_MS:-7200000}" --json | jq -r '"exit=\(.exit_code // "?")"' || true
+kill "$tiler" 2>/dev/null || true
 # A new-window program leaves its window behind after it exits.
 tuios close-window "${s[@]}" "$w" >/dev/null 2>&1 || true
 [ "$ws" != "$own" ] && tuios set-workspace-name "${s[@]}" "$ws" >/dev/null 2>&1 || true
