@@ -59,8 +59,8 @@ invent a position.
 tuios-orchestration owns the mechanics; the order that works:
 
 ```bash
-tuios start-agent claude --name <slug> -s <session> --cwd <dir> --grants read \
-  --prompt "$(cat brief.md)" -- --model <opus|sonnet>           # one window per read-only agent; returns once claude is ready and submits the brief
+tuios start-agent claude --name <slug> -s <session> --cwd <dir> --grants read,write \
+  --prompt "$(cat brief.md)" -- --model <opus|sonnet>           # one window per agent; `write` so it can mail (Greg, 2026-11-04); returns once claude is ready and submits the brief
 tuios list-agents -s <session> --json | jq -c '.agents[] | {window_id,state}'   # the state turns working → the brief landed
 ```
 

@@ -17,14 +17,14 @@ leaves no branch behind. Verified 2026-09-21 on herdr: the whole loop took 5 min
 
 ```bash
 tuios start-agent claude --name naming-analysis -s "$TUIOS_SESSION" --cwd "$PWD" \
-  --grants read --prompt "$(cat brief.md)" -- --model sonnet    # args after -- go to claude
+  --grants read,write --prompt "$(cat brief.md)" -- --model sonnet    # args after -- go to claude
 tuios wait-for agent-state -s "$TUIOS_SESSION" -w naming-analysis --until needs_input,idle,done --timeout 1500000
 tuios capture-pane -s "$TUIOS_SESSION" -w naming-analysis --scrollback --lines 40 --trim | tail -20
 ```
 
 `start-agent` returns once claude shows its prompt and types `--prompt` then (it submits, so no paste-without-Enter trap). `--model sonnet` after `--`
 is how the Fable-session rule ("subagents run on Sonnet") is honoured, since `workctl`
-starts `claude` with the default model. `--grants read` keeps the child from typing into other windows. Tell the brief to write its report to bazgroly, not into the repo,
+starts `claude` with the default model. `--grants read,write` lets the child mail (`send-agent-message`) and type only inside its own session; never bare `read`, a pane with it cannot mail its orchestrator (Greg, 2026-11-04). Tell the brief to write its report to bazgroly, not into the repo,
 and to touch no branch.
 
 ## Create worktrees with `workctl`, never raw `tuios worktree new` or plain git
