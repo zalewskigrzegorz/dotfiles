@@ -2,11 +2,16 @@
 # worktree) gets this accent and is filed under a space named after the repo.
 # Read by workctl (new sessions) and bin/tuios-colorize (open ones).
 # repo	accent (Mocha Neon, docs/mocha-neon-palette.md)
+# One hue per row, so no two projects look alike in the session list.
+# First match wins: basti and the home session sit above the work repo,
+# because basti's folder is the work repo.
+basti	#F38BA8
+{{ .chezmoi.hostname }}	#7F849C
 {{ index . "work" "mainRepo" | base }}	#8BE9FD
 dotfiles	#9580FF
 home-lab	#50FA7B
 bazgroly	#FFD700
 research	#FF8C42
-HyprMac	#FF79C6
-workflows	#B347FF
+HyprMac	#FAB387
+workflows	#F0F0FF
 gzyms	#FF6B9D
