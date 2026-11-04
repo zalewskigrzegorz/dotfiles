@@ -1381,7 +1381,9 @@ function ensureWorktree(st: St, focus: boolean): { ws: string; path: string; cre
   } else if (st.isLocalBranch) {
     args = ["worktree", "add", wtPath, head];
   } else {
-    git(parent, ["fetch", "origin", head]);
+    const f = git(parent, ["fetch", "origin", head]);
+    // A dead ssh agent (1Password down) otherwise surfaces as "invalid reference".
+    if (f.code !== 0) die(`git fetch origin ${head} failed: ${f.err.trim()}`);
     args = ["worktree", "add", "-b", head, wtPath, `origin/${head}`];
   }
   const r = git(parent, args);
