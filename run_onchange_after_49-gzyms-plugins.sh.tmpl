@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Gzyms catalog plugins. Their files are not tracked: Gzyms updates an unchanged catalog plugin
+# in place on launch, so a chezmoi copy would roll it back. Options live in ~/.config/gzyms/config.toml.
+# Mac-only. Re-runs when the list below changes.
+set -euo pipefail
+
+{{ if eq .chezmoi.os "darwin" -}}
+command -v gzyms >/dev/null || { echo "[skip] gzyms not installed (cask zalewskigrzegorz/tap/gzyms)"; exit 0; }
+dir="$HOME/.config/gzyms/plugins"
+for p in agents gh-prs gh-builds; do
+  [ -d "$dir/$p" ] || gzyms plugin add "$p"
+done
+echo "[ok] gzyms catalog plugins"
+{{ end -}}

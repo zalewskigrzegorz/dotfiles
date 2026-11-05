@@ -1,0 +1,95 @@
+{{- $v := index . "onePasswordVault" | default "Dotfiles" -}}
+theme = "mocha-neon"
+
+[workspaces]
+small_on_notch = true
+show_empty = false
+
+[cpu]
+chart = "line"
+
+[appearance]
+animations = true
+follow_reduce_motion = false
+favorite_themes = ["mocha-neon", "grayscale"]
+animation_speed = "fast"
+banner_entry = "icon"
+
+[notifications]
+nc_auto_restart = true
+
+
+[audio.icons]
+
+[bar]
+
+[widgets]
+
+[calendar]
+skip = ["Google/Firefighter On-Duty Schedule", "Google/Holidays in Poland", "Maksim009@gmail.com/Święta chrześcijańskie", "Other/Birthdays", "Subscribed Calendars/Święta w Polsce"]
+
+[plugins.hello]
+enabled = false
+
+[caffeine]
+display = true
+battery_below = 20
+
+[plugins.log-watcher]
+files = ["/Users/greg/Library/Logs/Gzyms/probe-test.log", "/Users/greg/Library/Logs/Gzyms/anomalies.jsonl"]
+armageddon = "FATAL"
+critical = ""
+error = "ERROR|Exception|rebuild_storm"
+warning = "main_thread_stall"
+enabled = false
+
+[[workspaces.style]]
+number = 1
+color = "green"
+
+[notifications.phone]
+url = {{ if lookPath "op" }}{{ onepasswordRead (printf "op://%s/gzyms-phone-push/url" $v) | quote }}{{ else }}""{{ end }}
+pushover_user = {{ if lookPath "op" }}{{ onepasswordRead (printf "op://%s/gzyms-phone-push/pushover_user" $v) | quote }}{{ else }}""{{ end }}
+format = "pushover"
+pushover_token = {{ if lookPath "op" }}{{ onepasswordRead (printf "op://%s/gzyms-phone-push/pushover_token" $v) | quote }}{{ else }}""{{ end }}
+
+[sounds]
+message = "gzyms"
+success = "gzyms"
+fail = "gzyms"
+waiting = "gzyms"
+armageddon = "gzyms"
+dismiss = "gzyms"
+
+[keys]
+leader = "ctrl+alt+g"
+
+[keys.verbs]
+snooze = "z"
+
+[plugins.gh-prs]
+hide_idle = true
+right_click = "BUTTON=right ~/Code/dotfiles/bin/pr-watch-open"
+sounds = "~/Code/dotfiles/assets/sounds"
+
+[plugins.gh-builds]
+notify = "all"
+hide_idle = true
+sounds = "~/Code/dotfiles/assets/sounds"
+
+[audio]
+banned = ["Greg iPhone  Microphone"]
+
+[notifications.apps."com.mitchellh.ghostty"]
+
+[hacks]
+browser_media = true
+
+[notifications.apps."plugin:agents"]
+
+[notifications.apps."com.tinyspeck.slackmacgap"]
+
+[updates]
+
+[debug]
+anomalies = false

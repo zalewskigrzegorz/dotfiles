@@ -70,6 +70,7 @@ raycast-extensions/spam/dist/**
 # The homelab is headless: apply only CLI/shell config.
 .config/flipperdevices.com/**
 .config/ghostty/**
+.config/gzyms/**
 .config/launchd/com.greg.temp-watch.plist
 .config/sketchybar/**
 .config/spotify-player/**
