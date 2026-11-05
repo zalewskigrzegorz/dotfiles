@@ -5,4 +5,5 @@
 .config/nushell/autoload/herdr.nu
 .config/nushell/autoload/herdr-pick.nu
 .config/nushell/autoload/zz-herdr-tui-wrappers.nu
+.config/nushell/autoload/zz-tuios-tui-wrappers.nu
 .config/nvim/lua/plugins/herdr-nvim.lua

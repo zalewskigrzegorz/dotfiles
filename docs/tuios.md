@@ -152,8 +152,6 @@ secret-in <scratchpad>/secrets/<name>` (`agent-rules/ops-traps.md`).
 ## Tab / window naming (our own)
 
 - `work` / `workctl` name a worktree's first workspace (` nu`), the second `claude`, where claude and agents open.
-- `zz-tuios-tui-wrappers.nu`: `lg`, `dash`, `nvim`, `lazydocker`, `btop` rename the *current*
-  workspace to a nerd-font icon while the TUI runs and restore the old name on exit.
 - `dot_claude/hooks/stop/tuios-claude-title.sh` (Stop hook, Haiku) names the Claude workspace
   with a 3–4 word task title through `bin/os-title` (`tuios set-workspace-name`) and puts the same
   title on the agent's window (`tuios set-window --name`), which the rail's agent row draws in

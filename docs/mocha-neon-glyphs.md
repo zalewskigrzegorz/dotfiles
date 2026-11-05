@@ -88,23 +88,6 @@ Driven by `sketchybar-watcher` Go binary. State glyphs:
 > nu/reedline doesn't expose VISUAL / REPLACE prompt indicators — see
 > polish brainstorm for upstream PR + local-hack workarounds.
 
-### TUI tab wrappers (`dot_config/nushell/autoload/zz-tuios-tui-wrappers.nu`)
-
-Rename the current tuios workspace (tab) to this glyph + name while the TUI runs:
-
-| Command | Glyph | Codepoint | Nerd-font name |
-|---|---|---|---|
-| `nvim` / `vim` / `vi` | `` | U+E62B | nf-custom-vim |
-| `claude` | `󰣙` | U+F08D9 (or whatever) | nf-md-robot (verify in source) |
-| `lazygit` | `` | U+E725 | nf-dev-git_branch |
-| `gh-dash` | `󰊤` | U+F02A4 | nf-md-github |
-| `lazydocker` | `󰡨` | U+F0868 | nf-md-docker |
-| `btop` | `` | U+F0E4 | nf-fa-tachometer |
-
-(See `dot_config/nushell/autoload/zz-tuios-tui-wrappers.nu` for exact `\u{xxxx}`
-escapes — those survive every edit; literal glyphs in source have been silently
-stripped before.)
-
 ## Codepoint lookup tips
 
 - nerd-fonts.com → search by name (`md-clock`, `md-calendar-week`).
@@ -117,6 +100,6 @@ stripped before.)
 2. Verify it renders in **Iosevka Nerd Font Mono** (the dotfiles font).
 3. Add to the relevant per-surface section here.
 4. Reference by **`\u{xxxxx}` escape** in source where possible
-   (`zz-tuios-tui-wrappers.nu` and Go code do this; Lua uses literal glyphs
+   (nushell and Go code do this; Lua uses literal glyphs
    because they're rendered through static config files).
 5. Re-shoot screenshots in `~/Code/personal/bazgroly/dotfiles/screenshots/`.
