@@ -67,6 +67,7 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 | 35 | `run_after_35-raycast-scripts-compat.sh.tmpl` | Raycast compatibility shim |
 | 35 | `run_onchange_after_35-gh-extensions.sh` | install `gh` CLI extensions (gh-dash, gh-stack, …) |
 | 36 | `run_onchange_after_36-git-hooks.sh.tmpl` | wire tracked git hooks (`core.hooksPath` → gitleaks pre-commit/pre-push) |
+| 49 | `run_onchange_after_49-gzyms-plugins.sh.tmpl` | macOS only: `gzyms plugin add` for the catalog plugins (files untracked, Gzyms updates them itself). Config: `dot_config/private_gzyms/config.toml.tmpl`, phone-push secrets from 1Password `gzyms-phone-push`; after a change in Gzyms Settings copy it into the `.tmpl` by hand and check with `bin/render-and-diff` |
 
 Bootstrap from scratch: `./bootstrap.sh` (installs chezmoi + runs first apply).
 
