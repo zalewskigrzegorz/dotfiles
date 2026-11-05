@@ -7,10 +7,12 @@ description: Greg's tiling window manager HyprMac (replaced AeroSpace 2026-10-25
 
 Upstream `zacharytgray/HyprMac` (cask `zacharytgray/hyprmac/hyprmac`). Since v0.19.0 (f8d3190)
 upstream has merged every fork PR, so Greg runs the **release** `HyprMac.app` (login item) again
-(2026-10-28). `HyprMac Debug.app`, built from the fork's `greg-nightly`, stays installed for the
-next fork fix. **Switching = which one runs**: quit one, `open -a` the other, swap the login item.
-Never both at once: they tile the same windows and write the same config. `bin/hyprmac-config` and
-the sketchybar clicks follow whichever runs (`pgrep -x "HyprMac Debug"`). History of the fork work:
+(2026-10-28). **`HyprMac Debug.app` is uninstalled (2026-11-05)**: it kept starting next to the
+release (a bare `hyprmac://` open from Gzyms, fixed in gzyms `864b2e4`, plus its own login item),
+and two instances tile the same windows. Every `HyprMac Debug.app` in `build/*` was unregistered
+from LaunchServices (`lsregister -u`). For a fork fix: build, test, then quit it and
+`lsregister -u` the build again; never leave a Debug build registered or as a login item.
+`bin/hyprmac-config` still follows whichever runs (`pgrep -x "HyprMac Debug"`). History of the fork work:
 `~/Code/personal/bazgroly/dotfiles/notes/2026-10-25-hyprmac-test.md`.
 
 ## Choosing a shortcut for another app
