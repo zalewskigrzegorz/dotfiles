@@ -34,6 +34,7 @@ right_click_opens_menu = true
 max_fps = 120
 dim_unfocused = 20
 session_border = true
+click_to_type = "double"
 
 [spotlight]
 enabled = false
@@ -68,3 +69,6 @@ enabled = true
 
 [pip]
 corner = "bottom-right"
+
+[appearance.selection]
+flash_style = "diagonal"
