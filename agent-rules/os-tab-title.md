@@ -14,9 +14,10 @@ keeps or replaces the title, through `os-title`: the tuios workspace name
 (`tuios set-window --name`, the rail's agent row) and the statusline alike. Greg's words: the first prompt and the workspace › topic format "nic
 nie mówi".
 
-Tabs without Claude keep the name the shell gives them, except `lg`, `dash`,
-`nvim` and friends: `zz-tuios-tui-wrappers.nu` renames the workspace to an icon
-while the TUI runs and restores it after. There is no auto-title plugin any more.
+Tabs without Claude keep the name the shell gives them. The nushell TUI wrappers
+that put an icon on the tab while `nvim`, `lg` or `dash` ran were removed on
+2026-11-05: through them nvim drew nothing in a tuios pane. There is no
+auto-title plugin any more.
 
 **Default: do nothing.** Do not call `os-title` at checkpoints.
 
