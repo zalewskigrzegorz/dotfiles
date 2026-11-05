@@ -786,7 +786,6 @@
   "skipAutoPermissionPrompt": true,
   "autoUpdatesChannel": "latest",
   "skipWorkflowUsageWarning": true,
-  "preferredNotifChannel": "ghostty",
   "inputNeededNotifEnabled": true,
   "remoteControlAtStartup": false,
   "awaySummaryEnabled": false,
