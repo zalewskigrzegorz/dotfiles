@@ -43,7 +43,9 @@ resume_agents = "auto"
 # turn end). Default states: needs_input, errored, done. `done` fires once per
 # turn end of a pane you are not looking at; subagent rows raise no alert.
 [notifications.agent]
-notify = true
+# Off since gzyms's agents pill shows the same events: the Ghostty toast was a
+# second notification for each one (Greg, 2026-11-05).
+notify = false
 suppress_focused = true
 # One second over the default: a turn end followed at once by a queued prompt
 # flips done → working inside it and stays quiet.
