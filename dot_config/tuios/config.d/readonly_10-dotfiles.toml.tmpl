@@ -86,8 +86,13 @@ autorun = "off"
 # herdr-equalize-panes: every split back to half when a pane opens or closes.
 # --tiling true too: a session made by hand came up untiled (2026-10-28), and
 # --equalize alone then fails with "tiling is not enabled" on every window.
+# set-layout needs an attached client, so in a session workctl made headless the
+# panes stay floating at 80x24 (~20% of the screen) until a client tiles them:
+# attach and workspace switch do that. No --equalize there, it would undo resizes.
 [hooks]
 after-new-window = 'tuios set-layout --tiling true --equalize -s "$TUIOS_SESSION_ID"'
+after-attach = 'tuios set-layout --tiling true -s "$TUIOS_SESSION_ID"'
+after-workspace-switch = 'tuios set-layout --tiling true -s "$TUIOS_SESSION_ID"'
 after-close-window = 'tuios set-layout --tiling true --equalize -s "$TUIOS_SESSION_ID"'
 
 [keybindings]
