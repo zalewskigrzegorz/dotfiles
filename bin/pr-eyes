@@ -1,0 +1,152 @@
+#!/usr/bin/python3 -I
+"""Put Greg's :eyes: on a PR's thread in the review channel, so the team sees who took it.
+
+  pr-eyes claim <owner/repo> <number> [--dry-run]
+
+Called by `workctl` on the `review` and `tuicr` actions for someone else's PR.
+Only $WORK_MAIN_REPO has a review-bot thread; other repos exit 0 silently.
+The 👀 goes on the newest reply that tags a team pending on the PR (an author's
+ping, a "review is late" reminder), so whoever pinged is notified; with no such
+reply, on the bot message. Nothing happens when Greg's 👀 is already in the thread.
+Slack goes straight through the API with $WORK_SLACK_POSTER_TOKEN (search:read,
+channels:history, reactions:read/write); the channel is $WORK_SLACK_REVIEW_CHANNEL.
+Undo: remove the reaction by hand in Slack.
+"""
+import datetime as dt
+import json
+import os
+import re
+import subprocess
+import sys
+import urllib.parse
+import urllib.request
+
+HOME = os.path.expanduser("~")
+WORK_ENV = os.path.join(HOME, ".local", "state", "dotfiles", "secrets", "work.env")
+LOG = os.path.join(HOME, ".cache", "pr-eyes.log")
+SUBTEAM = re.compile(r"<!subteam\^([A-Z0-9]+)")
+
+
+def log(msg):
+    os.makedirs(os.path.dirname(LOG), exist_ok=True)
+    with open(LOG, "a") as f:
+        f.write("%s %s\n" % (dt.datetime.now().isoformat(timespec="seconds"), msg))
+
+
+def work_env():
+    env = {}
+    try:
+        with open(WORK_ENV) as f:
+            for line in f:
+                k, sep, v = line.strip().partition("=")
+                if sep and not k.startswith("#"):
+                    env[k] = v.strip("'\"")
+    except OSError:
+        pass
+    env.update({k: v for k, v in os.environ.items() if k.startswith("WORK_")})
+    return env
+
+
+def slack(token, method, **params):
+    data = urllib.parse.urlencode(params).encode()
+    req = urllib.request.Request("https://slack.com/api/" + method, data=data,
+                                 headers={"Authorization": "Bearer " + token})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        res = json.load(r)
+    if not res.get("ok"):
+        raise RuntimeError("%s: %s" % (method, res.get("error")))
+    return res
+
+
+def thread_ts_of(match):
+    q = urllib.parse.parse_qs(urllib.parse.urlparse(match.get("permalink", "")).query)
+    return q.get("thread_ts", [match["ts"]])[0]
+
+
+def find_thread(token, channel, repo, number):
+    """(channel_id, messages) of the newest bot thread whose parent links exactly this PR."""
+    link = re.compile(r"https://github\.com/%s/pull/%d(?![0-9])[|>]" % (re.escape(repo), number))
+    res = slack(token, "search.messages", query="%d in:#%s" % (number, channel), count=20, sort="timestamp")
+    seen, best = set(), None
+    for m in res["messages"]["matches"]:
+        key = (m["channel"]["id"], thread_ts_of(m))
+        if key in seen:
+            continue
+        seen.add(key)
+        msgs = slack(token, "conversations.replies", channel=key[0], ts=key[1], limit=200)["messages"]
+        parent = msgs[0]
+        if parent.get("bot_id") and link.search(parent.get("text", "")):
+            if best is None or float(key[1]) > float(best[1][0]["ts"]):
+                best = (key[0], msgs)
+    return best
+
+
+def has_my_eyes(msgs, me):
+    return any(r["name"] == "eyes" and me in r.get("users", []) for m in msgs for r in m.get("reactions", []))
+
+
+def target_ts(msgs):
+    # shortcut: "our team" = the subteams the bot lists on the parent; add a WORK_ var if another team's ping gets picked.
+    teams = set(SUBTEAM.findall(msgs[0].get("text", "")))
+    tagged = [m for m in msgs[1:] if teams & set(SUBTEAM.findall(m.get("text", "")))]
+    return (tagged[-1]["ts"], "team ping") if tagged else (msgs[0]["ts"], "bot message")
+
+
+def notify_failure(number, err):
+    try:
+        subprocess.run(["tuios", "send-agent-message", "-w", "human", "--subject",
+                        "👀 claim #%d failed" % number, err[:300]],
+                       capture_output=True, timeout=5, stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
+def claim(repo, number, dry_run):
+    env = work_env()
+    if repo != env.get("WORK_MAIN_REPO"):
+        return 0
+    token, channel = env.get("WORK_SLACK_POSTER_TOKEN", ""), env.get("WORK_SLACK_REVIEW_CHANNEL", "")
+    try:
+        if not token or not channel:
+            raise RuntimeError("WORK_SLACK_POSTER_TOKEN or WORK_SLACK_REVIEW_CHANNEL missing (work.env)")
+        me = slack(token, "auth.test")["user_id"]
+        found = find_thread(token, channel, repo, number)
+        if found is None:
+            # The bot skips some PRs; nothing to claim is not an error worth a mail.
+            log("claim #%d: no review-bot thread" % number)
+            print("no review-bot thread links #%d in #%s" % (number, channel))
+            return 0
+        chan_id, msgs = found
+        if has_my_eyes(msgs, me):
+            log("claim #%d: already yours" % number)
+            print("👀 #%d is already yours" % number)
+            return 0
+        ts, where = target_ts(msgs)
+        if dry_run:
+            print("would react on the %s, ts %s" % (where, ts))
+            return 0
+        try:
+            slack(token, "reactions.add", channel=chan_id, timestamp=ts, name="eyes")
+        except RuntimeError as e:
+            if "already_reacted" not in str(e):
+                raise
+    except Exception as e:
+        log("claim #%d FAIL %s" % (number, e))
+        if not dry_run:
+            notify_failure(number, str(e))
+        print("claim failed: %s" % e, file=sys.stderr)
+        return 1
+    log("claim #%d ok on the %s" % (number, where))
+    print("👀 added on the %s of #%d" % (where, number))
+    return 0
+
+
+def main(argv):
+    if len(argv) >= 3 and argv[0] == "claim" and argv[2].isdigit():
+        return claim(argv[1], int(argv[2]), "--dry-run" in argv)
+    print(__doc__.strip(), file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

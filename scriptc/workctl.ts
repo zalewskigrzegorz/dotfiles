@@ -1504,6 +1504,13 @@ function doDiff(st: St, ctx: Ctx): number {
 }
 
 // --repo-url pins the PR's repo, so this works from any cwd (gh-dash, the picker).
+// Greg's 👀 on someone else's PR thread in the Slack review channel (bin/pr-eyes),
+// in the background so the review does not wait on Slack.
+function claimEyes(st: St, ctx: Ctx): void {
+  if (ctx.dry || st.isMine || !st.hasPr) return;
+  sh(`command -v pr-eyes >/dev/null && pr-eyes claim ${shq(st.repo)} ${st.num} >/dev/null 2>&1 &`);
+}
+
 function doTuicr(st: St, ctx: Ctx): number {
   const args = ["pr", String(st.num), "--repo-url", `https://github.com/${st.repo}`];
   if (ctx.dry) {
@@ -1514,6 +1521,7 @@ function doTuicr(st: St, ctx: Ctx): number {
     err("tuicr not installed — brew install tuicr");
     return 1;
   }
+  claimEyes(st, ctx);
   return runTty("tuicr", args);
 }
 
@@ -2285,7 +2293,7 @@ function registry(): Row[] {
   const unres = (st: St): string => `${st.unresolved}${st.threadsTruncated ? "+" : ""} unresolved`;
   return [
     row("resolve", "gh", "✅", "resolve all conversations", (st) => st.hasPr && st.unresolved > 0, doResolve, unres, "", NONE, NONE),
-    row("review", "agent", "👀", "review this PR", (st) => st.hasPr && !st.isMine, (st, c) => doAgent(st, "review", "none", c), NONE, "", NONE, NONE),
+    row("review", "agent", "👀", "review this PR", (st) => st.hasPr && !st.isMine, (st, c) => { claimEyes(st, c); return doAgent(st, "review", "none", c); }, NONE, "", NONE, NONE),
     row("respond", "agent", "💬", "answer reviewers", (st) => st.hasPr && st.isMine && st.unresolved > 0, (st, c) => doAgent(st, "respond", "clone", c), unres, "", NONE, NONE),
     row("fix-ci", "agent", "🔧", "fix failing CI", (st) => st.hasPr && st.isMine && st.failed > 0, (st, c) => doAgent(st, "fix-ci", "clone", c), (st) => `${st.failed} red`, "", NONE, NONE),
     row("babysit", "agent", "🤖", "autonomous pass", (st) => st.hasPr && st.isMine && (st.failed > 0 || st.mergeable === "CONFLICTING"), (st, c) => doAgent(st, "babysit", "clone", c), NONE, "", NONE, NONE),
