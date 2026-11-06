@@ -1,4 +1,3 @@
-{{- $v := index . "onePasswordVault" | default "Dotfiles" -}}
 theme = "mocha-neon"
 
 [workspaces]
@@ -48,10 +47,7 @@ number = 1
 color = "green"
 
 [notifications.phone]
-url = {{ if lookPath "op" }}{{ onepasswordRead (printf "op://%s/gzyms-phone-push/url" $v) | quote }}{{ else }}""{{ end }}
-pushover_user = {{ if lookPath "op" }}{{ onepasswordRead (printf "op://%s/gzyms-phone-push/pushover_user" $v) | quote }}{{ else }}""{{ end }}
 format = "pushover"
-pushover_token = {{ if lookPath "op" }}{{ onepasswordRead (printf "op://%s/gzyms-phone-push/pushover_token" $v) | quote }}{{ else }}""{{ end }}
 
 [sounds]
 message = "gzyms"
@@ -93,3 +89,6 @@ browser_media = true
 
 [debug]
 anomalies = false
+
+[plugins.star-watcher]
+repos = ["zalewskigrzegorz/gzyms"]
