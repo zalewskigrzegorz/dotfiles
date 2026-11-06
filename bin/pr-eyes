@@ -1,9 +1,14 @@
 #!/usr/bin/python3 -I
-"""Put Greg's :eyes: on a PR's thread in the review channel, so the team sees who took it.
+"""Who put :eyes: on a PR's thread in the review channel, and Greg's own claim.
 
-  pr-eyes claim <owner/repo> <number> [--dry-run]
+  pr-eyes refresh [--force] [--bg]   PRs waiting on Greg or his team -> ~/.cache/pr-eyes.json
+  pr-eyes claim <owner/repo> <number> [--dry-run] [--bg]
 
-Called by `workctl` on the `review` and `tuicr` actions for someone else's PR.
+refresh: launchd (com.greg.pr-eyes) every 10 min, workdays 8-19 unless --force;
+gh-dash ctrl+e runs it with --bg. The patched gh-dash preview (bin/build-gh-dash)
+shows the cache as "👀 In review (Slack)".
+
+claim: called by `workctl` on the `review` and `tuicr` actions for someone else's PR.
 Only $WORK_MAIN_REPO has a review-bot thread; other repos exit 0 silently.
 The 👀 goes on the newest reply that tags a team pending on the PR (an author's
 ping, a "review is late" reminder), so whoever pinged is notified; with no such
@@ -13,6 +18,7 @@ channels:history, reactions:read/write); the channel is $WORK_SLACK_REVIEW_CHANN
 Undo: remove the reaction by hand in Slack.
 """
 import datetime as dt
+import fcntl
 import json
 import os
 import re
@@ -24,7 +30,10 @@ import urllib.request
 HOME = os.path.expanduser("~")
 WORK_ENV = os.path.join(HOME, ".local", "state", "dotfiles", "secrets", "work.env")
 LOG = os.path.join(HOME, ".cache", "pr-eyes.log")
+CACHE = os.path.join(HOME, ".cache", "pr-eyes.json")
+LOCK = os.path.join(HOME, ".cache", "pr-eyes.lock")
 SUBTEAM = re.compile(r"<!subteam\^([A-Z0-9]+)")
+WORK_DAYS, WORK_HOURS = range(0, 5), range(8, 19)
 
 
 def log(msg):
@@ -92,6 +101,102 @@ def target_ts(msgs):
     return (tagged[-1]["ts"], "team ping") if tagged else (msgs[0]["ts"], "bot message")
 
 
+def lock(blocking):
+    os.makedirs(os.path.dirname(LOCK), exist_ok=True)
+    f = open(LOCK, "w")
+    try:
+        fcntl.flock(f, fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB))
+    except OSError:
+        return None
+    return f
+
+
+def load_cache():
+    try:
+        with open(CACHE) as f:
+            cache = json.load(f)
+    except (OSError, ValueError):
+        cache = {}
+    cache.setdefault("prs", {})
+    cache.setdefault("names", {})
+    return cache
+
+
+def save_cache(cache):
+    tmp = CACHE + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(cache, f, indent=1, ensure_ascii=False)
+    os.replace(tmp, CACHE)
+
+
+def pr_url(repo, number):
+    return "https://github.com/%s/pull/%d" % (repo, number)
+
+
+def eyes_names(token, msgs, names):
+    """Full names of everyone with 👀 anywhere in the thread, bots dropped; `names` caches users.info."""
+    # shortcut: everyone's 👀 counts, not only the team (no usergroups:read on the token); add the scope to filter.
+    ids = []
+    for m in msgs:
+        for r in m.get("reactions", []):
+            if r["name"] == "eyes":
+                ids.extend(u for u in r.get("users", []) if u not in ids)
+    out = []
+    for u in ids:
+        if u not in names:
+            user = slack(token, "users.info", user=u)["user"]
+            names[u] = None if user.get("is_bot") or user.get("deleted") else (
+                user.get("real_name") or user.get("profile", {}).get("real_name") or user["name"])
+        if names[u]:
+            out.append(names[u])
+    return out
+
+
+def waiting_prs(env):
+    repo, team = env.get("WORK_MAIN_REPO", ""), "%s/%s" % (env.get("WORK_GITHUB_ORG", ""), env.get("WORK_TEAM_SLUG", ""))
+    nums = set()
+    for q in ("is:open team-review-requested:%s -author:@me" % team, "is:open review-requested:@me -author:@me"):
+        r = subprocess.run(["gh", "pr", "list", "-R", repo, "--search", q, "--limit", "50", "--json", "number,author"],
+                           capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=60)
+        if r.returncode != 0:
+            raise RuntimeError("gh: %s" % r.stderr.strip()[:200])
+        nums.update(p["number"] for p in json.loads(r.stdout) if not p["author"].get("is_bot"))
+    return sorted(nums)
+
+
+def refresh(force):
+    now = dt.datetime.now()
+    if not force and (now.weekday() not in WORK_DAYS or now.hour not in WORK_HOURS):
+        return 0
+    held = lock(blocking=False)
+    if held is None:
+        print("a refresh is already running")
+        return 0
+    env, cache = work_env(), load_cache()
+    repo, token, channel = env.get("WORK_MAIN_REPO", ""), env.get("WORK_SLACK_POSTER_TOKEN", ""), env.get("WORK_SLACK_REVIEW_CHANNEL", "")
+    try:
+        if not repo or not token or not channel:
+            raise RuntimeError("WORK_MAIN_REPO, WORK_SLACK_POSTER_TOKEN or WORK_SLACK_REVIEW_CHANNEL missing (work.env)")
+        prs = {}
+        for n in waiting_prs(env):
+            found = find_thread(token, channel, repo, n)
+            prs[pr_url(repo, n)] = ({"thread": None, "eyes": []} if found is None else
+                                    {"thread": "%s/%s" % (found[0], found[1][0]["ts"]),
+                                     "eyes": eyes_names(token, found[1], cache["names"])})
+    except Exception as e:
+        # A failed run keeps the last good data; the preview says "last refresh failed".
+        cache["error"], cache["error_at"] = str(e), now.isoformat(timespec="seconds")
+        save_cache(cache)
+        log("refresh FAIL %s" % e)
+        print("refresh failed: %s" % e, file=sys.stderr)
+        return 1
+    save_cache({"updated_at": now.isoformat(timespec="seconds"), "prs": prs, "names": cache["names"]})
+    seen = sum(1 for v in prs.values() if v["eyes"])
+    log("refresh ok %d waiting, %d with 👀" % (len(prs), seen))
+    print("%d waiting, %d with 👀" % (len(prs), seen))
+    return 0
+
+
 def notify_failure(number, err):
     try:
         subprocess.run(["tuios", "send-agent-message", "-w", "human", "--subject",
@@ -138,10 +243,33 @@ def claim(repo, number, dry_run):
         return 1
     log("claim #%d ok on the %s" % (number, where))
     print("👀 added on the %s of #%d" % (where, number))
+    update_cache_entry(token, repo, number, chan_id, msgs[0]["ts"])
     return 0
 
 
+def update_cache_entry(token, repo, number, chan_id, thread_ts):
+    """Re-read the claimed thread into the cache so the gh-dash preview shows the claim at once."""
+    held = lock(blocking=True)
+    try:
+        cache = load_cache()
+        msgs = slack(token, "conversations.replies", channel=chan_id, ts=thread_ts, limit=200)["messages"]
+        cache["prs"][pr_url(repo, number)] = {"thread": "%s/%s" % (chan_id, thread_ts),
+                                              "eyes": eyes_names(token, msgs, cache["names"])}
+        save_cache(cache)
+    except Exception as e:
+        log("claim #%d cache update FAIL %s" % (number, e))
+    finally:
+        held.close()
+
+
 def main(argv):
+    if "--bg" in argv:  # gh-dash keys: don't freeze the TUI on Slack
+        subprocess.Popen([sys.executable, "-I", os.path.abspath(__file__)] + [a for a in argv if a != "--bg"],
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+        return 0
+    if argv[:1] == ["refresh"]:
+        return refresh("--force" in argv)
     if len(argv) >= 3 and argv[0] == "claim" and argv[2].isdigit():
         return claim(argv[1], int(argv[2]), "--dry-run" in argv)
     print(__doc__.strip(), file=sys.stderr)
