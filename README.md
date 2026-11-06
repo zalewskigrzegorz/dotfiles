@@ -15,15 +15,6 @@ profile = "homelab"
 setapp = false
 ```
 
-Set `setapp = true` on a macOS workstation to include the Setapp cask.
-
-Setapp manages its own apps after login. Track expected apps in `docs/setapp-apps.md` and check them with:
-
-```bash
-scripts/list-setapp-apps.sh
-scripts/check-setapp-apps.sh
-```
-
 ## Bootstrap
 
 From this checkout:
@@ -41,7 +32,17 @@ DOTFILES_REPO=git@github.com:zalewskigrzegorz/dotfiles.git ./bootstrap.sh homela
 
 `bootstrap.sh` installs `chezmoi` if needed, writes the profile config, runs `chezmoi init`, then `chezmoi apply`.
 
-## Apply Updates
+## Packages
+
+Package installation is driven by `~/.Brewfile`, rendered from `dot_Brewfile.tmpl`. The first apply installs Homebrew/Linuxbrew when missing, but `brew bundle` is opt-in while the app list is being reviewed:
+
+```bash
+brew bundle --global
+# or
+DOTFILES_RUN_BREW_BUNDLE=1 chezmoi apply
+```
+
+## Apply updates
 
 ```bash
 git pull
@@ -62,24 +63,16 @@ If no 1Password account is configured, run `op account add` once. On a headless 
 
 Until `op` is on `PATH` and authenticated, `sync` will apply public dotfiles and skip only the private restore.
 
-Package installation is driven by `~/.Brewfile`, rendered from `dot_Brewfile.tmpl`. The first apply installs Homebrew/Linuxbrew when missing, but `brew bundle` is opt-in while the app list is being reviewed:
+## Setapp
+
+Set `setapp = true` in the profile config on a macOS workstation to include the Setapp cask.
+
+Setapp manages its own apps after login. Track expected apps in `docs/setapp-apps.md` and check them with:
 
 ```bash
-brew bundle --global
-# or
-DOTFILES_RUN_BREW_BUNDLE=1 chezmoi apply
+scripts/list-setapp-apps.sh
+scripts/check-setapp-apps.sh
 ```
-
-## Stow Migration
-
-This repo used to be managed with GNU Stow. Before the first `chezmoi apply` on an existing host, remove legacy symlinks that point back into this repo:
-
-```bash
-legacy/migrate-stow-links-to-chezmoi.sh
-legacy/migrate-stow-links-to-chezmoi.sh --apply
-```
-
-The script removes only symlinks whose targets are inside the current dotfiles checkout. It does not touch real files or directories.
 
 ## Agent config (Claude Code)
 
@@ -90,11 +83,10 @@ Single-source-of-truth folders at repo root hold the agent config. `chezmoi appl
 | Skills | `agent-skills/<name>/SKILL.md` | `~/.claude/skills/` | `run_onchange_after_30-agent-skills-sync.sh.tmpl` (rsync) |
 | Rules (global) | `agent-rules/<name>.md` (+ frontmatter) | `~/.claude/CLAUDE.md` (only `alwaysApply: true`) | `run_onchange_after_31-agent-rules-sync.sh.tmpl` |
 | MCP servers (global) | `agent-mcp/mcp-servers.json.tmpl` | Claude user-scope via `claude mcp add` | `run_onchange_after_32-agent-mcp-sync.sh.tmpl` |
-| Claude global file | (auto) | `~/.claude/CLAUDE.md` (auto-generated from `agent-rules/`) | rules sync |
 
 Project-scoped configs are not touched: `<repo>/CLAUDE.md`, `<repo>/.mcp.json` stay per-project.
 
-Add or change shared content, then `chezmoi apply` — both agents pick it up. For an ad-hoc skill resync without other chezmoi changes:
+Add or change shared content, then run `chezmoi apply`. For an ad-hoc skill resync without other chezmoi changes:
 
 ```bash
 sync-agent-skills
@@ -102,24 +94,8 @@ sync-agent-skills
 
 See `docs/agents-sync.md` for details (adding a new skill/rule/MCP server, secrets via 1Password, troubleshooting).
 
-## macOS LaunchAgents
-
-After first `chezmoi apply` on macOS, register the Claude session watchers:
-
-```bash
-cp ~/.config/launchd/com.greg.claude-watcher.plist ~/Library/LaunchAgents/
-cp ~/.config/launchd/com.greg.claude-idle-timer.plist ~/Library/LaunchAgents/
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.greg.claude-watcher.plist
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.greg.claude-idle-timer.plist
-```
-
-Verify with `launchctl list | grep com.greg` (PIDs should be > 0).
-
 ## Reference
 
 - Agent config (shared + per-agent): `docs/agents-sync.md`
 - MCP client setup (Raycast/Claude): `docs/mcp-clients-setup.md`
-- Brew bundle reference: `docs/brew-snapshot-20260503.md`
-- Stow link inventory: `docs/stow-links-before-chezmoi.md`
 - Dotfiles inventory: `docs/dotfiles-inventory.md`
-- Legacy Stow scripts: `legacy/`
