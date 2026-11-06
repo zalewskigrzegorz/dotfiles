@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Install + (re)load the com.greg.pr-eyes LaunchAgent: every 10 min `pr-eyes
+# refresh` reads who put 👀 on the waiting PRs' Slack review threads into
+# ~/.cache/pr-eyes.json, which the patched gh-dash preview shows. The script
+# itself skips weekends and hours outside 8-19. Mac-only, mirrors stage 43.
+#
+# Bump this version comment to force re-run when the plist/interval changes.
+# Version: 2026-11-06.1
+set -euo pipefail
+
+{{ if eq .chezmoi.os "darwin" -}}
+plist_dir="$HOME/Library/LaunchAgents"
+plist_file="$plist_dir/com.greg.pr-eyes.plist"
+mkdir -p "$plist_dir"
+
+cat > "$plist_file" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.greg.pr-eyes</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>{{ .chezmoi.homeDir }}/Code/dotfiles/bin/pr-eyes</string>
+    <string>refresh</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>600</integer>
+  <key>StandardOutPath</key>
+  <string>/tmp/com.greg.pr-eyes.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/com.greg.pr-eyes.err</string>
+</dict>
+</plist>
+PLIST
+
+# load on a loaded job fails with "Input/output error" and keeps the old interval
+launchctl bootout "gui/$(id -u)/com.greg.pr-eyes" 2>/dev/null || true
+launchctl bootstrap "gui/$(id -u)" "$plist_file"
+echo "[ok] com.greg.pr-eyes loaded (refresh every 10 min)"
+{{ else -}}
+exit 0
+{{ end -}}

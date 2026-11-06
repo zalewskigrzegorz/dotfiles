@@ -8,7 +8,8 @@
 # machine has no gh-dash and no `gh stack`, and `work pr` loses half its rows.
 #
 # Not a sync: extensions installed ad hoc are left alone (nothing is
-# uninstalled here). Upgrades are manual — `gh extension upgrade --all`.
+# uninstalled here). Upgrades are manual — `gh extension upgrade --all`, then
+# `bin/build-gh-dash` again: the upgrade drops the 👀 preview patch.
 set -e
 
 # chezmoi runs hooks with a minimal PATH — surface brew's gh on both platforms

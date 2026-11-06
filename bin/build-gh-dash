@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# Build gh-dash with a 👀 block in the PR preview, read from ~/.cache/pr-eyes.json
+# (who reacted :eyes: on the PR's review-channel thread, filled by `pr-eyes refresh`).
+# Installs over the gh extension binary; `gh extension upgrade dash` undoes it, rerun this after.
+#
+#   build-gh-dash              build and install
+#   build-gh-dash --out PATH   build to PATH only
+#
+# Needs: go (GOTOOLCHAIN=auto fetches the version go.mod asks for).
+set -euo pipefail
+
+TAG="${GH_DASH_TAG:-v4.26.2}"
+EXT="$HOME/.local/share/gh/extensions/gh-dash/gh-dash"
+OUT=""
+[ "${1:-}" = "--out" ] && OUT="$2"
+BUILD="$(mktemp -d "${TMPDIR:-/tmp}/gh-dash-build.XXXXXX")"
+trap 'rm -rf "$BUILD"' EXIT
+
+git clone -q --depth 1 --branch "$TAG" https://github.com/dlvhdr/gh-dash "$BUILD/src" 2>/dev/null
+PRVIEW="$BUILD/src/internal/tui/components/prview"
+
+cat > "$PRVIEW/slackeyes.go" <<'GO'
+package prview
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"charm.land/lipgloss/v2"
+)
+
+type slackEyesEntry struct {
+	Thread *string  `json:"thread"`
+	Eyes   []string `json:"eyes"`
+}
+
+type slackEyesCache struct {
+	UpdatedAt string                    `json:"updated_at"`
+	Error     string                    `json:"error"`
+	Prs       map[string]slackEyesEntry `json:"prs"`
+}
+
+var (
+	slackEyesPath    = filepath.Join(os.Getenv("HOME"), ".cache", "pr-eyes.json")
+	slackEyesModTime time.Time
+	slackEyes        slackEyesCache
+)
+
+func loadSlackEyes() bool {
+	info, err := os.Stat(slackEyesPath)
+	if err != nil {
+		return false
+	}
+	if !info.ModTime().Equal(slackEyesModTime) {
+		raw, err := os.ReadFile(slackEyesPath)
+		if err != nil {
+			return false
+		}
+		var c slackEyesCache
+		if json.Unmarshal(raw, &c) != nil {
+			return false
+		}
+		slackEyes, slackEyesModTime = c, info.ModTime()
+	}
+	return true
+}
+
+func (m *Model) renderSlackEyes() string {
+	if !m.hasData() || !loadSlackEyes() {
+		return ""
+	}
+	entry, ok := slackEyes.Prs[strings.TrimSuffix(m.pr.Data.Primary.Url, "/")]
+	if !ok {
+		return ""
+	}
+	faint := m.ctx.Styles.Common.FaintTextStyle
+	line := faint.Render("nobody yet")
+	switch {
+	case entry.Thread == nil:
+		line = faint.Render("no Slack thread found")
+	case len(entry.Eyes) > 0:
+		line = m.ctx.Styles.Common.MainTextStyle.Render(strings.Join(entry.Eyes, ", "))
+	}
+	if updated, err := time.ParseInLocation("2006-01-02T15:04:05", slackEyes.UpdatedAt, time.Local); err == nil {
+		line += faint.Render(fmt.Sprintf("  · Slack read %d min ago", int(time.Since(updated).Minutes())))
+	}
+	if slackEyes.Error != "" {
+		line += faint.Render(" · last refresh failed")
+	}
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		m.ctx.Styles.Common.MainTextStyle.Underline(true).Bold(true).Render("👀 In review (Slack)"),
+		"",
+		line,
+	)
+}
+GO
+
+python3 -I - "$PRVIEW/prview.go" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+old = "\tbody := strings.Builder{}\n\treviewers := m.renderRequestedReviewers()\n"
+new = ("\tbody := strings.Builder{}\n\tif eyes := m.renderSlackEyes(); eyes != \"\" {\n"
+       "\t\tbody.WriteString(eyes)\n\t\tbody.WriteString(\"\\n\\n\")\n\t}\n"
+       "\treviewers := m.renderRequestedReviewers()\n")
+assert s.count(old) == 1, "viewOverviewTab start not found"
+open(p, "w").write(s.replace(old, new))
+PY
+
+(cd "$BUILD/src" && GOTOOLCHAIN=auto go build -ldflags "-s -w" -o "$BUILD/gh-dash" .)
+if [ -n "$OUT" ]; then
+  mv "$BUILD/gh-dash" "$OUT"
+  echo "built $OUT"
+  exit 0
+fi
+[ -f "$EXT.orig" ] || cp "$EXT" "$EXT.orig"
+mv "$BUILD/gh-dash" "$EXT"
+echo "installed $EXT ($TAG + 👀); original kept as $EXT.orig"

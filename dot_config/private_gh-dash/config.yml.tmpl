@@ -135,6 +135,15 @@ keybindings:
       # workctl ever starts). Keep this line shell-agnostic.
       command: >
         workctl --repo {{ `{{.RepoName}}` }} --pr {{ `{{.PrNumber}}` }} --repo-path '{{ `{{.RepoPath}}` }}' --pause --bg
+    # bin/pr-eyes: who put 👀 on the PR's Slack review thread, shown in the
+    # preview by the patched gh-dash (bin/build-gh-dash). Background, so the
+    # TUI does not wait on Slack; the preview picks the cache up on next render.
+    - key: ctrl+e
+      name: re-read slack eyes
+      command: pr-eyes refresh --force --bg
+    - key: ctrl+r
+      name: claim review (slack eyes)
+      command: pr-eyes claim {{ `{{.RepoName}}` }} {{ `{{.PrNumber}}` }} --bg
   branches:
     - key: w
       name: branch picker
