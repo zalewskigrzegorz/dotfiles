@@ -1,3 +1,5 @@
+{{- $vault := "Dotfiles" -}}
+{{- $hasOp := lookPath "op" -}}
 theme = "mocha-neon"
 
 [workspaces]
@@ -92,3 +94,11 @@ anomalies = false
 
 [plugins.star-watcher]
 repos = ["zalewskigrzegorz/gzyms"]
+
+[plugins.pollen]
+homey_id = {{ if $hasOp }}{{ onepasswordRead (printf "op://%s/HOMEY_ID/password" $vault) | quote }}{{ else }}""{{ end }}
+homey_token = {{ if $hasOp }}{{ onepasswordRead (printf "op://%s/HOMEY_TOKEN/password" $vault) | quote }}{{ else }}""{{ end }}
+enabled = true
+
+[plugins.pln-usd]
+enabled = true
