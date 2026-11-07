@@ -227,6 +227,10 @@ repro):
 - **Before a "co widzisz" popup, look at the screenshots** the hook attached or
   the Drive folder's last ~5 min. If the answer is on the picture, say it in
   one sentence and go on ("już jest screenshot w scr", 673e7d5e).
+- **A step that dismisses or cancels something never asks for Esc or Ctrl+C.**
+  Esc lands on the popup itself and rejects it (5bbce6cf). The options say what
+  to do in the other pane ("Odrzuciłem pytanie w panelu" / "Coś nie tak"), or
+  the agent sends the key itself with `tuios send-keys`.
 
 ## Forgiveness & recovery framing
 
