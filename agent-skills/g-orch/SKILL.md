@@ -80,10 +80,20 @@ invent a position.
 tuios-orchestration owns the mechanics; the order that works:
 
 ```bash
-tuios start-agent claude --name <slug> -s <session> --cwd <dir> --grants read,write \
-  --prompt "$(cat brief.md)" -- --model <opus|sonnet>           # one window per agent; `write` so it can mail (Greg, 2026-11-04); returns once claude is ready and submits the brief
+tuios start-agent claude --name <slug> -s <session> --cwd <dir> --grants <read,write|admin> \
+  --prompt "$(cat brief.md)" -- --model <opus|sonnet>           # one window per agent; returns once claude is ready and submits the brief
 tuios list-agents -s <session> --json | jq -c '.agents[] | {window_id,state}'   # the state turns working → the brief landed
 ```
+
+Grants follow where the worker runs, because it must be able to mail the
+orchestrator. `write` reaches only its own session: a worker in the
+orchestrator's session gets `read,write`. A worker in another session (every
+`workctl` tree) gets `admin`, the same as any pane Greg opens, else it stops
+and asks Greg for `set-pane-grants … admin` every time (2026-11-07: "nie da się
+zautomatyzować pracy"). `admin` never includes `respond`. A worker already
+running without it gets `tuios set-pane-grants -s <session> -w <window>
+--grants admin` from the orchestrator (a pane holding `admin` may give it),
+never a question to Greg.
 
 Code tasks: `workctl … --action wt-full --yes --no-focus`, find the window by
 `cwd` in `tuios list-agents --all-sessions`, then `tuios queue -s <session> -w <window> "$(cat brief.md)"`
