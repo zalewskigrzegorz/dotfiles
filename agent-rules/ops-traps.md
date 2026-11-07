@@ -28,6 +28,14 @@ mi rozwiązywać odpalanie poleceń" (2b9b89b1, 2026-10-23).
 `guard` denies `<cmd> <sub> --help | head`. If a probe may have mutated state,
 check (`ps`, `git status`, `<cmd> version`) before going on.
 
+## A guard deny names its fix: apply it, never resend
+
+Every deny is deterministic, so the same text fails the same way. One session
+resent `git add -A && git commit` and `2>/dev/null` on `rg` twice in a row and
+hit the popup checks five times (5bbce6cf). After a deny, change exactly what
+the message says before the next call. Before a popup: no digit in
+`question`, `header` ≤ 12 chars, no "Other".
+
 ## Transient `index.lock` during husky
 
 `Unable to create '…/index.lock': File exists` from a commit hook, with `ls`

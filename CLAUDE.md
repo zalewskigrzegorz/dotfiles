@@ -67,6 +67,8 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 | 35 | `run_after_35-raycast-scripts-compat.sh.tmpl` | Raycast compatibility shim |
 | 35 | `run_onchange_after_35-gh-extensions.sh` | install `gh` CLI extensions (gh-dash, gh-stack, …) |
 | 36 | `run_onchange_after_36-git-hooks.sh.tmpl` | wire tracked git hooks (`core.hooksPath` → gitleaks pre-commit/pre-push) |
+| 43 | `run_onchange_after_43-pr-watch-launchd.sh.tmpl` | macOS only: `com.greg.pr-watch` LaunchAgent running `bin/pr-watch` |
+| 46 | `run_onchange_after_46-pr-eyes-launchd.sh.tmpl` | macOS only: `com.greg.pr-eyes` LaunchAgent, `bin/pr-eyes refresh` every 10 min (gh-dash 👀 preview, see `.claude/rules/workctl-gh-dash.md`) |
 | 49 | `run_onchange_after_49-gzyms-plugins.sh.tmpl` | macOS only: `gzyms plugin add` for the catalog plugins (files untracked, Gzyms updates them itself). Config: `dot_config/private_gzyms/config.toml` (plain file, `chezmoi re-add` after a change in Gzyms Settings); phone-push secrets live in the Keychain since Gzyms 0.0.4, seeded from 1Password `gzyms-phone-push` |
 
 Bootstrap from scratch: `./bootstrap.sh` (installs chezmoi + runs first apply).
@@ -122,6 +124,7 @@ The Brewfile is templated, so a raw grep misses entries behind `{{ if }}` — re
 4. Claude skill → `cp -r ~/.claude/skills/<X> agent-skills/<X>` (never `chezmoi add` — see hard rule 5)
 5. `gh` extension → append `owner/repo` to the `EXTENSIONS` array in `run_onchange_after_35-gh-extensions.sh` (never `gh extension install` alone — extensions live in untracked `~/.local/share/gh/`)
 6. Any other dotfile → `chezmoi add <path>`, then check the source name got the right prefix
+7. A bundle Greg hands over (zip, patch, README) → map every part its README lists to its target in the repo, report "N of M installed, missing: X", and check the effect where Greg looks (a pr-eyes bundle landed only its `claim` part, 536b9fd3)
 
 Finish with `chezmoi diff` to confirm the change was captured, then close the task with the commit + push popup.
 

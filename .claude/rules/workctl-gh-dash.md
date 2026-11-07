@@ -4,6 +4,9 @@ paths:
   - "dot_config/tuios/**"
   - "dot_config/private_gh-dash/**"
   - "dot_config/nushell/autoload/tuios.nu"
+  - "bin/pr-eyes"
+  - "bin/build-gh-dash"
+  - "run_onchange_after_46-pr-eyes-launchd.sh.tmpl"
 ---
 
 # tuios worktrees: workctl, gh-dash
@@ -16,3 +19,4 @@ paths:
 - **A picker row that prints a report waits for Enter** before the menu comes back, or fzf's repaint wipes the output (`fe60887`). Test a new row in the live picker, not only headless.
 - **`tuios new --detach` always opens one shell window**, even with `startup.open_default_window = false`, and no command swaps the process in an existing window (tuios 0.11.1, 2026-10-28). Typing the command into it works (`wait-for window-output --pattern .` then `window-idle --idle 300`) but Greg rejected the risk; claude opens on workspace 2 instead. Test such a question on a scratch daemon: `XDG_CONFIG_HOME=<scratch> tuios new x --detach --server x`, then `tuios kill-server --server x`.
 - **A tuios popup on an empty workspace starts in `~`.** `prefix+d` (`workctl rm --self`) answered `not inside a worktree` that way (30c41c3e). A command bound to a popup finds its worktree by `TUIOS_SESSION`, never `PWD`; `workctl`'s pools are `TREE_ROOT`, `LEGACY_TREE_ROOT` and `TUIOS_TREE_ROOT`. Before describing a new key to Greg, run its command once headless from `~` with `TUIOS_SESSION` set.
+- **The 👀 block in the gh-dash PR preview needs four parts** (536b9fd3, 2026-11-07): `bin/pr-eyes refresh` filling `~/.cache/pr-eyes.json`, the patched gh-dash from `bin/build-gh-dash`, the `com.greg.pr-eyes` LaunchAgent from stage 46 (every 10 min) and the `ctrl+e` key (`pr-eyes refresh --force`). A handed-over bundle once landed only the `claim` part and the block stayed empty for two days. `gh extension upgrade dash` drops the patch → `bin/build-gh-dash` again. Empty block → check in order: the cache file exists and is fresh, `launchctl list | rg pr-eyes`, the running `gh-dash` is the patched build.
