@@ -1,0 +1,18 @@
+name = "PLN/USD"
+description = "USD in PLN (NBP mid rate) on one pill, with trend colour and a 30-day chart. A notification when it crosses your threshold."
+command = "./plugin.sh"
+icon = "dollarsign.circle"
+
+[[option]]
+key = "threshold"
+title = "Threshold (PLN)"
+type = "number"
+default = 4.0
+note = "a notification each time the rate crosses it, up or down"
+
+[[option]]
+key = "every"
+title = "Ask every (s)"
+type = "number"
+default = 3600
+note = "the rate changes once a working day"

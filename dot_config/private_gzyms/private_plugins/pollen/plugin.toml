@@ -1,0 +1,33 @@
+name = "Pollen"
+description = "Pollen level from the Homey device Pylenie on one pill. A notification when it reaches your level."
+command = "./plugin.sh"
+icon = "leaf"
+
+[[option]]
+key = "alert_level"
+title = "Alert from"
+type = "choice"
+choices = ["średnie", "wysokie", "bardzo wysokie"]
+default = "wysokie"
+note = "a notification when the highest pollen level climbs to this one or above"
+
+[[option]]
+key = "every"
+title = "Ask every (s)"
+type = "number"
+default = 1800
+note = "one Homey call each time"
+
+[[option]]
+key = "homey_id"
+title = "Homey ID"
+type = "text"
+default = ""
+note = "the cloud id of your Homey, the part before .connect.athom.com"
+
+[[option]]
+key = "homey_token"
+title = "Homey token"
+type = "text"
+default = ""
+note = "a Homey API token. Kept in config.toml in plain text, so keep that file at mode 600."
