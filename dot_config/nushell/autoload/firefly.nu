@@ -131,5 +131,20 @@ grep 'Add error on index' "$log" | grep -v '\[a115\]' | sed -E 's/.*\): //' | cu
         }
     }
 
+    # Reguły subskrypcji odpalamy jeszcze raz po imporcie: przy imporcie paczkami
+    # Firefly może ich nie uruchomić, a bez tego kafelek „Subskrypcje do zapłaty”
+    # pokazuje wszystko jako niezapłacone. Potem invoice-app od razu sprawdza
+    # przelew za fakturę i wysyła mail do księgowej, zamiast czekać do pełnej godziny.
+    let after_import = r#'
+cd /opt/homelab/services/firefly-importer
+ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' firefly | cut -d' ' -f1)
+FIREFLY_III_ACCESS_TOKEN=$(grep '^FIREFLY_III_ACCESS_TOKEN=' .env | cut -d= -f2-) FIREFLY_III_URL="http://$ip:8080" \
+  timeout 300 python3 bin/firefly-bills.py --apply --since "$(date -d '45 days ago' +%F)" >/tmp/firefly-bills.log 2>&1 \
+  && echo "subskrypcje: reguły odpalone" || echo "subskrypcje: BŁĄD, log mrglaszki:/tmp/firefly-bills.log"
+docker exec invoice-app wget -qO- --post-data= http://localhost:3000/api/email/accountant/check || echo "invoice-app: sprawdzenie przelewu nie poszło"
+'#
+    print $"(ansi cyan)→ po imporcie(ansi reset)"
+    for l in ($after_import | ^ssh mrglaszki bash -s | complete | get stdout | lines) { print $"    ($l)" }
+
     print $"(ansi green)gotowe(ansi reset) → https://firefly.mrglaszki.com/"
 }
