@@ -35,9 +35,14 @@ max_fps = 120
 dim_unfocused = 20
 session_border = true
 click_to_type = "double"
+window_button_zoom = true
+pane_background = "off"
+calm = false
 
 [spotlight]
 enabled = false
+shake = true
+edge = "hard"
 
 [appearance.scrollbar]
 style = "track"
@@ -46,7 +51,7 @@ style = "track"
 enabled = ["furkankly.zoetrope"]
 
 [debug]
-show_key_events = false
+show_key_events = true
 
 [appearance.sidebar.left]
 enabled = false
@@ -72,3 +77,8 @@ corner = "bottom-right"
 
 [appearance.selection]
 flash_style = "diagonal"
+
+[screensaver]
+enabled = true
+while_busy = false
+effect = "random"
