@@ -7,7 +7,7 @@
 let work_env_file = ($nu.home-dir | path join ".local/state/dotfiles/secrets/work.env")
 
 if ($work_env_file | path exists) {
-    open $work_env_file
+    open --raw $work_env_file
     | lines
     | where {|l| ($l | str trim) != "" and not ($l | str trim | str starts-with "#") }
     | parse "{key}={value}"
