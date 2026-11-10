@@ -102,7 +102,7 @@ export def reaper [
     --hard                   # SIGKILL / docker kill instead of TERM / docker stop
 ] {
     # --- processes: current CPU + RSS from nu's sampled ps, args + uptime from system ps
-    let procs = (ps | select pid ppid name cpu mem)
+    let procs = (ps | compact cpu mem | select pid ppid name cpu mem)
     let meta = (
         ^ps -Ao pid=,ppid=,tty=,etime=,args=
         | lines

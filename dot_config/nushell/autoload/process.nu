@@ -61,6 +61,7 @@ export def high-cpu [
     print $"Finding processes with CPU > ($threshold)%..."
     
     ps 
+    | compact cpu mem
     | where cpu > $threshold 
     | sort-by cpu --reverse 
     | select pid cpu mem name 
@@ -78,6 +79,7 @@ export def high-mem [
     print $"Finding processes with memory > ($threshold_mb) MB..."
     
     ps 
+    | compact cpu mem
     | where {|row| ($row.mem | into int) > $threshold_bytes }
     | sort-by {|row| $row.mem | into int } --reverse 
     | select pid cpu mem name 
