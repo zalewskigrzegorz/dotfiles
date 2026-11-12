@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Photos vim keys
 // @namespace    zalewskigrzegorz
-// @version      5
-// @description  Vim keys in Google Photos: h/l previous/next photo, j/k scroll, dd trash without the confirm dialog, u undo.
+// @version      6
+// @description  Vim keys in the Google Photos preview: h/l previous/next, dd trash without the confirm dialog, u undo. The grid keeps Vimma's own keys.
 // @match        https://photos.google.com/*
 // @match        https://youtube.googleapis.com/embed/*
 // @grant        none
@@ -53,12 +53,7 @@ const toast = (text) => {
   document.body.append(t);
   setTimeout(() => t.remove(), 700);
 };
-const scroller = () => {
-  let el = document.elementFromPoint(innerWidth / 2, innerHeight / 2);
-  while (el && !(el.scrollHeight > el.clientHeight + 10 && /auto|scroll/.test(getComputedStyle(el).overflowY)))
-    el = el.parentElement;
-  return el ?? document.scrollingElement;
-};
+const inPreview = () => location.pathname.includes('/photo/');
 
 const waitFor = async (find) => {
   for (let i = 0; i < 20; i++) {
@@ -90,7 +85,7 @@ async function trash() {
   toast('dd: kliknięty kosz, ale nie było okna potwierdzenia');
 }
 
-const KEYS = 'hjkldu';
+const KEYS = 'hldu';
 const plain = (e) =>
   !(e.metaKey || e.ctrlKey || e.altKey || e.isComposing) &&
   KEYS.includes(e.key) &&
@@ -101,8 +96,6 @@ function handle(key) {
   switch (key) {
     case 'h': return press(byLabel(LABEL.prev));
     case 'l': return press(byLabel(LABEL.next));
-    case 'j': scroller().scrollBy({ top: 300 }); return true;
-    case 'k': scroller().scrollBy({ top: -300 }); return true;
     case 'u': return press(byLabel(LABEL.undo));
     case 'd':
       if (Date.now() - lastD < 500) {
@@ -133,8 +126,24 @@ if (location.hostname === 'youtube.googleapis.com') {
     if (e.origin === 'https://youtube.googleapis.com' && KEYS.includes(e.data?.photosVim)) run(e.data.photosVim);
   });
   addEventListener('keydown', (e) => {
-    if (!plain(e) || !run(e.key)) return;
+    if (!inPreview() || !plain(e) || !run(e.key)) return;
     e.preventDefault();
     e.stopImmediatePropagation();
   }, true);
+
+  // Vimma keeps its own keys in normal mode and hands them to the page in insert mode, which it
+  // enters when a text box gets the focus. In the photo preview this box takes the focus, so the
+  // keys above reach the page; in the grid it lets go and Vimma's hjkl work as before.
+  const box = Object.assign(document.createElement('div'), { tabIndex: -1 });
+  box.setAttribute('role', 'textbox');
+  box.setAttribute('aria-label', 'photos vim keys');
+  box.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none';
+  document.body.append(box);
+  let lastPath = '';
+  setInterval(() => {
+    if (location.pathname === lastPath) return;
+    lastPath = location.pathname;
+    if (inPreview()) box.focus({ preventScroll: true });
+    else if (document.activeElement === box) box.blur();
+  }, 300);
 }

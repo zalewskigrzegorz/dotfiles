@@ -38,7 +38,9 @@ paths:
 - **Userscripts** live in `dot_config/private_vimma/userscripts/`, installed
   through Tampermonkey; YouTube's space is off via `youtube-space-no-play.user.js`.
   The Google Photos ones (`photos-vim`, `tiktok-to-album`, the second needs GPTK)
-  sit in top-level `userscripts/`. `photos.google.com` has `insert = "always"` in
-  `config.toml`, otherwise Vimma eats `hjkl d u`. Photos ignores synthetic keys,
+  sit in top-level `userscripts/`. Vimma eats `h l d u` in normal mode and its
+  `[sites]` insert rule is per host, not per path, so `photos-vim` focuses a
+  hidden `role=textbox` in the photo preview (Vimma goes to insert there) and
+  blurs it in the grid (Vimma's hjkl again). Photos ignores synthetic keys,
   so the script clicks buttons by label; in an album the trash hides under
   "Więcej opcji". During a test Greg runs, don't drive his Photos tab.
