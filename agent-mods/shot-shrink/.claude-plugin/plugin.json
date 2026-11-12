@@ -1,0 +1,1 @@
+{ "name": "shot-shrink", "version": "0.1.0", "description": "Halves browser screenshots (browsentic, vimma) before the model reads them: about a quarter of the image tokens." }

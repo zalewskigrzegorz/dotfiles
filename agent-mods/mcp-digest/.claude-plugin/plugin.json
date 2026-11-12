@@ -1,0 +1,1 @@
+{ "name": "mcp-digest", "version": "0.1.0", "description": "Big results from read-only connectors (Slack, Sentry, Drive, Gmail, MemPalace, n8n) go through Haiku first; the model gets notes plus the full result's path. /mcp-digest off|on." }
