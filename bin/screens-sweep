@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""screens-sweep: keep the CleanShot Screenshots folder on Drive small, without Claude.
+
+Run daily by launchd (com.greg.screens-sweep). Each file older than AGE days goes through
+the on-device Apple model (`fm`, model `system`): trash -> deleted with `trash` (Drive keeps
+it in its bin for 30 days), keep/unsure -> stays and is remembered, so it is asked once.
+Videos skip the model and are deleted by age. Log: ~/.local/state/screens-sweep/log.csv.
+
+  screens-sweep --dry-run --limit 20   # show what would go, 20 model calls max
+"""
+import argparse, csv, json, subprocess, sys, time
+from pathlib import Path
+
+ROOT = Path.home() / "Library/CloudStorage/GoogleDrive-maksim009@gmail.com/My Drive/Screenshots"
+AGE = 30
+IMAGES = {".png", ".jpg", ".jpeg", ".webp", ".heic"}
+STATE = Path.home() / ".local/state/screens-sweep"
+SCHEMA = {
+    "type": "object", "title": "Verdict", "additionalProperties": False,
+    "required": ["action", "reason"],
+    "properties": {
+        "action": {"type": "string", "description": "keep, trash or unsure"},
+        "reason": {"type": "string", "description": "max 8 words"},
+    },
+}
+PROMPT = (
+    "You triage a software developer's screenshots. Almost all were taken once to show "
+    "something to a colleague or an AI (a terminal, code, a web page, a chat, a bug) and are "
+    "useless afterwards: trash. keep only lasting personal value: receipts, invoices, tickets, "
+    "official documents, personal photos, a finished design worth referencing. "
+    "unsure when you cannot tell. Answer JSON only."
+)
+
+
+def verdict(path, schema_file):
+    r = subprocess.run(
+        ["fm", "respond", "--no-stream", "--schema", str(schema_file), "--image", str(path),
+         "-i", PROMPT, "Classify this screenshot."],
+        capture_output=True, text=True, timeout=180,
+    )
+    try:
+        v = json.loads(r.stdout)
+        return v["action"].strip().lower(), v["reason"]
+    except (json.JSONDecodeError, KeyError):
+        return "error", (r.stderr or r.stdout).strip()[:80]
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--limit", type=int, default=0, help="max model calls, 0 = all")
+    ap.add_argument("--age", type=int, default=AGE, help="min age in days, 0 = everything")
+    a = ap.parse_args()
+
+    if not ROOT.is_dir():
+        sys.exit(f"screens-sweep: {ROOT} not found (Drive not mounted?)")
+    STATE.mkdir(parents=True, exist_ok=True)
+    schema_file = STATE / "verdict.schema.json"
+    schema_file.write_text(json.dumps(SCHEMA))
+    kept_file = STATE / "kept.txt"  # files the model kept: never asked again
+    kept = set(kept_file.read_text().splitlines()) if kept_file.exists() else set()
+    log_file = STATE / "log.csv"
+    new_log = not log_file.exists()
+    log = log_file.open("a", newline="")
+    w = csv.writer(log)
+    if new_log:
+        w.writerow(["ts", "file", "action", "reason"])
+
+    def record(p, action, reason):
+        print(f"{action:6} {p.name}: {reason}")
+        if a.dry_run:
+            return
+        if action == "trash":
+            subprocess.run(["trash", str(p)], check=True)
+        else:
+            kept.add(p.name)
+            with kept_file.open("a") as fh:
+                fh.write(p.name + "\n")
+        w.writerow([time.strftime("%F %T"), p.name, action, reason])
+        log.flush()
+
+    cutoff = time.time() - a.age * 86400
+    old = sorted(
+        (p for p in ROOT.rglob("*")
+         if p.is_file() and not any(s.startswith(".") for s in p.relative_to(ROOT).parts)
+         and p.name not in kept and p.stat().st_mtime < cutoff),
+        key=lambda p: p.stat().st_mtime,
+    )
+    calls = 0
+    for p in old:
+        if p.suffix.lower() not in IMAGES:
+            record(p, "trash", "not an image, older than %dd" % a.age)
+            continue
+        if a.limit and calls >= a.limit:
+            break
+        calls += 1
+        action, reason = verdict(p, schema_file)
+        if action == "error":
+            print(f"error  {p.name}: {reason} (retry next run)")
+        else:
+            record(p, "trash" if action == "trash" else "keep", f"fm {action}: {reason}")
+    print(f"done: {len(old)} old files, {calls} model calls")
+
+
+if __name__ == "__main__":
+    main()
