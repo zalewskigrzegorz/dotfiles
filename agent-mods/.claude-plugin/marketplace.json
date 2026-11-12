@@ -56,6 +56,21 @@
       "name": "pulpit",
       "source": "./pulpit",
       "description": "One summary line above the prompt (items, PR, standup, retro); a press opens one pane with every mod's details and actions."
+    },
+    {
+      "name": "shot-shrink",
+      "source": "./shot-shrink",
+      "description": "Halves browser screenshots (browsentic, vimma) before the model reads them: about a quarter of the image tokens."
+    },
+    {
+      "name": "mcp-digest",
+      "source": "./mcp-digest",
+      "description": "Big results from read-only connectors go through Haiku first; the model gets notes plus the full result's path. /mcp-digest off|on."
+    },
+    {
+      "name": "handoff",
+      "source": "./handoff",
+      "description": "At 250k context tokens a toast suggests /handoff, which compacts the chat into a detailed hand-over."
     }
   ]
 }
