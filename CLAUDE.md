@@ -29,6 +29,7 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 ├── bin/                            # PATH-exposed scripts (sync, gitleaks-dotfiles, ...)
 ├── scriptc/                        # TypeScript compiled to native binaries in bin/ (stage 29)
 ├── scripts/                        # repo maintenance scripts (not on PATH)
+├── userscripts/                    # Tampermonkey userscripts for Vimma, installed from their raw GitHub URL (auto-update)
 ├── docs/                           # operational notes (inventory, secrets, setapp, mcp setup)
 ├── brew/                           # brew-related helpers
 ├── legacy/                         # archived configs (do not edit)
