@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Photos vim keys
 // @namespace    zalewskigrzegorz
-// @version      1
+// @version      2
 // @description  Vim keys in Google Photos: h/l previous/next photo, j/k scroll, dd trash without the confirm dialog, u undo.
 // @match        https://photos.google.com/*
 // @grant        none
@@ -28,11 +28,21 @@ const byLabel = (labels, root = document) =>
   );
 const press = (el) => {
   if (!el) return false;
+  const r = el.getBoundingClientRect();
+  const at = { clientX: r.x + r.width / 2, clientY: r.y + r.height / 2, button: 0, pointerId: 1, isPrimary: true };
   for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
+    const down = type.endsWith('down');
     const Ev = type.startsWith('pointer') ? PointerEvent : MouseEvent;
-    el.dispatchEvent(new Ev(type, { bubbles: true, cancelable: true, view: window }));
+    el.dispatchEvent(new Ev(type, { bubbles: true, cancelable: true, view: window, buttons: down ? 1 : 0, ...at }));
   }
   return true;
+};
+const toast = (text) => {
+  const t = Object.assign(document.createElement('div'), { textContent: text });
+  t.style.cssText = 'position:fixed;bottom:16px;left:16px;z-index:99999;padding:4px 10px;border-radius:6px;' +
+    'background:#000c;color:#fff;font:13px/1.4 monospace;pointer-events:none';
+  document.body.append(t);
+  setTimeout(() => t.remove(), 700);
 };
 const scroller = () => {
   let el = document.elementFromPoint(innerWidth / 2, innerHeight / 2);
@@ -72,6 +82,7 @@ addEventListener(
         break;
       default: handled = false;
     }
+    if (e.key.length === 1 && 'hjkldu'.includes(e.key)) toast(handled ? `vim: ${e.key}` : `vim: ${e.key} (brak przycisku)`);
     if (handled) {
       e.preventDefault();
       e.stopImmediatePropagation();
