@@ -46,6 +46,25 @@ test('switched off, a big result goes through whole', async ($, on) => {
   expect(textOf(res)).toBe(BIG)
 })
 
+test('a send tool keeps its own answer', async ($, on) => {
+  const { asked } = stub(on, BIG)
+  await $.tool.call({ tool: 'mcp__claude_ai_Slack__slack_send_message' } as never)
+  expect(asked).toEqual([])
+})
+
+test('a failed write returns the result and never runs the tool twice', async ($, on) => {
+  let runs = 0
+  on('store.get', () => ({ value: false }))
+  on('env.get', () => ({ value: '/home/t' }))
+  on('fs.write', () => {
+    throw new Error('ENOENT')
+  })
+  on('tool.call', () => (runs++, { result: { content: [{ type: 'text', text: BIG }], isError: false }, text: BIG }))
+  const res = await $.tool.call({ tool: 'mcp__claude_ai_Slack__slack_read_thread' } as never)
+  expect(runs).toBe(1)
+  expect(textOf(res)).toBe(BIG)
+})
+
 test('code tools are never digested', async ($, on) => {
   const { asked } = stub(on, BIG)
   await $.tool.call({ tool: 'mcp__serena__find_symbol' } as never)

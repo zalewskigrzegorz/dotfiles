@@ -3,6 +3,8 @@ import type { Register } from 'claude-code'
 // Connectors that dump far more than a task needs. Code (serena), SQL (jamsql), the browser
 // and memory writes stay out: their exact text matters.
 const CONNECTORS = /^mcp__(claude_ai_Slack|claude_ai_Sentry|claude_ai_Google_Drive|claude_ai_Google_Docs|claude_ai_Gmail|mempalace|n8n-mcp)__/
+// Read tools only: a send or an update keeps its own short answer.
+const READS = /__(\w+_)?(read|search|get|list|find|query|fetch|download)/
 // ~2,000 tokens at ~4 characters a token.
 const MIN_CHARS = 8_000
 // Haiku's window with room to answer; past it the head goes and the full file holds the rest.
@@ -19,7 +21,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'mcp-digest', description: 'Haiku digest of big connector results: on, off, or no argument for the state', argumentHint: '[on|off]' }).catch(() => {})
     const home = await $.env.get('HOME')
-    if (home) void $.process.run(['find', `${home}/.claude/mcp-digest`, '-type', 'f', '-mtime', '+2', '-delete']).catch(() => null)
+    if (home) void $.process.run(['sh', '-c', `mkdir -p "$0" && find "$0" -type f -mtime +2 -delete`, `${home}/.claude/mcp-digest`]).catch(() => null)
     return next(e)
   })
 
@@ -37,8 +39,10 @@ export const register: Register = on => {
 
   on('tool.call', { tool: CONNECTORS }, async ($, e, next) => {
     const res = await next(e)
+    // The tool already ran: any failure from here returns its result, never runs it again.
+    try {
     const full = res.text ?? ''
-    if (res.deny !== undefined || res.isError || full.length < MIN_CHARS || (await $.store.get('off')) === true) return res
+    if (!READS.test(e.tool) || res.deny !== undefined || res.isError || full.length < MIN_CHARS || (await $.store.get('off')) === true) return res
 
     const home = await $.env.get('HOME')
     if (!home) return res
@@ -59,5 +63,8 @@ export const register: Register = on => {
     $.ui.log(`${tool}: ~${tokens} tokens → ~${Math.round(r.text.length / 4)}`, { to: 'debug' })
     const text = `[mcp-digest] The result had ~${tokens} tokens; Haiku kept what your task needs. Full result: ${path} (Grep it or Read with offset/limit when a detail is missing).\n\n${r.text}`
     return { result: { content: [{ type: 'text', text }], isError: false }, context: res.context }
-  }).catch(($, e, next) => next(e))
+    } catch {
+      return res
+    }
+  })
 }

@@ -22,6 +22,8 @@ type Block = { type: string; data?: unknown; [k: string]: unknown }
 export const register: Register = on => {
   on('tool.call', { tool: BROWSER }, async ($, e, next) => {
     const res = await next(e)
+    // The tool already ran: any failure from here returns its result, never runs it again.
+    try {
     const content = (res.result as { content?: Block[] } | undefined)?.content
     if (res.deny !== undefined || !Array.isArray(content) || !content.some(b => b.type === 'image')) return res
 
@@ -40,5 +42,8 @@ export const register: Register = on => {
     $.ui.log(`${e.tool}: screenshot shrunk, ${Math.round(saved / 1024)} KiB of base64 less`, { to: 'debug' })
     // A hook's own result, without core's `ref`/`text`, so core maps the new blocks for the model.
     return { result: { ...(res.result as object), content: shrunk }, context: res.context }
-  }).catch(($, e, next) => next(e))
+    } catch {
+      return res
+    }
+  })
 }
