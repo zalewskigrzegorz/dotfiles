@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Photos vim keys
 // @namespace    zalewskigrzegorz
-// @version      4
+// @version      5
 // @description  Vim keys in Google Photos: h/l previous/next photo, j/k scroll, dd trash without the confirm dialog, u undo.
 // @match        https://photos.google.com/*
 // @match        https://youtube.googleapis.com/embed/*
@@ -17,6 +17,7 @@ const LABEL = {
   next: ['Wyświetl następne zdjęcie', 'View next photo'],
   trash: ['Przenieś do kosza', 'Move to trash'],
   undo: ['Cofnij', 'Undo'],
+  more: ['Więcej opcji', 'More options'],
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const visible = (el) => {
@@ -59,9 +60,26 @@ const scroller = () => {
   return el ?? document.scrollingElement;
 };
 
+const waitFor = async (find) => {
+  for (let i = 0; i < 20; i++) {
+    const el = find();
+    if (el) return el;
+    await sleep(100);
+  }
+};
+
 async function trash() {
-  const button = byLabel(LABEL.trash);
-  if (!button) return toast('dd: nie widzę przycisku kosza');
+  let button = byLabel(LABEL.trash);
+  if (!button) {
+    // inside an album the trash sits in the "More options" menu
+    if (!press(byLabel(LABEL.more))) return toast('dd: nie widzę kosza ani menu');
+    button = await waitFor(() =>
+      [...document.querySelectorAll('[role=menuitem]')].find(
+        (el) => onScreen(el) && LABEL.trash.some((l) => el.textContent.includes(l))
+      )
+    );
+    if (!button) return toast('dd: w menu nie ma kosza');
+  }
   press(button);
   for (let i = 0; i < 20; i++) {
     await sleep(100);
