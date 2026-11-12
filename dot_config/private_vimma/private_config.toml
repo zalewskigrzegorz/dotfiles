@@ -403,6 +403,10 @@ grant_minutes = 60
 # [sites."docs.google.com"]
 # insert = "always"
 
+# Google Photos gets its keys from userscripts/photos-vim.user.js (hjkl, dd, u).
+[sites."photos.google.com"]
+insert = "always"
+
 # Which workspace a link opens in: by domain (and its subdomains), url prefix, or the app
 # that opened it (vimma-open). The first matching rule wins. None by default.
 # [[routes]]
