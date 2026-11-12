@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Install + (re)load the com.greg.screens-sweep LaunchAgent: once a day bin/screens-sweep
+# deletes CleanShot screenshots older than 30 days that the on-device model calls junk.
+# Mac-only. Bump the version to force a re-run.
+# Version: 2026-11-12.1
+set -euo pipefail
+
+{{ if eq .chezmoi.os "darwin" -}}
+plist_file="$HOME/Library/LaunchAgents/com.greg.screens-sweep.plist"
+mkdir -p "$(dirname "$plist_file")"
+
+cat > "$plist_file" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.greg.screens-sweep</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>{{ .chezmoi.homeDir }}/Code/dotfiles/bin/screens-sweep</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>13</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+  <key>LowPriorityIO</key>
+  <true/>
+  <key>Nice</key>
+  <integer>10</integer>
+  <key>StandardOutPath</key>
+  <string>/tmp/com.greg.screens-sweep.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/com.greg.screens-sweep.err</string>
+</dict>
+</plist>
+PLIST
+
+launchctl bootout "gui/$(id -u)/com.greg.screens-sweep" 2>/dev/null || true
+launchctl bootstrap "gui/$(id -u)" "$plist_file"
+echo "[ok] com.greg.screens-sweep loaded (daily 13:00)"
+{{ else -}}
+exit 0
+{{ end -}}
