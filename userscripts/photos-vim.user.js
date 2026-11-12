@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name         Photos vim keys
 // @namespace    zalewskigrzegorz
-// @version      2
+// @version      3
 // @description  Vim keys in Google Photos: h/l previous/next photo, j/k scroll, dd trash without the confirm dialog, u undo.
 // @match        https://photos.google.com/*
+// @match        https://youtube.googleapis.com/embed/*
 // @grant        none
 // @run-at       document-idle
 // @updateURL    https://raw.githubusercontent.com/zalewskigrzegorz/dotfiles/master/userscripts/photos-vim.user.js
@@ -61,32 +62,51 @@ async function trash() {
   }
 }
 
+const KEYS = 'hjkldu';
+const plain = (e) =>
+  !(e.metaKey || e.ctrlKey || e.altKey || e.isComposing) &&
+  KEYS.includes(e.key) &&
+  !e.target.closest?.('input, textarea, [contenteditable=""], [contenteditable="true"]');
+
 let lastD = 0;
-addEventListener(
-  'keydown',
-  (e) => {
-    if (e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return;
-    if (e.target.closest?.('input, textarea, [contenteditable=""], [contenteditable="true"]')) return;
-    let handled = true;
-    switch (e.key) {
-      case 'h': handled = press(byLabel(LABEL.prev)); break;
-      case 'l': handled = press(byLabel(LABEL.next)); break;
-      case 'j': scroller().scrollBy({ top: 300 }); break;
-      case 'k': scroller().scrollBy({ top: -300 }); break;
-      case 'u': handled = press(byLabel(LABEL.undo)); break;
-      case 'd':
-        if (Date.now() - lastD < 500) {
-          lastD = 0;
-          trash();
-        } else lastD = Date.now();
-        break;
-      default: handled = false;
-    }
-    if (e.key.length === 1 && 'hjkldu'.includes(e.key)) toast(handled ? `vim: ${e.key}` : `vim: ${e.key} (brak przycisku)`);
-    if (handled) {
+function handle(key) {
+  switch (key) {
+    case 'h': return press(byLabel(LABEL.prev));
+    case 'l': return press(byLabel(LABEL.next));
+    case 'j': scroller().scrollBy({ top: 300 }); return true;
+    case 'k': scroller().scrollBy({ top: -300 }); return true;
+    case 'u': return press(byLabel(LABEL.undo));
+    case 'd':
+      if (Date.now() - lastD < 500) {
+        lastD = 0;
+        trash();
+      } else lastD = Date.now();
+      return true;
+  }
+  return false;
+}
+
+if (location.hostname === 'youtube.googleapis.com') {
+  // a video plays in this embedded player and keeps the focus: hand the keys up to Photos
+  if (window.top !== window)
+    addEventListener('keydown', (e) => {
+      if (!plain(e)) return;
       e.preventDefault();
       e.stopImmediatePropagation();
-    }
-  },
-  true
-);
+      parent.postMessage({ photosVim: e.key }, 'https://photos.google.com');
+    }, true);
+} else {
+  const run = (key) => {
+    const handled = handle(key);
+    toast(handled ? `vim: ${key}` : `vim: ${key} (brak przycisku)`);
+    return handled;
+  };
+  addEventListener('message', (e) => {
+    if (e.origin === 'https://youtube.googleapis.com' && KEYS.includes(e.data?.photosVim)) run(e.data.photosVim);
+  });
+  addEventListener('keydown', (e) => {
+    if (!plain(e) || !run(e.key)) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }, true);
+}
