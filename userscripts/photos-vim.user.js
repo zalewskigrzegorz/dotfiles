@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Photos vim keys
 // @namespace    zalewskigrzegorz
-// @version      3
+// @version      4
 // @description  Vim keys in Google Photos: h/l previous/next photo, j/k scroll, dd trash without the confirm dialog, u undo.
 // @match        https://photos.google.com/*
 // @match        https://youtube.googleapis.com/embed/*
@@ -23,10 +23,17 @@ const visible = (el) => {
   const r = el.getBoundingClientRect();
   return r.width > 0 && r.height > 0;
 };
-const byLabel = (labels, root = document) =>
-  [...root.querySelectorAll('button, [role=button], [aria-label]')].find(
-    (el) => visible(el) && labels.includes((el.getAttribute('aria-label') ?? el.textContent).trim())
+const onScreen = (el) => {
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0 && r.right > 0 && r.bottom > 0 && r.left < innerWidth && r.top < innerHeight;
+};
+const labelOf = (el) => (el.getAttribute('aria-label') ?? el.getAttribute('data-tooltip') ?? el.textContent).trim();
+const byLabel = (labels, root = document) => {
+  const hit = [...root.querySelectorAll('button, [role=button], [aria-label], [data-tooltip]')].find(
+    (el) => onScreen(el) && labels.includes(labelOf(el))
   );
+  return hit?.closest('button, [role=button]') ?? hit;
+};
 const press = (el) => {
   if (!el) return false;
   const r = el.getBoundingClientRect();
@@ -53,13 +60,16 @@ const scroller = () => {
 };
 
 async function trash() {
-  if (!press(byLabel(LABEL.trash))) return;
+  const button = byLabel(LABEL.trash);
+  if (!button) return toast('dd: nie widzę przycisku kosza');
+  press(button);
   for (let i = 0; i < 20; i++) {
     await sleep(100);
     const dialog = [...document.querySelectorAll('[role=dialog], [role=alertdialog]')].find(visible);
     const ok = dialog && byLabel(LABEL.trash, dialog);
     if (ok) return press(ok);
   }
+  toast('dd: kliknięty kosz, ale nie było okna potwierdzenia');
 }
 
 const KEYS = 'hjkldu';
