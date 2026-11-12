@@ -33,11 +33,14 @@ PROMPT = (
 
 
 def verdict(path, schema_file):
-    r = subprocess.run(
-        ["fm", "respond", "--no-stream", "--schema", str(schema_file), "--image", str(path),
-         "-i", PROMPT, "Classify this screenshot."],
-        capture_output=True, text=True, timeout=180,
-    )
+    try:
+        r = subprocess.run(
+            ["fm", "respond", "--no-stream", "--schema", str(schema_file), "--image", str(path),
+             "-i", PROMPT, "Classify this screenshot."],
+            capture_output=True, text=True, timeout=180,
+        )
+    except subprocess.TimeoutExpired:
+        return "error", "fm timeout"
     try:
         v = json.loads(r.stdout)
         return v["action"].strip().lower(), v["reason"]
@@ -71,7 +74,10 @@ def main():
         if a.dry_run:
             return
         if action == "trash":
-            subprocess.run(["trash", str(p)], check=True)
+            r = subprocess.run(["trash", str(p)], capture_output=True, text=True)
+            if r.returncode:  # Drive refuses some files now and then: retry next run
+                print(f"error  {p.name}: trash failed ({r.returncode}), retry next run")
+                return
         else:
             kept.add(p.name)
             with kept_file.open("a") as fh:
@@ -94,6 +100,8 @@ def main():
             break
         calls += 1
         action, reason = verdict(p, schema_file)
+        if action == "trash" and any(w in reason.lower() for w in ("receipt", "invoice", "ticket", "document")):
+            action = "unsure"  # fm sometimes says trash with a "receipt" reason: keep those
         if action == "error":
             print(f"error  {p.name}: {reason} (retry next run)")
         else:
