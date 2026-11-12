@@ -29,16 +29,17 @@ done
 
 brew bundle --global
 
-# pay-respects: timescam/tap packages a rolling "nightly" whose sha256 goes
-# stale on every upstream rebuild, so a plain Brewfile entry breaks bundle with
-# a checksum mismatch. Kept out of the Brewfile; installed best-effort here and
-# pinned so bundle never tries to upgrade it. The tap itself is not in the
+# pay-respects: kept out of the Brewfile, installed best-effort here and pinned,
+# because the custom nushell wrapper (autoload/pay-respects.nu) reads its JSON
+# output and an upgrade should be tested by hand: unpin, upgrade, pin (0.9.0
+# checked 2026-11-12). The tap used to ship a rolling nightly with a stale
+# sha256; it packages tagged releases now. The tap itself is not in the
 # Brewfile either: since 2026-10 brew rejects it as a whole (casks without Linux
 # stanzas), which failed bundle on a fresh Mac. Trusted here because the loop
 # above only sees Brewfile taps; without it every brew command warns.
 brew trust timescam/tap >/dev/null 2>&1 || true
 if ! brew list --versions pay-respects >/dev/null 2>&1; then
   brew install timescam/tap/pay-respects ||
-    echo "pay-respects install failed (stale nightly sha256 in tap); retry manually later" >&2
+    echo "pay-respects install failed; retry manually later" >&2
 fi
 brew pin pay-respects >/dev/null 2>&1 || true
