@@ -4,7 +4,7 @@
 Run daily by launchd (com.greg.screens-sweep). Each file older than AGE days goes through
 the on-device Apple model (`fm`, model `system`): trash -> deleted with `trash` (Drive keeps
 it in its bin for 30 days), keep/unsure -> stays and is remembered, so it is asked once.
-Videos skip the model and are deleted by age. Log: ~/.local/state/screens-sweep/log.csv.
+Videos and GIFs are never touched. Log: ~/.local/state/screens-sweep/log.csv.
 
   screens-sweep --dry-run --limit 20   # show what would go, 20 model calls max
 """
@@ -89,8 +89,7 @@ def main():
     calls = 0
     for p in old:
         if p.suffix.lower() not in IMAGES:
-            record(p, "trash", "not an image, older than %dd" % a.age)
-            continue
+            continue  # videos and GIFs: fm cannot see them, Greg sorts them by hand
         if a.limit and calls >= a.limit:
             break
         calls += 1
