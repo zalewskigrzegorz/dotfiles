@@ -1,0 +1,26 @@
+{
+  "global": { "show_in_menu_bar": false },
+  "profiles": [
+    {
+      "name": "Default",
+      "selected": true,
+      "virtual_hid_keyboard": { "keyboard_type_v2": "ansi" },
+      "complex_modifications": {
+        "rules": [
+          {
+            "description": "Caps: tap = ctrl+space (tuios), hold = ctrl+opt+g (Gzyms)",
+            "manipulators": [
+              {
+                "type": "basic",
+                "from": { "key_code": "caps_lock", "modifiers": { "optional": ["any"] } },
+                "to_if_alone": [{ "key_code": "spacebar", "modifiers": ["left_control"] }],
+                "to_if_held_down": [{ "key_code": "g", "modifiers": ["left_control", "left_option"] }],
+                "parameters": { "basic.to_if_held_down_threshold_milliseconds": 250 }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
