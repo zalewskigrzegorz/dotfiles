@@ -44,6 +44,6 @@ paths:
   blurs it in the grid (Vimma's hjkl again). Photos ignores synthetic keys,
   so the script clicks buttons by label; in an album the trash hides under
   "Więcej opcji". During a test Greg runs, don't drive his Photos tab.
-  `youtube-vim` uses the same hidden box on `/watch` (h/l/b/w seek, j/k volume,
-  `<` `>` speed, space); speed goes out as a synthetic ctrl+wheel because
+  `youtube-vim` uses the same hidden box on `/watch` (h/l/b/w seek, j/k speed,
+  `-` `=` volume, space); speed goes out as a synthetic ctrl+wheel because
   Enhancer for YouTube keeps its own copy of the rate and reapplies it.
