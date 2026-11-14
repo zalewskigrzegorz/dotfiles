@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         YouTube vim keys
 // @namespace    https://github.com/zalewskigrzegorz/dotfiles
-// @version      1.0
-// @description  Vim keys on a YouTube video page: h/l seek 5 s, b/w seek 30 s, j/k volume, < > speed, space play and pause. Esc hands the keys back to Vimma.
+// @version      1.1
+// @description  Vim keys on a YouTube video page: h/l seek 5 s, b/w seek 30 s, j/k speed, - = volume, space play and pause. Esc hands the keys back to Vimma.
 // @match        https://www.youtube.com/*
 // @run-at       document-idle
 // @grant        none
@@ -48,10 +48,10 @@ const KEYS = {
   l: () => seek(5),
   b: () => seek(-30),
   w: () => seek(30),
-  j: () => volume(-5),
-  k: () => volume(5),
-  "<": () => speed(-1),
-  ">": () => speed(1),
+  j: () => speed(-1),
+  k: () => speed(1),
+  "-": () => volume(-5),
+  "=": () => volume(5),
   " ": toggle,
 };
 
