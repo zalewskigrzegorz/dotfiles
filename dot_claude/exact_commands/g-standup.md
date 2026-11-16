@@ -100,10 +100,11 @@ transcript (`~/.claude/projects/*/<sid>.jsonl`); don't skim transcripts wholesal
 `createdAt >= today`, saved to a scratch file. `reviews(last:100)` with nested
 `comments` hit `exceeds the maximum limit of 500,000` (7665ab21).
 
-**Work with no PR yet** (a Grafana board, a branch never pushed): `git -C <wt>
-status -sb` and `git -C <wt> log --oneline origin/main..HEAD` over
-`~/Code/tree/wt-<repo>/*` (and old trees in `~/.herdr/worktrees/<repo>/*`), then the task log
-above. It goes into the draft as "bez PR-a" for Greg to confirm.
+**Work with no PR yet** (a Grafana board, a branch never pushed): list the
+trees with `git -C <main checkout> worktree list --porcelain | rg '^(worktree|branch) '`
+(a glob over `~/Code/tree/wt-<repo>/*` hits the type dirs `aa/`, `chore/`, the trees sit one
+level deeper), then `git -C <wt> status -sb` and `git -C <wt> log --oneline
+origin/main..HEAD` per tree from that list, then the task log above. It goes into the draft as "bez PR-a" for Greg to confirm.
 
 Ambient context (don't over-weight): `mcp__hindsight__recall query="work shipped
 decisions focus <topics>"` filtered to the window.

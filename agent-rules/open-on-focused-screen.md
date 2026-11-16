@@ -16,6 +16,11 @@ monitor, and he never noticed it (2026-10-20).
 - Plain `open` stays fine for things he does not need to see (a URL handed to a
   background app, a scripted step with no window).
 - Still say in one line what you opened and what he should click there.
+- **After `open-here` of a window he must click in:** one `screencapture -x`
+  into the scratchpad and `Read` it, then "okno jest na środku, nad
+  terminalem". `agent-desktop launch` does not switch the workspace, so
+  after a launch `open-here -a <App>`. "Nie widzę okna" → `open-here` again
+  plus a shot, no step list (5f10fa56).
 - **A fix that ends in "untick X in System Settings" is this case**, even when
   the task never mentions windows: input sources for `ctrl+space`, AirPlay
   Receiver on `:7000` (b2750378, c333538c both used plain `open`).

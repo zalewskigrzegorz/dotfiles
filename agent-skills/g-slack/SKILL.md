@@ -115,15 +115,29 @@ Two limits on those reads, both hit on 2026-09-20:
 
 When a read fails with `permission_error` ("Connector access could not be
 verified"), the connector needs a new sign-in. Tell Greg to run `/mcp` and
-reconnect Slack, or to paste the message. Don't try `$WORK_SLACK_POSTER_TOKEN`
-instead: it has `chat:write` only, so `conversations.history` answers
-`missing_scope` (2026-09-29). Don't guess the content in a popup either.
+reconnect Slack, or to paste the message. `conversations.replies` and
+`conversations.history` work with `$WORK_SLACK_POSTER_TOKEN` on work channels
+(checked 2026-11-12, one test call before relying on it). `missing_scope` on
+another channel is the signal for `/mcp`. Don't guess the content in a popup
+either.
+
+`result does not match its output shape (invalid_union)` from `slack_read_thread`
+or `slack_read_channel`: stop, don't retry with another `response_format`.
+A channel: `slack_search_public_and_private` with `in:<#ID> after:<date>`.
+A thread with a known `ts`: `slack_read_thread`, and when that fails too, curl
+`conversations.replies` with the poster token (result through `jq` to time,
+author and text, the token never to stdout). Say "not checked: <what>, the MCP
+returns a shape error" in the result.
 
 A reply that defends a decision first collects its evidence: the issue, PR or
 report it came from, and the complaints behind it (`gh issue list --search`,
 or one narrow Slack search). It also asks whether the reader knows that
 context. 3491f3e3 needed three versions to add "it was a reported security
 bug" and the issue links.
+
+Before drafting a reply into an existing thread: `slack_read_thread` with
+`response_format: "concise"`, one sentence "what the thread already says and
+what it asks", and the text covers only what is missing.
 
 ### 3. Draft the reply
 

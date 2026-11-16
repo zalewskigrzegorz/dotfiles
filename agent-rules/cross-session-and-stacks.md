@@ -43,11 +43,10 @@ wszedł adr 15, weź go pod uwagę, bo teraz tego nie robisz" (a752428e).
 ## `main` moves too — fetch before you commit, ask or open a PR
 
 The stacked-base check above applies to a branch cut from `main` as well. Four
-sessions (2026-10-12 … 10-16) acted on a stale local view: a PR opened into a
-conflict Greg spotted first (02be04c1), two popups built on "the branch has no
-PR" while one existed and had been rebased on the remote (4bf5a457), a prod
-investigation read an old worktree instead of what prod runs (13ddf2cf), and
-a "do decyzji" question that the other open PR already answered (2f5fe621).
+sessions acted on a stale local view: a PR opened into a conflict (02be04c1),
+popups built on "the branch has no PR" while one existed (4bf5a457), a prod
+investigation read from an old worktree (13ddf2cf), a question another open PR
+already answered (2f5fe621).
 
 - **Before the first commit and before push / `gh pr create`:** `git fetch
   origin main` and `git log --oneline HEAD..origin/main -- <paths you
@@ -67,15 +66,24 @@ a "do decyzji" question that the other open PR already answered (2f5fe621).
 
 ## After a rebase or merge from `main`: run what CI runs, then push
 
-Four red checks after a rebase (a moved test helper, two stale imports): "czy
-ty tego nie sprawdzasz lokalnie najpierw?" (df44b632). A 16-commit rebase with
-~25 conflicted files lost a function, a `start.sh` block and a test path
-silently (c333538c).
+Four red checks after a rebase (df44b632), and a 16-commit rebase with ~25
+conflicted files lost a function, a `start.sh` block and a test path silently
+(c333538c).
 
 - Before the push: `pnpm exec nx run-many -t knip:check ts:check lint -p
   <project>` in the background; touched `*.db.spec.ts` on their own database
   (see the local Docker rule). Red locally = no push. "0 passed, skipped
   without a database" is not green.
+- `<project>` is `jq -r .name apps/<app>/package.json`. `No tasks were run`
+  and `Cannot find configuration for task` in the log are "nie uruchomione",
+  not green, and `exit=0` from `; echo exit=$?` proves nothing (255f38c7).
+- A change in a shared module (loader, provider, singleton, cache) → full
+  `vitest run` of the package in the background before the first push
+  (6a89b245).
+- A Prisma migration after a rebase: `git ls-tree --name-only HEAD
+  packages/database/prisma/migrations/ | tail -3`. Older than the newest on
+  `main` → `git mv` it later. Check the commitlint scope against `origin/main`
+  (2530cc32).
 - A file `main` moved → `git grep` the old import path first.
 - ≥10 files resolved by hand → `git diff origin/main...HEAD --diff-filter=M
   -U0 | rg '^-[^-]'` (every removed line belongs to the change) and `git
@@ -93,12 +101,27 @@ silently (c333538c).
 Lint, knip or a spec red on a branch stacked on a non-main base: before
 touching code, run `rg-base-head <pattern> [paths] --base origin/<base>` (or
 the check itself on the base). Same hits on both → report in one line
-("identyczne na base, nie nasze") and leave them. It took ~15 calls twice in
-one session (2026-10-08).
+("identyczne na base, nie nasze") and leave them.
 
 A branch off `main` gets the same check: the failing files from the job log
 against `git diff --name-only origin/main...HEAD`, then one `gh run list
 --branch main --workflow <wf> -L 10 --json conclusion,headSha`. No overlap and
 the job red on `main` too → "nie nasze, flak na main" and `gh run rerun
 --failed`. A flaky `PendingInvites.test.tsx` cost ~60 calls before that
-(c0cc0722).
+(c0cc0722). A green run on `main` proves a flake only if its log contains
+that spec (`nx affected` may skip it). The same spec red on ≥2 foreign PRs is
+not a rerun (2530cc32).
+
+## History rewrites and hand-offs
+
+- **Squash / amend and push in separate calls.** `old=$(git rev-parse HEAD)`
+  as backup, before the push `git rev-list --count origin/main..HEAD` ≥1 and
+  `git diff --stat <old> HEAD`, no `;` between `reset --soft` and the push. A
+  HEAD equal to the merge-base once closed the PR (255f38c7).
+- **Before `gh pr create --base <b>`:** `git ls-remote --heads origin <b>`.
+  Empty = base merged and deleted: `git rebase --onto origin/main <last base
+  commit>`, never the same create again (6a89b245).
+- **A brief says "the file lands on main now":** before the "gotowe" mail
+  fetch, `git log HEAD..origin/main -- <file>`, rebase, sha in the mail (6b5a0119).
+- **"Mail me before polishing" is a gate:** after the mail only the
+  independent part and one line "czekam na go/no-go" (12d387ae).

@@ -21,7 +21,11 @@ export function popupProblems(questions: Question[]): string[] {
     const opts = q.options ?? []
     if (opts.length < 2 || opts.length > 4) out.push(`"${q.header}": 2-4 options, got ${opts.length}`)
     if ([...(q.header ?? '')].length > 12) out.push(`header "${q.header}" is over 12 chars`)
-    if (/\d/.test(q.question)) out.push('`question` has a number: move counts, prices, labels into description or preview')
+    const nums = q.question.match(/\S*\d\S*/g)
+    if (nums)
+      out.push(`\`question\` has a number (${nums.slice(0, 3).map(n => `"${n}"`).join(', ')}): acronyms, names, versions, hours, key chords and PR numbers count too. Spell them out or move them to description/preview`)
+    if (/^\s*(otwórz|wejdź\s+na|przejdź\s+do|open|go\s+to)\b[\s\S]*https?:\/\//iu.test(q.question))
+      out.push('a step that opens a URL is yours: open the page yourself with browsentic in this turn, then ask about what Greg does there (browser-stacks.md)')
     opts.forEach((o, i) => {
       if (OTHER.test(o.label.trim())) out.push(`"${o.label}": Other is added automatically, drop it`)
       if (BARE_LABEL.test(o.label.trim())) out.push(`label "${o.label}" only makes sense from the prose above: say the action`)
@@ -95,9 +99,25 @@ export function bashProblem(command: string): string | undefined {
     return 'no `git add -A` / `git add .`: stage only your own paths, other agents share the checkout (commit-message-rules.md)'
   if (/\bgit\s+commit\b[\s\S]*Co-Authored-By/i.test(command))
     return 'no Co-Authored-By trailer in commits (commit-message-rules.md)'
-  // zsh reads `$var:t` / `:h :r :e :l :u` as a modifier, inside double quotes too.
-  if (/\$[A-Za-z_]\w*:[htrelu]/.test(command.replace(/'[^']*'/g, "''")))
-    return 'unbraced `$var:<letter>` is a zsh modifier (`$c:refs` → `…efs`): write `${var}:…` (zsh traps)'
+  // zsh reads `$var:t` / `:a :h :r :e :l :u :s :p …` as a modifier, inside double quotes too.
+  if (/\$[A-Za-z_]\w*:[aAhtrelupPqQxsg]/.test(command.replace(/'[^']*'/g, "''")))
+    return 'unbraced `$var:<letter>` is a zsh modifier (`$c:refs` → `…efs`, `$b:apps/…` → absolute path): write `${var}:…` (zsh traps)'
+  // zsh does not split `$VAR`: `L="mise exec -- x"; $L` runs a command named "mise exec -- x".
+  for (const m of command.matchAll(/\b([A-Za-z_]\w*)=(?:"[^"]*\s[^"]*"|'[^']*\s[^']*')/g))
+    if (new RegExp(`(^|[;&|({\\n]|\\b(then|do|else))\\s*\\$\\{?${m[1]}\\}?(\\s|$|[;&|)])`).test(command))
+      return `zsh does not word-split \`$${m[1]}\`: the whole string becomes one command name ("no such file"). Use a function \`${m[1]}() { … "$@"; }\` or \`\${=${m[1]}}\` (zsh-bash-tool.md)`
+  // Pipe, heredoc or `<` feed it; anything else waits on a stdin the Bash tool never closes.
+  // Heredoc bodies go first: a script written through one may hold `INPUT=$(cat)`.
+  const noBodies = command.replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?(\n\s*\2(?=\n|$)|$)/g, '<<H').replace(/'[^']*'|"[^"]*"/g, "''")
+  for (const m of noBodies.matchAll(/(?:^|[;&({\n]|\$\()\s*cat\b([^|;&)\n]*)/g))
+    if (!/</.test(m[1] ?? '') && m[1]!.replace(/\d*>>?\s*&?\S+/g, '').split(/\s+/).every(t => t === '' || t.startsWith('-')))
+      return '`cat` with no file and no stdin waits forever (the Bash tool has no stdin, 180 s hang): write a file with `cat > f <<\'EOF\'` or the Write tool, read one with `cat <file>` (zsh-bash-tool.md)'
+  if (/\bgh\s+api\b[^|;&\n]*\?/.test(bare))
+    return 'zsh reads an unquoted `?` as a glob ("no matches found"): quote the endpoint, `gh api \'repos/o/r/contents/f?ref=x\'` (zsh-bash-tool.md)'
+  if (/\brtk\s+proxy\s+rg\b[^|;&]*\s(-[A-Za-z]*[nABC][A-Za-z]*\d*(?=\s|$)|--(line-number|after-context|before-context|context)\b)/.test(bare))
+    return '`rtk proxy` is for existence checks only (`rg -l`, `rg --files`): read content with plain `rg -n -m N` or the Grep tool, rtk keeps it short (rtk-output-compression.md)'
+  if (/\benv\s+(-\S+\s+)*-u\s+OP_SERVICE_ACCOUNT_TOKEN\b[\s\S]*\bop\b/.test(bare) && !/\bAT_MAC=1\b/.test(command))
+    return '`op` through the desktop app needs Touch ID on the Mac: ask first with AskUserQuestion whether Greg is at the Mac ("Jestem, odpalaj" / "Nie ma mnie, odłóż"), then rerun with `AT_MAC=1` in front. Away → park the step (ops-traps.md)'
   if (/(^|[|;&]\s*)rg\b[^|;&]*\s-E\s/.test(bare))
     return '`rg -E` means --encoding, not ERE: drop -E, rg regex is extended already (ugrep-not-gnu-grep.md)'
   if (/(^|[|;&]\s*)rg\b[^|;&]*\s(--type[= ]|-t\s*)tsx\b/.test(bare))

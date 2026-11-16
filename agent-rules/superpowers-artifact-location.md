@@ -73,3 +73,8 @@ Before writing any plan / spec / brainstorm / analysis / design / audit file:
 - Never bypass the autopush hook (`--no-verify`, etc.). If it fails, fix it.
 - Never re-introduce a `docs/superpowers/` directory anywhere.
 - Never write a connection string with credentials (`postgres://user:pass@host/…`) into **any** file — plan, spec, a brief for another agent (tuios, `workctl`, `tuios start-agent`), notes, a scratch script — even the repo's local dev defaults. bazgroly is pushed to GitHub, and the secret-scan hook blocks the whole write: on 2026-09-23 it cost a switch to YOLO mode, and between 09-30 and 10-02 three more sessions hit it with agent briefs and plans. Point at the file instead: "`DATABASE_URL` from `packages/database/.env.example`", or use `$DATABASE_URL` in commands.
+- **A `scan-secrets` block is not a puzzle, and the hook wins**, even in YOLO.
+  Never get round it by assembling the file from pieces in the scratchpad or
+  writing it with `node` (86abd453). Use a point `Edit` on lines without the
+  secret, and when the fixture itself must carry one, ask Greg once. Code with
+  a fake connection string or an existing secret constant is blocked the same.

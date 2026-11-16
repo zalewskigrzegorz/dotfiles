@@ -4,7 +4,8 @@ description: >-
   Use the spark CLI to access the user's Spark email data - list emails,
   search by topic, read threads, check calendar events, find availability,
   look up contacts, and view team info. Use when the user asks about their
-  emails, calendar, contacts, meetings, or scheduling.
+  emails, calendar, contacts, meetings, or scheduling. Also "rozmowa z <osoba>",
+  "zobacz spotkanie", "co ustalilismy z <osoba>" (meeting transcript first).
 metadata:
   version: 1.3.1
   requires:
@@ -819,6 +820,8 @@ Do not check on every session or before every command - this skill is the source
 - **Before saying Spark can't do something, compare `spark --version` with `metadata.version` above.** "Spark doesn't send mail" was wrong because the file still described 1.1.0 while the CLI was 1.3.1 (2026-10-09). A newer CLI means refresh first.
 - **`draft --body` is markdown: `m.in.` becomes a link.** A sent mail showed `[m.in](m.in)` (2026-10-21). Write "między innymi" and check the echoed `Body:` for domain-like tokens (`m.in.`, `np.`, `tj.` followed by a space is fine, a dotted pair is not).
 - **A draft id changes after Greg edits it in Spark, and the sent copy may leave from another account.** Draft 9654 became 9656, `--delete 9654` said "not found", and the mail went out from the iCloud account as 9658 (2026-10-21). Before `--delete`, list `<account>:Drafts`, and search `to:<recipient> newer_than:1d` across accounts to see whether it was already sent.
+- **"Rozmowa z <imię> dzisiaj", "zobacz spotkanie", "co ustaliliśmy z <imię>" → the meeting transcript first.** `spark meetings --filter "after:<yyyy/MM/dd>"` plus the person's name in `subject:` or the title, then `spark meeting --transcript <id>`. Slack DMs only when no transcript exists.
+- **A draft handed to Greg is alive.** Before `spark draft --edit <id>` check `spark emails <account>:Drafts`. Not there → the mail already left, a change is a new draft with `--reply-to` (`draft 31453 not found`, a paragraph never arrived). Settle wording changes in chat before creating the draft.
 - **Refresh = `spark skill` + this section.** Write the upstream text into this file in dotfiles (never into `~/.claude/skills/`, stage 30 rsyncs over it), re-append this section, then `bin/sync`.
 
 ### `spark` not found ≠ Setapp

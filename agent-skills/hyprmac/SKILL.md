@@ -73,6 +73,13 @@ HyprMac" (7c37679b).
 
 ## Known traps (each cost a long hunt)
 
+- **Lag, windows jump, frames miscounted, AX 275-335 ms instead of 25-35 ms** → first
+  `pgrep -lx HyprMac; pgrep -lx "HyprMac Debug"`. Two hits = two instances (Sparkle relaunches
+  the release after an auto-update while Debug runs). A Debug test starts with that `pgrep`
+  as step 0, result in one line.
+- **Windows vanish after a click on the wallpaper** → macOS "click wallpaper to show desktop":
+  `defaults write com.apple.WindowManager EnableStandardClickToShowDesktop -bool false` (no
+  key on `read` = default "Always"). It is Greg's setting, so only with his yes.
 - **All shortcuts dead, `hypr ↓/↑` still logged** → an app holds Secure Keyboard Entry and
   macOS sends event taps no keyDowns. `ioreg -l -w 0 | rg -o '"kCGSSessionSecureInputPID"=[0-9]+'`,
   then `ps -p <pid>`. Terminal.app was it (opened by the default Hypr+Return). Not the fix,
@@ -114,8 +121,16 @@ Branch prefixes keep tooling out of upstream:
 
 - `nightly/*`: Greg's tools (a usage monitor, a hang detector). They never get a PR.
 - `perf/*`: experiments that ride in nightly without a PR.
-- A fix gets a PR to upstream (perf issue #59) only after a measured gain:
+- A fix gets a PR to upstream only after a measured gain:
   `scripts/perf-report.sh` before the change and again after the rebuild. No guess fixes.
+- The maintainer pulled #62-#66 in by hand (squash to `main`, PRs left open), so "rebase the
+  PRs" ended in closing them with a sha. Before rebasing a PR compare its files with
+  `upstream/main` since the merge-base. Already in → close the PR with a comment and the sha
+  (a popup first, it is someone else's repo). Nightly is now `upstream/main` + `nightly/*`,
+  the report says so in one line.
+- A rebase of `nightly/*` that conflicts only in `project.pbxproj`: loop `xcodegen generate`,
+  `git add HyprMac.xcodeproj/project.pbxproj`, `GIT_EDITOR=true git rebase --continue` (up
+  to 20 times). A conflict in any other file stops the loop.
 
 ### Perf work with several agents
 
@@ -130,11 +145,14 @@ have started yet.
 
 ### Publishing a nightly
 
+`gh release create --target` takes a branch name (`greg-nightly`) or a full sha, never a
+short one (HTTP 422 `target_commitish is invalid`).
+
 Before the release: `lipo -archs` on both apps (universal). The release notes,
 voiced through `greg-voice`, say: a build signed by Greg, for testing only;
 install from the universal zip; grant Accessibility to **both** `HyprMac` and
 `HyprMac Usage.app` (without the second the HUD stays empty, forgotten on
-`nightly-2026-10-28`, dca362b1); link perf issue #59.
+`nightly-2026-10-28`, dca362b1); link the perf issue.
 
 ## Focus bugs
 

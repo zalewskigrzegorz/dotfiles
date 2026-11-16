@@ -19,6 +19,10 @@ worker() {
   tp=$(find ~/.claude/projects -maxdepth 2 -name "$id.jsonl" | head -1)
   [ -z "$tp" ] && { echo "$id NO-TRANSCRIPT" >> "$OUT/status.log"; return; }
   [ -d "$cwd" ] || cwd=$HOME
+  # Replayed api-request-blob events and tuios nudges doubled the pre-pass signals.
+  # Same <id>.jsonl name, so reading the clean copy still clears the pending id.
+  mkdir -p "$OUT/clean"
+  "${SELF:h}/retro-dedupe" "$tp" "$OUT/clean/$id.jsonl" 2>/dev/null && tp="$OUT/clean/$id.jsonl"
   if [ "$date" = "$(date +%F)" ]; then
     mode="This session is younger than 24h, so run it as a Sweep over the transcript (not Outcome)."
   else

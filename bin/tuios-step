@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# tuios-step — one hand step for Greg in a `do-wpisania` split under your pane.
+# The sequence split → send-text (no Enter) → date +%T → capture-pane →
+# close-window was retyped dozens of times per live test (bb7f0a72, e73e49f0),
+# and a forgotten split once left nvim running.
+#
+#   tuios-step send '<nu command>'   # find or make the split, type it WITHOUT Enter, print window id + time
+#   tuios-step read [N]              # last N (20) lines of the split + seconds since send
+#   tuios-step close                 # close the split (kills what runs in it)
+#   tuios-step --self-test
+#
+# The split runs nushell: `&&`, `||`, `2>/dev/null`, `$(…)` are refused; wrap
+# POSIX syntax as `sh -c '…'`, call externals that clash with nu builtins as `^nvim`.
+set -uo pipefail
+NAME=do-wpisania
+STATE=${TMPDIR:-/tmp}/tuios-step-${TUIOS_PANE_ID:-none}
+
+nu_unsafe() { [[ $1 == *'&&'* || $1 == *'||'* || $1 == *'2>/dev/null'* || $1 == *'$('* ]]; }
+
+if [ "${1:-}" = --self-test ]; then
+  nu_unsafe 'a && b' && nu_unsafe 'x 2>/dev/null' && nu_unsafe 'echo $(date)' \
+    && ! nu_unsafe "sh -c 'a; b'" && ! nu_unsafe '^nvim foo; date' \
+    || { echo "nu_unsafe broken"; exit 1; }
+  echo "tuios-step self-test: ok"; exit 0
+fi
+[ -n "${TUIOS_PANE_ID:-}" ] || { echo "tuios-step: not inside tuios (no TUIOS_PANE_ID); give Greg a numbered step instead" >&2; exit 2; }
+
+find_split() {  # id of a live do-wpisania window in this session, from state or by name
+  local id
+  id=$(tuios list-windows ${TUIOS_SESSION:+-s "$TUIOS_SESSION"} --json | jq -er --arg n "$NAME" \
+    '[.windows[] | select(.custom_name == $n) | .window_id][0] // empty') || return 1
+  printf '%s' "$id"
+}
+
+case ${1:-} in
+  send)
+    [ $# -eq 2 ] || { echo "usage: tuios-step send '<cmd>'" >&2; exit 2; }
+    nu_unsafe "$2" && { echo "tuios-step: nushell pane, no && || 2>/dev/null \$(…); wrap as sh -c '…'" >&2; exit 2; }
+    w=$(find_split) || w=""
+    if [ -z "$w" ]; then
+      w=$(tuios split-window horizontal -w "$TUIOS_PANE_ID" --name "$NAME" --no-focus --json | jq -er '.window_id') \
+        || { echo "tuios-step: split-window failed" >&2; exit 1; }
+      made=1
+      # text sent before the first prompt is lost (.claude/rules/tuios-config.md)
+      tuios wait-for window-output -w "$w" --pattern . --timeout 5000 >/dev/null
+      tuios wait-for window-idle -w "$w" --idle 300 --timeout 5000 >/dev/null
+    fi
+    if ! tuios send-text -w "$w" "$2" >/dev/null; then
+      [ "${made:-0}" = 1 ] && tuios close-window "$w" >/dev/null 2>&1
+      echo "tuios-step: send-text failed" >&2; exit 1
+    fi
+    printf '%s %s\n' "$w" "$(date +%s)" > "$STATE"
+    echo "window $w, typed at $(date +%T), waiting for Enter"
+    ;;
+  read)
+    read -r w t < "$STATE" 2>/dev/null || { w=$(find_split) || w=""; t=""; }
+    [ -n "$w" ] || { echo "tuios-step: no $NAME split" >&2; exit 1; }
+    tuios capture-pane -w "$w" --scrollback --lines "${2:-20}" --trim
+    [ -n "$t" ] && echo "--- $(date +%T), $(( $(date +%s) - t ))s since send"
+    ;;
+  close)
+    read -r w _ < "$STATE" 2>/dev/null || w=$(find_split) || w=""
+    rm -f "$STATE"
+    [ -n "$w" ] && tuios close-window "$w" >/dev/null && echo "closed $w" || echo "nothing to close"
+    ;;
+  *) echo "usage: tuios-step send '<cmd>' | read [N] | close | --self-test" >&2; exit 2 ;;
+esac

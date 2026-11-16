@@ -23,13 +23,18 @@ BRANCH="$(git branch --show-current 2>/dev/null || echo)"
 DIRTY="$(git status --porcelain 2>/dev/null | head -1)"
 
 if [[ -n "$BRANCH" ]]; then
-  git fetch origin "$BRANCH" --quiet 2>/dev/null || true
-  LOCAL_SHA="$(git rev-parse HEAD 2>/dev/null || echo)"
-  REMOTE_SHA="$(git rev-parse "origin/$BRANCH" 2>/dev/null || echo)"
-  if [[ -n "$REMOTE_SHA" && "$LOCAL_SHA" == "$REMOTE_SHA" ]]; then
-    USE_LOCAL=true
+  # fetch failure must not hide: `|| true` swallowed `Permission denied (publickey)`, origin/$BRANCH stayed stale and USE_LOCAL=true despite a moved PR head
+  if git fetch origin "$BRANCH" --quiet; then
+    LOCAL_SHA="$(git rev-parse HEAD 2>/dev/null || echo)"
+    REMOTE_SHA="$(gh pr view --json headRefOid --jq .headRefOid 2>/dev/null || git rev-parse "origin/$BRANCH" 2>/dev/null || echo)"
+    if [[ -n "$REMOTE_SHA" && "$LOCAL_SHA" == "$REMOTE_SHA" ]]; then
+      USE_LOCAL=true
+    else
+      USE_LOCAL=false
+    fi
   else
     USE_LOCAL=false
+    echo "fetch padł (ssh), liczę po API"
   fi
 else
   USE_LOCAL=false  # no branch (PR by number/URL, not checked out)
@@ -117,6 +122,7 @@ Write like a senior engineer leaving a quick review note, not like an AI assista
 * **Lead with the point.** State the issue or ask directly. No "Great work!", "Good catch", "I noticed that…", "It seems like…", "Consider…" preambles.
 * **Concrete, not abstract.** Name the exact symbol/line/behavior. "`user` can be null here → 401" beats "There might be a potential issue with null handling."
 * **Show, don't describe.** If a fix fits in a line or two, give a `suggestion` block or inline code instead of prose explaining it.
+* **A reference to an issue or PR is a full URL**, in a tuicr draft and on GitHub alike. Never a bare `#n` (Greg fixed it by hand, 2 extra calls).
 * **One issue per comment.** Don't bundle unrelated points or pad with extra advice the reviewer didn't ask about.
 * **Say why only when it's not obvious.** Skip rationale for trivial stuff. For real bugs, one short clause is enough ("…otherwise it throws on empty input").
 * **No hedging, no filler.** Cut "I think", "maybe", "just", "simply", "in order to", "it's worth noting". No closing pleasantries ("Hope this helps!", "Let me know!").

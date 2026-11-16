@@ -79,8 +79,10 @@ fi
 # Test files skip only this generic check: fixtures like access_token: 'fresh-idp-access'
 # forced /yolo on 2026-10-23. The token-shaped patterns above still apply there.
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // ""')
+# NQ excludes whitespace: a real secret has none, while a UI error-message map whose
+# value was a plain English sentence about a wrong login blocked three edits (255f38c7).
 Q="[\"']"
-NQ="[^\"']"
+NQ="[^\"'[:space:]]"
 case "$FILE_PATH" in *.test.* | *.spec.* | */__tests__/*) IS_TEST=1 ;; *) IS_TEST=0 ;; esac
 if [ "$IS_TEST" = 0 ] && echo "$CONTENT" | grep -iE '(password|secret|token|api_key|apikey|api_secret)[[:space:]]*[=:][[:space:]]*'"$Q$NQ"'{8,}'"$Q" \
    | grep -viE '(password|secret|token|api_key|apikey|api_secret)[[:space:]]*[=:][[:space:]]*'"$Q"'?(process\.env|os\.environ|getenv|\$\{|\$[A-Za-z_]|ENV\[|env\()' \

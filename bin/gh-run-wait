@@ -6,27 +6,45 @@
 # and on failure the failed steps' log tail. Replaces the hand-rolled
 # `sleep; gh run list` loops that raced the push and read the previous run
 # (19× list, 14× watch, 17× sleep in one session, 2026-09-25).
+# A finished run older than --since (default: now) is the previous attempt on the
+# same sha (label toggled again): a newer one gets ~90 s first (cc69e8c9). After
+# 180 s with no run, stderr names once the workflows that did run on the sha:
+# e2e.yml was waited on for 1800 s while the PR ran e2e-pr.yml (255f38c7).
 set -u
-WF=""; SHA=""; TIMEOUT=1800; REPO=()
+WF=""; SHA=""; TIMEOUT=1800; REPO=(); SINCE=$(date -u +%Y-%m-%dT%H:%M:%SZ); START=$(date +%s)
+USAGE="usage: gh-run-wait <workflow> [--sha <sha>] [--since <iso-utc>] [--timeout <s>] [-R owner/repo]"
 while [ $# -gt 0 ]; do
   case "$1" in
     --sha) shift; SHA=$1 ;;
+    --since) shift; SINCE=$1 ;;
     --timeout) shift; TIMEOUT=$1 ;;
     -R) shift; REPO=(-R "$1") ;;
-    -*) echo "usage: gh-run-wait <workflow> [--sha <sha>] [--timeout <s>] [-R owner/repo]" >&2; exit 2 ;;
+    -*) echo "$USAGE" >&2; exit 2 ;;
     *) WF=$1 ;;
   esac
   shift
 done
-[ -n "$WF" ] || { echo "usage: gh-run-wait <workflow> [--sha <sha>] [--timeout <s>] [-R owner/repo]" >&2; exit 2; }
+[ -n "$WF" ] || { echo "$USAGE" >&2; exit 2; }
 [ -n "$SHA" ] || SHA=$(git rev-parse HEAD)
 SHA=$(git rev-parse "$SHA" 2>/dev/null || echo "$SHA")
 
 deadline=$(( $(date +%s) + TIMEOUT ))
-id=""
-while [ -z "$id" ]; do
-  id=$(gh run list "${REPO[@]}" --workflow "$WF" --commit "$SHA" --limit 1 --json databaseId --jq '.[0].databaseId // empty' 2>/dev/null)
-  [ -n "$id" ] && break
+id=""; told=""
+while :; do
+  run=$(gh run list "${REPO[@]}" --workflow "$WF" --commit "$SHA" --limit 1 --json databaseId,status,createdAt \
+    --jq '.[0] // empty | "\(.databaseId) \(.status) \(.createdAt)"' 2>/dev/null)
+  if [ -n "$run" ]; then
+    parts=(${=run})
+    # ISO-8601 UTC strings compare as text.
+    if [ "${parts[2]}" != completed ] || [[ ! "${parts[3]}" < "$SINCE" ]] || (( $(date +%s) - START >= 90 )); then
+      id=${parts[1]}; break
+    fi
+  elif [ -z "$told" ] && (( $(date +%s) - START >= 180 )); then
+    told=1
+    ran=$(gh run list "${REPO[@]}" --commit "$SHA" --json workflowName,conclusion \
+      --jq 'map("\(.workflowName) (\(if (.conclusion // "") == "" then "running" else .conclusion end))") | unique | join(", ")' 2>/dev/null)
+    echo "no run of '$WF' for ${SHA:0:10} after 180s; on this sha ran: ${ran:-nothing}. Wrong workflow? Stop and rerun with the right one" >&2
+  fi
   [ "$(date +%s)" -ge "$deadline" ] && { echo "timeout: no run of '$WF' for ${SHA:0:10} within ${TIMEOUT}s" >&2; exit 4; }
   sleep 15
 done

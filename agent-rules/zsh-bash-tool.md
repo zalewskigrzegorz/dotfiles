@@ -19,7 +19,9 @@ one-liners and each cost a retry or more (2026-09-23 … 09-28):
 
 2. **`[]` and an unmatched `*` are globs (`NOMATCH`).** `gh api … -f parents[]=$SHA`
    dies with `no matches found: parents[]=…`, `gh` gets an empty value and the
-   API answers "At least 40 characters are required". Quote every `[]` arg:
+   API answers "At least 40 characters are required". `?` globs too:
+   `gh api repos/…/contents/action.yml?ref=<sha>` dies on `no matches found`
+   (37461a16). Quote every `[]` and `?` arg:
    `-f 'parents[]'="$SHA"`, `-f 'labels[]=bug'`, `-F 'ids[]=1'`. An unmatched
    `*.zip` is an error, not an empty list: `ls *.zip` dies with `no matches
    found: *.zip`. Use `*.zip(N)` for an empty list, or `find`. The `*` and
@@ -40,6 +42,12 @@ one-liners and each cost a retry or more (2026-09-23 … 09-28):
    tail -5; echo "exit=$?"` printed `exit=0` for a patch that did not exist,
    because `tail` succeeded (2026-10-15). Read `${pipestatus[1]}`, and check a
    file you produced with `test -s <file>` before using it.
+5. **`path`, `cdpath`, `fpath`, `manpath` are tied to arrays.** `read … path`
+   overwrote `PATH` (11× `command not found: date`, 5f621afd). Not as names in
+   `read`, `for`, assignments: use `app`, `bin`, `p`.
+6. **macOS `sed` doesn't expand `\t` / `\n` in the replacement**, BSD `awk` has
+   no `match(s, re, arr)` or `gensub`. Use `perl -pe`, `$'\t'`, `python3 -I` or
+   `rg -o -r`, and `git apply --check` on a generated patch (07921d16).
 
 The `guard` mod denies `echo ===` (`EQUALS`) and `echo "$x" | jq` with the fix.
 
@@ -50,21 +58,17 @@ When a one-liner that works in bash fails with `not found`, "no files" or
 
 The Bash cwd persists only inside the session's project directory. A `cd`
 outside it is undone after the call ("Shell cwd was reset to …"), so a session
-started in `~` or in another repo runs every later relative path from there.
-On 2026-10-04 five of 17 tool errors were that: `realpath
-apps/api/node_modules/<pkg>` from `~` (empty variable, then `ls /dist/…`),
-`apps/ui/apps/ui/`, `pathspec did not match`.
+started in `~` or in another repo runs every later relative path from there
+(five of 17 tool errors on 2026-10-04).
 
 - **Task in a worktree that is not the session's cwd** → first call `cd <wt>
   && git rev-parse --show-toplevel`, then every call starts with `cd <wt> &&`
   or uses absolute paths. The trigger is a cwd of `~`, or a toplevel that does
   not match the branch or repo the task names; the path is
   `~/Code/tree/wt-<repo>/<branch>`. Never run a command bare first "to check"
-  and then again with `cd`: one session did that for ~14 of 28 calls
-  (36b5e3cc, 2026-10-15).
+  and then again with `cd` (~14 of 28 calls, 36b5e3cc).
 - **Scratch logs go under an absolute path** (the session scratchpad), never
-  `../..`-relative: `L=../../.superpowers/…/tsc.log` broke as soon as the cwd
-  moved (2026-10-04).
+  `../..`-relative.
 - **Don't allowlist the `cd <abs> && …` shapes** this produces. They are a
   symptom, not a command.
 
@@ -77,20 +81,18 @@ loop gets a `timeout` and exits on the first actionable state; a multi-line loop
 goes into a `#!/bin/bash` file in the scratchpad. A run longer than ~10 min goes
 through `Monitor`, with the ETA in one line at the start. `gh run watch` exits 1
 on wifi loss too: check `gh run view <id> --json status,conclusion` before
-reporting a failure. After re-adding a label like `run_e2e`, wait with
-`gh-run-wait e2e-pr.yml --sha <sha>`; a required check that reads labels and
-stayed red is re-evaluated by removing and re-adding that label.
+reporting a failure. A required check that reads labels and stayed red is
+re-evaluated by removing and re-adding the label.
 
 **All checks of a PR → `gh-pr-checks-wait <pr>`** in the background, no `>`
 redirect: it prints `pass/fail/pending` once a minute, so the tuios bg pane
 shows progress. `gh pr checks --watch` prints nothing without a TTY until it
 ends, and a redirect to a file leaves the pane empty too (2026-10-27).
 
-**Waiting for a human is not a loop.** A merge, an approval or a reply from
-Greg or a reviewer ends the turn with one line ("powiedz zmergowane"), or a
-popup if there is a real fork. A background `timeout 43200 … until gh pr view
-<n> … MERGED; sleep 300` (2026-10-12) polled for hours while Greg answered the
-popup anyway. Loops are for machine state: CI, deploys, builds.
+**Waiting for a human is not a loop.** A merge, an approval or a reply ends
+the turn with one line ("powiedz zmergowane"), or a popup if there is a real
+fork. A background `until gh pr view <n> … MERGED; sleep 300` polled for hours
+(2026-10-12). Loops are for machine state: CI, deploys, builds.
 
 ## The other side of tuios is nushell
 
@@ -114,8 +116,8 @@ script was rewritten twice inline on 2026-10-08.
 ## More zsh: `$var:x` is a modifier
 
 `git show $P:tooling/…` became `a942d18e36ooling/…` and `ambiguous argument`:
-`:t` after a variable is zsh's "tail" modifier (also `:h :r :e :l :u`). Write
-`${P}:path` or `"$P":path` (9d7d10df).
+`:t` after a variable is zsh's "tail" modifier (also `:a :h :r :e :l :u :s :p`:
+`$B:apps/…` lost its `a` to `:a`, 49842976). Always `${B}:path` or `"$B":path`.
 
 ## CI waits: more than `gh-run-wait` finds
 
@@ -125,6 +127,14 @@ script was rewritten twice inline on 2026-10-08.
   does not run `pull_request` workflows on a conflicting PR, and two toggles
   waited ~30 min for nothing (c333538c). No run within ~3 min after the toggle
   is the same signal.
+- **After any push (force too) to a PR with `run_e2e`** the label stays but
+  may not fire on the new sha. In ~3 min `gh run list --commit <sha> --workflow
+  e2e-pr.yml`. Empty → remove and re-add the label after a verified push,
+  then `gh-run-wait e2e-pr.yml --sha <sha>` (5cdaf331, 94d308ee).
+- **`gh-run-wait` on the wrong workflow waits the full 1800 s** (the PR runs
+  `e2e-pr.yml`, not `e2e.yml`), and after a label swap on the same sha it can
+  report the old run. No run in ~3 min → `gh run list --commit <sha> --json
+  workflowName,conclusion` (cc69e8c9, bb4925d2).
 - **A deploy Greg starts by hand** (prod, prodeu, lab): start the watcher in
   the same turn, `Monitor` on `gh-run-wait <workflow> --sha <sha>`, and say
   "czekam na run na `<sha>`". The run appearing is machine state, so this is

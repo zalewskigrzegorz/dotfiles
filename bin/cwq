@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+"""cwq — CloudWatch Logs Insights through Grafana's CloudWatch datasource.
+
+No AWS credentials: it uses $GRAFANA_URL and $GRAFANA_SERVICE_ACCOUNT_TOKEN
+(already in the session env, never `op read` per call). It resolves the log
+group ARN first, because `logGroupNames` alone fails with "LogGroup cannot be
+empty" (grafana-mcp-wtf skill), then prints rows as TSV. Datasource UIDs and
+log group names live in that skill, not here (public repo).
+
+  cwq --uid <ds-uid> --group <log-group> '<CWLI query>' [--region us-east-1] [--start now-1h] [--raw]
+  CWQ_UID=<ds-uid> cwq --group <log-group> 'fields @timestamp, @message | limit 20'
+  cwq --self-test
+"""
+import json
+import os
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+
+
+def api(path, payload=None):
+    url = os.environ.get("GRAFANA_URL", "").rstrip("/")
+    tok = os.environ.get("GRAFANA_SERVICE_ACCOUNT_TOKEN") or os.environ.get("GRAFANA_TOKEN")
+    if not url or not tok:
+        sys.exit("cwq: GRAFANA_URL / GRAFANA_SERVICE_ACCOUNT_TOKEN not in env (see grafana-mcp-wtf skill)")
+    req = urllib.request.Request(url + path, headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json"},
+                                 data=json.dumps(payload).encode() if payload is not None else None)
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        sys.exit(f"cwq: Grafana HTTP {e.code} on {path.split('?')[0]}: {e.read()[:300].decode(errors='replace')}")
+
+
+def log_group_arn(uid, region, group):
+    q = urllib.parse.urlencode({"region": region, "logGroupNamePrefix": group})
+    for g in api(f"/api/datasources/uid/{uid}/resources/log-groups?{q}"):
+        if g.get("value", {}).get("name") == group:
+            return g["value"]["arn"]
+    sys.exit(f"cwq: log group {group!r} not found in {region} on datasource {uid}")
+
+
+def tsv(resp):
+    res = resp["results"]["A"]
+    if res.get("error"):
+        sys.exit(f"cwq: {res['error']}")
+    frames = res.get("frames") or []
+    if not frames:
+        return ""
+    names = [f["name"] for f in frames[0]["schema"]["fields"]]
+    cols = frames[0]["data"]["values"]
+    rows = zip(*cols) if cols else []
+    clean = lambda v: "" if v is None else str(v).replace("\t", " ").replace("\n", "\\n")
+    return "\n".join(["\t".join(names)] + ["\t".join(clean(v) for v in r) for r in rows])
+
+
+def self_test():
+    resp = {"results": {"A": {"frames": [{"schema": {"fields": [{"name": "s"}, {"name": "count()"}]},
+                                          "data": {"values": [["200", "500"], [12, None]]}}]}}}
+    assert tsv(resp) == "s\tcount()\n200\t12\n500\t", repr(tsv(resp))
+    assert tsv({"results": {"A": {"frames": []}}}) == ""
+    print("cwq self-test: ok")
+
+
+def main(argv):
+    if argv == ["--self-test"]:
+        return self_test()
+    opts = {"--uid": os.environ.get("CWQ_UID", ""), "--group": "", "--region": "us-east-1", "--start": "now-1h"}
+    raw, query, it = False, None, iter(argv)
+    for a in it:
+        if a in opts:
+            opts[a] = next(it, "")
+        elif a == "--raw":
+            raw = True
+        elif a.startswith("--"):
+            sys.exit(f"cwq: unknown flag {a}")
+        else:
+            query = a
+    if not (opts["--uid"] and opts["--group"] and query):
+        sys.exit("usage: cwq --uid <ds-uid> --group <log-group> '<query>' [--region R] [--start now-1h] [--raw]")
+    arn = log_group_arn(opts["--uid"], opts["--region"], opts["--group"])
+    resp = api("/api/ds/query", {"queries": [{
+        "refId": "A", "datasource": {"uid": opts["--uid"], "type": "cloudwatch"},
+        "queryMode": "Logs", "queryLanguage": "CWLI", "region": opts["--region"],
+        "logGroups": [{"name": opts["--group"], "arn": arn}], "queryString": query}],
+        "from": opts["--start"], "to": "now"})
+    print(json.dumps(resp) if raw else tsv(resp))
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

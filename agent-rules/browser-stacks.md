@@ -11,7 +11,7 @@ configured. Don't propose bringing it back. Comet itself stays installed.
 | Stack | Use it when | Why |
 | --- | --- | --- |
 | **`browsentic`** (MCP → Vimma, his daily browser) | **Default for anything in his logged-in browser**: read, click, type, screenshot in Vimma while he watches the tab. | Rides his real session, action cues show him each element before it is touched. The MCP refuses submits, uploads, captchas and tab switches by design: those go to Greg or the side panel. Skill: `agent-skills/browsentic/`. |
-| **`vimma`** (MCP → Vimma's agent workspace) | **Fallback** when Browsentic is down (`browsentic_status` not connected and `browsentic start` does not fix it). | Separate tabs with their own cookies, so no logins of his; the first call asks Greg in Vimma. Showing a page, sending a form or paying asks every time. |
+| **`vimma`** (MCP → Vimma's agent workspace) | **Fallback** when Browsentic is down (`browsentic_status` not connected and `browsentic start` does not fix it, or it answers `DAEMON_UNREACHABLE`: `start` only reports the bridge). Go straight to `vimma_screenshot` / `vimma_read_page`, never `screencapture`: "Browsentic nieaktywny, jadę na Vimmie" (76d3b8f1). | Separate tabs with their own cookies, so no logins of his; the first call asks Greg in Vimma. Showing a page, sending a form or paying asks every time. |
 | **`agent-browser`** (skill, Chrome/CDP, own profile) | **A quick shot Greg doesn't need to watch**: fetch a public page, scrape docs, check a URL, poke a deployed page, a test that needs no intervention from him. | Cheapest in tokens, no window, doesn't touch his profile. Default for throwaway work. |
 
 Rule of thumb: **his login or his eyes → `browsentic`; it is down →
@@ -25,6 +25,9 @@ Rule of thumb: **his login or his eyes → `browsentic`; it is down →
    in the moment, even in YOLO mode. Browsentic blocks submits for MCP
    callers, but a plain click on a "Save" or "Delete" button in a single-page
    app is not a submit and goes through, so this rule is the gate there.
+   "Cofnij" or "wycofaj" is not a go-ahead for Delete / Usuń: undo what the
+   tool did itself (removal from an album) or ask, the delete button only
+   after a named "usuń to" (02fd3d1c).
 2. **Never export credential material.** No cookies, `localStorage` auth
    blobs, passwords or bearer tokens to a file, a log, the transcript or an
    outward-facing message. Browsentic hands back sealed placeholders
@@ -35,6 +38,12 @@ Rule of thumb: **his login or his eyes → `browsentic`; it is down →
 4. **Blocked sites stay blocked.** `SITE_BLOCKED` (ING, 1Password) is his
    list in the Browsentic settings: no retry, no other route.
 5. **Close what you opened** with `page_closeTab` when the task ends.
+6. **After one `TARGET_NOT_FOUND` read the state.** `page_closeTab` lists the
+   open tabs in its error: a missing id is already closed. For an element
+   `page_getPageInfo`, then a stable selector, never the same `text`+`role`
+   again or a generated `#dialog-<uuid>` (02fd3d1c, 233482bc).
+7. **`WebFetch` giving 429 or no price on a shop page** → same turn
+   `page_openTab` + `page_extractText`, no retry popup (45126c6e).
 
 **Minting a token or API key on a site behind his login is a browser job, not
 a step list.** On 2026-09-28 Greg got the Docker Hub PAT instructions twice and
@@ -42,8 +51,9 @@ answered "to co mam zrobić? ogarnij to". Flow: `browsentic` to the token page,
 Greg logs in, a click to generate, Greg copies the token. The token then goes
 from the clipboard straight into the consumer (`pbpaste | docker login
 --password-stdin`, or `op item create`), never echoed, never in a file, and
-`pbcopy < /dev/null` clears the clipboard afterwards. Offer to store it in
-1Password and say plainly if the consumer keeps it in plaintext
+`pbcopy < /dev/null` clears the clipboard afterwards, as the last step: offer
+to store it in 1Password before that (a cleared clipboard made him copy it
+twice, 233482bc). Say plainly if the consumer keeps it in plaintext
 (`~/.docker/config.json` without a credential helper does).
 
 **A step list for Greg that starts with "open <url>" in his browser: open it
@@ -53,9 +63,7 @@ the token still never reaches the transcript, a file or your clipboard.
 
 **`claude-in-chrome` is retired (2026-08-23).** It kept hanging.
 `mcp__claude-in-chrome__*` is in `permissions.deny`. If those tools still show
-up in a session's registry, the Chrome extension is still paired — turn it off
-with `/chrome` ("Enabled by default") or disable the extension in
-`chrome://extensions`. Do **not** reach for those tools, and don't propose
-bringing the stack back.
+up, the Chrome extension is still paired: turn it off with `/chrome` or in
+`chrome://extensions`. Don't reach for them or propose the stack back.
 
 **macOS only.** The lab is headless — no browser there.

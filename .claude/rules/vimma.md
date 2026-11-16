@@ -1,6 +1,7 @@
 ---
 paths:
   - "dot_config/private_vimma/**"
+  - "userscripts/**"
   - "run_onchange_after_39-vimma-userchrome-sync.sh.tmpl"
 ---
 
@@ -48,3 +49,28 @@ paths:
   `youtube-vim` uses the same hidden box on `/watch` (h/l/b/w seek, j/k speed,
   `-` `=` volume, space); speed goes out as a synthetic ctrl+wheel because
   Enhancer for YouTube keeps its own copy of the rate and reapplies it.
+- **A userscript change works only after Update in Tampermonkey**, and raw
+  GitHub can serve the old version for ~5 min. A change to a script that shares
+  a key with another bumps the version of both, and the report says which
+  scripts need the update. Never announce a fix "independent of the update" while
+  an older script still holds that key (a space fix lost to an old script).
+- **Greg has no usable console in Vimma.** No DevTools steps and no `copy()`.
+  A probe is a userscript with `GM_registerMenuCommand` that writes its result
+  to a file in `~/Downloads`, or a ready panel on the page. A locally served
+  `.user.js` did not trigger the install, so install from the raw URL after the
+  push, with Update.
+- **"Key X does not work in Vimma"** → first the mode on a screenshot (bottom
+  left corner). Single-letter keys work only in NORMAL, `Esc` returns. Reload is
+  `Ctrl+R` / `F5`, hard reload `Ctrl+Shift+R` / `Ctrl+F5`. Quote keys only from
+  the uncommented `[keys]` lines.
+- **An add-on options page (`moz-extension://`) is unreachable for `browsentic`**
+  (`TAB_UNREACHABLE`). The source is
+  `~/Library/Application Support/Vimma/Profiles/<profile>/extensions/<id>.xpi`:
+  unzip it into the scratchpad, the UUID is in `prefs.js` under
+  `extensions.webextensions.uuids`. Search only the profile dir (`rg` over the
+  whole Application Support hits `Permission denied`). A minified file: one call
+  with several `rg -o` through `rtk proxy`.
+- **A key change in `youtube-vim` or `photos-vim`** updates the section "Vimma:
+  YouTube i Google Photos" in the note `30 - Resources/Tech/Skróty
+  Klawiszowe.md` in the same task (skill `obsidian-notes`, edit the section, no
+  new note).
