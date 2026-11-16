@@ -133,9 +133,9 @@ live_grep = ["prefix+f g", "<leader>/"]
 # "<C-y>" = "scroll.up"
 # "gg" = "scroll.top"
 # "G" = "scroll.bottom"
-# H/L switch tabs as they switch buffers in LazyVim; history stays on ctrl+o / ctrl+i
-"H" = "tab.previous"
-"L" = "tab.next"
+# Vimium parity: H/L stay history (default), J/K switch tabs
+"J" = "tab.previous"
+"K" = "tab.next"
 # "<C-o>" = "history.back"
 # "<C-i>" = "history.forward"
 # "<C-[>" = "history.back"

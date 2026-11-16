@@ -34,7 +34,8 @@ paths:
   `vimma-browser/vimma` per its `bug_report.yml`; `:bug` copies a report.
 - **`:restart` closes Vimma and does not reopen it**: `open-here -a Vimma`.
 - **One action per key**: "open and switch" in one key is not possible (#533);
-  the workaround is `F`, the hint letters, then `L`. `H`/`L` switch tabs.
+  the workaround is `F`, the hint letters, then `K`. `J`/`K` switch tabs,
+  `H`/`L` are history (Vimium parity since 2026-11-16).
 - **Userscripts** live in `dot_config/private_vimma/userscripts/`, installed
   through Tampermonkey; YouTube's space is off via `youtube-space-no-play.user.js`.
   The Google Photos ones (`photos-vim`, `tiktok-to-album`, the second needs GPTK)
