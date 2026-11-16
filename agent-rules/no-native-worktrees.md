@@ -52,22 +52,24 @@ fall back.
 
 A worktree made either way is one of Greg's, not a Claude-managed one, so rule 4
 covers it: leave it in place when the task ends unless he asks otherwise.
+After `workctl` on an existing branch take the path from `git worktree list
+--porcelain | rg -B2 'refs/heads/<branch>$'`, not from the `wt-<repo>/<branch>`
+convention, and don't `cd` into an unchecked path (b5531ea1).
 
 ## A worktree `work` did not seed is missing seven things
 
 `work` seeds every worktree it opens: `place-work-skills <path>` copies the
 work-scoped skills (`g-pr`, `g-pr-review`, `g-github-issue`, …) into
 `<path>/.claude/skills/`, and the seed step clones the gitignored `.env*` and
-`*.env.json` files, `node_modules` and `.husky/_` from the parent checkout. A worktree made
-with plain git — or a bare one Greg opened without seeding — has none. On
-2026-09-23 that meant `/g-pr` was not in the picker (the team's `pr` skill ran
-instead and Greg had to stop it) and `pnpm start` died on a missing
-`local/.env`. On 2026-09-25 and 09-28 a missing `.husky/_` made every commit
-fail on `.husky/_/husky.sh: No such file or directory`; earlier commits on the
-branch had skipped lint-staged, which surfaced later as a red `oxfmt --check`
-in CI. The fix is `pnpm install --config.confirmModulesPurge=false` in the
-worktree (~40 s, no `./install.sh`), never `--no-verify`. `guard` denies a
-bare `pnpm install` (no TTY for pnpm's purge prompt) and `CI=true pnpm install`.
+`*.env.json` files, `node_modules` and `.husky/_` from the parent checkout. A
+worktree made with plain git has none. On 2026-09-23 `/g-pr` was not in the
+picker (the team's `pr` skill ran instead) and `pnpm start` died on a missing
+`local/.env`. A missing `.husky/_` made every commit fail on
+`.husky/_/husky.sh: No such file or directory`, and earlier commits skipped
+lint-staged, which surfaced later as a red `oxfmt --check` in CI. The fix is
+`pnpm install --config.confirmModulesPurge=false` in the worktree (~40 s, no
+`./install.sh`), never `--no-verify`. `guard` denies a bare `pnpm install` (no
+TTY for pnpm's purge prompt) and `CI=true pnpm install`.
 
 A fourth gap: **built workspace packages.** vitest in a fresh worktree failing
 with `ERR_MODULE_NOT_FOUND` / `Cannot find package '@<org>/<pkg>'` means the
@@ -80,18 +82,19 @@ one per failed run (3 rounds, 2cb11215). `Failed to resolve import
 "./generated-async"` is the async-API SDK package unbuilt. In `apps/api`,
 `Cannot find package '@<org>/shared'` before a `*.db.spec.ts` is the same gap:
 build that package in the background first; a spec that never ran is "nie
-uruchomiony", not green (fa996d11).
+uruchomiony", not green (fa996d11). A stacked worktree (`--base
+origin/<feature>`) and `apps/ui` (plus `shared`) have the same gap: right after
+`workctl`, in the background, `pnpm exec nx run <api>:deps:build` (0c6b2490).
 
-A fifth gap: **the e2e config `playwright.env.json`.** It is gitignored and
-sits next to the e2e suite (`e2e/*/playwright.env.json`), so an unseeded tree
-fails with `Failed to find .rc file at …/playwright.env.json` (2026-10-04).
-`workctl` clones `*.env.json` since 2026-10-06; for an older worktree, `cp -c
-<main checkout>/<same path> <worktree>/<same path>`, without printing it.
+A fifth gap: **the e2e config `playwright.env.json`** (gitignored, next to the
+e2e suite): `Failed to find .rc file at …/playwright.env.json`. `workctl`
+clones `*.env.json` since 2026-10-06; in an older worktree `cp -c <main
+checkout>/<same path> <worktree>/<same path>`, without printing it.
 
-A sixth gap: **`local/current.profile.json`.** Without it `pnpm start` does not
-pass the Support allowlist to the API (2026-10-12). `workctl` clones it since
-2026-10-12; in an older tree, `test -f local/current.profile.json || pnpm run
-profile default` before the first `pnpm start`.
+A sixth gap: **`local/current.profile.json`.** Without it `pnpm start` doesn't
+pass the Support allowlist to the API. `workctl` clones it since 2026-10-12;
+in an older tree `test -f local/current.profile.json || pnpm run profile
+default` before the first `pnpm start`.
 
 **Check the worktree at the start of the session, not when a skill misfires.**
 In any `~/Code/tree/wt-*` or `~/.local/share/tuios/worktrees/*/*` path (tuios's
@@ -118,33 +121,28 @@ Then invoke the work skill — never fall back to the team's same-purpose skill
 
 A seventh gap: **`.env` keys older than `.env.example`.** The files exist, so
 `copy-env-from-main.sh` skips them, but the branch added keys. Symptom: an app
-online in pm2 that answers 502, or `X: Required` in `pnpm pm2 logs <app>`
-(2026-10-14, ~8 calls). Diff key names only, never values:
+online in pm2 that answers 502, or `X: Required` in `pnpm pm2 logs <app>`.
+Diff key names only, never values:
 `comm -23 <(rg -o '^([A-Z0-9_]+)=' -r '$1' .env.example | sort -u) <(rg -o
 '^([A-Z0-9_]+)=' -r '$1' .env | sort -u)`. Append the missing lines from
 `.env.example`, `pnpm pm2 restart <app>`, and check this before suspecting code.
 
-The fourth gap has a stale variant: a built `lib` that exists but lacks a new
-export fails on the missing symbol, not on `ERR_MODULE_NOT_FOUND`. Before a
-local e2e run, build what CI builds before its tests (the e2e profile's `nx`
-target, ~25 min, in the background), not just the package under test
-(2026-10-14).
+The fourth gap has a stale variant: a built `lib` lacking a new export fails
+on the missing symbol, not `ERR_MODULE_NOT_FOUND`. Before a local e2e run build
+what CI builds (the e2e profile's `nx` target, ~25 min, background).
 
 ## A fix gets its own worktree off `main` — before the first `Edit`
 
 `git fetch origin main`, then `workctl --branch fix/<slug> --base origin/main
 --action wt-full --yes --no-focus`, then test, commit and open the PR from that
-worktree. Don't switch branches in place and don't cherry-pick back: the
-feature branch stays clean (2026-10-01, SCIM hotfix split off `feat/…`, merged
-the same day).
+worktree. Don't switch branches in place and don't cherry-pick back.
 
 - **Decide at the start, not at commit time.** A standalone fix someone is
-  waiting for, not part of the current branch's PR → `workctl` before the first
-  `Edit`. On 2026-10-15 a commit popup onto the feature branch was rejected
-  with "nie, zrób osobny branch i pr teraz" (d3a33909).
-- **The main checkout counts too.** A session that starts on a clean `main` in
-  the shared main checkout still goes through `workctl`; `git checkout -b`
-  there moves every other tuios agent onto your branch (02be04c1).
+  waiting for → `workctl` before the first `Edit` (a commit popup onto the
+  feature branch got "nie, zrób osobny branch i pr teraz", d3a33909).
+- **The main checkout counts too.** A session on a clean `main` in the shared
+  main checkout still goes through `workctl`: `git checkout -b` there moves
+  every other tuios agent onto your branch (02be04c1).
 - **Already staged on the feature branch?** Move it as a patch:
   `git diff --cached > <scratch>/fix.patch && test -s <scratch>/fix.patch`,
   `git diff --stat HEAD origin/main -- <files>` (empty = files identical on

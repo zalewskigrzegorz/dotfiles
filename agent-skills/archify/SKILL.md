@@ -117,6 +117,12 @@ diagram. One big architecture diagram got "nic sensownego nie widać"
 example (one org, one user, one team), with edges labelled "widzi" / "może
 edytować". Read `references/` and `schemas/` once per session.
 
+## When not to use it
+
+"Timeline", "wykres w czasie", "ile X w czasie" is a chart, not a diagram: SVG
+with axes (X time, Y count) as an HTML artifact with a Play button. Show
+diagrams to Greg with `open-here` on the HTML.
+
 ## Long sequences: size before the first `finalize`
 
 A ~15-message sequence failed `finalize` 8 times in a row on
@@ -124,6 +130,7 @@ A ~15-message sequence failed `finalize` 8 times in a row on
 one code per run (c8da915a; the passing candidate was `viewBox [1080, 840]`).
 For more than ~10 messages, set the `viewBox` height from the message count
 plus the legend rows, leaving ~60 px for the legend band under the last
-lifeline. Fix every reported gate code in one edit before re-running. Edit
+lifeline. Fix every reported gate code in one edit before re-running. A sequence of ~14+
+messages does not fit a `viewBox` height ≤683: shorten it or split it in two. Edit
 candidate JSON with `jq '.meta.viewBox=[w,h]' f > f.tmp && mv f.tmp f`, never
 `sed`.

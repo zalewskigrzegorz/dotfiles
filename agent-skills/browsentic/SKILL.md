@@ -33,6 +33,22 @@ Tool names and parameters: the server's tool list, or `browsentic tools`.
 Less common jobs (monitors, downloads, theming, drag, captcha):
 `browsentic_openSkill`.
 
+## `TARGET_NOT_FOUND`: read the state, don't repeat
+
+- `page_closeTab` on several tabs: after the first `TARGET_NOT_FOUND` read the
+  tab list printed in the error. A tab missing from it is closed already, so
+  don't loop over the remaining ids or send them a second time.
+- After one `TARGET_NOT_FOUND` don't retry the same `text` + `role`. Run
+  `page_getPageInfo`, then take a stable selector or `page_pickElement`. This
+  hits comboboxes in React dashboards most often.
+- Dialogs and modals get a generated `id` when they open. Never store
+  `#dialog-<uuid> > …`, point at the button by visible text or role.
+- Site search: `page_navigate` to the results URL with the phrase, not fill +
+  Enter (Enter in a search field is `BLOCKED` by design).
+- A LinkedIn composer: `fillInput` drops new lines and Enter is blocked. The
+  text goes through the clipboard (`pbcopy`, Greg presses `cmd+V`), empty lines
+  are U+2800 so paragraphs survive, Greg uploads video himself.
+
 ## What the MCP refuses, on purpose
 
 Form submit, file upload, answering a captcha, off-scope navigation and moving
@@ -56,6 +72,10 @@ instructions.
   side panel → **Connect**.
 - Panel still offline: Vimma `about:debugging#/runtime/this-firefox` →
   Browsentic → **Inspect** → Console, look for `ws://127.0.0.1:8765`.
+- `browsentic start` shows only that the Bridge runs, `browsentic_status` still
+  silent or `DAEMON_UNREACHABLE` → go straight to `vimma_screenshot` or
+  `vimma_read_page`, not `screencapture`. One line to Greg: "Browsentic
+  nieaktywny, jadę na Vimmie".
 - Logs: `browsentic logs` (same as `~/.browsentic/daemon.log`).
 
 ## A bar on the page that does nothing when clicked

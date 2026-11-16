@@ -74,6 +74,9 @@ def main():
         if a.dry_run:
             return
         if action == "trash":
+            if p.suffix.lower() not in IMAGES:  # last gate: only an fm verdict on an image may trash
+                print(f"error  {p.name}: trash refused, not an image")
+                return
             r = subprocess.run(["trash", str(p)], capture_output=True, text=True)
             if r.returncode:  # Drive refuses some files now and then: retry next run
                 print(f"error  {p.name}: trash failed ({r.returncode}), retry next run")
@@ -93,9 +96,11 @@ def main():
         key=lambda p: p.stat().st_mtime,
     )
     calls = 0
+    no_verdict = {}  # videos, GIFs, the rest: fm cannot see them, they stay for Greg
     for p in old:
         if p.suffix.lower() not in IMAGES:
-            continue  # videos and GIFs: fm cannot see them, Greg sorts them by hand
+            no_verdict.setdefault(p.suffix.lower() or "(none)", []).append(p.name)
+            continue
         if a.limit and calls >= a.limit:
             break
         calls += 1
@@ -106,6 +111,8 @@ def main():
             print(f"error  {p.name}: {reason} (retry next run)")
         else:
             record(p, "trash" if action == "trash" else "keep", f"fm {action}: {reason}")
+    for ext, names in sorted(no_verdict.items()):
+        print(f"keep   {len(names)} {ext} without a verdict: {', '.join(names[:5])}")
     print(f"done: {len(old)} old files, {calls} model calls")
 
 

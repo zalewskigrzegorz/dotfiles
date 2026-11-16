@@ -13,4 +13,6 @@ name.
 
 Popup labels and `description`s count too: two first names as an option got
 "który <imię>?" (c56d2e79). A bare first name is the same bug as a login, and a reviewer
-option says in a few words why that person.
+option says in a few words why that person. A first name from a DM or a quote
+is not an identity: check `work-people` before a draft with a ping, and when
+more than one person fits, one popup with full names and roles (ccb41f8d).

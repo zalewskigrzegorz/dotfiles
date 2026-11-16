@@ -37,7 +37,10 @@ This holds in **every repo**.
 3. **Check YOLO:** `claude-yolo status`. Ask it at commit time, not from memory
    — Greg can switch it off mid-session.
 4. **YOLO off → `AskUserQuestion`.** Preview = the raw commit message, a blank
-   line, then `git diff --cached --stat` (max ~10 files, then `+N more`).
+   line, then `git diff --cached --stat`. The whole preview, with the
+   `branch:` line and the human line, is ≤15 lines (guard denies more):
+   stat up to 6 files, then `+N more`. Count before the first call, after a
+   deny cut lines (0e83cdfa, 6a89b245, bae51adc).
    Options: **Commit + push** (Recommended) · **Tylko commit** · **Jeszcze
    nie**. Greg may check the files with `prefix+o` before answering. When the
    branch or worktree differs from the session's cwd or from the branch Greg
@@ -64,21 +67,17 @@ monorepo above all). Those prompts are the design.
 
 - **Stage in a temp index, or not at all, before the popup.** `git add` into
   the shared index while Greg reads the popup lets another agent's `git
-  commit` take your path: `717259e` (someone else's sketchybar commit) carried
-  `scriptc/workctl.ts`, and the own commit then said "nothing to commit"
-  (b1c79075). Use `g-commit`'s `GIT_INDEX_FILE=<scratch>/idx` flow, or build
+  commit` take your path (`scriptc/workctl.ts` rode along, b1c79075). Use `g-commit`'s `GIT_INDEX_FILE=<scratch>/idx` flow, or build
   the preview from `git diff --stat -- <paths>` and after the answer run
   `git commit -q -m "…" -- <paths> && git push` (`git add -N` new files first).
 - **`git pull --rebase` only after your commit**, right before the push. On a
-  dirty shared tree it dies with "commit or stash"; before the commit use
-  `git fetch` + `git log --oneline HEAD..origin/<branch> -- <paths>`, and
-  don't repeat the pull after that error (28ca873d). After the commit on a
-  tree with other agents' changes (in dotfiles `dot_config/tuios/config.toml`
-  is dirty most of the time): `git fetch` + `git rev-list --left-right --count
-  HEAD...origin/<branch>`; nothing behind → `git push`, behind → one line, no
-  pull. **Never `git stash` in a shared checkout**, not even for a moment: it
-  hides other agents' files. Compare with HEAD through `git show
-  HEAD:<path> > <scratch>/<file>` (127b663a, 30c41c3e).
+  dirty shared tree it dies with "commit or stash": before the commit use `git
+  fetch` + `git log --oneline HEAD..origin/<branch> -- <paths>`. After the
+  commit on a tree with other agents' changes: `git fetch` + `git rev-list
+  --left-right --count HEAD...origin/<branch>`; nothing behind → `git push`,
+  behind → one line, no pull. **Never `git stash` in a shared checkout**: it
+  hides other agents' files. Compare with HEAD through `git show HEAD:<path> >
+  <scratch>/<file>` (28ca873d, 127b663a).
 - **Anything that starts CI goes after a verified push.** Chain commit → push
   → label or dispatch with `&&`, or check `git rev-parse HEAD` equals
   `git rev-parse @{u}` first. A commit that died on `index.lock` still let a

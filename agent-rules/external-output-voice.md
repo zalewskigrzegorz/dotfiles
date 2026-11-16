@@ -86,12 +86,11 @@ osobne wiadomości").
 
 ## Telling a customer to trace an email — search criteria, not our ID
 
-When the outward-facing text asks someone (a customer, their IT, a partner's
-admin) to check whether an email arrived, give them **sender address + subject +
-timestamp window** — the fields an Exchange or Google message trace actually
-searches on. **Never hand over our internal SES `Message-ID`**: it is opaque
-outside our system and useless until they already hold the message. Caught on a
-draft to a customer's admin, 2026-09-22 ("id mu przecież nic nie da").
+When the text asks someone (a customer, their IT, a partner's admin) to check
+whether an email arrived, give them **sender address + subject + timestamp
+window**, the fields a message trace searches on. **Never hand over our
+internal SES `Message-ID`**: it is opaque outside our system ("id mu przecież
+nic nie da", 2026-09-22).
 
 ## Customer-facing text promises only what the source says
 
@@ -143,9 +142,8 @@ his own name goes through `greg-voice` instead.
 ## A mail in Greg's name carries only his facts and asks
 
 A formal mail to a notary was drafted without `greg-voice` and with two lines
-Greg never gave: "koszt 300 zł brutto jest dla mnie w porządku" and "mogę
-wystąpić do sądu o te informacje". He rewrote the second one himself before
-sending (2026-10-21).
+Greg never gave ("koszt 300 zł brutto jest dla mnie w porządku", "mogę
+wystąpić do sądu o te informacje") (2026-10-21).
 
 - **Run `greg-voice` on a mail to a notary, court, office or firm** even when
   the draft goes through `spark draft` and Greg will read it first.
@@ -153,3 +151,10 @@ sending (2026-10-21).
   would take). Put it in the draft as a question to him or leave it out.
 - **Unknown facts stay unknown in the text** ("nie wiem, czy…"); don't fill
   them with a plausible guess, and let him change the wording.
+- **The same holds for a Slack draft through `g-slack`.** "Zapytaj X czy …"
+  is a question, no recommendation he did not give. Facts you checked go on
+  their own line above the draft (05b043b3).
+- **Work done with an agent is "I" outward**, "we" only when he speaks for the
+  team (1e9327a9).
+- **A review comment about a finding** gives the effect for a user and one ask.
+  Function names and mechanism stay in the verdict to Greg (1e67bfbf).

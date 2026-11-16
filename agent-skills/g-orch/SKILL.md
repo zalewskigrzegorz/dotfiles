@@ -69,7 +69,37 @@ Every brief is the child's whole world. Always:
   matching`, checked 2026-10-27), so the subject's slug names the sender;
 - for code: the base, the worktrees other agents own, "present a plan and
   wait for ok", `g-commit` + `g-pr` draft, and the "is the bug still there"
-  check from tuios-orchestration before the first edit.
+  check from tuios-orchestration before the first edit. Commit types: "see
+  `commitlint.config.js`", the worker may not load `g-commit`;
+- a fan-out of several agents on one app (one process, one dev install): the
+  brief says no `install-dev` and no popup about a live test. Each worker
+  ends with `check`, commit, PR and a `done` mail with 1-2 lines "what to
+  check by hand" and "not live-tested" in the PR body. The orchestrator tests
+  once, on a combined build, step by step with Greg (4 sessions: Greg answered
+  every "may I replace the running app" with "the orchestrator tests"). A
+  read-only step (a file, a log) stays allowed;
+- after a refused `admin` grant (`refused for this pane … admin grant`) the
+  worker stops: no second mail, the report is queued in bazgroly. One
+  `tuios pane-grants` so the list is real, then it writes one line for Greg,
+  the real command with its own ids and the current grants plus `admin`, into
+  the split from the `sudo` rule. No "how to deliver" popup and no options in
+  prose. After his "poszło" it sends the queued reports in one mail (one
+  worker mailed the same refusal 3 times and the orchestrator got no report
+  all session);
+- a task limited by CODEOWNERS: exact versions and the excluded paths. The
+  worker compares `git diff --name-only` with `.github/CODEOWNERS` before the
+  commit and mails everything outside its scope;
+- a docs task: load the docs style skill, and before writing run `git log
+  --since=2.months -i --grep=rename` and grep the old names (an old product
+  name reached the text once). Bot version targets in a brief are a minimum
+  ("≥"), check `git ls-remote --tags` and `docker buildx imagetools inspect`
+  for tools from a Dockerfile before the spawn. A change outside the scope is
+  a line to the orchestrator, not a popup to Greg;
+- the `done` mail has a fourth line `side effects outside the repo: <flags,
+  Slack, prod, none>`. When "missing" holds what Greg asked about, the
+  orchestrator closes the gap itself;
+- Greg at the Mac, watching: "do not ask 'are you at the Mac', name the
+  dialog he must click in the final mail" until he says "nie ma mnie".
 
 Greg's stance goes into the brief verbatim when the task is an argument (a
 review, a reply): the agent argues it with evidence from the repo, it doesn't
@@ -101,9 +131,23 @@ Code tasks: `workctl … --action wt-full --yes --no-focus`, find the window by
 spawn line once: "5 agentów: 2× Opus (PR, review), 3× Sonnet (maile, Slack),
 ETA ~15 min".
 
+`sprawa set agent=` takes a full window UUID from the current tuios session
+or the `agentId` from `Agent`, not a prefix. A `workctl` window lives in
+another session: `set status` plus a `note` with the window id, no `agent=`
+and no second try (one session got `No subagent or tuios window with id` 12
+times, twice per item). Close those items by hand after the report.
+
+Before a spawn on review feedback count the unresolved threads (`reviewThreads`
+with `isResolved`). Zero means no spawn, one line "#N: 0 open threads". For a
+task scoring 4 or more, after `workctl` close the default agent window and
+`tuios start-agent claude … -- --model opus --cwd <worktree>`. The spawn line
+states the model read from the agent, not the one assumed.
+
 ## 4. Supervise
 
-Results come by mail. One background wait (`run_in_background`, it outlives
+Results come by mail. In the same turn as the spawn start a second watcher
+on `needs_input`: `tuios wait-for agent-state --any-session --until needs_input
+--timeout <ms>` (verified in `--help`, 2026-11-17). One background wait (`run_in_background`, it outlives
 the Bash tool's 10 min), then read:
 
 ```bash

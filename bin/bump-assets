@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+"""bump-assets — bump the `?v=N` cache-buster of static assets in one go.
+
+Every reference to the asset (in *.html, *.css, *.js under the root) gets the
+same new number: the highest one found + 1, so pages that drifted apart line up
+again. Replaces a hand-rolled `perl -pi` loop per page (71932365: site.css 12→15
+in four tries).
+
+  bump-assets site.css site.js [--root site]   # bump; prints old→new per asset
+  bump-assets --check [--root site]            # exit 1 when one asset has several ?v=
+  bump-assets --self-test
+"""
+import os
+import re
+import sys
+import tempfile
+
+EXTS = (".html", ".css", ".js")
+REF = re.compile(r"(?P<path>[\w./-]+)\?v=(?P<v>\d+)")
+
+
+def files(root):
+    for d, dirs, names in os.walk(root):
+        dirs[:] = [x for x in dirs if not x.startswith(".") and x != "node_modules"]
+        for n in names:
+            if n.endswith(EXTS):
+                yield os.path.join(d, n)
+
+
+def versions(root):
+    """{asset basename: {version: [files]}}"""
+    out = {}
+    for f in files(root):
+        for m in REF.finditer(open(f, encoding="utf-8").read()):
+            out.setdefault(os.path.basename(m["path"]), {}).setdefault(int(m["v"]), []).append(f)
+    return out
+
+
+def bump(root, assets):
+    found = versions(root)
+    missing = [a for a in assets if a not in found]
+    if missing:
+        sys.exit(f"bump-assets: no ?v= reference to {', '.join(missing)} under {root}")
+    new = {a: max(found[a]) + 1 for a in assets}
+    for f in files(root):
+        text = open(f, encoding="utf-8").read()
+        repl = REF.sub(lambda m: f"{m['path']}?v={new[os.path.basename(m['path'])]}"
+                       if os.path.basename(m["path"]) in new else m[0], text)
+        if repl != text:
+            open(f, "w", encoding="utf-8").write(repl)
+    for a in assets:
+        print(f"{a}: {','.join(map(str, sorted(found[a])))} → {new[a]}")
+    return new
+
+
+def check(root):
+    bad = {a: v for a, v in versions(root).items() if len(v) > 1}
+    for a, v in bad.items():
+        print(f"{a}: " + "  ".join(f"v{n} in {', '.join(fs)}" for n, fs in sorted(v.items())))
+    return 1 if bad else 0
+
+
+def self_test():
+    with tempfile.TemporaryDirectory() as d:
+        os.makedirs(f"{d}/try")
+        open(f"{d}/index.html", "w").write('<link href="/assets/site.css?v=15"><script src="/assets/site.js?v=3">')
+        open(f"{d}/try/index.html", "w").write('<link href="/assets/site.css?v=12"><link href="/try/try.css?v=27">')
+        assert check(d) == 1
+        assert bump(d, ["site.css"]) == {"site.css": 16}
+        assert open(f"{d}/try/index.html").read() == '<link href="/assets/site.css?v=16"><link href="/try/try.css?v=27">'
+        assert '/assets/site.js?v=3"' in open(f"{d}/index.html").read()
+        assert check(d) == 0
+    print("bump-assets self-test: ok")
+
+
+def main(argv):
+    if argv == ["--self-test"]:
+        return self_test()
+    root, assets, do_check, it = ".", [], False, iter(argv)
+    for a in it:
+        if a == "--root":
+            root = next(it, ".")
+        elif a == "--check":
+            do_check = True
+        elif a.startswith("-"):
+            sys.exit(f"bump-assets: unknown flag {a}")
+        else:
+            assets.append(os.path.basename(a))
+    if do_check:
+        sys.exit(check(root))
+    if not assets:
+        sys.exit("usage: bump-assets <asset…> [--root DIR] | --check [--root DIR] | --self-test")
+    bump(root, assets)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

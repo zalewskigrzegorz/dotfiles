@@ -44,8 +44,14 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$query" ] || usage 2
 
+# Union search dies on a chroma compactor error now and then (91e5b4db); the stock CLI still answers.
+fallback() {
+  echo "mp-search failed, falling back to \`mempalace search\` (vector only: a rare token may miss)" >&2
+  exec mempalace search "$query"
+}
+
 MP_QUERY="$query" MP_LIMIT="$limit" MP_WING="$wing" MP_ROOM="$room" \
-MP_STRATEGY="$strategy" "$PY" - <<'PYEOF'
+MP_STRATEGY="$strategy" "$PY" - <<'PYEOF' || fallback
 import os, sys, textwrap
 from mempalace.searcher import search_memories
 

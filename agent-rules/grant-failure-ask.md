@@ -36,3 +36,8 @@ Silently working around the denial can undo something he was intentionally doing
    <app>` and the bundle's mtime, then which process `tccd` names as
    responsible (a `screencapture` from an agent counts as Ghostty, not tuios),
    then anything that modifies the bundle. Reset stays Greg's call (rule 1).
+   A second cause: the PiP patch ad-hoc re-signs Ghostty after each update
+   (`agent-desktop status` `denied` with `auth_value=2`, `codesign --verify`
+   failing, `-67050` in `tccd`). Greg removes Ghostty with `−` in Accessibility
+   and Screen Recording, adds it with `+`, Touch ID. You check `status` and one
+   `snapshot`. The patch stays (5f10fa56).

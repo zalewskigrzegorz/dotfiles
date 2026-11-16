@@ -10,7 +10,10 @@
 #   ch-query 'SELECT …' --raw                   # Grafana's frames JSON
 set -euo pipefail
 
-[ $# -ge 1 ] || { echo "usage: ch-query '<sql>' [--uid U] [--start S] [--end E] [--json|--raw]" >&2; exit 2; }
+usage="usage: ch-query '<sql>' [--uid U] [--start S] [--end E] [--json|--raw]"
+# `--help` as $1 went to Grafana as SQL ("HTTP 400: Empty query", b0c06acf).
+case ${1:-} in -h|--help) echo "$usage"; exit 0 ;; esac
+[ $# -ge 1 ] || { echo "$usage" >&2; exit 2; }
 CHQ_SQL=$1; shift
 CHQ_UID="" CHQ_START=now-90d CHQ_END=now CHQ_OUT=tsv
 while [ $# -gt 0 ]; do

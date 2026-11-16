@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""nc-dump — print a binary plist as JSON, nested bplist blobs decoded.
+
+`plutil -convert json` refuses plists that hold <data> or <date>, which is every
+Notification Center plist, so sessions rewrote an inline plistlib one-liner 18x
+(73cbb557). Default input is the per-app notification settings plist.
+
+  nc-dump                      # usernoted prefs (may need Full Disk Access)
+  nc-dump <file.plist | ->     # any plist; `-` reads stdin (a blob from the NC db)
+  nc-dump --self-test
+
+Bytes that are a plist themselves are decoded in place; other bytes become
+{"$bytes": <len>, "utf8"|"b64": …}; dates become ISO strings.
+"""
+import base64
+import datetime
+import json
+import os
+import plistlib
+import sys
+
+DEFAULT = os.path.expanduser(
+    "~/Library/Group Containers/group.com.apple.usernoted/Library/Preferences/group.com.apple.usernoted.plist")
+
+
+def plain(v):
+    if isinstance(v, dict):
+        return {str(k): plain(x) for k, x in v.items()}
+    if isinstance(v, (list, tuple)):
+        return [plain(x) for x in v]
+    if isinstance(v, (bytes, bytearray)):
+        if v[:8] == b"bplist00" or v.lstrip()[:5] == b"<?xml":
+            try:
+                return plain(plistlib.loads(bytes(v)))
+            except Exception:
+                pass
+        try:
+            return {"$bytes": len(v), "utf8": v.decode("utf-8")}
+        except UnicodeDecodeError:
+            return {"$bytes": len(v), "b64": base64.b64encode(v).decode()}
+    if isinstance(v, datetime.datetime):
+        return v.isoformat()
+    if isinstance(v, plistlib.UID):
+        return {"$uid": v.data}
+    return v
+
+
+def self_test():
+    inner = plistlib.dumps({"flags": 8198}, fmt=plistlib.FMT_BINARY)
+    outer = plistlib.dumps({"apps": [{"bundle-id": "com.x", "blob": inner, "raw": b"\xff\x00",
+                                      "at": datetime.datetime(2026, 11, 17, 9, 0)}]},
+                           fmt=plistlib.FMT_BINARY)
+    got = plain(plistlib.loads(outer))
+    app = got["apps"][0]
+    assert app["blob"] == {"flags": 8198}, app
+    assert app["raw"] == {"$bytes": 2, "b64": "/wA="}, app
+    assert app["at"] == "2026-11-17T09:00:00", app
+    json.dumps(got)
+    print("nc-dump self-test: ok")
+
+
+def main(argv):
+    if argv == ["--self-test"]:
+        return self_test()
+    if len(argv) > 1:
+        sys.exit("usage: nc-dump [file.plist | -] | --self-test")
+    src = argv[0] if argv else DEFAULT
+    try:
+        data = sys.stdin.buffer.read() if src == "-" else open(src, "rb").read()
+    except PermissionError:
+        sys.exit(f"nc-dump: no access to {src} (Full Disk Access for the terminal?)")
+    json.dump(plain(plistlib.loads(data)), sys.stdout, indent=1, ensure_ascii=False)
+    print()
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

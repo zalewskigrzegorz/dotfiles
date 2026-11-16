@@ -47,6 +47,10 @@ default *inside* the popup by marking it `(Recommended)` and putting it first.
   options: the harness always appends free text.
 - **Use `preview`** when the options are concrete artifacts to compare — layouts,
   snippets, config shapes.
+- **Visual options are shown, not described.** Icon, colour, layout, or ≥3
+  settings in ≥2 places: an `Artifact` with the variants side by side (or a
+  PNG via `open-here`), end the turn, a label-only popup after. ASCII in
+  `preview` only for configs and commands, no emoji as icons (1e0c2dec).
 - **The popup covers the message above it.** If the decision is *about* a text
   (a Slack draft, a PR body, a commit message, a snippet), that text goes into
   the `preview` of the options — not into the prose before the popup. Seen
@@ -76,21 +80,14 @@ About 15 popups were rejected in one week. Every one broke one of these:
   still live. With ≥3 items that need separate decisions, explain them one by
   one first, then ask one at a time (ba0bc1ce, 72ff3ae5).
 - **A vague opening request gets its reading stated first.** "Kupiliśmy X,
-  zobacz w mailach" → the first reply says in one sentence what you took it to
-  mean ("rozumiem: przyłącze = gniazdo wallboxa w garażu"), then the result. A
-  popup comes only after that. "Przyłącze siły" read as the house connection
-  produced two rejected popups in a row (1734eed7). A "clarify" there means the
-  reading was wrong: restate it, don't re-ask the fork. Two more shapes:
-  "zobaczysz <link do wątku review / issue>" → read that comment within the
-  first two tool calls and say in one sentence what it asks and on which
-  database, before the long research ("o co wogole chodzi?" after ~25 silent
-  calls, 02c6f9fd). "Czy X może być przydatne dla mnie / na labie" → one
-  `recall(max_tokens=512)` on his stack (lab services, Tina) before naming a
-  use case, then the reading in one line, then the verdict (fda7a24d: Laya
-  judged for Firefly, he meant Tina). "Zobacz maila od <X>" → one sentence on
-  who wrote, what they want and what the product they mention is (one check of
-  its repo or site), then the popup. "Co robimy z mailem?" first got "a co to
-  za narzędzie?" (f14da52d).
+  zobacz w mailach" → one sentence on what you took it to mean ("rozumiem:
+  przyłącze = gniazdo wallboxa w garażu"), then the result, a popup only
+  after (1734eed7). A "clarify" means the reading was wrong: restate it. Other
+  shapes: "zobaczysz <link do wątku>" → read that comment in the first two
+  calls and say what it asks (02c6f9fd). "Czy X może być przydatne na labie"
+  → one `recall(max_tokens=512)` on his stack first (fda7a24d). "Zobacz maila
+  od <X>" → who wrote, what they want and what their product is, then the
+  popup (f14da52d).
 - **His own proposal goes first.** When he writes his solution or asks for
   "za i przeciw", answer in plain text with his proposal named and its pros
   and cons. A popup comes after that, with his proposal as the first option,
@@ -103,7 +100,12 @@ About 15 popups were rejected in one week. Every one broke one of these:
   session goes out as `env -u TUIOS_PANE_ID tuios send-agent-message -s
   <session> …` without `--from`, the sender named in the text: with the env
   var set it fails `no window found matching` even when `--from` is dropped
-  (da31126c).
+  (da31126c). After the first `refused for this pane … admin grant`: stop,
+  don't resend (3× once), queue the report in bazgroly. `tuios pane-grants`
+  once, then the ready `tuios set-pane-grants -s <own session> -w <pane>
+  --grants <current>,admin` into the `sudo` split with one line (`admin`
+  reaches every session, undo = same command without it). No placeholder, no
+  "how to deliver" popup (873a454c).
 - **"Jak mam X" asks for the shortcut, not for X done.** "Jak ja mam to
   przenosić ręcznie" answered by moving the window for him got a "clarify"
   (127b663a). First line is the keys (`prefix+z`, `opt+shift+N`); doing it
@@ -114,9 +116,12 @@ About 15 popups were rejected in one week. Every one broke one of these:
   fact in one line ("2FA odrzucone przez Discord"), then a different route
   with its risk in one line. No "try again".
 - **No approve/send/do-it on something he has not read.** A new idea, a plan,
-  a snippet, a reply to a reviewer: explain it in plain paragraphs, end the
-  turn, and only then offer the popup. A question that fires right after the
-  idea is premature (fe835b87).
+  a snippet, a reply to a reviewer, a rendered preview he has not looked at
+  (README, SVG, page), a new prose file about to be committed, a proposal
+  over ~10 lines: explain it in plain paragraphs, end the turn, and only then
+  offer the popup (fe835b87). Show a preview with `open-here` or
+  `browsentic` (an `agent-browser` shot is your own check), then "napisz kk,
+  dam popup z commitem" (477bac71, 56e52b8b).
 - **A change made after his correction is shown before the commit popup.**
   He has not seen that diff yet: 3–5 plain lines on what changed in the code,
   end the turn, then the popup. "muszę zobaczyć co to" rejected a commit popup
@@ -141,12 +146,15 @@ About 15 popups were rejected in one week. Every one broke one of these:
   decide on a result or forward it: what was checked, what came out, what it
   means for his question. Function, table and column names come after it or
   not at all, and this happens before any popup or draft. "jaśniej" or "nie
-  rozumiem" means the first version skipped this step (c3fad0c2).
+  rozumiem" means the first version skipped this step (c3fad0c2). A worker
+  whose result goes to a file and a mail opens with the verdict ("prod
+  zdrowy, błąd jest w raporcie") before any "send" popup (585c8429). A local
+  setup that masks the bug opens with "lokalnie nie da się zweryfikować, bo
+  <różnica env>", and "zielone" never stands alone (6a89b245).
 - **A step that touches a database, a dump or a deploy names its target
   first.** Host, database, env, and whether anything leaves the machine:
-  "lokalnie, `prod_rehearsal` w `<co>-postgres-1`, nic nie wychodzi". The
-  same goes for status lines during a long run. Greg: "Pisz takie rzeczy żeby
-  się nie okazało że nagle coś leci na proda" (a261ac7f).
+  "lokalnie, `prod_rehearsal` w `<co>-postgres-1`, nic nie wychodzi", in
+  status lines during a long run too (a261ac7f).
 
 ## When NOT to popup
 
@@ -180,11 +188,23 @@ About 15 popups were rejected in one week. Every one broke one of these:
   get no reply text. Speak on the first error, on done, or when he has a
   decision to make; give the ETA once at the start. Nine status turns in a row
   during one `pnpm start` re-read the context for nothing (b5eb5403).
+- **A review note marked non-blocking / minor / nit** gets "odpisuję, że
+  non-blocking" in one sentence. Popup only for a blocking one (94d308ee).
+- **"Daj mi prompta / komendę / URL"** is plain text in a code block, run only
+  after "odpal". A missing value: `recall` / `mempalace_search`, then one
+  sentence, never a window with an empty `input` (91e5b4db).
+- **"Zapytaj, czy dobrze rozumiesz"** is your reading in one sentence, no
+  popup (f8fda42d).
+- **Before a popup about creating something** (repo, branch, release) check
+  it doesn't exist (`gh repo view`, `git ls-remote`). A queue shown in the
+  bar needs no "which first": take the first (df40e3b5).
+- **A step the brief names** (draft PR) counts as chosen (37461a16). Brief
+  forbids a push and he says "pushujemy": first line "commit `<sha>`, push
+  zrobi orchestrator (mail wysłany)" (c8e91e0e).
 
 - **An audit or review of his own branch that he ordered → fix everything you
-  judge right.** "Co z tego poprawiamy?" after `ponytail-audit` was rejected,
-  then "czyścimy wszystko co znalazłeś" (c333538c). Report in one line what
-  you left and why. A popup only for a single finding with an irreversible
+  judge right** ("czyścimy wszystko co znalazłeś", c333538c). Report in one
+  line what you left and why. A popup only for a single finding with an irreversible
   effect outside the branch (deleting a secret in AWS), effect named in
   `description`.
 - **An audit of the thing the conversation is about** ("odpalimy audyt tego
@@ -199,17 +219,15 @@ About 15 popups were rejected in one week. Every one broke one of these:
 
 An `AskUserQuestion` popup in a tuios pane is on the screen **and** a row in
 his Inbox (prefix+i): the `tuios agent-hook claude-code` hooks report it as
-`needs_input`, and a digit on the row answers it (verified with Greg
-2026-10-29). That holds for unattended tabs too: a `workctl` / `bin/pr-brief`
-tab with its `Raport:` line, or a `tuios start-agent --prompt` / `tuios queue`
-worker.
+`needs_input`, and a digit on the row answers it (verified 2026-10-29). That
+holds for unattended tabs too (`workctl` / `bin/pr-brief` tabs, `tuios
+start-agent --prompt` / `tuios queue` workers).
 
-`tuios ask-human` puts the question in the Inbox only. The agent's screen
-shows a running Bash call, so a looked-at agent "just hangs" with nothing to
-answer (2026-10-29: "patrzę na agenty i one nic nie robią tylko wiszą"). Don't
-use it. A draft he must read before a popup still goes first as mail
-(`tuios send-agent-message -w human --from "$TUIOS_PANE_ID" --subject '<one
-line>' '<the text>'`) or into the popup's `preview`.
+`tuios ask-human` puts the question in the Inbox only, while the agent's
+screen shows a running Bash call, so a looked-at agent "just hangs"
+(2026-10-29). Don't use it. A draft he must read before a popup goes first as
+mail (`tuios send-agent-message -w human --from "$TUIOS_PANE_ID" --subject
+'<one line>' '<the text>'`) or into the popup's `preview`.
 
 ## A live test Greg runs: one step per popup
 
@@ -231,6 +249,22 @@ repro):
   Esc lands on the popup itself and rejects it (5bbce6cf). The options say what
   to do in the other pane ("Odrzuciłem pytanie w panelu" / "Coś nie tak"), or
   the agent sends the key itself with `tuios send-keys`.
+- **Before every step's popup check the artifact is still alive.** A fixture
+  that expires (banner timer, toast, hover) is armed only after his "gotowy"
+  or made persistent (c8e91e0e, a67ff6c4).
+- **A log or shot that settles it** (`timeout 15 screencapture -x -R
+  x,y,w,h`, `tuios screenshot`) is stated in one sentence, he gets asked only
+  for the feel ("za szybko?"). Threshold steps get "działa, ale…" (12d387ae).
+- **An external event (Slack reminder, mail, webhook) you fire yourself**
+  (test notification, curl, CLI). His step is "popatrz" or "kliknij" (5d8763b3).
+- **Before "kliknij X" check X is visible** (profile flags, API, a shot).
+  "Kliknij A, potem B" is two popups (bb7f0a72).
+- **Every step gives literal keys** (`prefix+n`, checked with `tuios keybinds
+  list`) and the picker filter text ("wpisz `zoom` + Enter"). A TCC grant for
+  a CLI binary is "zaznacz plik i kliknij Open": you type the path, the file
+  lies in view (`open-here -R <file>`) (5f621afd, b0fd0aad).
+- **A test with an observer** (colleague, QA): announce, wait for "gotowy",
+  one step per his sign, test messages marked as test (e0d05ff6).
 
 ## Forgiveness & recovery framing
 

@@ -31,9 +31,21 @@ test('each popup rule fires', () => {
   for (const part of ['over 12 chars', 'has a number', 'only makes sense', 'no description', 'first option only', 'single-select', 'Other is added'])
     expect(p).toContain(part)
   expect(popupProblems([good, good, good]).join()).toContain('at most 2 questions')
-  expect(popupProblems([{ ...good, options: [good.options[0]] }]).join()).toContain('2-4 options')
-  const long = { ...good, options: [{ ...good.options[0], preview: 'x\n'.repeat(16) }, good.options[1]] }
+  expect(popupProblems([{ ...good, options: [good.options[0]!] }]).join()).toContain('2-4 options')
+  const long = { ...good, options: [{ ...good.options[0]!, preview: 'x\n'.repeat(16) }, good.options[1]!] }
   expect(popupProblems([long]).join()).toContain('over 15 lines')
+})
+
+test('the number deny names the token that tripped it', () => {
+  for (const [q, tok] of <[string, string][]>[['Wpisać hasło z 1Password?', '"1Password?"'], ['Odpalamy e2e teraz?', '"e2e"'], ['Mergujemy PR #31204?', '"#31204?"']])
+    expect(popupProblems([{ ...good, question: q }]).join()).toContain(tok)
+})
+
+test('a popup asking Greg to open a URL is denied', () => {
+  expect(popupProblems([{ ...good, question: 'Otwórz https://example.com/settings i kliknij Save?' }]).join()).toContain('browsentic')
+  expect(popupProblems([{ ...good, question: 'Wejdź na https://example.com?' }]).join()).toContain('browsentic')
+  expect(popupProblems([{ ...good, question: 'Otwórz panel ustawień?' }])).toEqual([])
+  expect(popupProblems([{ ...good, question: 'Zostawiamy link https://example.com w PR?' }])).toEqual([])
 })
 
 test('agent spawns', () => {
@@ -82,6 +94,49 @@ test('an unbraced zsh modifier after a variable is denied, ports and paths pass'
   expect(bashProblem('export PATH=$PATH:/usr/bin')).toBeUndefined()
   expect(bashProblem('curl http://$host:8080')).toBeUndefined()
   expect(bashProblem("rg '$x:t' file")).toBeUndefined()
+  expect(bashProblem('git show $r:apps/x.ts')).toContain('zsh modifier')
+  expect(bashProblem('git show "$B:src/a.ts"')).toContain('zsh modifier')
+  expect(bashProblem('curl $HOST:8080')).toBeUndefined()
+  expect(bashProblem('open http://$h:3000')).toBeUndefined()
+})
+
+test('tier three traps: bare cat, unsplit $VAR, gh api ?, rtk proxy content, op without AT_MAC', () => {
+  const cases: [string, string | undefined][] = [
+    ["cat > /tmp/x 2>/dev/null; python3 - <<'EOF'\nprint(1)\nEOF", 'no stdin'],
+    ['x=$(cat)', 'no stdin'],
+    ['cat', 'no stdin'],
+    ["cat > /tmp/x <<'EOF'\nhi\nEOF", undefined],
+    ["cat > hook.sh <<'EOF'\nINPUT=$(cat)\nEOF", undefined],
+    ['cat a.txt b.txt', undefined],
+    ['cat -n a.txt', undefined],
+    ['cat < a.txt', undefined],
+    ['git log | cat', undefined],
+    ['echo "cat"', undefined],
+    ['L="mise exec -- ./lde"; $L build', 'word-split'],
+    ['L="mise exec -- ./lde" && ${L} build', 'word-split'],
+    ['L="mise exec -- ./lde"; ${=L} build', undefined],
+    ['msg="hello world"; git commit -m "$msg"', undefined],
+    ['d="a b"; ls "$d"', undefined],
+    ['gh api repos/o/r/contents/action.yml?ref=abc', 'unquoted `?`'],
+    ["gh api 'repos/o/r/contents/action.yml?ref=abc'", undefined],
+    ['gh api repos/o/r/pulls/1 --jq .title', undefined],
+    ['rtk proxy rg -n foo src', 'existence checks'],
+    ['rtk proxy rg -C3 foo src', 'existence checks'],
+    ['rtk proxy rg -ne foo src', 'existence checks'],
+    ['rtk proxy rg --context=2 foo src', 'existence checks'],
+    ['rtk proxy rg -l foo src', undefined],
+    ['rtk proxy rg --files -g x src', undefined],
+    ['rtk proxy rg -o foo min.js', undefined],
+    ['rg -n -C3 foo src', undefined],
+    ['env -u OP_SERVICE_ACCOUNT_TOKEN timeout 60 op item get x', 'AT_MAC=1'],
+    ['AT_MAC=1 env -u OP_SERVICE_ACCOUNT_TOKEN timeout 60 op item get x', undefined],
+    ['op whoami', undefined],
+  ]
+  for (const [cmd, want] of cases) {
+    const got = bashProblem(cmd)
+    if (want === undefined) expect(got).toBeUndefined()
+    else expect(got).toContain(want)
+  }
 })
 
 test('rule-file traps are denied, their correct forms pass', () => {

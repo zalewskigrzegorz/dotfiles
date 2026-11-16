@@ -1,6 +1,6 @@
 ---
 name: g-pr-review
-description: Review SOMEONE ELSE'S pull request as the reviewer. Two modes, auto-picked — a fresh review (orient with a what/why summary + focus popup → analyze the diff → voiced draft comments dropped into a tuicr split under the agent's pane, where Greg edits, deletes and sends them himself with :submit), or a follow-up when you already reviewed and the author replied (handle their responses, optionally update the verdict). Fetches unresolved threads and bot inline comments, asks per finding/thread in one AskUserQuestion each, chained (recommendation each), drafts English comments/replies, humanizes them, posts via gh. Use whenever you want to review a PR, leave PR comments, approve/request changes, or respond to the author on a PR you're reviewing — current branch, PR number, or PR URL. If the PR is YOURS and you're answering reviewers, use g-pr-respond instead.
+description: Review SOMEONE ELSE'S pull request as the reviewer. Two modes, auto-picked — a fresh review (orient with a what/why summary + focus popup → analyze the diff → voiced draft comments dropped into the agent's own tuicr workspace, where Greg edits, deletes and sends them himself with :submit), or a follow-up when you already reviewed and the author replied (handle their responses, optionally update the verdict). Fetches unresolved threads and bot inline comments, asks per finding/thread in one AskUserQuestion each, chained (recommendation each), drafts English comments/replies, humanizes them, posts via gh. Use whenever you want to review a PR, leave PR comments, approve/request changes, or respond to the author on a PR you're reviewing — current branch, PR number, or PR URL. If the PR is YOURS and you're answering reviewers, use g-pr-respond instead.
 ---
 
 # g-pr-review
@@ -23,7 +23,7 @@ Conversation can be in any language. **Anything posted to GitHub (review bodies,
 
 # Shared primitives
 
-Read `../g-pr-common/PRIMITIVES.md` now. It carries P0 (local-first
+Read `../g-pr-common/PRIMITIVES.md` now, once, with `Read` (not `cat`, ~3k tokens each time). It carries P0 (local-first
 resolution + identity cache), P1 (target resolution), P3 (`AskUserQuestion`
 conventions), P4 (duplicate clustering), P5 and P5.5 (comment rules and the
 mandatory voice gate), P6 (blob links), P7 (scripts location), P8 (rate
@@ -72,6 +72,8 @@ State the detected mode in one line before proceeding. User override always wins
 Token-frugal: analyze silently, then hand the drafts over in tuicr. Never dump the diff or a long markdown report into chat — the drafts sit on their lines in the diff.
 
 ## B1. Get the diff
+
+First `gh pr view "$NUMBER" --json changedFiles --jq .changedFiles`. Over 300 files GitHub refuses the diff (HTTP 406 `too_large`): skip B3 and go straight to the popup flow from the `g-pr-review-popups` tag (one popup per draft from Critical down, PR number outside `question`, one review after the verdict).
 
 If `USE_LOCAL=true` from P0:
 
@@ -128,6 +130,8 @@ Categories — only surface things that genuinely matter:
 
 **A finding that hinges on a dependency.** When it depends on what an external package does, `ls <worktree>/node_modules/<pkg>` first. Missing → don't loop on `realpath`: `cd <scratchpad> && npm pack <pkg>@<version from the lockfile> && tar -xzf <pkg>-*.tgz`, then read `package/dist` (two empty `realpath` tries first on 2026-10-06).
 
+**Check every finding before it is voiced.** A subagent's finding is read against the code and the PR body first, before greg-voice and before the first popup (an approved comment about a `window_ms` limit turned out wrong). Put "checked / not checked" in the `description`.
+
 Per finding, record: `severity` (Critical / Suggestion / Nit), `path`, `line`, one-line `title`, one-line `why`, exact `comment_body`, `recommended_action` (Post / Skip).
 
 **Anchoring:** `line` must appear in the diff (right side for added/changed, `side: "LEFT"` for removed). If un-anchorable → fold into the review summary body instead of posting inline.
@@ -167,6 +171,8 @@ tuicr review add --session "$SLUG" --username Wintermute --type issue \
 
 `--side old` for removed lines. An un-anchorable finding (B2) is a review-level comment: omit `--target-file`. Duplicates clustered per P4 go in as one comment.
 
+A finding that changes who has access or which path runs gets a ```` ```mermaid ```` flowchart in the comment, between the description and the request. The chat verdict opens with "before: X, after: Y", no symbol names. "Dodaj graf" in a review means a diagram in the PR comment, never ASCII in chat.
+
 **Verify every anchor.** A comment on a line outside the diff is stored and exits 0, but never renders, so Greg never sees it. After the last add, `tuicr review comments --session "$SLUG"` and check each `start_line` against the diff hunks on the side given. A miss → `tuicr review delete --session "$SLUG" --comment-id <id>` and re-add it at the nearest changed line or as review-level.
 
 Zero findings → no drafts; the split still opens so Greg can look and approve.
@@ -174,7 +180,7 @@ Zero findings → no drafts; the split still opens so Greg can look and approve.
 Then end the turn with ≤ 3 lines, no popup:
 
 * the verdict you'd pick and why, in one sentence: **Request changes** with any `issue`, **Approve** with only nits or nothing, **Comment** with non-trivial suggestions. Red CI from the diff is never Approve; red CI proven unrelated (same job red on `main`, no overlap with `git diff --name-only origin/main...HEAD`) + zero findings → Approve with one review-level sentence naming the unrelated checks (31f0293b),
-* `N szkiców w tuicr poniżej: :summary lista, m/M skok, dd usuwa, c dodaje, :submit wysyła, q zamyka`.
+* `N szkiców w tuicr, workspace <k>. Szkic jest lokalny, na GitHubie dopiero po :submit, poleci pod Twoim kontem. W diffie m/M skok do szkicu, dd usuwa, c dodaje. :summary to tylko lista, Enter skacze do kodu.` Keys: `references/tuicr-keys.md`.
 
 Greg's `:submit` picks Comment / Approve / Request changes / Draft; nothing reaches GitHub before that. The review summary stays empty unless he writes one.
 
@@ -191,7 +197,7 @@ gh api "repos/$OWNER/$REPO/pulls/$NUMBER/reviews" --jq "[.[] | select(.user.logi
 * No new review and drafts still `local_draft` → he quit without sending: one line "nic nie poszło, szkice zostały w sesji `$SLUG`", and `tuicr-split` again on his word.
 * Session gone and no review → he deleted everything; say so in one line, then B6.
 
-Never run `:submit` for him, and never send the drafts through the API instead.
+Never run `:submit` for him, and never send the drafts through the API instead. A 5xx on `:submit`: read `reviews`, say in one line "nic nie poszło, `<code>`", and Greg repeats `:submit` in the same session. Sending through the API only with 0 drafts left in tuicr and after his word.
 
 ## C6. Submit via the API (Flow C verdict only)
 
@@ -235,8 +241,8 @@ Report the review URL (from `html_url` in the response). One line. Don't re-prin
 The review worktree is opened by `workctl`'s "review this PR" just for this session. Once the verdict is in, it isn't needed any more. This applies only when **all** of these hold: `git rev-parse --show-toplevel` sits under `~/Code/tree/wt-*`, `git branch --show-current` is the PR head, `git status --porcelain` is empty, and nothing was committed or pushed here (the "Author away, fix on their branch" override keeps its tree). If any check fails, there is nothing to do, so say nothing.
 
 * **`APPROVE` submitted → remove it without asking.** The review URL line ends with "zamykam worktree", and then `workctl rm --self` is the **last tool call** of the session. It deletes the tree and the local branch, then kills this tuios session together with this agent, so nothing printed after it will be seen.
-* **Anything else** (`REQUEST_CHANGES`, `COMMENT`, Don't submit, Flow C without a new verdict) → one `AskUserQuestion`: **Zamknij worktree** (Recommended): a follow-up "review this PR" opens a fresh tree in seconds · **Zostaw**: keeps it for a follow-up in this session. On Zamknij, same call as above.
-* **Unattended tab (P10)** → the same popup, with the verdict in its question, since the mail would die with the session. On Zostaw, or when a B6 check failed, send the P10 mail. APPROVE closes with no mail.
+* **Anything else** (`REQUEST_CHANGES`, `COMMENT`, Don't submit, Flow C without a new verdict) → no popup, one line: "worktree zostaje, zamkniesz `prefix+X`". The popup stays only for an unattended tab (below).
+* **Unattended tab (P10)** → one `AskUserQuestion`, **Zamknij worktree** (Recommended) or **Zostaw**, with the verdict in its question, since the mail would die with the session. On Zamknij, same call as above. On Zostaw, or when a B6 check failed, send the P10 mail. APPROVE closes with no mail.
 
 Never pass `--force`. A dirty tree makes `workctl rm` exit with "has uncommitted changes". Report that in one line and leave the tree in place.
 
@@ -281,7 +287,7 @@ Plus: scan `fetch-reviews.sh` output for **new** findings from other reviewers s
 
 ## C4. Post replies
 
-One `AskUserQuestion` per prepared reply, chained, then post via `gh api`. Drafted replies pass through greg-voice (P5.5) before the first popup.
+One `AskUserQuestion` per prepared reply, chained, then post via `gh api`. Drafted replies pass through greg-voice (P5.5) before the first popup. When `headRefOid` differs from the sha the draft was written against, run `gh api repos/$OWNER/$REPO/compare/<old>...<new>` first. If the comment text has to change, the new version goes through greg-voice and back to Greg before the post. An `APPROVE` on a newer sha after changes in the drafted files needs his "kk".
 
 ```
 Title: Post reply <n>/<total> · <path>:<line> → @<author>
@@ -332,7 +338,7 @@ Recommendation:
 
 With no new inline comment, `COMMENT` is not an option (see the C6 note on empty `comments`).
 
-If user picks a verdict, submit via C6 (pending review, then event). Either way, finish with B6.
+If user picks a verdict, "robimy approve" after checking the author's answer is a bare `APPROVE` with an empty body. A reply in a thread goes only through C3/C4 (voiced, behind an explicit Yes). Submit via C6 (pending review, then event). Either way, finish with B6.
 
 ---
 

@@ -219,6 +219,19 @@ To confirm what an SDK client will really receive, fetch the served payload for
 that environment's client key rather than reading `rules` in the admin API —
 the payload is the thing that decides.
 
+## A flag for the local UI
+
+A local flag is a rule on the `local-dev` environment in stage. It shows for
+everyone running a local stack, so remove it only after Greg's test. After a
+change wait ~60 s for the SDK cache and hard-refresh the page, no stack restart.
+
+## The description is durable text
+
+The sentence about behaviour with the flag off is confirmed with one `rg` on
+the gate in the code, or not written (one session wrote the opposite of what
+Greg said). After creating a flag the report gives the UI link, the flag
+description and the rule description as separate lines.
+
 ## Checklist
 
 Before saying a flag is done:

@@ -118,3 +118,10 @@ Load one only when you need it: `agent-desktop skills get desktop <reference>`.
 | `commands-interaction` | You choose between click, type, set-value, select, toggle, scroll, press and mouse commands, or you debug an action error |
 | `commands-system` | You launch or close apps, manage windows, use the clipboard, `wait`, `batch`, sessions, multi-agent cursors, tracing, or load skills |
 | `workflows` | You want worked patterns (forms, menus, dialogs, waiting for a new window, scroll-find, drag) and the anti-patterns list |
+
+## Local notes (Greg's dotfiles, re-add after an upstream refresh)
+
+- An element off screen: `references/offscreen-element.md`.
+- An element's ref is `.ref_id` in the JSON. `list-windows` returns an array in `.data`.
+- `PERM_DENIED`: first `agent-desktop skills get platform` and `grant-failure-ask`, not `tccd` logs.
+- Apps start in the background on another workspace. For a demo use `open-here -a <App>`.

@@ -12,13 +12,12 @@ pointless. A command that needs `sudo`, and **any command Greg must run
 himself**, goes into a new pane right under yours, where he is looking. Typing
 into his existing shell window was easy to miss (2026-10-27).
 
-1. `w=$(tuios split-window horizontal -w "$TUIOS_PANE_ID" --name do-wpisania --json | jq -r .window_id)`,
-   `[ -n "$w" ]`.
-2. `tuios send-text -w "$w" '<cmd>'` **without a trailing newline**, so no
-   Enter. The pane runs nushell (`zsh-bash-tool.md`).
-3. One line: it is waiting below, he presses Enter (and gives the password).
+1. `tuios-step send '<cmd>'` opens the split, types the command without
+   Enter and prints its id. The pane runs nushell, so it refuses `&&` and `$(…)`.
+2. One line: it is waiting below, he presses Enter (and gives the password).
    Side effects (`killall coreaudiod` cuts audio for ~2 s) go in that line.
-4. After his "poszło", verify the result yourself, then `tuios close-window "$w"`.
+3. After his "poszło", `tuios-step read` shows the pane's tail. Verify the
+   result yourself, then `tuios-step close`.
 
 No `TUIOS_PANE_ID` (outside tuios) → a numbered step in chat. Greg: "tak masz
 mi rozwiązywać odpalanie poleceń" (2b9b89b1, 2026-10-23).
@@ -34,7 +33,9 @@ Every deny is deterministic, so the same text fails the same way. One session
 resent `git add -A && git commit` and `2>/dev/null` on `rg` twice in a row and
 hit the popup checks five times (5bbce6cf). After a deny, change exactly what
 the message says before the next call. Before a popup: no digit in
-`question`, `header` ≤ 12 chars, no "Other".
+`question`, `header` ≤ 12 chars, no "Other". A digit is also `2FA`, `e2e`,
+`1Password`, a PR number, a version, an hour, `cmd+shift+5`. Read the whole
+`question`, not just the word you see (19 sessions).
 
 ## Transient `index.lock` during husky
 
@@ -83,22 +84,20 @@ instead of reading it whole.
 ## Slack poster token rotation: env var beats the file
 
 After rotating `WORK_SLACK_POSTER_TOKEN` the first send failed on
-`token_revoked`: sessions and shells started earlier still held the old token,
-and the scripts read the env var before `work.env` (2026-10-13). Rotation =
-update the `slack-poster-user-token` item **and** the line in the `WORK_ENV`
-document (`bin/sync` restores `work.env` from that document, not from the
-item). Test with `env -u WORK_SLACK_POSTER_TOKEN <script>`, and restart shells
-and sessions opened before the rotation (`/exit`, `claude --continue`). The
-token goes clipboard → consumer → `pbcopy < /dev/null`, never to stdout.
+`token_revoked`: older shells and sessions held the old value and the scripts
+read the env var before `work.env` (2026-10-13). Rotation = update the
+`slack-poster-user-token` item **and** the line in the `WORK_ENV` document
+(`bin/sync` restores `work.env` from it). Test with `env -u
+WORK_SLACK_POSTER_TOKEN <script>`, restart older shells and sessions. The value
+goes clipboard → consumer → `pbcopy < /dev/null`, never to stdout.
 
 ## A `uvx` MCP server locks the uv cache
 
-Every running `uvx <server>` holds the lock on `~/.cache/uv`, so `uv cache
-prune` in `disk-sweep` timed out with one lock per Claude session
-(2026-10-13). An MCP server is installed with `uv tool install` in stage 26 and
-started by its binary name, never through `uvx`. Diagnose with `ps -axo
-pid,etime,command | rg '[u]vx '`; sessions started before the change keep the
-lock until restarted.
+Every running `uvx <server>` holds `~/.cache/uv`, so `uv cache prune` in
+`disk-sweep` timed out (2026-10-13). An MCP server is installed with `uv tool
+install` in stage 26 and started by its binary name, never `uvx`. Diagnose:
+`ps -axo pid,etime,command | rg '[u]vx '`. Older sessions keep the lock until
+restarted.
 
 ## Private overlay edits: vault first, then `bin/sync`
 
@@ -116,13 +115,11 @@ Both denied by `guard` with the replacement (`tsc -p`, `vitest run`).
 
 ## A batch of `git mv` is one transaction
 
-A Python loop of `git mv` plus manifest edits died on `index.lock` about
-halfway through ~60 module moves. The manifest was not written yet, so the
-repo sat half-moved and validation failed on ENOENT (2026-10-02). For a bulk
-move: compute the full map first, write the reference files (manifests,
-configs) before the first move, move with plain `mv` (no index), then one
-`git add -A -- <literal paths>` at the end. If it dies anyway: `git status`,
-then resume from the first unfinished item, not from zero.
+A loop of `git mv` plus manifest edits died on `index.lock` halfway through
+~60 moves and left the repo half-moved (2026-10-02). Bulk move: compute the
+full map, write the reference files (manifests, configs) before the first
+move, move with plain `mv`, then one `git add -A -- <literal paths>`. If it
+dies anyway: `git status`, resume from the first unfinished item.
 
 ## `gh api`: removing a requested reviewer
 
@@ -133,26 +130,24 @@ then resume from the first unfinished item, not from zero.
 
 ## Temporal specs are red in the sandbox by design
 
-`libs/temporal-workflows/**/*.spec.ts` download Temporal's test server at
-start, and the sandbox has no network: they fail with `Failed to start
-ephemeral server: error sending request`. A full api `vitest` run where only
-those files are red, on that message, is reported in one sentence ("tylko
-temporal, brak sieci w sandboxie, CI to pokryje"). Don't hunt for a
-regression and don't rerun (2026-10-12). Any other failure in those files is
-a normal failure.
+`libs/temporal-workflows/**/*.spec.ts` download Temporal's test server and the
+sandbox has no network: `Failed to start ephemeral server: error sending
+request`. A full api `vitest` run red only there, on that message, is one
+sentence ("tylko temporal, brak sieci w sandboxie, CI to pokryje"). No hunt,
+no rerun. Any other failure in those files is a normal failure.
 
 ## `op` here is a read-only service account
 
 `OP_SERVICE_ACCOUNT_TOKEN` is set on purpose (headless `op`, `docs/secrets.md`),
-so `op item edit` / `op item create` fail with `Couldn't update the item`
-(2× in a row, 2026-10-19). One `op whoami | rg 'User Type'`; `SERVICE_ACCOUNT`
-→ go through the desktop app yourself: `env -u OP_SERVICE_ACCOUNT_TOKEN
-timeout 60 op …` (`account list`, `vault list`, `item get`, `item move`
-verified 2026-10-20, one Touch ID per call). Say first "zaraz wyskoczy Touch
-ID, N razy", read field names only (`label`, `type`, set/empty), never values.
-A numbered step for Greg stays only when he must type the secret himself
-(c333538c: "a nie możesz tego zrobić, ja potwierdzę Touch ID"). Say up front
-that `op item edit` shows the value in the process args for a moment.
+so `op item edit` / `op item create` fail with `Couldn't update the item`.
+One `op whoami | rg 'User Type'`; `SERVICE_ACCOUNT` → go through the desktop
+app yourself: `AT_MAC=1 env -u OP_SERVICE_ACCOUNT_TOKEN timeout 60 op …`, the
+`AT_MAC=1` only after his "Jestem" in a popup (guard denies it without) (`account
+list`, `vault list`, `item get`, `item move` verified 2026-10-20, one Touch ID
+per call). Say first "zaraz wyskoczy Touch ID, N razy", read field names only,
+never values. A numbered step for Greg stays only when he must type the secret
+himself (c333538c). Say up front that `op item edit` shows the value in the
+process args for a moment.
 
 ## A secret goes in through Greg, and is never repeated
 
@@ -190,33 +185,27 @@ that `op item edit` shows the value in the process args for a moment.
 
 `brew install [--cask]`, `npm -g`, `uv tool install` → ask first, naming the
 package, its source and the side effect ("dubluje Sparka z Setappa"), unless
-Greg said "zainstaluj X" himself. A diagnostic question ("jaki mam plan") does
-not cover an install; `brew install --cask readdle-spark` went in unasked next
-to the Setapp copy (30ce5f6a).
+Greg said "zainstaluj X" himself. A diagnostic question doesn't cover an
+install (30ce5f6a).
 
 ## `/tui` switches every running Claude session at once
 
 `/tui default` writes `tui` into `~/.claude/settings.json`, every open session
-reloads it live, and each one dropped from the fullscreen renderer to an empty
-normal screen: Greg saw nothing in any tab (28ca873d, 2026-10-21). The other
-sessions then answer "Already using the default renderer", which is the shared
-setting, not a sign they were untouched. Never run `/tui` or edit `tui` while
-sessions are open. Test a renderer in one new session only:
-`with-env {CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN: '1'} { claude }`. To recover,
-set `tui` back in `~/.claude/settings.json`; sessions redraw on the next key.
+reloads it live and drops from the fullscreen renderer to an empty screen
+(28ca873d). "Already using the default renderer" in the others is the shared
+setting, not proof they were untouched. Never run `/tui` or edit `tui` while
+sessions are open. Test a renderer in one new session only: `with-env
+{CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN: '1'} { claude }`. Recovery: set `tui`
+back, sessions redraw on the next key.
 
-The `env` block reloads live the same way. `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN`
-put there through `.chezmoitemplates/claude-settings.json` + `bin/sync` blanked
-every open session within seconds (928081b1, 2026-10-21, reverted in 47a4241).
-A renderer flag goes into the process env (`with-env` for one session, nushell
-`env.nu` for new ones), never into settings.json. Removing a key from the
-template does not remove it from the live file: `modify_settings.json.tmpl`
-merges keys in, so `jq 'del(.env.X)'` the live file as well. The scroll jumps
-came from Claude Code + herdr + Ghostty; on tuios they do not reproduce
-(2.1.311, 2026-10-27), so don't blame upstream #34845 or reach for the alt
-screen flag first.
-The live-reload blanking is filed as anthropics/claude-code#104064. Blank
-sessions do not come back after the revert: `/exit` + `claude --continue`.
+The `env` block reloads live the same way: that flag put into settings.json
+blanked every open session (928081b1, reverted in 47a4241). A renderer flag
+goes into the process env (`with-env`, nushell `env.nu`), never settings.json.
+Removing a key from the template doesn't remove it from the live file
+(`modify_settings.json.tmpl` merges in): `jq 'del(.env.X)'` the live file too.
+Scroll jumps don't reproduce on tuios (2.1.311), so don't blame upstream
+#34845. The blanking is anthropics/claude-code#104064, and blank sessions need
+`/exit` + `claude --continue`.
 
 ## A cheap Haiku call from a script or hook
 
@@ -249,6 +238,13 @@ caps `mempalace_search` at `limit` 3. After "exceeds maximum allowed tokens",
 `rg`/`jq` the saved `tool-results/*.txt` or send one narrower query (date,
 channel, `from:`).
 
+**`invalid_union` from `slack_read_thread` / `slack_read_channel`:** don't
+retry with another `response_format`. A channel → `slack_search_public_and_private`
+with `in:<#ID> after:<date>`. A thread with a known `ts` → curl
+`conversations.replies` with the poster credential from `work.env`, never to
+stdout. Say "nie sprawdzone: <co>, MCP zwraca błąd kształtu" for what stayed
+open (585c8429, e0d05ff6).
+
 ## The Tailscale CLI is `bin/tailscale`
 
 The app's CLI is not on PATH; `bin/tailscale` wraps
@@ -260,12 +256,11 @@ probes.
 
 `ERR_PROXY_CONNECTION_FAILED` on the screenshot, or `curl` working while the
 browser fails, means a stale system proxy (Proxyman on `127.0.0.1:9090` left
-on after a crash), not routes or DNS; `curl` ignores the system proxy. First
-`scutil --proxy` and `networksetup -getwebproxy <svc>` / `-getsecurewebproxy
-<svc>` per service from `networksetup -listallnetworkservices`, routes and DNS
-after. Turning it off (`-setwebproxystate <svc> off`, `-setsecurewebproxystate
-<svc> off`) is reversible: do it and say so in one line (83a07dcc, 13 probes
-on Tailscale first).
+on after a crash), not routes or DNS (`curl` ignores it). First `scutil
+--proxy` and `networksetup -getwebproxy` / `-getsecurewebproxy` per service
+from `-listallnetworkservices`, routes and DNS after. Turning it off
+(`-setwebproxystate <svc> off`, `-setsecurewebproxystate <svc> off`) is
+reversible: do it and say so in one line (83a07dcc).
 
 ## Port 7000 is the AirPlay Receiver
 
@@ -274,14 +269,14 @@ Local storage on `:7000` answering `403` or `http=000` →
 Greg's: General → AirDrop & Handoff → AirPlay Receiver off, opened with
 `open-here "x-apple.systempreferences:com.apple.AirDrop-Handoff-Settings.extension"`.
 The first sentence says why: macOS holds the port local storage needs
-(c333538c: "co?").
+(c333538c).
 
 ## A job that must outlive its tuios session: `setsid`
 
-On herdr, `workspace close` killed the pane's process group, so `&` and `nohup`
-died with it; tuios `kill-session` / `close-workspace` closing the pty is not
-verified to differ, so the rule stays. Detach with `perl -e 'use POSIX; setsid; exec @ARGV' -- <cmd> &`
-and say what is left behind if it fails (dc819c48).
+On herdr, closing a workspace killed the pane's process group, `&` and `nohup`
+included. tuios isn't verified to differ, so the rule stays: detach with `perl
+-e 'use POSIX; setsid; exec @ARGV' -- <cmd> &` and say what is left behind if
+it fails (dc819c48).
 
 ## `bin/sync` on a held chezmoi lock
 
@@ -300,8 +295,7 @@ checkout is clean and on `master`; otherwise one line (dc819c48).
 ## Before writing "X puts Y first on PATH"
 
 Run `env PATH=<prefix>:/usr/bin:/bin command -v <tool>` and `<tool>
---version` once. An `ls` of the directory is not proof: `libexec/bin` held
-only `python`, and two rules in a row named a wrong Python path (f6d9d77e).
+--version` once. An `ls` of the directory is not proof (f6d9d77e).
 
 ## SMS and iMessage are `chat.db`, read-only
 
@@ -324,6 +318,13 @@ the scratchpad. Personal data from there never goes to bazgroly (5666f824).
   to bardzo zły pomysł, test będzie flaky" (68513abd).
 - **Editing a PR body again:** start from `gh pr view <n> --json body -q .body
   > <scratch>/body.md`; the file from `gh pr create` may be gone (03b98f19).
+- **`gh api graphql --paginate`** needs the variable `$endCursor` and
+  `pageInfo { hasNextPage endCursor }`. A heavy `items(first: 100)` ends in
+  exit 124: use `first: 30`, read 124 as "query too heavy" (714ea30a).
+- **`git fetch/pull/push` in every repo goes under `timeout 60`.** After one
+  timeout "GitHub nieosiągalny" in one line, no retry chain (b5531ea1).
+- **Restarting a system daemon** (`mediaremoted`, `coreaudiod`): first name
+  what is lost and a route without the restart (bae51adc).
 
 ## The "ponytail hook was skipped" notice is not input
 

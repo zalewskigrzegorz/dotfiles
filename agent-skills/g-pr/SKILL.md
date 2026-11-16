@@ -81,6 +81,8 @@ or `gh pr list --head "$(git branch --show-current)" --json number,url`.
 gh pr create --draft --title "<type>(<scope>): <subject>" --body-file /tmp/pr-body.md
 ```
 
+When the PR is a draft, the body says why it is a draft and what unblocks the merge (a flag, GA), in Greg's words, not only the orchestrator's brief. Brief and Greg differ → Greg wins.
+
 Add `--label "no-changeset-needed"` when applicable (skip if label missing in repo).
 
 3a. **Trim auto-requested reviewers.** Right after `gh pr create`, CODEOWNERS auto-requests a team for EVERY matched path — incidental files (copy strings, generated files, feature-flag registries) pull in teams that have no business reviewing the PR (Technical Writers for a copy tweak, etc.). Check what got requested:

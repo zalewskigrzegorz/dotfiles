@@ -27,6 +27,12 @@ nine query errors from guessed table and column names.
 3. **Read the schema, don't guess it.** First query on an unknown table →
    `information_schema.columns`. SSO tables live in the `auth` schema; a
    config column may be `json` or `text`, cast explicitly.
+   `main.subscriptions.details` is jsonb and can be SQL NULL or JSON `null`: add
+   `where jsonb_typeof(details)='object'` before `jsonb_object_keys`,
+   `jsonb_each_text`, `jsonb_array_elements`. `items` is an array and one
+   subscription can hold several, so count with `count(distinct s.id)` (70 rows
+   were 63 subscriptions, and the wrong number went into an analysis). A vendor
+   order id is `"orderId"` in double quotes.
 
 ## Before the tunnel: can jamsql connect at all?
 
@@ -95,6 +101,12 @@ Instances, not clusters; US is `us-east-1`, EU `eu-central-1`; automated
 daily snapshots land around 07:08 UTC. Loop regions with a function
 (`snap() { aws … --region "$1" … "$2"; }`), never `set -- $p` in zsh. A
 restore is a separate task with its own go-ahead.
+
+## A read that will be compared later
+
+A read that feeds a comparison (an incident, a restore, a backfill) is saved as
+the full id list in `~/Code/personal/bazgroly/<repo>/notes/YYYY-MM-DD-<topic>.md`:
+date, region, the query, ids only, no customer data. Say the path in one line.
 
 ## When it breaks
 

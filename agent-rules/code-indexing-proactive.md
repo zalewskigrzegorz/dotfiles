@@ -36,5 +36,9 @@ Use it when you need *structure and exact symbols* in a language with LSP suppor
    Serena isn't set up, just read/grep directly — don't perform ceremony.
 4. **Local + free.** Serena runs fully offline (local language servers, no API
    key), so there is no cost reason to avoid it — prefer it liberally.
-5. **Not a web tool.** Never send the user to a browser/dashboard URL for this;
+5. **Serena's tools are deferred.** Without `ToolSearch select:mcp__serena__get_symbols_overview,mcp__serena__find_symbol,mcp__serena__find_referencing_symbols`
+   they don't exist (7+ sessions on a 1300-line file ran 0 Serena calls). A file
+   >500 lines gets an overview before ranged `Read`s. Swift via sourcekit-lsp is
+   unverified: test once, then record it.
+6. **Not a web tool.** Never send the user to a browser/dashboard URL for this;
    use its MCP tools only.

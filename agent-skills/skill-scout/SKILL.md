@@ -92,6 +92,11 @@ polecenia od użytkownika:
 które `rsync --delete` wyczyści przy najbliższym `chezmoi apply`. Jedyna droga do
 trwałości prowadzi przez repo:
 
+Skill z publicznego repo GitHub to nowa linia `"<owner/repo> <ścieżka skilla>"` w tablicy
+`UPSTREAM` w `run_after_30-upstream-skills.sh`: każdy `chezmoi apply` ściąga wtedy `main`
+upstreamu, bez kopii w repo. `cp -r` tylko dla skilla, który Greg zamierza modyfikować
+(jedna sesja skopiowała 20 plików i 5276 linii cudzego kodu bez potrzeby):
+
 ```bash
 cp -r <temp-dir>/<skill> ~/Code/dotfiles/agent-skills/<skill>
 ```

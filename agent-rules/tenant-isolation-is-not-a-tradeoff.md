@@ -22,3 +22,7 @@ innej organizacji kropka" (9befa5d1, 2026-10-12).
    that legitimately works without membership). Then the fork is real: name
    the broken feature, and offer the narrowest exception, scoped to sessions
    bound to that organization and logged at `error` on every use.
+4. **An email or identity from a customer's own IdP is never "verified"
+   without proof.** Its admin can type anyone's email, and treating it as
+   verified lets accounts link across organizations. Same in issue and PR
+   drafts: the loosened variant is at most a "rejected alternative" (585c8429).

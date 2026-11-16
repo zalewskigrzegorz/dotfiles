@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+"""pr-state — one line per PR from a single `gh api graphql` call.
+
+Replaces the `gh pr view` / `gh pr checks` / `gh pr list` round per PR
+(cc69e8c9: 24 + 10 + 12 calls in one triage).
+
+  pr-state 123 456 [-R owner/repo]   # repo defaults to the current checkout
+  pr-state --self-test
+
+  #123 OPEN draft CLEAN APPROVED threads:2 red:lint,e2e pending:1 [label-a,label-b] Title
+"""
+import json
+import subprocess
+import sys
+
+RED_RUN = {"FAILURE", "TIMED_OUT", "ACTION_REQUIRED", "STARTUP_FAILURE"}
+RED_STATUS = {"FAILURE", "ERROR"}
+
+PR_FIELDS = """number title state isDraft mergeStateStatus reviewDecision
+ labels(first:20){nodes{name}}
+ reviewThreads(first:100){nodes{isResolved}}
+ commits(last:1){nodes{commit{statusCheckRollup{contexts(first:100){nodes{
+  __typename ... on CheckRun{name status conclusion} ... on StatusContext{context state}}}}}}}"""
+
+
+def build_query(numbers):
+    aliases = " ".join(f"p{n}: pullRequest(number:{n}){{{PR_FIELDS}}}" for n in numbers)
+    return f"query($owner:String!,$name:String!){{repository(owner:$owner,name:$name){{{aliases}}}}}"
+
+
+def line(pr):
+    if pr is None:
+        return None
+    red, pending = [], 0
+    for c in pr["commits"]["nodes"]:
+        for ctx in ((c["commit"].get("statusCheckRollup") or {}).get("contexts") or {}).get("nodes", []):
+            if ctx["__typename"] == "CheckRun":
+                if ctx.get("conclusion") in RED_RUN:
+                    red.append(ctx["name"])
+                elif ctx.get("status") != "COMPLETED":
+                    pending += 1
+            elif ctx.get("state") in RED_STATUS:
+                red.append(ctx["context"])
+            elif ctx.get("state") in ("PENDING", "EXPECTED"):
+                pending += 1
+    threads = sum(1 for t in pr["reviewThreads"]["nodes"] if not t["isResolved"])
+    labels = [l["name"] for l in pr["labels"]["nodes"]]
+    parts = [f"#{pr['number']}", pr["state"], "draft" if pr["isDraft"] else None,
+             pr["mergeStateStatus"], pr.get("reviewDecision") or "NO_REVIEW",
+             f"threads:{threads}" if threads else None,
+             f"red:{','.join(sorted(set(red)))}" if red else None,
+             f"pending:{pending}" if pending else None,
+             f"[{','.join(labels)}]" if labels else None, pr["title"]]
+    return " ".join(p for p in parts if p)
+
+
+def gh(*args):
+    return subprocess.run(["gh", *args], check=True, capture_output=True, text=True).stdout
+
+
+def self_test():
+    q = build_query([1, 22])
+    assert "p1: pullRequest(number:1)" in q and "p22: pullRequest(number:22)" in q
+    pr = {"number": 7, "title": "Fix it", "state": "OPEN", "isDraft": True, "mergeStateStatus": "BLOCKED",
+          "reviewDecision": None, "labels": {"nodes": [{"name": "run_e2e"}]},
+          "reviewThreads": {"nodes": [{"isResolved": False}, {"isResolved": True}]},
+          "commits": {"nodes": [{"commit": {"statusCheckRollup": {"contexts": {"nodes": [
+              {"__typename": "CheckRun", "name": "lint", "status": "COMPLETED", "conclusion": "FAILURE"},
+              {"__typename": "CheckRun", "name": "e2e", "status": "IN_PROGRESS", "conclusion": None},
+              {"__typename": "CheckRun", "name": "ok", "status": "COMPLETED", "conclusion": "CANCELLED"},
+              {"__typename": "StatusContext", "context": "ci/x", "state": "ERROR"}]}}}}]}}
+    got = line(pr)
+    assert got == "#7 OPEN draft BLOCKED NO_REVIEW threads:1 red:ci/x,lint pending:1 [run_e2e] Fix it", got
+    pr["commits"]["nodes"][0]["commit"]["statusCheckRollup"] = None
+    assert "red:" not in line(pr)
+    print("pr-state self-test: ok")
+
+
+def main(argv):
+    if argv == ["--self-test"]:
+        return self_test()
+    repo, nums, it = None, [], iter(argv)
+    for a in it:
+        if a in ("-R", "--repo"):
+            repo = next(it, None)
+        elif a.lstrip("#").isdigit():
+            nums.append(int(a.lstrip("#")))
+        else:
+            sys.exit(f"pr-state: unknown arg {a!r}\nusage: pr-state <n…> [-R owner/repo] | --self-test")
+    if not nums:
+        sys.exit("usage: pr-state <n…> [-R owner/repo] | --self-test")
+    repo = repo or gh("repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner").strip()
+    owner, name = repo.split("/", 1)
+    data = json.loads(gh("api", "graphql", "-f", f"query={build_query(nums)}", "-f", f"owner={owner}", "-f", f"name={name}"))
+    prs = data["data"]["repository"]
+    for n in nums:
+        print(line(prs.get(f"p{n}")) or f"#{n} NOT FOUND in {repo}")
+
+
+if __name__ == "__main__":
+    try:
+        main(sys.argv[1:])
+    except subprocess.CalledProcessError as e:
+        sys.exit(f"pr-state: gh failed: {e.stderr.strip()[:400]}")

@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+"""retro-dedupe — clean a Claude Code transcript before retro's detect-mechanical.py.
+
+The harness writes `api-request-blob` events that replay whole messages (the
+same tool_use once as sent and once as the API saw it, e.g. with a `cd` prefix),
+and tuios injects "You have N unread tuios message" as user turns. The retro
+pre-pass counted both: duplicate A2/A3/A12 repeats and fake A7/A8 user prompts
+in >=8 sessions (retro backlog 2026-11-16, T3-10). The plugin is not patched
+(plugin-own-switch rule), so this writes a cleaned copy instead.
+
+  retro-dedupe <in.jsonl> [out.jsonl]   # out defaults to stdout; prints counts on stderr
+  retro-dedupe --self-test
+"""
+import json
+import re
+import sys
+
+DROP_TYPES = {"api-request-blob"}
+TUIOS_NUDGE = re.compile(r"^\s*You have \d+ unread tuios messages?\b")
+
+
+def user_text(ev):
+    c = (ev.get("message") or {}).get("content")
+    if isinstance(c, str):
+        return c
+    if isinstance(c, list) and len(c) == 1 and isinstance(c[0], dict) and c[0].get("type") == "text":
+        return c[0].get("text", "")
+    return None
+
+
+def clean(lines):
+    """Return (kept raw lines, drop counts). A tool_use counts once, by id."""
+    seen, stats, out = set(), {"blob": 0, "dup_tool_use": 0, "tuios_nudge": 0}, []
+    for raw in lines:
+        try:
+            ev = json.loads(raw)
+        except ValueError:
+            out.append(raw)  # keep what we cannot parse; detect-mechanical skips it too
+            continue
+        if ev.get("type") in DROP_TYPES:
+            stats["blob"] += 1
+            continue
+        if ev.get("type") == "user":
+            t = user_text(ev)
+            if t is not None and TUIOS_NUDGE.match(t):
+                stats["tuios_nudge"] += 1
+                continue
+        content = (ev.get("message") or {}).get("content")
+        if isinstance(content, list):
+            ids = [b.get("id") for b in content if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("id")]
+            if ids and all(i in seen for i in ids):
+                stats["dup_tool_use"] += 1
+                continue
+            seen.update(ids)
+        out.append(raw)
+    return out, stats
+
+
+def self_test():
+    use = {"type": "tool_use", "id": "toolu_1", "name": "Bash", "input": {"command": "ls"}}
+    evs = [
+        {"type": "user", "message": {"role": "user", "content": "fix it"}},
+        {"type": "assistant", "message": {"role": "assistant", "content": [use]}},
+        {"type": "api-request-blob", "message": {"role": "assistant", "content": [use]}},
+        {"type": "assistant", "message": {"role": "assistant", "content": [dict(use, input={"command": "cd /x && ls"})]}},
+        {"type": "user", "message": {"role": "user", "content": "You have 1 unread tuios message. Read it with: …"}},
+        {"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": "You have 2 unread tuios messages."}]}},
+        {"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_1", "content": "ok"}]}},
+    ]
+    out, stats = clean([json.dumps(e) + "\n" for e in evs] + ["not json\n"])
+    assert len(out) == 4, out
+    assert stats == {"blob": 1, "dup_tool_use": 1, "tuios_nudge": 2}, stats
+    assert json.loads(out[2])["message"]["content"][0]["type"] == "tool_result"
+    print("retro-dedupe self-test: ok")
+
+
+def main(argv):
+    if argv[1:] == ["--self-test"]:
+        return self_test()
+    if len(argv) not in (2, 3):
+        sys.exit("usage: retro-dedupe <in.jsonl> [out.jsonl] | --self-test")
+    with open(argv[1], encoding="utf-8", errors="replace") as fh:
+        out, stats = clean(fh)
+    dst = open(argv[2], "w", encoding="utf-8") if len(argv) == 3 else sys.stdout
+    dst.writelines(out)
+    if dst is not sys.stdout:
+        dst.close()
+    print(f"retro-dedupe: kept {len(out)}, dropped {stats}", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main(sys.argv)

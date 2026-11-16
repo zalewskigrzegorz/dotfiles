@@ -6,12 +6,11 @@ alwaysApply: true
 # Local Docker Is Shared — Check Before You Disrupt It
 
 The local Docker stack (the `<co>-*` containers, `<co>-postgres-1`, the `main`
-database; `<co>` is `$WORK_COMPANY` lowercased) is not yours alone. Other tuios agents and Greg's own long jobs
-use it at the same time — on 2026-09-23 one of them was dumping production data
-through it for two hours. A single agent session then ran `drop database main
-with (force)`, a `pnpm start` that restarted and rebuilt containers, and a broad
-`pkill -f 'docker compose -p <co>'` — one of them killed that job, and two
-hours of dump were thrown away.
+database; `<co>` is `$WORK_COMPANY` lowercased) is not yours alone. Other tuios
+agents and Greg's own long jobs use it at the same time. On 2026-09-23 one was
+dumping production data through it for two hours, and a session's `drop
+database main with (force)`, `pnpm start` or broad `pkill -f 'docker compose
+-p <co>'` killed that job.
 
 ## Before a disruptive step
 
@@ -48,16 +47,14 @@ rebuilds, and any `pkill`/`killall`.
   a loop — each retry rebuilds and restarts again.
 - **A stopped container whose network is gone needs a recreate.** `docker
   start <c>` → `network … not found`, and `docker compose up -d` alone keeps
-  pointing at the old network (3 failed tries, 2026-09-30). After the check
-  above: `docker inspect <c> --format '{{range .Mounts}}{{.Type}} {{.Name}}{{"\n"}}{{end}}'`
-  — data on a named volume means a recreate is safe — then `docker compose -p
-  <project label> up -d --no-deps --force-recreate <service>`.
+  the old network. After the check above: `docker inspect <c> --format
+  '{{range .Mounts}}{{.Type}} {{.Name}}{{"\n"}}{{end}}'` (data on a named
+  volume = recreate is safe), then `docker compose -p <project label> up -d
+  --no-deps --force-recreate <service>`.
 - **`docker build` failing on `Lockfile failed supply-chain policy check` is
-  not flaky.** Two rebuilds of ~17 min each hit the same error (2026-10-04).
-  Don't rebuild: read the pnpm policy line (which package, which rule), report
-  it with the recovery move (pin or bump that dependency, or a build context
-  that does not match the lockfile), and retry only after the lockfile
-  changed. Say the ~17 min cost before any rebuild.
+  not flaky** (two ~17 min rebuilds hit it, 2026-10-04). Don't rebuild: read
+  the policy line, report the package and rule with the recovery move (pin or
+  bump it), retry only after the lockfile changed.
 
 ## Reading and seeding the local database
 
@@ -91,6 +88,17 @@ tries (2026-10-09 … 10-12):
   pg_dump -U myuser -d main --no-owner | psql -U myuser -d <scratch> -q -v
   ON_ERROR_STOP=1'`. Say "lokalnie, kopia `main` do `<scratch>`", drop it after;
   `already exists` there is another branch's leftover schema (a120142c, 3 tries).
+  The clone's URL ends `?schema=prisma&sslmode=disable` (single quotes):
+  `P3005` means that is missing, not a broken base. Before `better-auth`
+  specs on the clone `delete from auth.jwks` there, never in `main` (symptom
+  `Unexpected end of JSON input` on `/token`, 76d3b8f1).
+- **colima has `mounts: []`** (`~/.colima/default/colima.yaml`): `-v <host
+  dir>:/x` sees an empty path. Use `docker cp`, a volume or bake into the
+  image (07921d16).
+- **Handing the local stack to Greg:** last step `pnpm pm2 restart api
+  auth-server temporal-worker`, `prisma._prisma_migrations` rows against the
+  `prisma/migrations` dirs, `curl` on `/` (307) and the API. No `nx` on shared
+  libraries during his test (76d3b8f1).
 - **A fresh database needs the Ory schemas before Prisma.** `create schema
   kratos; create schema hydra`, the Ory migrations from the `oryd/hydra` image
   (DSN with `search_path=hydra`, same for kratos), then `prisma migrate
@@ -117,10 +125,9 @@ tries (2026-10-09 … 10-12):
 
 Before `gh workflow run deploy-env.yml` / `redeploy-env.yml` against a shared
 lab, check who holds it: `gh run list --workflow deploy-env.yml --status
-in_progress`. An active PR deploy → stop and say whose it is. A blind dispatch
-failed twice with "has an active PR deploy" on 2026-10-02, and each one costs a
-CI run and can disturb someone else's deploy. After a failure, read
-`gh run view <id> --log-failed` before dispatching again, never in a loop.
+in_progress`. An active PR deploy → stop and say whose it is (a blind dispatch
+failed twice on 2026-10-02). After a failure read `gh run view <id>
+--log-failed` before dispatching again, never in a loop.
 
 ## Screenshots for a PR from a local stack
 
@@ -130,14 +137,12 @@ CI run and can disturb someone else's deploy. After a failure, read
   `~/.colima`: `DOCKER_HOST=unix://$HOME/.colima/default/docker.sock`.
 - Size colima before `pnpm start` (12 GiB, 6 CPU did it).
 - No downloaded Playwright browser or ffmpeg: a one-off spec uses
-  `channel: 'chrome'`, video and trace off, lives in the scratchpad and is
-  deleted after.
+  `channel: 'chrome'`, video and trace off, lives in the scratchpad.
 - A new org gets a trial plan and 403 "Missing required entitlement" on paid
   features: use the seeded `default` org and its owner.
 - Handing Greg a local login: the email in a fenced code block (a list indent
-  put a leading space in it and the form does not trim), the password only on
-  the clipboard (`printf %s … | pbcopy`, cleared after), never in chat. Check
-  the account once with a direct API call first.
+  adds a leading space the form doesn't trim), the password only on the
+  clipboard (`printf %s … | pbcopy`, cleared after), never in chat.
 - **Where PR screenshots go:** `git ls-remote origin | rg -i screenshots` shows
   the convention, a PNG-only `<branch>-screenshots` branch. Push it as an orphan
   commit without a checkout: `git hash-object -w` → `git mktree` → `c=$(git

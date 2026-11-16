@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# lab-deploy — deploy home-lab services on the lab, one stdout line per step,
+# made for `Monitor` (home-lab CLAUDE.md "Deploy to the lab"; 46cf431d rebuilt
+# this chain by hand). Push first: the lab fast-forwards to origin/main.
+#
+#   lab-deploy <svc…>          # pull ok <sha> / <svc>: build + recreate / <svc>: <state> (Ns) / DONE | FAIL …
+#   lab-deploy --self-test
+#
+# Always `ssh -n` (a `while read` around it would lose its stdin), never a bare
+# `git pull` (pull.rebase on the lab), build log of a failed service is tailed.
+set -uo pipefail
+HOST=${LAB_HOST:-mrglaszki}
+
+# Runs on the lab (bash login shell, GNU tools, no rg). $@ = service names.
+remote='set -u
+cd /opt/homelab || { echo "FAIL cd /opt/homelab"; exit 1; }
+git fetch -q && git merge -q --ff-only origin/main || { echo "FAIL merge: git -C /opt/homelab log --oneline origin/main..HEAD"; exit 1; }
+echo "pull ok $(git rev-parse --short HEAD)"
+for s in "$@"; do
+  f=services/$s/compose.yaml
+  [ -f "$f" ] || { echo "FAIL $s: no $f"; exit 1; }
+  echo "$s: build + recreate"
+  t=$(date +%s); log=/tmp/lab-deploy-$s.log
+  docker compose -f "$f" up -d --build --force-recreate >"$log" 2>&1 || { echo "FAIL $s (tail of $log):"; tail -n 20 "$log"; exit 1; }
+  echo "$s: $(docker compose -f "$f" ps --format "{{.Name}}={{.State}}" | tr "\n" " ")($(( $(date +%s) - t ))s)"
+done
+echo DONE'
+
+valid() { [[ $1 =~ ^[A-Za-z0-9_-]+$ ]]; }
+
+if [ "${1:-}" = --self-test ]; then
+  bash -n <(printf '%s\n' "$remote") || { echo "remote script does not parse"; exit 1; }
+  valid homey-mcp && valid jarvis_brain && ! valid 'a;rm' && ! valid '../x' && ! valid '' || { echo "name check broken"; exit 1; }
+  echo "lab-deploy self-test: ok"; exit 0
+fi
+[ $# -ge 1 ] || { echo "usage: lab-deploy <service…> | --self-test" >&2; exit 2; }
+for s in "$@"; do valid "$s" || { echo "FAIL bad service name: $s" >&2; exit 2; }; done
+
+# Names are validated above, so plain word splitting on the remote side is safe.
+ssh -n -o BatchMode=yes "$HOST" "bash -c $(printf %q "$remote") lab-deploy $*"
+rc=$?
+[ $rc -eq 0 ] || echo "FAIL ssh exit $rc"
+exit $rc
