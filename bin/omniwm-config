@@ -119,6 +119,8 @@ def merge(cfg):
     # top is measured from the physical edge minus the menu bar: 40 on the bar-less externals (36pt
     # Gzyms bar + 4), 40 - 32 = 8 on the laptop with its notch bar, as HyprMac's per-monitor values.
     cfg["gaps"]["outer"] = {"left": 8.0, "right": 8.0, "top": 40.0, "bottom": 8.0}
+    # A lone window and Ctrl+F use the fullscreen frame; without outer gaps it slid under the Gzyms bar.
+    cfg["gaps"]["fullscreenUsesOuterGaps"] = True
     purple = {"red": 0xB2 / 255, "green": 0x46 / 255, "blue": 0xFF / 255, "alpha": 1.0}  # Mocha Neon B246FF
     cfg["borders"]["color"] = purple
     cfg["borders"]["darkColor"] = purple
