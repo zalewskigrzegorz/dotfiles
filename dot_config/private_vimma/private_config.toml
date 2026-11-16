@@ -142,6 +142,7 @@ live_grep = ["prefix+f g", "<leader>/"]
 # "<C-]>" = "history.forward"
 # "<Esc>" = "page.stop"
 # "r" = "page.reload"
+"R" = "page.reload_hard"
 # "f" = "hint.follow"
 # Vimium parity: F opens the link in a new background tab
 "F" = "hint.follow_new_tab"
