@@ -39,6 +39,16 @@
                 "to_if_held_down": [{ "key_code": "spacebar", "modifiers": ["left_command"], "repeat": false }]
               }
             ]
+          },
+          {
+            "description": "Ctrl+; = OmniWM retile (omniwmctl rule apply); does nothing unless OmniWM runs, so HyprMac's Retile All is gone while this rule is on",
+            "manipulators": [
+              {
+                "type": "basic",
+                "from": { "key_code": "semicolon", "modifiers": { "mandatory": ["left_control"] } },
+                "to": [{ "shell_command": "pgrep -xq OmniWM && /opt/homebrew/bin/omniwmctl rule apply" }]
+              }
+            ]
           }
         ]
       }
