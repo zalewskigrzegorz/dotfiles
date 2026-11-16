@@ -111,6 +111,7 @@ def merge(cfg):
     g["defaultLayoutType"] = "dwindle"  # BSP like HyprMac; Niri one chord away (toggleWorkspaceLayout)
     g["hotkeysEnabled"] = True
     g["ipcEnabled"] = True  # omniwmctl, for checks now and the Gzyms workspace widget later
+    cfg["focus"]["followsWindowToMonitor"] = True  # Ctrl+Shift+digit follows the window, as HyprMac did
     cfg["gaps"]["size"] = 8.0
     # top is measured from the physical edge minus the menu bar: 40 on the bar-less externals (36pt
     # Gzyms bar + 4), 40 - 32 = 8 on the laptop with its notch bar, as HyprMac's per-monitor values.
