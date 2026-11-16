@@ -1,0 +1,18 @@
+name = "Repo watcher"
+description = "What others do around your repos: new PRs, issues, discussions, forks and sponsors. A notification for each, also for those that came while Gzyms was off. The pill counts open PRs and issues from others."
+command = "./plugin.sh"
+icon = "tray"
+
+[[option]]
+key = "repos"
+title = "Repos"
+type = "list"
+default = ["zalewskigrzegorz/gzyms"]
+note = "owner/name, separated by commas, Return saves. A click on a row opens it on GitHub."
+
+[[option]]
+key = "every"
+title = "Ask every (s)"
+type = "number"
+default = 300
+note = "one GitHub call each time for all repos. Opening the list asks at once."
