@@ -29,16 +29,18 @@ sid="$(jq -r '.session_id // empty' <<<"$input")"
 cwd="$(jq -r '.cwd // empty' <<<"$input")"
 [[ -n "$sid" && -n "$cwd" ]] || exit 0
 
-drop_sid() { grep -v -F "$1" "$FILE" >"$FILE.tmp"; mv "$FILE.tmp" "$FILE"; }
+cutoff="$(date -v-"${MAX_AGE_DAYS}"d +%F 2>/dev/null || date -d "-${MAX_AGE_DAYS} days" +%F)"
 
-prune() {
-  local cutoff
-  cutoff="$(date -v-"${MAX_AGE_DAYS}"d +%F 2>/dev/null || date -d "-${MAX_AGE_DAYS} days" +%F)"
-  awk -F'\t' -v c="$cutoff" '$1 >= c' "$FILE" >"$FILE.tmp" && mv "$FILE.tmp" "$FILE"
-}
+# Only `end` writes, under flock. `start` runs on every turn of every session
+# (nudge-band), and when it rewrote the file through a shared .tmp, concurrent
+# runs emptied it: 8 pending rows went to 1 on 2026-11-16.
+drop_sid() { awk -F'\t' -v s="$1" '$2 != s' "$FILE" >"$FILE.$$" && mv "$FILE.$$" "$FILE"; }
+prune() { awk -F'\t' -v c="$cutoff" '$1 >= c' "$FILE" >"$FILE.$$" && mv "$FILE.$$" "$FILE"; }
 
 case "${1:-}" in
   end)
+    exec 9>"$FILE.lock"
+    flock -w 15 9 2>/dev/null || true
     tp="$(jq -r '.transcript_path // empty' <<<"$input")"
     [[ -n "$tp" && -r "$tp" ]] || exit 0
     # Human prompts: `type: user` entries whose content is a string, or an array
@@ -79,10 +81,9 @@ case "${1:-}" in
     prune
     ;;
   start)
-    prune
     # One cross-repo line. Greg asked for a single sweep, not a nudge per repo
     # (2026-09-29): `/retro-backlog` runs every pending id in one batch.
-    rows="$(awk -F'\t' -v s="$sid" '$2 != s' "$FILE")"
+    rows="$(awk -F'\t' -v s="$sid" -v c="$cutoff" '$2 != s && $1 >= c' "$FILE")"
     [[ -n "$rows" ]] || exit 0
     total="$(printf '%s\n' "$rows" | wc -l | tr -d ' ')"
     repos="$(printf '%s\n' "$rows" | awk -F'\t' '{ print $4 }' | sort -u | wc -l | tr -d ' ')"
