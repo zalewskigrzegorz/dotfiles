@@ -1,0 +1,219 @@
+#!/usr/bin/env python3
+"""omniwm-config — write Greg's HyprMac/AeroSpace layout into OmniWM's settings.toml.
+
+OmniWM's schema is strict (a missing key rejects the whole file), so this never builds the file from
+scratch: it reads the one OmniWM wrote, changes our keys and writes it back. OmniWM live-reloads on
+save. Ours: every hotkey binding (anything we don't bind is Unassigned, so OmniWM's Option+… defaults
+stop eating Polish letters), workspaces, monitor ranking, app rules for our bundle IDs, gaps,
+border, defaultLayoutType, workspace bar off (Gzyms is the bar). Old file goes to
+~/.local/state/omniwm/backups first.
+
+  omniwm-config            merge into ~/.config/omniwm/settings.toml
+  omniwm-config --dry-run  print the merged file, change nothing
+"""
+import importlib.machinery
+import importlib.util
+import json
+import os
+import shutil
+import sys
+import time
+import tomllib
+import uuid
+
+LIVE = os.path.expanduser("~/.config/omniwm/settings.toml")
+
+# Reuse hyprmac-config's pins, floats and workspace numbers so both WMs read one list.
+_loader = importlib.machinery.SourceFileLoader("hyprmac_config", os.path.join(os.path.dirname(os.path.realpath(__file__)), "hyprmac-config"))
+_spec = importlib.util.spec_from_loader("hyprmac_config", _loader)
+hm = importlib.util.module_from_spec(_spec)
+_loader.exec_module(hm)
+
+# Monitor roles: Dell = Main (1-5), C34 = Secondary (6-9), laptop = Tertiary (0). Unplugged → the
+# next connected display takes the role, so the laptop alone becomes Main.
+RANKING = ["DELL U3225QE", "C34H89x", "Built-in Retina Display"]
+ROLE = {**{n: "main" for n in range(1, 6)}, **{n: "secondary" for n in range(6, 10)}, 10: "tertiary"}
+
+L = "Left Control"  # HyprMac's Hypr key
+binds = {}
+
+
+def bind(chord, action):
+    binds[action] = chord
+
+
+for d, k in zip(["left", "down", "up", "right"], "HJKL"):
+    bind(f"{L}+{k}", f"focus.{d}")
+    bind(f"{L}+Shift+{k}", f"move.{d}")
+for n in range(1, 11):
+    key = str(n % 10)
+    bind(f"{L}+{key}", f"switchWorkspace.{n - 1}")
+    bind(f"{L}+Shift+{key}", f"moveToWorkspace.{n - 1}")
+# Dwindle resize; ,/. are the vertical pair as in HyprMac
+bind(f"{L}+Minus", "resizeShrink.horizontal")
+bind(f"{L}+Equal", "resizeGrow.horizontal")
+bind(f"{L}+Comma", "resizeShrink.vertical")
+bind(f"{L}+Period", "resizeGrow.vertical")
+bind(f"{L}+Shift+Backslash", "toggleSplit")
+bind(f"{L}+Tab", "switchWorkspace.next")
+bind(f"{L}+Option+Tab", "switchWorkspace.previous")
+bind(f"{L}+Shift+Left Bracket", "moveWorkspaceToMonitor.left")
+bind(f"{L}+Shift+Right Bracket", "moveWorkspaceToMonitor.right")
+bind(f"{L}+Option+Space", "toggleOverview")
+bind("Control+Command+L", "openCommandPalette")  # Dygma "Windows" superkey
+bind(f"{L}+Quote", "toggleFocusedWindowFloating")
+bind(f"{L}+Option+Shift+F", "toggleFloatingFocus")
+bind(f"{L}+Option+M", "openMenuAnywhere")
+bind(f"{L}+F", "toggleFullscreen")
+bind(f"{L}+Option+Shift+W", "closeFocusedWindow")
+bind(f"{L}+S", "toggleScratchpad.1")
+bind(f"{L}+Shift+S", "assignFocusedWindowToScratchpad.1")
+bind(f"{L}+Option+T", "toggleWorkspaceLayout")  # Dwindle <-> Niri on this workspace
+bind(f"{L}+Semicolon", "balanceSizes")  # HyprMac's Retile All slot
+
+chords = list(binds.values())
+assert len(chords) == len(set(chords)), "duplicate chord"
+
+
+def norm(binding):
+    """Compare chords the way OmniWM does: sides ignored, modifier order ignored."""
+    parts = [p.strip().lower().replace(" ", "") for p in binding.split("+")]
+    return frozenset(p.removeprefix("left").removeprefix("right") for p in parts[:-1]), parts[-1]
+
+
+def merge(cfg):
+    hotkeys = cfg["hotkeys"]
+    have = {h["id"] for h in hotkeys}
+    wanted, missing = {}, []
+    for action, chord in binds.items():
+        if action not in have and action.endswith(".9"):
+            hotkeys.append({"binding": "Unassigned", "id": action})  # workspace 10 entries are optional
+        elif action not in have:
+            missing.append(action)
+            continue
+        wanted[action] = chord
+    for h in hotkeys:
+        h["binding"] = wanted.get(h["id"], "Unassigned")
+    for m in missing:
+        print("brak akcji w settings.toml (skrót pominięty):", m, file=sys.stderr)
+
+    g = cfg["general"]
+    g["defaultLayoutType"] = "dwindle"  # BSP like HyprMac; Niri one chord away (toggleWorkspaceLayout)
+    g["hotkeysEnabled"] = True
+    cfg["gaps"]["size"] = 8.0
+    # top is measured from the physical edge minus the menu bar: 40 on the bar-less externals (36pt
+    # Gzyms bar + 4), 40 - 32 = 8 on the laptop with its notch bar, as HyprMac's per-monitor values.
+    cfg["gaps"]["outer"] = {"left": 8.0, "right": 8.0, "top": 40.0, "bottom": 8.0}
+    purple = {"red": 0xB2 / 255, "green": 0x46 / 255, "blue": 0xFF / 255, "alpha": 1.0}  # Mocha Neon B246FF
+    cfg["borders"]["color"] = purple
+    cfg["borders"]["darkColor"] = purple
+    cfg["workspaceBar"]["enabled"] = False
+
+    cfg["monitors"] = {"ranking": [{"name": n} for n in RANKING]}
+
+    by_name = {w["name"]: w for w in cfg.get("workspaces") or []}
+    names = {n: name for name, n in hm.WS.items()}
+    cfg["workspaces"] = [{
+        "displayName": names[n],
+        "id": by_name.get(str(n), {}).get("id") or str(uuid.uuid4()).upper(),
+        "layoutType": "default",
+        "monitorAssignment": {"type": ROLE[n]},
+        "name": str(n),
+    } for n in range(1, 11)]
+
+    # Our rules by bundle ID; an existing plain rule for that app (OmniWM's min-size defaults) is
+    # extended in place so its minWidth/minHeight stay.
+    ours = {}
+    for ws, ids in hm.PINS.items():
+        for b in ids:
+            ours[b] = {"assignToWorkspace": str(hm.WS[ws])}
+    for b in hm.FLOAT:
+        ours[b] = {"layout": "float"}
+    ours["com.dygmalab.bazecor"] = {"layout": "float", "assignToWorkspace": str(hm.WS["mac"])}
+    # From aerospace, title rules HyprMac had no way to express; they go first.
+    title_rules = [
+        {"bundleId": "", "titleRegex": "^Picture in Picture$", "layout": "float"},
+        # shortcut: title pattern guessed, never seen live; check the window title during a huddle.
+        {"bundleId": "com.tinyspeck.slackmacgap", "titleRegex": "(?i)huddle|incoming call|calling", "layout": "float"},
+    ]
+    title_keys = {(r["bundleId"], r["titleRegex"]) for r in title_rules}
+    rules = []
+    for r in cfg.get("appRules") or []:
+        if (r.get("bundleId"), r.get("titleRegex")) in title_keys:
+            continue
+        plain = not any(r.get(k) for k in ("titleSubstring", "titleRegex", "appNameSubstring", "axRole", "axSubrole"))
+        if plain and r.get("bundleId") in ours:
+            r.pop("assignToWorkspace", None)
+            r.update(ours.pop(r["bundleId"]))
+        rules.append(r)
+    old_titles = {(r.get("bundleId"), r.get("titleRegex")): r.get("id") for r in cfg.get("appRules") or []}
+    head = [{**r, "id": old_titles.get((r["bundleId"], r["titleRegex"])) or str(uuid.uuid4()).upper()} for r in title_rules]
+    tail = [{"bundleId": b, "id": str(uuid.uuid4()).upper(), **v} for b, v in ours.items()]
+    cfg["appRules"] = head + rules + tail
+    return cfg
+
+
+def val(v):
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, (int, float)):
+        return repr(v)
+    if isinstance(v, str):
+        return json.dumps(v, ensure_ascii=False)
+    if isinstance(v, list):
+        return "[" + ", ".join(val(x) for x in v) + "]"
+    raise TypeError(f"no TOML for {type(v)}")
+
+
+def is_aot(v):
+    return isinstance(v, list) and v and all(isinstance(x, dict) for x in v)
+
+
+def key(k):
+    return k if k.replace("_", "").replace("-", "").isalnum() else json.dumps(k)
+
+
+def emit(tbl, path, out):
+    for k, v in tbl.items():
+        if not isinstance(v, dict) and not is_aot(v):
+            out.append(f"{key(k)} = {val(v)}")
+    for k, v in tbl.items():
+        p = path + [key(k)]
+        if isinstance(v, dict):
+            out += ["", f"[{'.'.join(p)}]"]
+            emit(v, p, out)
+        elif is_aot(v):
+            for item in v:
+                out += ["", f"[[{'.'.join(p)}]]"]
+                emit(item, p, out)
+
+
+def dump(cfg):
+    out = []
+    emit(cfg, [], out)
+    text = "\n".join(out).lstrip("\n") + "\n"
+    assert tomllib.loads(text) == cfg, "TOML round-trip changed the data"  # self-check of the writer
+    return text
+
+
+def main():
+    if not os.path.exists(LIVE):
+        sys.exit(f"brak {LIVE}: odpal OmniWM raz i przejdź onboarding, on zapisze pełny plik")
+    with open(LIVE, "rb") as f:
+        cfg = tomllib.load(f)
+    text = dump(merge(cfg))
+    if "--dry-run" in sys.argv:
+        sys.stdout.write(text)
+        return
+    backups = os.path.expanduser("~/.local/state/omniwm/backups")
+    os.makedirs(backups, exist_ok=True)
+    shutil.copy(LIVE, f"{backups}/settings-{time.strftime('%Y%m%d-%H%M%S')}.toml")
+    tmp = LIVE + ".tmp"
+    with open(tmp, "w") as f:
+        f.write(text)
+    os.replace(tmp, LIVE)
+    print(f"merged {len(binds)} chords, {len(cfg['appRules'])} rules, {len(cfg['workspaces'])} workspaces into {LIVE}")
+
+
+if __name__ == "__main__":
+    main()
