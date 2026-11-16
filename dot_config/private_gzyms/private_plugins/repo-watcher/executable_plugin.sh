@@ -1,6 +1,6 @@
 #!/bin/bash
-# Gzyms repo watcher: what others do around your repos (PRs, issues, discussions, forks, sponsors). Stars stay with
-# the built-in star watcher. Built on its loop. Options arrive as GZYMS_OPT_<KEY>; Bash 3.2, gh and jq.
+# Gzyms repo watcher: what others do around your repos (stars, PRs, issues, discussions, forks, sponsors).
+# Built on the built-in star watcher's loop; stars are watched here too. Options arrive as GZYMS_OPT_<KEY>; Bash 3.2, gh and jq.
 # The last seen state lives in a cache file: something that came while Gzyms was off still pings on the next start.
 PILL=repo ICON=tray
 JQ="$(command -v jq || echo /usr/bin/jq)"
@@ -13,7 +13,8 @@ while IFS= read -r r; do
   [[ "$r" =~ ^([A-Za-z0-9._-]+)/([A-Za-z0-9._-]+)$ ]] || continue
   # Names go in as GraphQL variables, never into the query text.
   decl+=" \$o${i}:String! \$n${i}:String!"
-  sel+=" r${i}:repository(owner:\$o${i},name:\$n${i}){forkCount
+  sel+=" r${i}:repository(owner:\$o${i},name:\$n${i}){forkCount stargazerCount
+    stargazers(first:10,orderBy:{field:STARRED_AT,direction:DESC}){nodes{login}}
     forks($NEWEST){nodes{nameWithOwner url owner{login}}}
     pullRequests($NEWEST){nodes{$ITEM}} issues($NEWEST){nodes{$ITEM}}
     openPrs:pullRequests(states:OPEN,first:20,orderBy:{field:CREATED_AT,direction:DESC}){nodes{$ITEM}}
@@ -38,7 +39,7 @@ JQARGS=(--argjson repos "$rp")
 # PR/issue/discussion number (they share one counter) and the forks seen; "@sponsors" = the sponsor logins seen.
 read -r -d '' PROG <<'JQ'
 def who: .author.login // "ghost";
-def notify: {notify: {id: "repo-\(.repo)-\(.id)", title: {pr: "New PR", issue: "New issue", disc: "New discussion",
+def notify: {notify: {id: "repo-\(.repo)-\(.id)", title: {star: "New star", pr: "New PR", issue: "New issue", disc: "New discussion",
   fork: "New fork", sponsor: "New sponsor"}[.k], subtitle: .repo, body: .body, link: .url, level: "info", sound: "message"}};
 def stat($st): ([$ENV.GZYMS_OPT_EVERY // "" | tonumber?][0]) as $e | (if $e then {expect: $e} else {} end) + (if $st.err then {error: $st.err} else {} end);
 def render($st):
@@ -48,7 +49,7 @@ def render($st):
     ([$st.view.repos[].open[]] | length) as $t
     | {item: ({id: "repo", text: "\($t)", icon: (if $t > 0 then "tray.full.fill" else "tray" end),
         color: (if $t > 0 then "gold" else "overlay" end), tooltip: "\($t) open PRs and issues from others",
-        menu: ([$st.view.repos[] | {text: .repo, detail: ":arrow.triangle.branch: \(.forkCount)"},
+        menu: ([$st.view.repos[] | {id: "https://github.com/\(.repo)/stargazers", text: .repo, detail: ":star.fill@gold: \(.stars) :arrow.triangle.branch: \(.forkCount)"},
                  (if (.open | length) == 0 then {text: "Nothing open from others"} else .open[] end), .disc[], {separator: true}]
           + [{text: "Sponsors", detail: ":heart.fill@red: \($st.view.sponsors // "?")"}])} + stat($st))}
   end;
@@ -56,7 +57,9 @@ if $mode == "poll" then
   . as $r
   | ($r.data.viewer.login // "") as $me
   | [$repos[] | .repo as $repo | ($r.data["r\(.i)"] // null) as $o | select($o != null)
-     | {repo: $repo, forkCount: $o.forkCount,
+     | {repo: $repo, forkCount: $o.forkCount, stars: $o.stargazerCount,
+        starrers: [$o.stargazers.nodes[] | {k: "star", id: "star-\(.login)", login, url: "https://github.com/\($repo)/stargazers", who: .login,
+          body: "\(.login) starred it. \($o.stargazerCount) in total."}],
         new: ([$o.pullRequests.nodes[] | {k: "pr", n: .number, id: "pr\(.number)", url, who: who, body: "#\(.number) \(.title), from \(who)"}]
             + [$o.issues.nodes[] | {k: "issue", n: .number, id: "i\(.number)", url, who: who, body: "#\(.number) \(.title), from \(who)"}]
             + [$o.discussions.nodes[] | {k: "disc", n: .number, id: "d\(.number)", url, who: who, body: "#\(.number) \(.title), from \(who)"}]),
@@ -67,7 +70,8 @@ if $mode == "poll" then
   | ($st.base // {}) as $b
   # a repo with nothing in the cache is the baseline: a first start tells nothing
   | [$got[] | .repo as $repo | ($b[$repo] // null) as $old | select($old != null)
-     | ((.new[] | select(.n > ($old.top // 0))), (.forks[] | .id as $f | select(any(($old.forks // [])[]; . == $f) | not)))
+     | ((.new[] | select(.n > ($old.top // 0))), (.forks[] | .id as $f | select(any(($old.forks // [])[]; . == $f) | not)),
+        (if $old.starrers == null then empty else .starrers[] | .login as $l | select(any($old.starrers[]; . == $l) | not) end))
      | select(.who != $me) | . + {repo: $repo}] as $news
   | ($r.data.viewer.sponsorshipsAsMaintainer // null) as $sp
   | [$sp.nodes[]? | .sponsorEntity.login // empty] as $sl
@@ -76,9 +80,10 @@ if $mode == "poll" then
        | {k: "sponsor", id: "s-\($l)", repo: "GitHub Sponsors", url: "https://github.com/\($l)", body: "\($l) sponsors you now."}]
      else [] end) as $snews
   | ($b + ($got | map({(.repo): {top: ([.new[].n, ($b[.repo].top // 0)] | max),
-        forks: ([.forks[].id] + ($b[.repo].forks // []) | unique)}}) | add // {})
+        forks: ([.forks[].id] + ($b[.repo].forks // []) | unique),
+        starrers: ([.starrers[].login] + ($b[.repo].starrers // []) | unique)}}) | add // {})
      + (if $sp != null then {"@sponsors": ($sl + ($b["@sponsors"] // []) | unique)} else {} end)) as $nb
-  | ($st + {base: $nb, view: {repos: [$got[] | {repo, forkCount, open, disc}], sponsors: ($sp.totalCount // $st.view.sponsors)}, err: null}) as $s
+  | ($st + {base: $nb, view: {repos: [$got[] | {repo, forkCount, stars, open, disc}], sponsors: ($sp.totalCount // $st.view.sponsors)}, err: null}) as $s
   | $s, (($news + $snews)[] | notify), render($s)
 elif $mode == "error" then ($st + {err: $err}) as $s | $s, render($s)
 else $st, render($st) end
