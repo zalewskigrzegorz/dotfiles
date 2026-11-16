@@ -3,8 +3,8 @@
 
 OmniWM's schema is strict (a missing key rejects the whole file), so this never builds the file from
 scratch: it reads the one OmniWM wrote, changes our keys and writes it back. OmniWM live-reloads on
-save. Ours: every hotkey binding (anything we don't bind is Unassigned, so OmniWM's Option+… defaults
-stop eating Polish letters), workspaces, monitor ranking, app rules for our bundle IDs, gaps,
+save. Ours: our hotkey bindings (the first run unassigns everything else, so OmniWM's Option+… defaults
+stop eating Polish letters; later runs keep chords set in OmniWM's Settings), workspaces, monitor ranking, app rules for our bundle IDs, gaps,
 border, defaultLayoutType, workspace bar off (Gzyms is the bar). Old file goes to
 ~/.local/state/omniwm/backups first.
 
@@ -22,6 +22,7 @@ import tomllib
 import uuid
 
 LIVE = os.path.expanduser("~/.config/omniwm/settings.toml")
+PORTED = os.path.expanduser("~/.local/state/omniwm/ported")  # set after the first write
 
 # Reuse hyprmac-config's pins, floats and workspace numbers so both WMs read one list.
 _loader = importlib.machinery.SourceFileLoader("hyprmac_config", os.path.join(os.path.dirname(os.path.realpath(__file__)), "hyprmac-config"))
@@ -69,7 +70,7 @@ bind(f"{L}+Option+Shift+W", "closeFocusedWindow")
 bind(f"{L}+S", "toggleScratchpad.1")
 bind(f"{L}+Shift+S", "assignFocusedWindowToScratchpad.1")
 bind(f"{L}+Option+T", "toggleWorkspaceLayout")  # Dwindle <-> Niri on this workspace
-bind(f"{L}+Semicolon", "balanceSizes")  # HyprMac's Retile All slot
+bind(f"{L}+Shift+Semicolon", "balanceSizes")  # Ctrl+; is Karabiner's `omniwmctl rule apply` (Retile All)
 
 chords = list(binds.values())
 assert len(chords) == len(set(chords)), "duplicate chord"
@@ -92,8 +93,17 @@ def merge(cfg):
             missing.append(action)
             continue
         wanted[action] = chord
+    # The first port clears OmniWM's defaults; after that a chord set in OmniWM's Settings on an
+    # action we don't bind stays, unless it collides with one of ours.
+    first = not os.path.exists(PORTED)
+    ours = {norm(c) for c in wanted.values()}
     for h in hotkeys:
-        h["binding"] = wanted.get(h["id"], "Unassigned")
+        if h["id"] in wanted:
+            h["binding"] = wanted[h["id"]]
+        elif first or h["binding"] == "Unassigned" or norm(h["binding"]) in ours:
+            h["binding"] = "Unassigned"
+        else:
+            print("zostawiam skrót z ustawień OmniWM:", h["id"], h["binding"], file=sys.stderr)
     for m in missing:
         print("brak akcji w settings.toml (skrót pominięty):", m, file=sys.stderr)
 
@@ -213,6 +223,7 @@ def main():
     with open(tmp, "w") as f:
         f.write(text)
     os.replace(tmp, LIVE)
+    open(PORTED, "a").close()
     print(f"merged {len(binds)} chords, {len(cfg['appRules'])} rules, {len(cfg['workspaces'])} workspaces into {LIVE}")
 
 
