@@ -1,5 +1,5 @@
 name = "Repo watcher"
-description = "What others do around your repos: new PRs, issues, discussions, forks and sponsors. A notification for each, also for those that came while Gzyms was off. The pill counts open PRs and issues from others."
+description = "Everything others do around your repos: new stars, PRs, issues, discussions, forks and sponsors. A notification for each, also for those that came while Gzyms was off. The pill counts open PRs and issues from others."
 command = "./plugin.sh"
 icon = "tray"
 
