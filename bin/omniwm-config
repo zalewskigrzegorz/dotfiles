@@ -112,6 +112,9 @@ def merge(cfg):
     g["hotkeysEnabled"] = True
     g["ipcEnabled"] = True  # omniwmctl, for checks now and the Gzyms workspace widget later
     cfg["focus"]["followsWindowToMonitor"] = True  # Ctrl+Shift+digit follows the window, as HyprMac did
+    g["workspaceAutoBackAndForth"] = True  # Ctrl+digit of the current workspace goes back, as aerospace's ctrl-tab
+    # Cmd+Tab switches windows of every workspace, most recent first like macOS; Option+Tab stays free
+    cfg["windowSwitcher"].update(enabled=True, commandTab="allWorkspaces", optionTab="disabled", order="lastUsed")
     cfg["gaps"]["size"] = 8.0
     # top is measured from the physical edge minus the menu bar: 40 on the bar-less externals (36pt
     # Gzyms bar + 4), 40 - 32 = 8 on the laptop with its notch bar, as HyprMac's per-monitor values.
@@ -119,6 +122,7 @@ def merge(cfg):
     purple = {"red": 0xB2 / 255, "green": 0x46 / 255, "blue": 0xFF / 255, "alpha": 1.0}  # Mocha Neon B246FF
     cfg["borders"]["color"] = purple
     cfg["borders"]["darkColor"] = purple
+    cfg["borders"]["width"] = 2.0
     cfg["workspaceBar"]["enabled"] = False
 
     cfg["monitors"] = {"ranking": [{"name": n} for n in RANKING]}
