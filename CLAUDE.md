@@ -58,6 +58,7 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 | 16 | `run_onchange_after_16-sketchybar-deps.sh.tmpl` | SbarLua + sketchybar-app-font (sketchybar's Lua config is empty without them), macOS only |
 | 20 | `run_onchange_after_20-macos-xdg-launchagent.sh.tmpl` | macOS XDG launch agent |
 | 25 | `run_once_after_25-install-claude.sh.tmpl` | Install Claude Code CLI |
+| 27 | `run_onchange_after_27-plannotator.sh.tmpl` | macOS only: Plannotator binary (`--minimal`, pinned tag, SLSA-verified) for the `plannotator@plannotator` plugin; sharing off via `PLANNOTATOR_SHARE=disabled` in `env.nu.tmpl` |
 | 28 | `run_onchange_after_28-bin-exec-bits.sh.tmpl` | rsync `bin/` → `~/bin` (keeps the exec bit; `bin/**` is chezmoi-ignored) |
 | 29 | `run_onchange_after_29-scriptc-build.sh.tmpl` | compile `scriptc/*.ts` → native binaries in `bin/` + `~/bin` |
 | 30 | `run_onchange_after_30-agent-skills-sync.sh.tmpl` | rsync `agent-skills/` → `~/.claude/skills` |
