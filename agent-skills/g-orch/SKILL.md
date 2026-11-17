@@ -110,10 +110,18 @@ invent a position.
 The order that works (every command and mine: Mechanics below):
 
 ```bash
-tuios start-agent claude --name <slug> -s <session> --cwd <dir> --grants <read,write|admin> \
-  --prompt "$(cat brief.md)" -- --model <opus|sonnet>           # one window per agent; returns once claude is ready and submits the brief
+ws=$(tuios list-workspaces -s <session> --json | jq '[.workspaces[] | select(.window_count==0) | .workspace] | min')
+[ "$ws" != null ] || { echo "no empty workspace in <session>"; exit 1; }
+tuios start-agent claude --name <slug> -s <session> --workspace "$ws" --cwd <dir> --grants <read,write|admin> \
+  --prompt "$(cat brief.md)" -- --model <opus|sonnet>           # one workspace per agent; returns once claude is ready and submits the brief
 tuios list-agents -s <session> --json | jq -c '.agents[] | {window_id,state}'   # the state turns working → the brief landed
 ```
+
+**Every worker gets its own empty workspace (`--workspace`), never a split.**
+Without the flag `start-agent` splits the current workspace, and three workers
+stacked under the orchestrator left each pane a few lines tall, nothing
+readable (Greg, 2026-11-17). No empty workspace left → one line to Greg, no
+split. A worker already split in: `tuios move-window <empty ws> -w <window>`.
 
 Grants follow where the worker runs, because it must be able to mail the
 orchestrator. `write` reaches only its own session: a worker in the
@@ -126,8 +134,12 @@ running without it gets `tuios set-pane-grants -s <session> -w <window>
 never a question to Greg.
 
 Code tasks: `workctl … --action wt-full --yes --no-focus`, find the window by
-`cwd` in `tuios list-agents --all-sessions`, then `tuios queue -s <session> -w <window> "$(cat brief.md)"`
-(a model other than the default is a `start-agent … -- --model opus` in that session, not `/model`). Say the
+`cwd` in `tuios list-agents --all-sessions`, then `tuios queue -s <session> -w <window> "$(cat brief.md)"`.
+`wt-full` already runs Claude on the default model (Opus high), so an Opus
+brief goes into that window and nothing else starts. Only a non-default model
+(Sonnet) takes `workctl … --no-claude` and then `start-agent … --workspace
+<first empty> -- --model sonnet`: one Claude per session, never a second one
+next to the first ("odpala claude i w nowym oknie odpala claude", 2026-11-17). Say the
 spawn line once: "5 agentów: 2× Opus (PR, review), 3× Sonnet (maile, Slack),
 ETA ~15 min".
 
@@ -138,10 +150,8 @@ and no second try (one session got `No subagent or tuios window with id` 12
 times, twice per item). Close those items by hand after the report.
 
 Before a spawn on review feedback count the unresolved threads (`reviewThreads`
-with `isResolved`). Zero means no spawn, one line "#N: 0 open threads". For a
-task scoring 4 or more, after `workctl` close the default agent window and
-`tuios start-agent claude … -- --model opus --cwd <worktree>`. The spawn line
-states the model read from the agent, not the one assumed.
+with `isResolved`). Zero means no spawn, one line "#N: 0 open threads". The
+spawn line states the model read from the agent's banner, not the one assumed.
 
 ## 4. Supervise
 
@@ -216,7 +226,8 @@ comparison) runs in another window of the session you are already in, on a cheap
 leaves no branch behind. Verified 2026-09-21: the whole loop took 5 minutes of agent time.
 
 ```bash
-tuios start-agent claude --name naming-analysis -s "$TUIOS_SESSION" --cwd "$PWD" \
+ws=$(tuios list-workspaces -s "$TUIOS_SESSION" --json | jq '[.workspaces[] | select(.window_count==0) | .workspace] | min')
+tuios start-agent claude --name naming-analysis -s "$TUIOS_SESSION" --workspace "$ws" --cwd "$PWD" \
   --grants read,write --prompt "$(cat brief.md)" -- --model sonnet    # args after -- go to claude
 tuios wait-for agent-state -s "$TUIOS_SESSION" -w naming-analysis --until needs_input,idle,done --timeout 1500000
 tuios capture-pane -s "$TUIOS_SESSION" -w naming-analysis --scrollback --lines 40 --trim | tail -20
@@ -264,7 +275,7 @@ Removal: `workctl rm <branch> [--force] [--keep-branch]` (it kills the session l
 | One agent's state | `tuios get-agent-state -s <session> -w <window> --json` |
 | Read agent scrollback (**raw text, not JSON**) | `tuios capture-pane -s <session> -w <window> --scrollback --lines 40 --trim \| tail -20` |
 | Create worktree + session | `workctl --branch <b> [--base <ref>] --action wt-full --yes --no-focus` — see above |
-| Start an agent in a new window | `tuios start-agent claude --name <slug> -s <session> --cwd <dir> --prompt "<brief>" -- --model <m>` — after `wt-full`, only with `--no-claude` on it |
+| Start an agent in a new window | `tuios start-agent claude --name <slug> -s <session> --workspace <first empty> --cwd <dir> --prompt "<brief>" -- --model <m>` — after `wt-full`, only with `--no-claude` on it |
 | Brief an agent that already runs (non-blocking) | `tuios queue -s <session> -w <window> "<text>"` — typed and submitted once it rests, never over a prompt it waits on |
 | Ask and wait for the answer (blocking) | `tuios ask-agent -s <session> -w <window> --from "$TUIOS_PANE_ID" "<question>"` — only for short questions, `--timeout` default 5 min |
 | Leave mail, type nothing | `tuios send-agent-message -w <window> --from "$TUIOS_PANE_ID" "<text>"` |
@@ -326,7 +337,7 @@ tuios capture-pane -s <repo>-feat-demo -w <wid> --scrollback --lines 40 --trim |
 workctl rm feat/demo                       # only after merge
 ```
 
-**The model follows the task's weight** (`agent-rules/subagent-model-by-weight.md`): code that lands in a PR, a debugging hunt or anything over ~15 min → `--model opus`; mail drafts, Slack digests, read-only lookups → `--model sonnet`; Fable only when Greg names it for that spawn. `wt-full` starts `claude` on the default model, so for a brief that needs another one spawn it with `tuios start-agent … -- --model <m>` in the session instead of the `claude` workspace, and say the model in the spawn line.
+**The model follows the task's weight** (`agent-rules/subagent-model-by-weight.md`): code that lands in a PR, a debugging hunt or anything over ~15 min → `--model opus`; mail drafts, Slack digests, read-only lookups → `--model sonnet`; Fable only when Greg names it for that spawn. `wt-full` starts `claude` on the default model (Opus high), so an Opus brief is queued into it; a brief that needs another model takes `wt-full --no-claude` plus `tuios start-agent … --workspace <first empty> -- --model <m>`, and the spawn line says the model.
 
 ## Supervising: one wait, not a read/sleep/list loop
 
