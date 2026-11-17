@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Install the Plannotator binary (plan/diff review UI for the plannotator@plannotator
+# Claude plugin, listed in agent-plugins/plugins.json.tmpl). No brew formula.
+# --minimal = binary only in ~/.local/bin: no skills in ~/.claude/skills (stage 30
+# would wipe them, and the plugin's mod registers /plannotator-* itself), no
+# Codex/Gemini/OpenCode wiring. The installer is read from the pinned tag, not
+# plannotator.ai, so a bump of VERSION is the only way new code arrives.
+# Sharing is off through PLANNOTATOR_SHARE=disabled in env.nu.tmpl.
+set -euo pipefail
+
+{{ if eq .chezmoi.os "darwin" -}}
+VERSION="v0.28.67"
+
+if command -v plannotator >/dev/null && plannotator --version 2>/dev/null | grep -qF "${VERSION#v}"; then
+  exit 0
+fi
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+curl -fsSL -o "$TMP/install.sh" "https://raw.githubusercontent.com/backnotprop/plannotator/${VERSION}/scripts/install.sh"
+bash "$TMP/install.sh" --version "$VERSION" --minimal --verify-attestation --non-interactive
+echo "Installed plannotator ${VERSION} → ~/.local/bin/plannotator"
+{{ end -}}
