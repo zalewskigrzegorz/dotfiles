@@ -1,5 +1,5 @@
 ---
-description: Small operational traps that each cost a session a retry — sudo handoff, probing unknown CLIs, transient index.lock, locating pnpm packages, empty variables, bulk git mv, removing PR reviewers, Slack token rotation, uvx cache lock, private overlay sync, e2e tsc, single spec runs, read-only op service account, secret handling, software installs
+description: Small operational traps that each cost a session a retry — sudo handoff, probing unknown CLIs, transient index.lock, locating pnpm packages, empty variables, bulk git mv, read-only op service account, secret handling, software installs. Work-monorepo traps live in scoped/work-*.md, dotfiles-only ones in .claude/rules/dotfiles-ops.md
 alwaysApply: true
 ---
 
@@ -62,14 +62,6 @@ the same shape. Before a command that takes a ref or a path from `$(…)`:
 `[ -n "$sha" ] || { echo "no match: $s"; continue; }`. After one empty result,
 check the lookup once by hand; don't rerun the loop with a different pipeline.
 
-## `pnpm patch-commit` rewrites more of the lockfile than the patch
-
-After `pnpm patch-commit`, `pnpm-lock.yaml` also had a `(patch_hash=…)` peer
-suffix on `@better-auth/oauth-provider`, which was not patched; undoing it took
-~6 calls (2026-10-09). Right after it: `git diff --stat pnpm-lock.yaml
-pnpm-workspace.yaml patches/`, keep only the patched package's entries and its
-`patchedDependencies` line, and restore the rest from `git show HEAD:<file>`.
-
 ## `Read` "exceeds maximum allowed tokens" → stop shrinking `limit`
 
 `limit` counts lines, not tokens. On a flattened HTML, JSON or Slack export
@@ -80,34 +72,6 @@ yourself, split it into numbered parts. A big MCP result saved to
 `tool-results/*.txt` is the same case: `slack_read_file` on a scenarios doc
 came back as 1.3 M chars (2026-10-14). Grep it for headings (`^####`) or ids
 instead of reading it whole.
-
-## Slack poster token rotation: env var beats the file
-
-After rotating `WORK_SLACK_POSTER_TOKEN` the first send failed on
-`token_revoked`: older shells and sessions held the old value and the scripts
-read the env var before `work.env` (2026-10-13). Rotation = update the
-`slack-poster-user-token` item **and** the line in the `WORK_ENV` document
-(`bin/sync` restores `work.env` from it). Test with `env -u
-WORK_SLACK_POSTER_TOKEN <script>`, restart older shells and sessions. The value
-goes clipboard → consumer → `pbcopy < /dev/null`, never to stdout.
-
-## A `uvx` MCP server locks the uv cache
-
-Every running `uvx <server>` holds `~/.cache/uv`, so `uv cache prune` in
-`disk-sweep` timed out (2026-10-13). An MCP server is installed with `uv tool
-install` in stage 26 and started by its binary name, never `uvx`. Diagnose:
-`ps -axo pid,etime,command | rg '[u]vx '`. Older sessions keep the lock until
-restarted.
-
-## Private overlay edits: vault first, then `bin/sync`
-
-A skill or rule from the `PRIVATE_AGENT_ASSETS_TAR` overlay lives in
-1Password. `bin/sync` restores it from the vault, so a local edit vanishes
-unless the tar was pushed first (`op document edit … --vault Dotfiles`, then
-`op document get` to scratch and `cmp`). The push needs Greg's 1Password
-approval; when he is away from the Mac, don't run `op` or `bin/sync`: leave
-the `*.pending.tar` and end with "powiedz zatwierdzę". Don't re-fire the
-approval prompt (2026-10-13, two `authorization timeout`s).
 
 ## `tsc <file>`, `pnpm test -- <file>`
 
@@ -120,21 +84,6 @@ A loop of `git mv` plus manifest edits died on `index.lock` halfway through
 full map, write the reference files (manifests, configs) before the first
 move, move with plain `mv`, then one `git add -A -- <literal paths>`. If it
 dies anyway: `git status`, resume from the first unfinished item.
-
-## `gh api`: removing a requested reviewer
-
-`DELETE …/pulls/<n>/requested_reviewers` wants both keys in the body;
-`-f 'team_reviewers[]=<slug>'` alone answers `"reviewers" wasn't supplied`
-(2026-10-02). Send JSON:
-`printf '{"reviewers":[],"team_reviewers":["<slug>"]}' | gh api -X DELETE repos/<o>/<r>/pulls/<n>/requested_reviewers --input -`.
-
-## Temporal specs are red in the sandbox by design
-
-`libs/temporal-workflows/**/*.spec.ts` download Temporal's test server and the
-sandbox has no network: `Failed to start ephemeral server: error sending
-request`. A full api `vitest` run red only there, on that message, is one
-sentence ("tylko temporal, brak sieci w sandboxie, CI to pokryje"). No hunt,
-no rerun. Any other failure in those files is a normal failure.
 
 ## `op` here is a read-only service account
 
@@ -187,36 +136,6 @@ process args for a moment.
 package, its source and the side effect ("dubluje Sparka z Setappa"), unless
 Greg said "zainstaluj X" himself. A diagnostic question doesn't cover an
 install (30ce5f6a).
-
-## `/tui` switches every running Claude session at once
-
-`/tui default` writes `tui` into `~/.claude/settings.json`, every open session
-reloads it live and drops from the fullscreen renderer to an empty screen
-(28ca873d). "Already using the default renderer" in the others is the shared
-setting, not proof they were untouched. Never run `/tui` or edit `tui` while
-sessions are open. Test a renderer in one new session only: `with-env
-{CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN: '1'} { claude }`. Recovery: set `tui`
-back, sessions redraw on the next key.
-
-The `env` block reloads live the same way: that flag put into settings.json
-blanked every open session (928081b1, reverted in 47a4241). A renderer flag
-goes into the process env (`with-env`, nushell `env.nu`), never settings.json.
-Removing a key from the template doesn't remove it from the live file
-(`modify_settings.json.tmpl` merges in): `jq 'del(.env.X)'` the live file too.
-Scroll jumps don't reproduce on tuios (2.1.311), so don't blame upstream
-#34845. The blanking is anthropics/claude-code#104064, and blank sessions need
-`/exit` + `claude --continue`.
-
-## A cheap Haiku call from a script or hook
-
-`claude -p --model claude-haiku-5-5 --no-session-persistence --strict-mcp-config
---tools "" --setting-sources "" --system-prompt "…" "<input>" </dev/null`, with
-an env guard (`OS_TITLE_CHILD=1`) that your own hook checks first. No hooks,
-plugins, MCP or CLAUDE.md load: ~600 tokens, ~2 s, $0.0002. `--bare` is not an
-option here, it reads only `ANTHROPIC_API_KEY`, never the OAuth login. Haiku
-sometimes reasons before the answer, so take the last line. Without
-`</dev/null` it eats the stdin of a `while read` loop around it, and the loop
-ran one item out of twelve (28ca873d).
 
 ## `gh search` in a loop trips the secondary rate limit
 
@@ -278,25 +197,6 @@ included. tuios isn't verified to differ, so the rule stays: detach with `perl
 -e 'use POSIX; setsid; exec @ARGV' -- <cmd> &` and say what is left behind if
 it fails (dc819c48).
 
-## `bin/sync` on a held chezmoi lock
-
-Another agent's `chezmoi apply` holds it. One `ps -axo pid,etime,command | rg
-'[c]hezmoi'`; under ~2 min old → `timeout 180 sh -c 'while pgrep -x chezmoi
->/dev/null; do sleep 5; done'`, then `bin/sync` once. Older, or the wait timed
-out → report pid and age. Never kill another agent's apply (f6d9d77e).
-
-## Pushed dotfiles `master` from a worktree → fast-forward the main checkout
-
-`bin/sync` and `~/bin` read `~/Code/dotfiles`. After `git push origin
-HEAD:master` from a worktree: `git -C ~/Code/dotfiles fetch -q origin master
-&& git -C ~/Code/dotfiles merge --ff-only origin/master`, only when that
-checkout is clean and on `master`; otherwise one line (dc819c48).
-
-## Before writing "X puts Y first on PATH"
-
-Run `env PATH=<prefix>:/usr/bin:/bin command -v <tool>` and `<tool>
---version` once. An `ls` of the directory is not proof (f6d9d77e).
-
 ## SMS and iMessage are `chat.db`, read-only
 
 "SMS", "wiadomości", "iMessage" mean `~/Library/Messages/chat.db`, never
@@ -331,8 +231,3 @@ the scratchpad. Personal data from there never goes to bazgroly (5666f824).
 A task-notification saying the ponytail `UserPromptSubmit` hook was skipped
 (`cc-plugin-sec-default` runs first) gets no reply and no mention. A first
 reply spent two sentences on it and "Czekam na zadanie" (7c37679b).
-
-## Sentry `search_issues` takes no `OR` / `AND`
-
-`(team OR scim)` answers HTTP 400 "Boolean statements … are not supported".
-Several terms = several calls in one turn (c0cc0722).

@@ -65,3 +65,33 @@ content = header + "\n---\n\n".join(sections) if sections else header + "<!-- no
 out.write_text(content, encoding="utf-8")
 print(f"agent-rules sync: wrote {out} ({len(sections)} always-apply rule(s))")
 PY
+
+# Path-scoped rules (frontmatter `paths:`) → ~/.claude/rules/. Claude Code loads
+# them only when a matching file is read, so they stay off the startup budget.
+# Files are marked so a rule removed from the source is removed here too, while
+# rules Greg adds by hand are left alone.
+python3 - "$SOURCE/scoped" "$PRIVATE_SOURCE/scoped" "${HOME}/.claude/rules" <<'PY'
+import sys
+from pathlib import Path
+
+MARK = "<!-- managed: dotfiles agent-rules/scoped -->"
+*srcs, dst = sys.argv[1:]
+dst = Path(dst)
+dst.mkdir(parents=True, exist_ok=True)
+wanted = {}
+for d in (Path(s) for s in srcs):
+    if d.is_dir():
+        for md in sorted(d.glob("*.md")):
+            text = md.read_text(encoding="utf-8")
+            if not text.startswith("---\npaths:"):
+                print(f"agent-rules sync: WARNING {md} has no leading paths: frontmatter, skipped", file=sys.stderr)
+                continue
+            end = text.index("\n---\n", 4) + 5
+            wanted[md.name] = text[:end] + MARK + "\n" + text[end:]
+for f in dst.glob("*.md"):
+    if f.name not in wanted and MARK in f.read_text(encoding="utf-8", errors="replace"):
+        f.unlink()
+for name, body in wanted.items():
+    (dst / name).write_text(body, encoding="utf-8")
+print(f"agent-rules sync: wrote {len(wanted)} path-scoped rule(s) to {dst}")
+PY

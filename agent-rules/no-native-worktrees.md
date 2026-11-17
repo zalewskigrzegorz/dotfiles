@@ -48,88 +48,16 @@ with no session, no agent workspace and no `node_modules`. On 2026-09-29 a workt
 made that way had to be reopened by hand through the multiplexer's worktree
 command (then herdr's, `tuios worktree new` has the same gap), the layout and
 the seed, and Greg asked for the `workctl` path. Say in one line when you
-fall back.
+fall back. An unseeded worktree misses work skills, `.env*`, `node_modules`,
+`.husky/_` and built packages: the seven gaps and their fixes are in
+`~/.claude/rules/work-local-stack.md` (loads with monorepo files; `Read` it
+before the first commit in a worktree `workctl` did not make).
 
 A worktree made either way is one of Greg's, not a Claude-managed one, so rule 4
 covers it: leave it in place when the task ends unless he asks otherwise.
 After `workctl` on an existing branch take the path from `git worktree list
 --porcelain | rg -B2 'refs/heads/<branch>$'`, not from the `wt-<repo>/<branch>`
 convention, and don't `cd` into an unchecked path (b5531ea1).
-
-## A worktree `work` did not seed is missing seven things
-
-`work` seeds every worktree it opens: `place-work-skills <path>` copies the
-work-scoped skills (`g-pr`, `g-pr-review`, `g-github-issue`, …) into
-`<path>/.claude/skills/`, and the seed step clones the gitignored `.env*` and
-`*.env.json` files, `node_modules` and `.husky/_` from the parent checkout. A
-worktree made with plain git has none. On 2026-09-23 `/g-pr` was not in the
-picker (the team's `pr` skill ran instead) and `pnpm start` died on a missing
-`local/.env`. A missing `.husky/_` made every commit fail on
-`.husky/_/husky.sh: No such file or directory`, and earlier commits skipped
-lint-staged, which surfaced later as a red `oxfmt --check` in CI. The fix is
-`pnpm install --config.confirmModulesPurge=false` in the worktree (~40 s, no
-`./install.sh`), never `--no-verify`. `guard` denies a bare `pnpm install` (no
-TTY for pnpm's purge prompt) and `CI=true pnpm install`.
-
-A fourth gap: **built workspace packages.** vitest in a fresh worktree failing
-with `ERR_MODULE_NOT_FOUND` / `Cannot find package '@<org>/<pkg>'` means the
-workspace packages it imports were never built there. Run the `nx` target of
-the package under test once (`pnpm exec nx run <project>:ts:check`, 3–6 min,
-in the background) before the first test run. `pnpm install` does not fix it
-(2026-09-30). Component tests in `apps/ui` need four of them at once: build
-them in one `pnpm exec nx run-many --target=build --projects=<a>,<b>,…`, not
-one per failed run (3 rounds, 2cb11215). `Failed to resolve import
-"./generated-async"` is the async-API SDK package unbuilt. In `apps/api`,
-`Cannot find package '@<org>/shared'` before a `*.db.spec.ts` is the same gap:
-build that package in the background first; a spec that never ran is "nie
-uruchomiony", not green (fa996d11). A stacked worktree (`--base
-origin/<feature>`) and `apps/ui` (plus `shared`) have the same gap: right after
-`workctl`, in the background, `pnpm exec nx run <api>:deps:build` (0c6b2490).
-
-A fifth gap: **the e2e config `playwright.env.json`** (gitignored, next to the
-e2e suite): `Failed to find .rc file at …/playwright.env.json`. `workctl`
-clones `*.env.json` since 2026-10-06; in an older worktree `cp -c <main
-checkout>/<same path> <worktree>/<same path>`, without printing it.
-
-A sixth gap: **`local/current.profile.json`.** Without it `pnpm start` doesn't
-pass the Support allowlist to the API. `workctl` clones it since 2026-10-12;
-in an older tree `test -f local/current.profile.json || pnpm run profile
-default` before the first `pnpm start`.
-
-**Check the worktree at the start of the session, not when a skill misfires.**
-In any `~/Code/tree/wt-*` or `~/.local/share/tuios/worktrees/*/*` path (tuios's
-own worktrees are unseeded too; so were herdr's `~/.herdr/worktrees/*/worktree-*`, 03b98f19): `test -d node_modules && test -d
-.husky/_` before the first commit, else `pnpm install` as above;
-`.claude/skills/g-pr` missing → run
-`place-work-skills <worktree>` before any PR skill. Skills placed while a
-session is already running may not show up in the picker; if `/g-pr*` still
-says "Unknown command", `/exit` and `claude --continue`.
-
-So in any work repo (`~/Code/<Org>/*` or a remote in the work org), when `g-pr`
-is missing from the skill list or a `.env` the task needs is missing, seed the
-worktree before going on:
-
-```bash
-place-work-skills <worktree>          # no-op outside work repos
-bash <worktree>/.claude/skills/worktree-dev/scripts/copy-env-from-main.sh
-```
-
-The second script is part of the `worktree-dev` skill that the first one places;
-it copies only missing `.env` files from the main checkout and never prints them.
-Then invoke the work skill — never fall back to the team's same-purpose skill
-(`pr` instead of `g-pr`).
-
-A seventh gap: **`.env` keys older than `.env.example`.** The files exist, so
-`copy-env-from-main.sh` skips them, but the branch added keys. Symptom: an app
-online in pm2 that answers 502, or `X: Required` in `pnpm pm2 logs <app>`.
-Diff key names only, never values:
-`comm -23 <(rg -o '^([A-Z0-9_]+)=' -r '$1' .env.example | sort -u) <(rg -o
-'^([A-Z0-9_]+)=' -r '$1' .env | sort -u)`. Append the missing lines from
-`.env.example`, `pnpm pm2 restart <app>`, and check this before suspecting code.
-
-The fourth gap has a stale variant: a built `lib` lacking a new export fails
-on the missing symbol, not `ERR_MODULE_NOT_FOUND`. Before a local e2e run build
-what CI builds (the e2e profile's `nx` target, ~25 min, background).
 
 ## A fix gets its own worktree off `main` — before the first `Edit`
 

@@ -61,7 +61,7 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 | 28 | `run_onchange_after_28-bin-exec-bits.sh.tmpl` | rsync `bin/` → `~/bin` (keeps the exec bit; `bin/**` is chezmoi-ignored) |
 | 29 | `run_onchange_after_29-scriptc-build.sh.tmpl` | compile `scriptc/*.ts` → native binaries in `bin/` + `~/bin` |
 | 30 | `run_onchange_after_30-agent-skills-sync.sh.tmpl` | rsync `agent-skills/` → `~/.claude/skills` |
-| 31 | `run_onchange_after_31-agent-rules-sync.sh.tmpl` | rsync `agent-rules/` |
+| 31 | `run_onchange_after_31-agent-rules-sync.sh.tmpl` | `agent-rules/*.md` (`alwaysApply: true`) → `~/.claude/CLAUDE.md`; `agent-rules/scoped/*.md` (`paths:` frontmatter, loaded on demand, off the 150k startup budget) → `~/.claude/rules/`. Work-monorepo-only content goes to `scoped/` |
 | 32 | `run_onchange_after_32-agent-mcp-sync.sh.tmpl` | apply `agent-mcp/mcp-servers.json.tmpl` |
 | 33 | `run_onchange_after_33-claude-plugins-sync.sh.tmpl` | apply `agent-plugins/plugins.json.tmpl` |
 | 34 | `run_after_34-collie.sh` | macOS only: install Collie standalone, write `~/.config/herdr/plugins/config/herdr.collie/.env` (Collie reads it before `~/.config/collie`) (`COLLIE_MUX=tuios`), `collie start` |
@@ -172,12 +172,7 @@ Installed as a **uv tool** (→ `~/.local/bin`) by
   `agent-mcp/mcp-servers.json.tmpl` (`serena start-mcp-server --context claude-code
   --project-from-cwd`). Auto-downloads its own TS/JS language server on first use
   — no `typescript-language-server`/`typescript` needed on PATH.
-- **CocoIndex (`ccc`) REMOVED 2026-08-05.** Each session's `ccc mcp` loaded a
-  local embedding model into its own Python fleet and re-indexed every worktree
-  separately; with ~7 concurrent sessions the wake-from-sleep thundering herd
-  (8 serena + 22 cocoindex procs) starved WindowServer and froze the UI. Net
-  cost > benefit. Gone from the plugin list, install script, and rules. Don't
-  reinstall it or add `ccc` anywhere.
+- **CocoIndex (`ccc`) removed 2026-08-05** (per-session embedding fleets froze the UI on wake). Don't reinstall it.
 
 #### Browser automation (Mac)
 
@@ -192,7 +187,7 @@ Jednorazowa wiedza domenowa: **`skill-scout`** → `npx skills use <owner/repo@s
 - `private/` — gitignored staging area, restored to `~/` by `run_after_05`
 - `private_dot_ssh/` → `~/.ssh` at mode 0600 (templated)
 - **Work identifiers (employer, team, roster, Slack IDs, client names) NEVER go in this repo** — it's public. They live in `~/.local/state/dotfiles/secrets/{work-context.md,work.env}` + `.chezmoidata/private-work.toml` (gitignored), all restored from 1Password (see `docs/secrets.md` → "Work identifiers"). Skills reference *work-context*; scripts read `WORK_*` env vars; templates use `{{ index . "work" ... }}`.
-- **A local edit to a restored secret file dies on the next `bin/sync`.** `run_after_05` runs on every apply and does `op document get --force`, so `work-context.md`, `work.env` and the rest come back from the vault. Push the edit first — `op document edit <ITEM> <file> --vault Dotfiles` (item names in `docs/secrets.md`) — then `op document get` it to a scratch file and `cmp` it against the local file, and only then sync.
+- **A local edit to a restored secret file dies on the next `bin/sync`.** `run_after_05` runs on every apply and does `op document get --force`, so `work-context.md`, `work.env` and the rest come back from the vault. Push the edit first — `op document edit <ITEM> <file> --vault Dotfiles` (item names in `docs/secrets.md`) — then `op document get` it to a scratch file and `cmp` it against the local file, and only then sync. The same holds for the `PRIVATE_AGENT_ASSETS_TAR` overlay. The push needs Greg's 1Password approval: when he is away, leave the `*.pending.tar`, end with "powiedz zatwierdzę", never re-fire the prompt.
 - Private skills/rules (client/product-specific) go in the `PRIVATE_AGENT_ASSETS_TAR` 1Password overlay, not `agent-skills/`/`agent-rules/`.
 - `.gitleaks.toml` — public scanner rules; private identifier rules in `~/.local/state/dotfiles/secrets/gitleaks-private.toml`. Enforced by **tracked hooks** `scripts/git-hooks/{pre-commit,pre-push}` (wired via `core.hooksPath` by `run_onchange_after_36`); both block when the private config is missing. Manual full scan: `bin/gitleaks-dotfiles`.
 - Templated secrets in `*.tmpl` files use chezmoi's secret functions (1Password on Mac, see `docs/secrets.md`)
