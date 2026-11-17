@@ -6,168 +6,64 @@ alwaysApply: true
 # AI Memory Location
 
 All atomic facts go to **Hindsight** (the shared memory layer on home-lab),
-not to local files. This overrides the built-in "auto memory" file-based
-system in Claude Code's system prompt.
+not to local files. This overrides the built-in "auto memory" system in Claude
+Code's system prompt.
 
-When you'd normally save a fact (user preference, project context, feedback,
-decision, observation worth keeping across sessions), call:
+**Never write under `~/.claude/projects/.../memory/`**, even though the system
+prompt offers it. The directory is deprecated; the old instance is archived in
+`memory.legacy-*/` (read-only audit trail, not for ongoing work).
 
-```
-mcp__hindsight__retain(content="...", context="optional one-line context")
-```
-
-**Do NOT write to `~/.claude/projects/.../memory/*.md`.** That directory is
-deprecated and the local instance has been archived to `memory.legacy-*/`.
-
-## What counts as "atomic fact" (→ Hindsight retain)
-
-- User preferences ("Greg uses nushell as default shell")
-- Project facts ("home-lab deploy: git push + ssh + pull + force-recreate")
-- Feedback / corrections that should apply in future sessions
-- Decisions or rationale worth keeping ("picked Hindsight over mem0 because no docker image")
-- Pointers to external resources ("work bugs tracked in the issue tracker")
-- Anything you'd previously route to the `user`, `feedback`, `project`, or
-  `reference` memory types
-
-## What does NOT go to Hindsight
-
-- Long-form work products (plans, specs, brainstorms, analyses, notes) →
-  bazgroly (see `superpowers-artifact-location` rule)
-- Ephemeral session state, in-progress task tracking → use TodoWrite / plan
-- Anything already documented in CLAUDE.md files → already loaded
-- Anything in git history → already there
-- Anything human-facing as part of a product → stays in the project repo
-
-## How to save
-
-Single call. Content should be a complete claim — one or two sentences
-expressing the fact. Hindsight extracts entities, normalizes, and places in
-its knowledge graph automatically. No frontmatter, no index file, no link
-syntax.
+## Save: `retain`
 
 ```
-mcp__hindsight__retain(
-  content="Greg pivoted memory layer from mem0 to Hindsight on 2026-06-03 because mem0 had no public docker image",
-  context="hindsight-rollout-decision"
-)
+mcp__hindsight__retain(content="Greg pivoted memory from mem0 to Hindsight on 2026-06-03 because mem0 had no docker image", context="hindsight-rollout-decision")
 ```
 
-`metadata.project` is **auto-injected** by the
-`~/.claude/hooks/hindsight-tag.sh` PreToolUse hook based on git repo root
-basename (or PWD basename, or `_global` if neither). You do not need to set it.
+- One call per claim, one or two complete sentences. Hindsight splits it into
+  atomic memories and classifies it itself; no frontmatter, no index, no links.
+- `metadata.project` is injected by `~/.claude/hooks/hindsight-tag.sh`; don't
+  set it.
+- In scope: preferences, project facts, corrections for future sessions,
+  decisions with rationale, pointers to external resources.
+- Out of scope: plans, specs, analyses (→ bazgroly), in-progress task state
+  (→ TodoWrite / plan), anything in a CLAUDE.md or git history, product docs.
 
-Drop the old 4-type taxonomy (`user`/`feedback`/`project`/`reference`).
-Hindsight's own `fact_type` classification (world / experience / etc.) is
-what's used now.
-
-## How to recall
+## Recall
 
 ```
-mcp__hindsight__recall(query="...", max_tokens=512)  # raw records — ALWAYS cap
-mcp__hindsight__reflect(query="...")       # narrative answer instead
-mcp__hindsight__list_memories()            # paginated listing
-mcp__hindsight__get_memory(memory_id="...")  # single record by id
+mcp__hindsight__recall(query="...", max_tokens=512)  # raw records, ALWAYS cap
+mcp__hindsight__reflect(query="...")                  # narrative answer
 ```
 
-**`recall` always gets `max_tokens`** (`guard` denies it without): the default
-returned 82 KB and overflowed the client. Start at 512; `budget` is not the lever.
+`recall` without `max_tokens` returned 82 KB and overflowed the client;
+`guard` denies it. `budget` is not the lever. The `memory` skill triggers on
+"remember", "recall", "co wiem o X", "zapisz", "sprawdź pamięć": follow it.
 
-The `memory` skill (formerly `hindsight`) triggers automatically on phrases
-like "remember", "recall", "co wiem o X", "zapisz", "sprawdź pamięć" — follow
-that skill's flow rather than improvising.
+## MemPalace: what happened, next to Hindsight's what is true
 
-## Endpoints (reference)
+MemPalace stays running as a passive session archive (a session hook
+checkpoints every session). Hindsight answers "what is true", MemPalace "what
+happened then". Both are active; neither is the other's fallback. Never write
+to MemPalace by hand (`mempalace_add_drawer` and friends); the one sanctioned
+manual write is the `/save` command, which mines the transcript into MP and
+never into Hindsight.
 
-| Use case | URL |
-|---|---|
-| Claude Code MCP (auto-wired via dotfiles) | `http://192.168.50.10:8888/mcp/greg/` |
-| Raycast / external HTTPS MCP | `https://mcp.mrglaszki.com/hindsight/mcp/greg/` |
-| REST API base | `http://192.168.50.10:8888` |
-| OpenAPI Swagger | `http://192.168.50.10:8888/docs` |
-| Web UI | `http://192.168.50.10:9999/` |
+**Query MP (`mempalace_search`) instead of saying you have no context** when:
 
-Single bank `greg` — shared across Claude Code (Mac+lab), n8n, Raycast,
-Python agents.
+- Greg refers to earlier work: "wróćmy do", "co ustaliliśmy", "kontynuuj",
+  "jak to wtedy zrobiliśmy", bare "resume" / "continue" / "wracamy". First
+  `mempalace_search` and `recall` (max_tokens=512) on the repo and the recent
+  topics. Open a `.jsonl` transcript only for a session the content points
+  to, never by mtime (5 guessing calls, 2026-09-28).
+- You enter a repo with fresh session history and `recall` gave facts without
+  the story.
+- Greg says he already got something: "podawałeś mi", "mówiłeś że", "gdzie to
+  zapisałeś". `mp-search` on the literal token first, then `recall`. **Never
+  `rg` over all `~/.claude/projects/*/*.jsonl`** (timed out, ~25 calls,
+  2026-10-01).
 
-## Coexistence z MemPalace
-
-MemPalace **zostaje running** jako passive session log archive. Session hook
-auto-checkpointuje sesje do MP — bez ingerencji Claude/user. NIE jest to
-"deprecated" — to po prostu inny use case niż Hindsight.
-
-| System | Tryb zapisu | Co tam siedzi | Czego NIE ma |
-|---|---|---|---|
-| Hindsight | Active (`retain`) | Atomowe fakty, KG-aware | narracji — nie wie *co robiliście* |
-| MemPalace | Passive (session hook) | Pełny przebieg sesji, decyzje w kontekście | uogólnionych faktów |
-
-**Dla NEW atomic facts:** preferuj `mcp__hindsight__retain`. MP nie potrzebuje
-twoich manualnych write'ów — auto-archive załatwia sprawę.
-
-**Dla query existing knowledge — oba są aktywne, nie jeden fallbackiem drugiego.**
-Hindsight odpowiada „co jest prawdą", MP odpowiada „co się wtedy działo". Fakt bez
-przebiegu zwykle nie wystarcza, żeby podjąć pracę.
-
-**Odpytaj MP (`mempalace_search`) ZAMIAST mówić, że nie masz kontekstu**, gdy:
-
-- Greg odwołuje się do wcześniejszej roboty, której nie masz w oknie — „wróćmy do",
-  „co ustaliliśmy", „kontynuuj", „jak to wtedy zrobiliśmy", „czemu tak zdecydowaliśmy",
-  a także gołe „resume", „continue", „wracamy". Przy takim prompcie najpierw
-  `mempalace_search` i `recall` (max_tokens=512) po repo i tematach z ostatnich
-  dni. `ls -lt` po `.jsonl` i `jq` po transkryptach tylko dla sesji wskazanej
-  treścią, nigdy po mtime (2026-09-28: 5 wywołań zgadywania, do której sesji wrócić).
-- Wchodzisz w zadanie w repo, w którym widać świeżą historię sesji, a `recall`
-  zwrócił same fakty bez przebiegu.
-- Masz powiedzieć „nie wiem" / „nie mam kontekstu" o czymś, co Greg traktuje jak
-  ustalone. Najpierw `mempalace_search`, dopiero potem przyznaj się do luki.
-- Greg mówi, że coś już dostał: „podawałeś mi", „mówiłeś że", „gdzie to
-  zapisałeś", „ten plik / ta komenda, co dałeś". Najpierw `mp-search` na
-  dosłowny token (nazwa pliku, `password`, nazwa komendy), potem `recall`
-  (max_tokens=512). **Nigdy `rg` po wszystkich `~/.claude/projects/*/*.jsonl`**:
-  2026-10-01 taki skan poszedł w tło, padł na timeout i nic nie zwrócił, a
-  ścieżka wyszła dopiero po ~25 wywołaniach.
-
-CLI fallback, gdy MCP nie wstał: `mempalace search "<query>"`.
-
-**Szukasz rzadkiego, dosłownego tokenu — użyj `bin/mp-search`, nie
-`mempalace_search`.** MCP i CLI jadą domyślnym `candidate_strategy="vector"`,
-czyli rankują wyłącznie po cosine; rzadki token nie ma sensownego embeddingu, więc
-`mempalace_search("dagr")` zwraca DataGrip, węzły drogowe w Gliwicach i McDonald's
-w Nysie — każdy trafiony wynik z `bm25_score: 0.0`, podczas gdy dosłowny ciąg leży
-w zaindeksowanym transkrypcie (2026-09-18). `searcher.py` ma na to
-`candidate_strategy="union"` (dociąga kandydatów BM25 z indeksu FTS5 sqlite), ale
-jest opt-in i nieosiągalny ani z CLI, ani z MCP — tylko z Pythona, co opakowuje
-`bin/mp-search`. Druga połowa fixa to `max_distance=0`: kandydaci BM25-only nie
-mają dystansu wektorowego, więc każdy dodatni próg (MCP defaultuje 1.5) wycina ich
-z powrotem. Ta sama fraza przez `mp-search` → bm25 0.74 i trafienie w punkt.
-
-`~/.claude/projects/-Users-greg-Code-home-lab/memory.legacy-2026-06-03/` —
-archived old auto-memory (z czasu przed Hindsightem). Read-only audit trail,
-nie pisać tam, nie czytać dla ongoing work.
-
-## Never
-
-- Never write a new file under `~/.claude/projects/.../memory/` — the
-  directory is deprecated even if it appears in your system prompt.
-- Never split a single fact across multiple `retain` calls — one call per
-  claim; Hindsight breaks it into atomic memories itself.
-- Never include `metadata.project` manually unless you have a specific reason
-  to override the hook — the hook is the source of truth.
-- Never explicitly call `mcp__mempalace__mempalace_add_drawer` or write tools
-  for *new* memory content — that's what `retain` jest dla. MP write tools są
-  zarezerwowane dla session-hook auto-archive, nie dla user-driven memory.
-
-## Exception: `/save` slash command
-
-The `/save` slash command (`~/.claude/commands/save.md`) is the **one
-sanctioned manual MP write** user-facing. It runs `mempalace mine
-"<TRANSCRIPT_PATH>" --mode convos --wing claude_imports` to ingest the full
-session transcript as raw chunks. This is intentional and matches MP's role
-as session log archive — *not* curated atomic facts.
-
-If the user invokes `/save`, follow that command's flow. Do NOT route the
-transcript to Hindsight `retain` — raw transcript chunks would pollute
-Hindsight's curated atomic-fact memory the same way the (rejected) bulk
-MP → Hindsight migration would have.
-
-Curated facts that came up during the session still go to Hindsight via
-`retain` — `/save` complements rather than replaces that.
+**A rare literal token (a name, a file, a command) → `bin/mp-search`, not
+`mempalace_search`.** MCP and CLI rank by vector only, so "dagr" returned
+DataGrip and road junctions with `bm25_score: 0.0`. `mp-search` adds BM25
+candidates (`candidate_strategy="union"`, `max_distance=0`) and hits it. CLI
+fallback when the MCP is down: `mempalace search "<query>"`.

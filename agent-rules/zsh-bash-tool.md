@@ -82,7 +82,8 @@ goes into a `#!/bin/bash` file in the scratchpad. A run longer than ~10 min goes
 through `Monitor`, with the ETA in one line at the start. `gh run watch` exits 1
 on wifi loss too: check `gh run view <id> --json status,conclusion` before
 reporting a failure. A required check that reads labels and stayed red is
-re-evaluated by removing and re-adding the label.
+re-evaluated by removing and re-adding the label. Work e2e (`run_e2e`,
+`e2e-pr.yml`) traps: `~/.claude/rules/work-ci-and-rebase.md`.
 
 **All checks of a PR → `gh-pr-checks-wait <pr>`** in the background, no `>`
 redirect: it prints `pass/fail/pending` once a minute, so the tuios bg pane
@@ -118,24 +119,3 @@ script was rewritten twice inline on 2026-10-08.
 `git show $P:tooling/…` became `a942d18e36ooling/…` and `ambiguous argument`:
 `:t` after a variable is zsh's "tail" modifier (also `:a :h :r :e :l :u :s :p`:
 `$B:apps/…` lost its `a` to `:a`, 49842976). Always `${B}:path` or `"$B":path`.
-
-## CI waits: more than `gh-run-wait` finds
-
-- After `gh run rerun`, wait for the new attempt, not the old run id.
-- **Before toggling `run_e2e`:** `gh pr view <n> --json
-  mergeable,mergeStateStatus`. `CONFLICTING`/`DIRTY` → rebase first; GitHub
-  does not run `pull_request` workflows on a conflicting PR, and two toggles
-  waited ~30 min for nothing (c333538c). No run within ~3 min after the toggle
-  is the same signal.
-- **After any push (force too) to a PR with `run_e2e`** the label stays but
-  may not fire on the new sha. In ~3 min `gh run list --commit <sha> --workflow
-  e2e-pr.yml`. Empty → remove and re-add the label after a verified push,
-  then `gh-run-wait e2e-pr.yml --sha <sha>` (5cdaf331, 94d308ee).
-- **`gh-run-wait` on the wrong workflow waits the full 1800 s** (the PR runs
-  `e2e-pr.yml`, not `e2e.yml`), and after a label swap on the same sha it can
-  report the old run. No run in ~3 min → `gh run list --commit <sha> --json
-  workflowName,conclusion` (cc69e8c9, bb4925d2).
-- **A deploy Greg starts by hand** (prod, prodeu, lab): start the watcher in
-  the same turn, `Monitor` on `gh-run-wait <workflow> --sha <sha>`, and say
-  "czekam na run na `<sha>`". The run appearing is machine state, so this is
-  not waiting for a human (9d7d10df: "i co obserwujesz?").
