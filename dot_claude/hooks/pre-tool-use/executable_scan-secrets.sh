@@ -85,9 +85,11 @@ FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // ""')
 Q="[\"']"
 NQ="[^\"']"
 case "$FILE_PATH" in *.test.* | *.spec.* | */__tests__/*) IS_TEST=1 ;; *) IS_TEST=0 ;; esac
-if [ "$IS_TEST" = 0 ] && echo "$CONTENT" | grep -iE '(password|secret|token|api_key|apikey|api_secret)[[:space:]]*[=:][[:space:]]*'"$Q$NQ"'{8,}'"$Q" \
+# -o: the exclusions judge each matched value alone, so a sentence elsewhere on the line
+# cannot excuse a real secret beside it.
+if [ "$IS_TEST" = 0 ] && echo "$CONTENT" | grep -oiE '(password|secret|token|api_key|apikey|api_secret)[[:space:]]*[=:][[:space:]]*'"$Q$NQ"'{8,}'"$Q" \
    | grep -viE '(password|secret|token|api_key|apikey|api_secret)[[:space:]]*[=:][[:space:]]*'"$Q"'?(process\.env|os\.environ|getenv|\$\{|\$[A-Za-z_]|ENV\[|env\()' \
-   | grep -vE '[=:][[:space:]]*'"$Q$NQ"'* '"$NQ"'*[.!?]'"$Q" \
+   | grep -vE '[=:][[:space:]]*'"$Q$NQ"'* '"$NQ"'* '"$NQ"'*[.!?]'"$Q"'$' \
    | grep -q .; then
   MATCHES="$MATCHES hardcoded credential;"
 fi
