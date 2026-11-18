@@ -7,7 +7,7 @@
 # State: ~/.local/state/g-orch/crew.tsv (window_id, model, task). Only windows listed there are ever closed.
 set -u
 f="${CREW_FILE:-$HOME/.local/state/g-orch/crew.tsv}"
-cap="${CREW_CAP:-4}"
+cap="${CREW_CAP:-5}"
 mkdir -p "$(dirname "$f")" && touch "$f" || exit 2
 # --all: a resumed worker that has not reported yet reads `none`, and must not look gone.
 agents=$(tuios list-agents --all --all-sessions --json) || { echo "tuios list-agents failed" >&2; exit 2; }
