@@ -47,8 +47,8 @@ scripts/crew keep <window-id>    # Greg said "zostawiamy": reap skips it, the ca
 - **The file is the only list of workers.** Every spawn is followed by `crew
   add` in the same call. After a compaction, a resume or a "co z agentami",
   `crew ls` is the first call. Never rebuild the list from memory.
-- **At most 4 live workers** (`CREW_CAP`). `crew add` says when the cap is
-  passed: the next task waits for a `reap`, it does not spawn a fifth. No
+- **At most 5 live workers** (`CREW_CAP`). `crew add` says when the cap is
+  passed: the next task waits for a `reap`, it does not spawn a sixth. No
   reuse of a worker through `/clear`: a finished worker is closed and the
   next task gets a fresh one (Greg, 2026-11-18).
 - **Close on hand-back, worktree included.** Once a worker's mail is read
