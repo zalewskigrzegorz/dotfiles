@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# The orchestrator's crew: which workers it started, what each does, what may be reused or closed.
+# The orchestrator's crew: which workers it started, what each does, and which are closed.
 # Usage: crew add <window-id|prefix> <model> <task...>   register a worker right after its spawn
 #        crew ls                                         one line per worker with a verdict
-#        crew free <model> [cwd]                         id of a resting pool worker to reuse, exit 1 if none
-#        crew reap [--all] [--dry-run]                   close finished worktree workers (--all: pool workers too)
+#        crew keep <window-id|prefix>                    Greg said to leave it: reap skips it, the cap ignores it
+#        crew reap [--dry-run]                           close finished workers, remove their clean, pushed worktrees
 # State: ~/.local/state/g-orch/crew.tsv (window_id, model, task). Only windows listed there are ever closed.
 set -u
 f="${CREW_FILE:-$HOME/.local/state/g-orch/crew.tsv}"
@@ -17,37 +17,38 @@ judge() { # $1 = window id -> sess state cwd ctx branch note verdict
   IFS=$'\t' read -r sess state cwd ctx <<<"$(printf '%s' "$agents" | jq -r --arg id "$1" \
     '.agents[] | select(.window_id==$id) | [.session, .state, (.cwd // "-"), ((.context.percent // "-")|tostring)] | @tsv')"
   [ -n "$sess" ] || { verdict=gone; return; }
+  case "$task" in "[keep] "*) verdict=kept; return ;; esac
   case "$state" in
     working) verdict=busy; return ;;
     idle|done) ;;
     *) verdict=needs-you; return ;;
   esac
-  case "$cwd" in "$HOME"/Code/tree/*) ;; *) verdict=reuse; return ;; esac
+  case "$cwd" in "$HOME"/Code/tree/*) ;; *) verdict=close; return ;; esac
   branch=$(git -C "$cwd" branch --show-current 2>/dev/null)
   local dirty ahead pr
   dirty=$(git -C "$cwd" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
   ahead=$(git -C "$cwd" rev-list --count '@{u}..HEAD' 2>/dev/null || echo no-upstream)
-  if [ "$dirty" != 0 ] || [ "$ahead" != 0 ]; then verdict=keep; note="dirty=$dirty unpushed=$ahead"; return; fi
+  if [ "$dirty" != 0 ] || [ "$ahead" != 0 ]; then verdict=unpushed; note="dirty=$dirty unpushed=$ahead"; return; fi
   pr=$(cd "$cwd" && timeout 15 gh pr view "$branch" --json state -q .state 2>/dev/null)
-  case "$pr" in
-    MERGED|CLOSED) verdict=remove; note="PR $pr" ;;
-    *) verdict=close; note="PR ${pr:-none}, worktree stays" ;;
-  esac
+  verdict=remove; note="PR ${pr:-none}"
+  case "$pr" in MERGED|CLOSED) rmflag="" ;; *) rmflag="--keep-branch" ;; esac
 }
 
+live() { grep -vc $'\t\\[keep\\] ' "$f"; }
+resolve() { # $1 = id or prefix -> id, or exit 1
+  id=$(printf '%s' "$agents" | jq -r --arg p "$1" '.agents[] | select(.window_id|startswith($p)) | .window_id')
+  [ -n "$id" ] && [ "$(printf '%s\n' "$id" | wc -l | tr -d ' ')" = 1 ] || { echo "no single window matches '$1'" >&2; exit 1; }
+}
 drop() { grep -v "^$1"$'\t' "$f" > "$f.tmp"; mv "$f.tmp" "$f"; }
 
 cmd="${1:-ls}"; [ $# -gt 0 ] && shift
 case "$cmd" in
   add)
     [ $# -ge 3 ] || { sed -n '3p' "$0" >&2; exit 2; }
-    id=$(printf '%s' "$agents" | jq -r --arg p "$1" '.agents[] | select(.window_id|startswith($p)) | .window_id')
-    [ -n "$id" ] && [ "$(printf '%s\n' "$id" | wc -l | tr -d ' ')" = 1 ] || { echo "no single agent window matches '$1'" >&2; exit 1; }
-    model="$2"; shift 2
+    resolve "$1"; model="$2"; shift 2
     drop "$id"; printf '%s\t%s\t%s\n' "$id" "$model" "$(printf '%s' "$*" | tr '\t\n' '  ')" >> "$f"
-    live=$(wc -l < "$f" | tr -d ' ')
-    echo "registered ${id:0:8} ($model): $* [$live live, cap $cap]"
-    [ "$live" -le "$cap" ] || echo "over the cap: reuse or reap before the next spawn" >&2
+    echo "registered ${id:0:8} ($model): $* [$(live) live, cap $cap]"
+    [ "$(live)" -le "$cap" ] || echo "over the cap: reap before the next spawn" >&2
     ;;
   ls)
     while IFS=$'\t' read -r id model task; do
@@ -55,22 +56,19 @@ case "$cmd" in
       if [ "$verdict" = gone ]; then drop "$id"; continue; fi
       printf '%s | %s | %s | ctx %s%% | %s | %s | -> %s%s\n' "${id:0:8}" "$sess" "$state" "$ctx" "$model" "$task" "$verdict" "${note:+ ($note)}"
     done < <(cat "$f")
-    echo "$(wc -l < "$f" | tr -d ' ') live, cap $cap"
+    echo "$(live) live, cap $cap"
     ;;
-  free)
+  keep)
     [ $# -ge 1 ] || { sed -n '5p' "$0" >&2; exit 2; }
-    while IFS=$'\t' read -r id model task; do
-      [ "$model" = "$1" ] || continue
-      judge "$id"
-      [ "$verdict" = reuse ] || continue
-      [ -z "${2:-}" ] || [ "$cwd" = "$2" ] || continue
-      echo "$id"; exit 0
-    done < "$f"
-    exit 1
+    resolve "$1"
+    row=$(grep "^$id"$'\t' "$f") || { echo "${id:0:8} is not in the crew" >&2; exit 1; }
+    IFS=$'\t' read -r _ model task <<<"$row"
+    drop "$id"; printf '%s\t%s\t[keep] %s\n' "$id" "$model" "${task#\[keep\] }" >> "$f"
+    echo "kept ${id:0:8} $task"
     ;;
   reap)
-    all=0; dry=0
-    for a in "$@"; do case "$a" in --all) all=1 ;; --dry-run) dry=1 ;; *) echo "unknown flag $a" >&2; exit 2 ;; esac; done
+    dry=0
+    for a in "$@"; do case "$a" in --dry-run) dry=1 ;; *) echo "unknown flag $a" >&2; exit 2 ;; esac; done
     # A closed session drops its mail, so the lead reads its own inbox first.
     unread=$(tuios read-agent-messages -w "${TUIOS_PANE_ID:-}" --unread --peek --json 2>/dev/null | jq '.messages | length' 2>/dev/null)
     [ "${unread:-0}" = 0 ] || { echo "read your $unread unread mails first" >&2; exit 1; }
@@ -78,14 +76,13 @@ case "$cmd" in
       judge "$id"
       case "$verdict" in
         gone) drop "$id"; continue ;;
-        reuse) [ "$all" = 1 ] || { echo "pool   ${id:0:8} $task (kept for reuse, --all closes it)"; continue; }; act=close ;;
         close|remove) act=$verdict ;;
         *) echo "skip   ${id:0:8} $task: $verdict${note:+ ($note)}"; continue ;;
       esac
       if [ "$dry" = 1 ]; then echo "would $act ${id:0:8} $task${note:+ ($note)}"; continue; fi
       if [ "$act" = remove ]; then
         main=$(dirname "$(git -C "$cwd" rev-parse --path-format=absolute --git-common-dir)")
-        (cd "$main" && workctl rm "$branch") || { echo "workctl rm $branch failed" >&2; continue; }
+        (cd "$main" && workctl rm "$branch" $rmflag) || { echo "workctl rm $branch failed" >&2; continue; }
       else
         env -u TUIOS_PANE_ID tuios close-window -s "$sess" "$id" >/dev/null || { echo "close ${id:0:8} failed" >&2; continue; }
       fi
