@@ -42,6 +42,14 @@ branch), and the work skills placed. It works for a new branch, an existing
 branch and an existing worktree, with or without a PR. `--base` defaults to
 `origin/<default>`; pass it for a stacked branch.
 
+**You do the work yourself from this session → add `--no-claude`.** Without
+it every worktree gets its own Claude pane that never hears a word, and Greg
+sees idle agents in the sidebar whose worktrees hold changes: "doc sharing
+recorders jest pustym agentem bez ani jednego słowa ale na jego wt są zmiany"
+(gzyms, 2026-11-18, three such sessions). Say in the turn that opens it
+"worktree `<branch>`, pracuję z tego okna". Once its PR is open, close it with
+`workctl done` from the worktree, don't wait for Greg to find it.
+
 Plain `git worktree add -b <branch> ~/Code/tree/wt-<repo>/<branch> origin/main`
 is the fallback only where tuios is missing (the lab). It leaves a bare checkout
 with no session, no agent workspace and no `node_modules`. On 2026-09-29 a worktree
