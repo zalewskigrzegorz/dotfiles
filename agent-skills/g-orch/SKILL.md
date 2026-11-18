@@ -30,7 +30,7 @@ echo "tuios set-pane-grants -s $TUIOS_SESSION -w $TUIOS_PANE_ID --grants admin,r
 Never put `respond` in `[agents.permissions]`: every pane would then answer
 every agent's prompts, risky permission prompts included (Greg, 2026-11-07).
 
-## The crew: register, reuse, close
+## The crew: register, cap, close
 
 Two days of this skill without these rules left 18 agents in 14 sessions,
 8.8 GB of `claude` processes, and an orchestrator that no longer knew which
@@ -38,30 +38,27 @@ agent did what (Greg, 2026-11-18). `scripts/crew` keeps the list in a file
 (`~/.local/state/g-orch/crew.tsv`), so it survives a compaction and a resume:
 
 ```bash
-scripts/crew ls                       # id | session | state | ctx | model | task | -> verdict
-scripts/crew free sonnet <cwd>        # id of a resting pool worker with that model and cwd, exit 1 if none
 scripts/crew add <window-id> <model> <task in a few words>
-scripts/crew reap [--all] [--dry-run] # closes finished worktree workers; --all closes the pool too
+scripts/crew ls                  # id | session | state | ctx | model | task | -> verdict
+scripts/crew reap [--dry-run]    # closes finished workers and removes their clean, pushed worktrees
+scripts/crew keep <window-id>    # Greg said "zostawiamy": reap skips it, the cap ignores it
 ```
 
 - **The file is the only list of workers.** Every spawn is followed by `crew
   add` in the same call. After a compaction, a resume or a "co z agentami",
   `crew ls` is the first call. Never rebuild the list from memory.
-- **Reuse before spawn.** A read-only task goes to a resting worker with the
-  same model and cwd: `id=$(scripts/crew free sonnet "$dir")`, then `tuios
-  queue -w "$id" '/clear'` and `tuios queue -w "$id" "$(cat brief.md)"`, then
-  `crew add "$id" sonnet <new task>` (it replaces the row). `/clear` through
-  `queue` empties the context (checked 2026-11-18). A new worker starts only
-  when `free` exits 1.
 - **At most 4 live workers** (`CREW_CAP`). `crew add` says when the cap is
-  passed: the next task waits for a `reap` or a free worker, it does not
-  spawn a fifth.
-- **Close on hand-back.** Once a worker's mail is read and its result is
-  with Greg, `crew reap` in the same turn. It closes the agent of a clean,
-  pushed worktree (the worktree stays while its PR is open and goes with
-  `workctl rm` once the PR is merged or closed), keeps anything dirty or
-  unpushed and says why, and refuses while your own inbox has unread mail.
-  `reap --all` at the end of the day closes the pool too.
+  passed: the next task waits for a `reap`, it does not spawn a fifth. No
+  reuse of a worker through `/clear`: a finished worker is closed and the
+  next task gets a fresh one (Greg, 2026-11-18).
+- **Close on hand-back, worktree included.** Once a worker's mail is read
+  and its result is with Greg, `crew reap` in the same turn. A clean, pushed
+  worktree goes with `workctl rm` (`--keep-branch` while its PR is open), a
+  read-only worker's window is closed. Anything dirty or unpushed stays and
+  `reap` says why: tell Greg in one line. It refuses while your own inbox
+  has unread mail.
+- **A worker stays only when Greg says so** ("zostaw go", "jeszcze z nim
+  pogadam"): `crew keep <id>`. Never keep one on your own judgement.
 - **Only crew rows are ever closed.** Not Greg's panes, not PR tabs from
   `workctl`, not another orchestrator. A `done` agent that is not in `crew
   ls` is somebody's context: on 2026-11-18 a cleanup by state closed the
@@ -145,9 +142,9 @@ invent a position.
 
 ## 3. Spawn
 
-First `scripts/crew free <model> <cwd>`: a hit is reused (see The crew), and
-nothing below runs. Otherwise, the order that works (every command and mine:
-Mechanics below), ending in `scripts/crew add <window-id> <model> <task>`:
+First `scripts/crew ls`: at the cap, `reap` or wait, no spawn. Then the order
+that works (every command and mine: Mechanics below), ending in `scripts/crew
+add <window-id> <model> <task>`:
 
 ```bash
 ws=$(tuios list-workspaces -s <session> --json | jq '[.workspaces[] | select(.window_count==0) | .workspace] | min')
@@ -240,10 +237,10 @@ the orchestrator runs `g-slack` / posts via `gh api` after Greg's popup. A
 result that duplicates recent work (a PR already fixed by another) is closed,
 not "left for review".
 
-After each hand-back: `scripts/crew reap`. Close the day with `scripts/crew
-reap --all` and a status block: done / waiting on Greg / dropped, what `reap`
-kept and why (dirty, unpushed), and the one or two things the orchestrator
-skipped.
+After each hand-back: `scripts/crew reap`. Close the day with a last `reap`
+and a status block: done / waiting on Greg / dropped, what `reap` left and
+why (dirty, unpushed, kept by Greg), and the one or two things the
+orchestrator skipped.
 
 ## Never
 
@@ -251,7 +248,7 @@ skipped.
 - Let a child post, send or commit on its own; the brief forbids it by
   command name.
 - Poll windows in a loop; one mail wait, then act.
-- Spawn without `crew free` first and `crew add` after, or past the cap.
+- Spawn without `crew add` after it, or past the cap.
 - Leave a worker open after its result is handed back.
 - Close a window that `crew ls` does not list.
 - Ask Greg about the split or the model when the table answers it.
