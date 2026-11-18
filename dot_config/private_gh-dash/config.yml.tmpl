@@ -28,6 +28,17 @@ prSections:
     author:app/dependabot
     author:app/{{ index $w "orgLower" }}-monorepo-cicd
   type: null
+{{- with index $gd "people" }}
+# All open PRs by each teammate, whether I reviewed them or not.
+{{- range . }}
+- title: {{ printf "🧑 %s" .title | quote }}
+  filters: is:open author:{{ .login }}
+  type: null
+{{- end }}
+- title: "👾 Cała ekipa"
+  filters: is:open{{ range . }} author:{{ .login }}{{ end }}
+  type: null
+{{- end }}
 - title: My Pull Requests
   filters: is:open author:@me
   type: null
