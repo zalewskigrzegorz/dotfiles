@@ -58,7 +58,10 @@ This holds in **every repo**.
    failed push (rejected, hook, no upstream) is reported with its output and a
    recovery move — never retried with `--force`.
 
-A hook still asks for force push, `gh pr merge`, and a commit or push to
+Every PR we open is ready for review with auto-merge on (`g-pr`), draft only
+when Greg says so. `gh pr merge --auto` passes the hook silently.
+
+A hook still asks for force push, a direct `gh pr merge`, and a commit or push to
 `main`/`master` in a repo where master is not the working branch (anything
 outside `COMMIT_ALLOWLIST` and `github.com/zalewskigrzegorz/*` — the work
 monorepo above all). Those prompts are the design.

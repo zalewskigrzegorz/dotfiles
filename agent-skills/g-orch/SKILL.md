@@ -103,7 +103,7 @@ Every brief is the child's whole world. Always:
   which the orchestrator's session does not know (`no window found
   matching`, checked 2026-10-27), so the subject's slug names the sender;
 - for code: the base, the worktrees other agents own, "present a plan and
-  wait for ok", `g-commit` + `g-pr` draft, and the "is the bug still there"
+  wait for ok", `g-commit` + `g-pr` (ready + auto-merge; draft only when Greg asked), and the "is the bug still there"
   check (Mechanics → Writing the brief) before the first edit. Commit types: "see
   `commitlint.config.js`", the worker may not load `g-commit`;
 - a fan-out of several agents on one app (one process, one dev install): the
