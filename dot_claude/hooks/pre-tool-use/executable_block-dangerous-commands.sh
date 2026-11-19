@@ -187,7 +187,10 @@ fi
 
 # ── GitHub PR ops ────────────────────────────────────────────────────────
 # gh pr create/edit/ready/close/reopen: allowed silently (Greg, 2026-07-31).
-if contains_cmd '(^|[;&|(]|[[:space:]])gh[[:space:]]+pr[[:space:]]+merge'; then
+# --auto / --disable-auto only toggle auto-merge, the default on our PRs (Greg, 2026-11-19).
+# Each such segment is cut out first, so a direct merge chained after one still asks.
+MERGE_LEFT=$(printf '%s' "$COMMAND" | perl -pe 's/gh\s+pr\s+merge(?=[^;&|]*\s--(?:auto|disable-auto)(?:\s|$))(?![^;&|]*--admin)[^;&|]*//g')
+if printf '%s' "$MERGE_LEFT" | grep -qE '(^|[;&|(]|[[:space:]])gh[[:space:]]+pr[[:space:]]+merge'; then
   emit_guard "Merging a PR (Greg normally merges himself)."
 fi
 

@@ -75,13 +75,17 @@ gh pr view --json number,title,url 2>/dev/null
 
 or `gh pr list --head "$(git branch --show-current)" --json number,url`.
 
-3. **If no PR:** create one (default **draft** unless the user wants a ready PR):
+3. **If no PR:** create it **ready for review with auto-merge on** (Greg, 2026-11-19: walking back to click "Ready" and "Enable auto-merge" was pure waste). It merges itself once checks and approvals are green:
 
 ```bash
-gh pr create --draft --title "<type>(<scope>): <subject>" --body-file /tmp/pr-body.md
+gh pr create --title "<type>(<scope>): <subject>" --body-file /tmp/pr-body.md
+gh pr merge <number> --auto --squash
 ```
 
-When the PR is a draft, the body says why it is a draft and what unblocks the merge (a flag, GA), in Greg's words, not only the orchestrator's brief. Brief and Greg differ → Greg wins.
+- Merge method: `--squash` when the repo allows it, otherwise the repo's `viewerDefaultMergeMethod` (`gh repo view --json viewerDefaultMergeMethod`).
+- `auto merge is not allowed` (repo setting off) → one line in the report, the PR stays ready, no retry.
+- **Draft and no auto-merge only when Greg says so** for this PR ("draft", "bez auto-merge", "nie merguj sam"), or the brief does. Then the body says why it is a draft and what unblocks the merge (a flag, GA), in Greg's words, not only the orchestrator's brief. Brief and Greg differ → Greg wins.
+- A PR stacked on another open PR gets auto-merge too: GitHub retargets it when the base merges.
 
 Add `--label "no-changeset-needed"` when applicable (skip if label missing in repo).
 
