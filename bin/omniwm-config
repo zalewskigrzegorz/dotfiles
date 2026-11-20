@@ -112,7 +112,7 @@ def merge(cfg):
     g["hotkeysEnabled"] = True
     g["ipcEnabled"] = True  # omniwmctl, for checks now and the Gzyms workspace widget later
     cfg["focus"]["followsWindowToMonitor"] = True  # Ctrl+Shift+digit follows the window, as HyprMac did
-    g["workspaceAutoBackAndForth"] = True  # Ctrl+digit of the current workspace goes back, as aerospace's ctrl-tab
+    g["workspaceAutoBackAndForth"] = False  # off: Ctrl+digit of the current workspace jumping back confused Greg (2026-11-20)
     # Cmd+Tab switches windows of every workspace, most recent first like macOS; Option+Tab stays free
     cfg["windowSwitcher"].update(enabled=True, commandTab="allWorkspaces", optionTab="disabled", order="lastUsed")
     cfg["gaps"]["size"] = 8.0
