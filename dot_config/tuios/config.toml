@@ -65,6 +65,7 @@ enabled = true
 [notifications]
 duration = 0
 bell = "toast"
+style = "full"
 
 [notifications.agent]
 sound = false
