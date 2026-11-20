@@ -26,7 +26,7 @@ def work-repo []: nothing -> string {
     if not ($f | path exists) {
         error make {msg: "WORK_MAIN_REPO not set and work.env missing — run `sync` to restore it"}
     }
-    open $f | lines | where {|l| $l starts-with "WORK_MAIN_REPO="} | first | str replace "WORK_MAIN_REPO=" ""
+    open --raw $f | lines | where {|l| $l starts-with "WORK_MAIN_REPO="} | first | str replace "WORK_MAIN_REPO=" ""
 }
 
 # Full name for a GitHub login from the work-people matrix (agent-skills/work-people),
@@ -35,7 +35,7 @@ def person [login: string]: nothing -> string {
     let org = ($env.WORK_GITHUB_ORG_LOWER? | default "")
     let env_file = ($nu.home-dir | path join ".local/state/dotfiles/secrets/work.env")
     let org = (if $org != "" or not ($env_file | path exists) { $org } else {
-        open $env_file | lines | where {|l| $l starts-with "WORK_GITHUB_ORG_LOWER="} | get -o 0 | default "" | str replace "WORK_GITHUB_ORG_LOWER=" ""
+        open --raw $env_file | lines | where {|l| $l starts-with "WORK_GITHUB_ORG_LOWER="} | get -o 0 | default "" | str replace "WORK_GITHUB_ORG_LOWER=" ""
     })
     let f = ($nu.home-dir | path join "Code/personal/bazgroly" $org "people.md")
     let row = (if $org != "" and ($f | path exists) {
@@ -85,7 +85,7 @@ def threads-section [threads: list] {
     for t in $threads {
         let body = ($t.body | str replace -a "\n" " " | str trim)
         let body_short = (if ($body | str length) > 240 { $"($body | str substring 0..240)…" } else { $body })
-        print $"- [($t.path):($t.line)] @($t.author): ($body_short)"
+        print $"- [($t.path):($t.line)] (person $t.author): ($body_short)"
     }
 }
 

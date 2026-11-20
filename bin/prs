@@ -45,31 +45,64 @@ source $WORKPR_NU
 # script deliberately does not spend (one `gh pr list`, nothing else). It is
 # coloured below anyway so the mapping is total.
 
+# action → the pr-brief --intent an agent takes it with. Anything missing waits
+# for a human (MERGE, drafts) or for CI (CI…, blocked). draft+CI stays out on
+# purpose: a red draft is WIP, babysit-prs skips it too.
+const INTENT = {
+    "fix CI": "babysit"
+    "conflict": "fix-ci"
+    "run e2e": "fix-ci"
+    "changes req": "respond"
+    "resolve": "respond"
+    "needs review": "bump"
+}
+
 def main [
     --repo: string = ""  # defaults to WORK_MAIN_REPO from the private work.env
     --author: string = "@me"
     --limit: int = 30
+    --all                # every repo where --author has an open PR, not only --repo
+    --json               # for the orchestrator: only PRs an agent can take, each with its pr-brief command
 ] {
-    let repo = if $repo != "" { $repo } else {
-        $env.WORK_MAIN_REPO? | default (
-            open ($nu.home-dir | path join ".local/state/dotfiles/secrets/work.env")
+    let repos = if $all {
+        gh search prs --author $author --state open --json repository --limit 100
+        | from json | get repository.nameWithOwner | uniq
+    } else if $repo != "" { [$repo] } else {
+        [($env.WORK_MAIN_REPO? | default (
+            open --raw ($nu.home-dir | path join ".local/state/dotfiles/secrets/work.env")
             | lines | where {|l| $l starts-with "WORK_MAIN_REPO="} | first
             | str replace "WORK_MAIN_REPO=" ""
-        )
+        ))]
     }
-    let raw = (
-        gh pr list
+    let classified = ($repos | each {|r|
+        (gh pr list
             --author $author
-            --repo $repo
+            --repo $r
             --state open
             --json "number,title,isDraft,reviewDecision,mergeable,statusCheckRollup,headRefName,url"
-            --limit $limit
+            --limit $limit)
         | from json
-    )
+        | each {|pr| work-pr classify $pr | insert repo $r }
+    } | flatten | sort-by rank)
 
-    let rows = ($raw | each { |pr|
-        let c = (work-pr classify $pr)
+    if $json {
+        return ($classified | where {|c| ($INTENT | get -o $c.action) != null } | each {|c|
+            let intent = ($INTENT | get $c.action)
+            {
+                repo: $c.repo
+                number: $c.number
+                title: $c.title
+                url: $c.url
+                branch: $c.headRefName
+                action: $c.action
+                failed: ($c.failed_checks | get name)
+                intent: $intent
+                brief: $"pr-brief ($c.number) --intent ($intent) --repo ($c.repo)"
+            }
+        } | to json)
+    }
 
+    $classified | each { |c|
         # Colours track the SketchyBar chip's families (bin/pr-watch-open C_*), so
         # a state reads the same on the bar and in this table:
         #   fix family (orange) → red · conflict (C_CONF) → light_red
@@ -88,21 +121,16 @@ def main [
             "draft"        => $"(ansi purple)draft(ansi reset)",
             _              => $c.action,
         })
-
-        {
+        let row = {
             "#": $c.number,
             action: $action_colored,
             title: ($c.title | str substring 0..60),
             branch: ($c.headRefName | str substring 0..40),
             failed: (if $c.failed > 0 { $c.failed } else { null }),
             url: $c.url,
-            rank: $c.rank,
         }
-    })
-
-    # `classify` already carries the shared rank, so the display order is the same
-    # one the menu's relevance sort and the chip use:
-    #   MERGE < resolve < needs review < blocked < CI… < fix CI < conflict
-    #   < changes req < run e2e < draft < draft+CI
-    $rows | sort-by rank | reject rank
+        # Sorted by the shared rank (MERGE first, draft+CI last), the same order
+        # the menu's relevance sort and the chip use.
+        if $all { {repo: ($c.repo | split row "/" | last)} | merge $row } else { $row }
+    }
 }

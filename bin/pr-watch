@@ -75,7 +75,7 @@ def work-repo []: nothing -> string {
     if not ($f | path exists) {
         error make {msg: "WORK_MAIN_REPO not set and work.env missing — run `sync` to restore it"}
     }
-    open $f | lines | where {|l| $l starts-with "WORK_MAIN_REPO="} | first | str replace "WORK_MAIN_REPO=" ""
+    open --raw $f | lines | where {|l| $l starts-with "WORK_MAIN_REPO="} | first | str replace "WORK_MAIN_REPO=" ""
 }
 const FIELDS = "number,title,isDraft,reviewDecision,mergeable,statusCheckRollup,headRefName,url,latestReviews"
 # My GitHub login — comments by me never count as "new" (self-clear on reply).

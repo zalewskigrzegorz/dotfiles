@@ -84,6 +84,22 @@ changed on a running agent.
 Items that only Greg can do (a 2FA, a signature, a payment) stay on his list
 with one line each, no agent.
 
+## PR sweep: `prs --all --json`
+
+"Ogarnij moje PR-y", or a PR item on the list without a number, starts with
+`prs --all --json`. It lists only the PRs an agent can take, ranked, each with
+`action`, `intent` and a ready `brief` command. MERGE, drafts, `CI…` and
+`blocked` stay out: Greg merges, CI is waited out. Per row:
+
+1. Run the row's `brief` (`pr-brief <n> --intent <i> --repo <repo>`) into
+   `<scratch>/pr-<n>.md`. Line 1 is the skill (`/g-pr-respond`,
+   `/babysit-prs`, `/g-pr-fix-checks`, `/g-pr-bump`), the rest is the PR
+   state with reviewers by full name.
+2. Score it like any task. `respond`, `fix-ci` and `babysit` change code
+   on the PR branch (+3): a `workctl --branch <branch>` tree, brief queued
+   as in Spawn. `bump` writes a Slack nudge (0): a Sonnet agent here.
+3. A `respond` brief with `0 nierozwiązanych wątków` gets no spawn, one line.
+
 ## 2. Brief template
 
 Every brief is the child's whole world. Always:
