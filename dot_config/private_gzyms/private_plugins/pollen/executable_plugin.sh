@@ -31,9 +31,14 @@ poll() {
   fi
   echo "$hit" > "$CACHE"
   case "$rank" in 0|1) color=green;; 2) color=gold;; 3) color=peach;; *) color=red;; esac
-  "$JQ" -c --arg lvl "$lvl" --arg who "$who" --arg c "$color" --argjson e "$every" \
-    '{item:{id:"pollen",text:$lvl,icon:"leaf",color:$c,expect:$e,tooltip:"Highest pollen: \($who), \($lvl) (Homey, Pylenie)",
-      menu:([.pp[]|{tag:"pollen",text:.n,detail:.v}] + [{separator:true}] + [.mm[]|{tag:"mold",text:.n,detail:.v}])}}' <<< "$out"
+  # The popup: the highest level on top, then a meter per allergen in the pill's colours, moulds in their own section.
+  "$JQ" -c --arg lvl "$lvl" --arg who "$who" --arg c "$color" --argjson e "$every" '
+    def rank: {"bardzo niskie":0,"niskie":1,"średnie":2,"wysokie":3,"bardzo wysokie":4}[.] // 0;
+    def row: (.v | rank) as $k | {text: .n, detail: .v, meter: {value: ($k + 1), max: 5},
+      color: (if $k <= 1 then "green" elif $k == 2 then "gold" elif $k == 3 then "peach" else "red" end)};
+    {item:{id:"pollen",text:$lvl,icon:"leaf",color:$c,expect:$e,tooltip:"Highest pollen: \($who), \($lvl) (Homey, Pylenie)",
+      menu:([{value: $lvl, color: $c, unit: "najwyżej: \($who) · Homey, Pylenie"}, {text: "Pyłki"}] + [.pp[] | row]
+            + [{separator: true}, {text: "Pleśnie"}] + [.mm[] | row])}}' <<< "$out"
 }
 ( while :; do poll; sleep "$every"; done ) & loop=$!
 cat >/dev/null
