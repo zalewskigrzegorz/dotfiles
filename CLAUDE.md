@@ -129,7 +129,7 @@ Global Claude config: `dot_claude/` → `~/.claude/`.
 ## Multiplexer — tuios (Mac + lab)
 
 - **tuios is the only multiplexer.** tmux and herdr are removed (pre-herdr state: tag `pre-herdr`); no shim, scripts call `tuios` directly. Session = one repo+branch worktree, workspace = numbered tab, window = pane. Prefix `ctrl+space`.
-- Nav: `prefix+w` sessions · `prefix+g` goto · `prefix+a` / `prefix+0` next item that needs you · `prefix+t` pane finder · `prefix+h/j/k/l` windows.
+- Nav: `prefix+w` sessions · `prefix+g` goto · `prefix+a` orchestrator · `prefix+0` next item that needs you · `prefix+t` pane finder · `prefix+h/j/k/l` windows.
 - Worktrees: the `work` CLI (nushell) wraps `bin/workctl` (`scriptc/workctl.ts`). Config, agent sidebar and Collie details: `.claude/rules/tuios-config.md`, full reference `docs/tuios.md` (also for `ctrl+space` stolen by input sources, Collie / phone pairing).
 - **`disk-sweep` is manual only** (Greg, 2026-09-25); worktree cleanup goes through `workctl prune`. Never schedule it.
 

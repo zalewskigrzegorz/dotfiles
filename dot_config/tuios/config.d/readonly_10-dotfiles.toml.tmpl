@@ -139,7 +139,7 @@ prefix_toggle_spotlight = []
 prev_session = [","]
 next_session = ["."]
 # agents: next one that needs you (also prefix+0), unseen finished turns
-prefix_next_attention = ["a", "0"]
+prefix_next_attention = ["0"]
 prefix_next_finished = ["A"]
 # The global alt+space never reaches tuios inside a pane (option_glyphs = "type").
 launcher = ["space"]
@@ -254,6 +254,17 @@ command = '"$HOME/bin/workctl" done || { echo "press Enter"; read -r _; }'
 description = "Done: close agent, worktree, branch and session"
 width = "90"
 height = "16"
+
+# Jump to an orchestrator: an agent that started another live agent, or g-orch's
+# meta role=orch (bin/tuios-orch). One → straight there, several → fzf.
+# prefix+0 keeps "next item that needs you".
+[[keybindings.command]]
+key = "prefix+a"
+type = "popup"
+command = '"$HOME/bin/tuios-orch"'
+description = "Go to an orchestrator"
+width = "90"
+height = "12"
 
 # Same picker, plus the worktrees of every other repo.
 [[keybindings.command]]

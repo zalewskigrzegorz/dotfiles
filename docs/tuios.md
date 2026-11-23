@@ -55,7 +55,8 @@ Env in every pane: `TUIOS_SESSION`, `TUIOS_PANE_ID` (= `TUIOS_WINDOW_ID`), `TUIO
 | `prefix+N` · `prefix+D` · `prefix+,` `prefix+.` · `prefix+L` | new session (asks the machine, no dir) · close session (on a worktree session the dialog offers only "Delete worktree and quit"; close a worktree with `prefix+shift+x`) · prev/next · last session |
 | `os-projects` (nushell) | opens the missing project sessions (main checkouts) in their colours, renames the lab's `session-0` to `mrglaszki` |
 | `prefix+y` / `I` / `S` | scratch terminal · last message in full (`M` is the mailbox) · keyboard into the sidebar and back. `prefix+H` (opposite sidebar, a copy of the same rail) is unbound |
-| `prefix+a` / `prefix+0` | jump to the next item that needs you (Inbox) · `prefix+A` next unseen finished turn |
+| `prefix+a` | **go to an orchestrator** (`bin/tuios-orch`): an agent that started another live agent, or g-orch's `role=orch`; several → fzf |
+| `prefix+0` | jump to the next item that needs you (Inbox) · `prefix+A` next unseen finished turn |
 | `prefix+c` `T` | new / rename workspace (tab) · `1`–`9`, `p`, `n` switch. Close-workspace is unbound: `X` is "done" below |
 | `prefix+h/j/k/l` | focus window · `prefix+tab` next · `` prefix+` `` last · `P` rename window |
 | `opt+esc` then `opt+shift+1`–`9` | move the focused window to that workspace and go with it (`ctrl+opt+1`–`9`: send it, stay put). `prefix+z` fullscreen toggle |

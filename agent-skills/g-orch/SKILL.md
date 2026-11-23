@@ -11,7 +11,10 @@ spawn line, never changed on a running agent, Fable only when Greg names it).
 Every tuios / `workctl` command and trap: `references/mechanics.md`, read it
 before the first spawn. It is also enough on its own for one agent.
 
-## 0. The `respond` grant for this pane
+## 0. Mark yourself, check the `respond` grant
+
+`tuios set-agent-meta --source greg role=orch` first: the rail row shows it and
+`prefix+a` (`bin/tuios-orch`) jumps Greg here.
 
 Any pane can become the orchestrator, so check every time:
 `tuios pane-grants --json | jq -r '.grants | join(",")'`. No `respond` → you
