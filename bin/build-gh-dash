@@ -9,8 +9,10 @@
 # Needs: go (GOTOOLCHAIN=auto fetches the version go.mod asks for).
 set -euo pipefail
 
-TAG="${GH_DASH_TAG:-v4.26.2}"
 EXT="$HOME/.local/share/gh/extensions/gh-dash/gh-dash"
+MANIFEST="$(dirname "$EXT")/manifest.yml"
+# Same version as installed, so a rebuild never downgrades what `gh extension upgrade` brought.
+TAG="${GH_DASH_TAG:-$(awk '/^tag:/{print $2}' "$MANIFEST")}"
 OUT=""
 [ "${1:-}" = "--out" ] && OUT="$2"
 BUILD="$(mktemp -d "${TMPDIR:-/tmp}/gh-dash-build.XXXXXX")"
@@ -118,6 +120,8 @@ if [ -n "$OUT" ]; then
   echo "built $OUT"
   exit 0
 fi
-[ -f "$EXT.orig" ] || cp "$EXT" "$EXT.orig"
+LC_ALL=C grep -qaF pr-eyes.json "$EXT" || cp "$EXT" "$EXT.orig"
 mv "$BUILD/gh-dash" "$EXT"
+# Pinned: `gh extension upgrade --all` skips it instead of dropping the patch.
+perl -pi -e 's/^ispinned: false$/ispinned: true/' "$MANIFEST"
 echo "installed $EXT ($TAG + 👀); original kept as $EXT.orig"
