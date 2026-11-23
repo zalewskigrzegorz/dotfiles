@@ -14,7 +14,8 @@ nothing telling them apart (2026-09-24).
 - Every amount says where it comes from: `oferta` (a document or mail),
   `konfigurator` (the vendor's tool), `szacunek` (our arithmetic).
 - A recommendation never rests on a `szacunek` without saying so.
-- Currency conversions state the rate used (`przy 3,67`).
+- Currency conversions state the rate used (`przy 3,67`). Amounts for Greg are
+  in zł first, the foreign one in parentheses: "~37 zł (7,70 CHF)" (db368cfb).
 - A price of goods is the final sum (goods + shipping + VAT / duty). Shipping
   unknown → "bez wysyłki, nie sprawdzone" in the same line. Shops are compared
   by the final sum ("$39" came without €20 shipping, 45126c6e).

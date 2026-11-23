@@ -64,6 +64,9 @@ Before writing any plan / spec / brainstorm / analysis / design / audit file:
 2. Ask: is this file for human readers of the project (README-class), or is it AI scratch (planning/analysis-class)? If the latter, route to bazgroly.
 3. Write to `~/Code/personal/bazgroly/<repo-basename>/{plans,specs,brainstorm,analysis,notes}/...` — **never** inside the resolved repo.
 4. Mention the chosen path in the response so the user can redirect if needed.
+5. A spec or plan Greg must approve opens at once with `plannotator annotate
+   <file> --gate` (the MCP tool fails on CC 2.1.326, plannotator#3578).
+   `Approved` = go-ahead, `Feedback` = revise and reopen (d709807a).
 
 ## Never
 

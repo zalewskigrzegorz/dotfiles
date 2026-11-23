@@ -37,7 +37,8 @@ Rule of thumb: **his login or his eyes → `browsentic`; it is down →
    on in the same tab.
 4. **Blocked sites stay blocked.** `SITE_BLOCKED` (ING, 1Password) is his
    list in the Browsentic settings: no retry, no other route.
-5. **Close what you opened** with `page_closeTab` when the task ends.
+5. **Close what you opened** with `page_closeTab` when the task ends, not while
+   his hand test on that tab is pending (db368cfb).
 6. **After one `TARGET_NOT_FOUND` read the state.** `page_closeTab` lists the
    open tabs in its error: a missing id is already closed. For an element
    `page_getPageInfo`, then a stable selector, never the same `text`+`role`

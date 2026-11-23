@@ -119,6 +119,8 @@ from the PR state in the list above, or `gh pr list --search <sha> --state all
 
 ### 4. Confirm what to include (interactive — required)
 
+Every non-private meeting in the window goes into "did" as a candidate (a5239d4c).
+
 Present candidates grouped by question (did / will / blockers). Ask Greg what to
 keep, cut, merge, add. He drives this ("połącz X i Y", "wywal Z", "feel = ok").
 
@@ -131,7 +133,7 @@ health detail and never "feel good" by default: it is public (7665ab21).
 
 ### 6. Get explicit go-ahead
 
-Show the full set. Wait for a clear yes. No yes → don't send.
+Show the full set as plain text, ending with "powiedz wyślij". No preview popup (a5239d4c). Wait for a clear yes. No yes → don't send.
 
 ### 7. Send sequentially with the user token
 

@@ -47,7 +47,10 @@ one-liners and each cost a retry or more (2026-09-23 … 09-28):
    `read`, `for`, assignments: use `app`, `bin`, `p`.
 6. **macOS `sed` doesn't expand `\t` / `\n` in the replacement**, BSD `awk` has
    no `match(s, re, arr)` or `gensub`. Use `perl -pe`, `$'\t'`, `python3 -I` or
-   `rg -o -r`, and `git apply --check` on a generated patch (07921d16).
+   `rg -o -r`, and `git apply --check` on a generated patch (07921d16). `stat`
+   takes BSD `-f`, not GNU `-c`; `ps etime` is `[[dd-]hh:]mm:ss` (a5239d4c).
+   `git rev-parse --short` takes one rev: two give exit 128 after a good push
+   (2f5af49f, bb7f0a72).
 
 The `guard` mod denies `echo ===` (`EQUALS`) and `echo "$x" | jq` with the fix.
 

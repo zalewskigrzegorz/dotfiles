@@ -158,3 +158,8 @@ wystąpić do sądu o te informacje") (2026-10-21).
   team (1e9327a9).
 - **A review comment about a finding** gives the effect for a user and one ask.
   Function names and mechanism stay in the verdict to Greg (1e67bfbf).
+- **A team announcement states no company plan he did not give** ("before lde
+  becomes our default"): a question to him or cut (bb7f0a72).
+- **Text committed to a shared repo is English** (skills, docs, comments), and
+  the whole touched file is checked, frontmatter and trigger lists too, not only
+  the added lines (3320054c).

@@ -63,7 +63,7 @@ scripts/crew keep <window-id>    # Greg said "zostawiamy": reap skips it, the ca
   `workctl`, not another orchestrator. A `done` agent that is not in `crew
   ls` is somebody's context: on 2026-11-18 a cleanup by state closed the
   day's orchestrator itself. A closed agent comes back with `tuios
-  start-agent claude … -- --resume <session-id>`, under a new window id.
+  start-agent claude … -- --resume <session-id>`, under a new window id. A resumed agent shows state `none` in `tuios list-agents` and only `--all` lists it (a5239d4c). `tuios queue '/clear'` is the way to clear a worker (ada9d8d8).
 
 ## 1. Read the list, state the reading
 
@@ -229,6 +229,10 @@ Greg already decided (with `respond`: `tuios respond … --prompt-id`, or
 mine 8 does; never "wciśnij Enter w oknie X" to Greg); `done` without a mail → read the report file, not the
 window; looks stuck → transcript mtime (mine 5). Questions for Greg do not
 pass through here: workers ask him with `AskUserQuestion`, which shows in his Inbox too.
+
+Whenever a worker's question or fork reaches Greg (a relayed line or a popup), every PR or branch in it carries its title or a one-line what-it-does. A number or branch name alone tells him nothing (Greg, 2026-11-23).
+
+Slack To-dos are invisible to the Slack MCP: write "nie sprawdzone: Slack To-dos", then one browsentic read or one screenshot (a5239d4c, ada9d8d8).
 
 Greg hears from the orchestrator when: a result needs his decision, an agent
 is blocked on something only he knows, or everything is done. Not per window.

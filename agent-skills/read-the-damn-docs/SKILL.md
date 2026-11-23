@@ -101,6 +101,10 @@ an external tool, package, provider, or current product behavior, web search is
 usually the right first step. For trivial syntax, typo fixes, formatting, or
 self-contained code with no external contract — just proceed.
 
+## "Does tool X have feature Y"
+
+Answer from the upstream docs or changelog. Greg's local config or an absent flag in `--help` is not proof the feature doesn't exist, or does (0b5f17ca).
+
 ## If Docs Are Unavailable
 
 If network/auth/missing files block reading the docs, say so plainly before

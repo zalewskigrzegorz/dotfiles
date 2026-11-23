@@ -34,8 +34,15 @@ resent `git add -A && git commit` and `2>/dev/null` on `rg` twice in a row and
 hit the popup checks five times (5bbce6cf). After a deny, change exactly what
 the message says before the next call. Before a popup: no digit in
 `question`, `header` ≤ 12 chars, no "Other". A digit is also `2FA`, `e2e`,
-`1Password`, a PR number, a version, an hour, `cmd+shift+5`. Read the whole
+`1Password`, a PR number, a version, an hour, `cmd+shift+5`, a chip or
+interface name (`XVF3800`, `wlan0`, `k8s`). Read the whole
 `question`, not just the word you see (19 sessions).
+
+## `claude -p` with a variadic flag
+
+`--tools`, `--allowedTools`, `--disallowedTools` swallow the prompt as a tool
+name: put `--` before it (0333c4c7). A sha from `$(git fetch …; git merge-base
+…)` carries rtk's `ok fetched` line: fetch in its own call (cd881b89).
 
 ## Transient `index.lock` during husky
 

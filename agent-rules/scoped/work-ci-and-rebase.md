@@ -25,6 +25,8 @@ conflicted files lost a function, a `start.sh` block and a test path silently
   `main` → `git mv` it later. Check the commitlint scope against `origin/main`
   (2530cc32).
 - A file `main` moved → `git grep` the old import path first.
+- Rebase onto a moved `main` changed the lockfile → `pnpm install --frozen-lockfile`, then build `api-sdk` and `shared` via nx. Typecheck with `nx ts:check`, bare `tsc` OOMs (2b9de962).
+- Lint changed files the way the hook does, before the first commit: `oxlint -c tooling/oxlint/oxlintrc-new-code.json --max-warnings=0 <files>`. Plain `oxlint <pkg>` is not that (683de0e6).
 - ≥10 files resolved by hand → `git diff origin/main...HEAD --diff-filter=M
   -U0 | rg '^-[^-]'` (every removed line belongs to the change) and `git
   range-diff` against the old ref.
@@ -50,11 +52,15 @@ the job red on `main` too → "nie nasze, flak na main" and `gh run rerun
 --failed`. A flaky `PendingInvites.test.tsx` cost ~60 calls before that
 (c0cc0722). A green run on `main` proves a flake only if its log contains
 that spec (`nx affected` may skip it). The same spec red on ≥2 foreign PRs is
-not a rerun (2530cc32).
+not a rerun (2530cc32): `gh run list --workflow <wf> --status failure -L 8`, then `--log-failed | rg -c <spec>` per run.
+
+A PR-only workflow red: check its `on:` trigger, `git archive origin/main <paths>` into scratch and run the same test. Same failure = red on `main`, find the culprit with `git log -S` (b58c114a).
+
+`.claude/skills/*/SKILL.md` has a 1500-word prose limit in the docs linter that the bot's "All good" does not cover. Run the repo's linter config on the files and its `skill-length` rule, move extras to `references/` (b58c114a, 15c9041d).
 
 ## CI waits: more than `gh-run-wait` finds
 
-- After `gh run rerun`, wait for the new attempt, not the old run id.
+- After `gh run rerun`, wait for the new attempt, not the old run id. The red badge of attempt 1 stays, so the status line names the attempt time and the job in progress (5cdaf331).
 - **Before toggling `run_e2e`:** `gh pr view <n> --json
   mergeable,mergeStateStatus`. `CONFLICTING`/`DIRTY` → rebase first; GitHub
   does not run `pull_request` workflows on a conflicting PR, and two toggles

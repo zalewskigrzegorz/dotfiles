@@ -131,6 +131,8 @@ The ≤4-per-call batching in A4 is the **fast path**, not the default. Use it o
 * **One thread per `AskUserQuestion`**, in the order that unblocks the rest: the thread that changes the pitch/design scope first (the one others depend on), then the rest.
 * **Explain before asking.** The prompt above the popup carries 2–4 sentences of context in Polish: what the reviewer is pointing at, what the code/pitch says today, what each option costs. Verify claims in the code before stating them (Greg: "zobacz jak to teraz działa żeby nie pisać głupot").
 * **Decision forks before drafts.** A thread that changes what we build (scope in/out, keep vs replace, window vs no window) gets its own decision popup first; the reply is drafted only after the decision, so the reply describes what was decided.
+* **A thread that questions the design of the author's own feature:** the first, recommended option defends the goal and fixes the concrete flaws the reviewer found. "Split it out" is never recommended unless Greg said so (67aa873d).
+* **Every PR or branch mentioned to Greg carries its title or a one-line what-it-does**, in the thread popup too. A number or branch name alone tells him nothing (Greg, 2026-11-23).
 * **When Greg rejects a popup to clarify**, answer his question in prose, then re-ask the same popup with the new context — do not move on.
 * Replies still go through greg-voice and the A8 per-reply confirmation, but the confirmation can carry 4 replies per popup once the decisions are made — that part is not what he wants slowed down.
 
@@ -138,7 +140,7 @@ Observed 2026-09-17 on PR #27522: 19 threads handled this way took 8 popups for 
 
 ## A5. After answers, emit plan + reply per thread
 
-Draft each reply per P5, then run the batch through greg-voice (P5.5) before emitting. The reply shown here and posted in A8 is the humanized version.
+Draft each reply per P5. Every sentence about code behaviour is checked against a file read this turn (`file:line`); Greg's intent is written as intent, not as fact about the code (67aa873d). Then run the batch through greg-voice (P5.5) before emitting. The reply shown here and posted in A8 is the humanized version.
 
 For each answered thread, emit this block (drop sections that don't apply):
 
@@ -277,7 +279,9 @@ Posted: <N>  ·  Modified: <M>  ·  Skipped: <S>
 Outstanding (skipped + already-replied): <count>
 ```
 
-Remind: **resolve threads on GitHub manually** — API replies don't auto-resolve.
+API replies don't auto-resolve. Where Greg's reply is the last in a thread, resolve it via GraphQL `resolveReviewThread(input: {threadId: "<node id>"})` (the thread's node id from `fetch-comments.sh`). On error (permissions, ruleset) fall back to one line: "resolve threads on GitHub manually" (67aa873d, cdcb5b8a).
+
+Close with a merge-blocker block: unresolved threads left, ruleset flags (`require_code_owner_review`, `required_review_thread_resolution`), CODEOWNERS of the changed paths and who approved, red checks.
 
 Unattended tab (P10): close with the mail to Greg, `--subject 'PR #<n>: <N> replies posted, <S> skipped'`.
 

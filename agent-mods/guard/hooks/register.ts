@@ -89,7 +89,8 @@ export function sqlProblem(sql: string): string | undefined {
 
 export function bashProblem(command: string): string | undefined {
   // Quoted text is a pattern or a message, not a command: `rg 'git add -A'` must pass.
-  const bare = command.replace(/'[^']*'|"[^"]*"/g, "''")
+  // `'\''` is the shell's escaped apostrophe (`'I'\''d'`): drop it first or the quote pairing breaks and a `?` inside looks bare.
+  const bare = command.replace(/'\\''/g, '').replace(/'[^']*'|"[^"]*"/g, "''")
   // Raw command, not `bare`: the client often sits inside quotes (`ssh lab 'psql …'`, `sh -c "…"`).
   if (/\b(psql|clickhouse(-client)?|ch-query|gq\.sh|mysql|sqlite3|duckdb)\b/.test(command)) {
     const problem = sqlProblem(command)
@@ -137,7 +138,7 @@ export function bashProblem(command: string): string | undefined {
     return '`echo` expands `\\n` inside JSON: pipe curl straight into jq, or `printf \'%s\' "$x" | jq`. A parse error after a send means check the channel, never resend (zsh-bash-tool.md)'
   if (/\b(while|until)\b/.test(command) && /\bpgrep\s+-\w*f\w*\s+(?!['"]?\[)/.test(command))
     return '`pgrep -f` in a wait loop matches its own shell: bracket trick `pgrep -f "[a]rtisan …"`, `pgrep -x`, or poll a log/marker; every loop gets a `timeout` (zsh-bash-tool.md)'
-  if (/\b(while|until)\b/.test(command) && /\bsleep\b/.test(command) && /\bgh\s+(pr|run)\s+(checks|view|list)\b/.test(command))
+  if (/\b(while|until|for)\b/.test(command) && /\bsleep\b/.test(command) && /\bgh\s+(pr|run)\s+(checks|view|list)\b/.test(command))
     return 'no hand-written loop around gh: `gh-run-wait <workflow> --sha <sha>`, `timeout 1800 gh run watch <id> --exit-status`, or `gh-pr-checks-wait <n>` in the background (never `gh pr checks --watch`: no output without a TTY, the bg pane stays empty). Waiting for a human (merge, approval) ends the turn instead (zsh-bash-tool.md)'
   if (/\bgh\s+run\s+download\b(?![^|;&]*\s(-D|--dir)\b)/.test(bare))
     return '`gh run download -D <scratch>/run-<id>`, always a fresh dir: a reused one dies on "file exists" (zsh-bash-tool.md)'

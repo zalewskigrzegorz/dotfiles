@@ -27,7 +27,8 @@ is no separate agent window and no per-step prompt.
    wasted calls, 0303ab99).
 3. Read with `page_extractText` or `page_getPageInfo`; the
    `browsentic://page/diagram` resource is the cheapest shape of a page.
-4. Close what you opened with `page_closeTab` when the task ends.
+4. Close what you opened with `page_closeTab` when the task ends, but never while Greg is hand-testing in that tab (db368cfb).
+5. A multi-step admin UI (settings, wizards) gets its own tab, so Greg's tab with his work stays untouched (db368cfb).
 
 Tool names and parameters: the server's tool list, or `browsentic tools`.
 Less common jobs (monitors, downloads, theming, drag, captcha):

@@ -92,6 +92,14 @@ About 15 popups were rejected in one week. Every one broke one of these:
   "za i przeciw", answer in plain text with his proposal named and its pros
   and cons. A popup comes after that, with his proposal as the first option,
   never as the alternative to yours (36ce73f9, rejected as "clarify").
+- **Context first, popup next turn.** A fork about a PR thread, a reviewer's
+  remark, a worker's finding or a "czemu mamy X" opens with 3–4 plain lines and
+  ends the turn: what the PR does (its title, never a bare `#n` or branch:
+  "numer PR-a nic mi nie daje"), who said what, what blocks; for "czemu" the
+  `git log` history with dates. The popup comes after his next message. Free
+  text in a popup that is itself a question gets a plain answer, no new popup.
+  A popup about a data source says in `description` what the existing code
+  already gives (ada9d8d8, 85b526a3, bd18c7b3, be66f15e, 88ae43e7).
 - **A worker does not ask who does the work.** A session briefed by an
   orchestrator that finds something outside its brief mails the orchestrator
   (`env -u TUIOS_PANE_ID tuios send-agent-message …`) and tells Greg in one
@@ -105,7 +113,11 @@ About 15 popups were rejected in one week. Every one broke one of these:
   once, then the ready `tuios set-pane-grants -s <own session> -w <pane>
   --grants <current>,admin` into the `sudo` split with one line (`admin`
   reaches every session, undo = same command without it). No placeholder, no
-  "how to deliver" popup (873a454c).
+  "how to deliver" popup (873a454c). Delivered is not read: after the mail one
+  `tuios list-agents -s <session> --all`; idle → "orkiestrator stoi, nikt tego
+  nie robi", never "zajmie się" (7fd54aaa). `no window found matching` after
+  earlier mails = the pane is gone: the same report `-w human`, the first
+  sentence says so (b58c114a).
 - **"Jak mam X" asks for the shortcut, not for X done.** "Jak ja mam to
   przenosić ręcznie" answered by moving the window for him got a "clarify"
   (127b663a). First line is the keys (`prefix+z`, `opt+shift+N`); doing it
@@ -130,6 +142,8 @@ About 15 popups were rejected in one week. Every one broke one of these:
   OAuth apps, partner programs: confirm in current docs (`read-the-damn-docs`)
   before the popup, or write "niezweryfikowane" in the `description` and never
   mark it `(Recommended)`. "allegro nie daje kluczy api nikomu" (56b4638b).
+  An untested patch of someone else's tool (symlink, swapped binary) gets "nie
+  testowałem" the same way (9238d735).
 - **A constraint he already gave is applied, not re-asked.** "pomiń wpłatę
   własną", "max 3k", "w razie czego pytaj" — use it, don't confirm it (fc3cd4a8).
 - **No gate on a step he already chose.** "Domykamy PR?" after he picked
@@ -137,7 +151,8 @@ About 15 popups were rejected in one week. Every one broke one of these:
   turn with a one-line status (7cd3bd57, 5a4b92b0). A commitment he dictates
   into an outward message ("zrobimy PR", "sprawdzę jutro") counts as chosen
   too: start the worktree and the agent in the same turn, no "robię teraz?"
-  (415d3e29).
+  (415d3e29). So does a follow-up named in the picked option's `description`
+  (85b526a3).
 - **Commit popup after a diagnosis starts with the human line.** When the
   session was a hunt or several small fixes, the `preview` opens with 1–2 lines
   of what was fixed and why ("audio dopełnione ciszą do okna pyatv; CO₂ max
@@ -150,7 +165,10 @@ About 15 popups were rejected in one week. Every one broke one of these:
   whose result goes to a file and a mail opens with the verdict ("prod
   zdrowy, błąd jest w raporcie") before any "send" popup (585c8429). A local
   setup that masks the bug opens with "lokalnie nie da się zweryfikować, bo
-  <różnica env>", and "zielone" never stands alone (6a89b245).
+  <różnica env>", and "zielone" never stands alone (6a89b245). A read-only
+  check that takes one call (`gh api`, `rg`) is run, not listed as "nie
+  sprawdziłem"; that line is for checks needing his login, a secret or a
+  mutation (683de0e6).
 - **A step that touches a database, a dump or a deploy names its target
   first.** Host, database, env, and whether anything leaves the machine:
   "lokalnie, `prod_rehearsal` w `<co>-postgres-1`, nic nie wychodzi", in
@@ -185,7 +203,8 @@ About 15 popups were rejected in one week. Every one broke one of these:
   as plain paragraphs ending in "powiedz wyślij". Popup only when the result
   diverges and he picks where to debug (2e0394f8).
 - **Progress events from a `Monitor`** (a container healthy, a step started)
-  get no reply text. Speak on the first error, on done, or when he has a
+  get one short line at most (service + state), never an empty turn, which the
+  harness rejects (59d9fcc0). Speak on the first error, on done, or when he has a
   decision to make; give the ETA once at the start. Nine status turns in a row
   during one `pnpm start` re-read the context for nothing (b5eb5403).
 - **A review note marked non-blocking / minor / nit** gets "odpisuję, że

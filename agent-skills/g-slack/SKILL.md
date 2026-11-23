@@ -91,7 +91,11 @@ ID from the brief or PR body (`slack_search_public_and_private`, concise,
 Never search by PR number or by words from Greg's own messages: those match
 his replies, not the root (0c9ebd23, 5 calls).
 
+A DM goes straight to `chat.postMessage` with the user's Slack ID as `channel`. Skip `conversations.open`: it fails with `missing_scope` (15c9041d). A thread's `ts` comes from the permalink (`p<digits>` → `<10 digits>.<6 digits>`), never from `rg` over the transcript (67aa873d).
+
 ### 2. Read the context
+
+Before drafting a follow-up, read the thread. Greg already replied there → skip the draft and say so in one line (ada9d8d8).
 
 Load the Slack MCP read tools and read the thread/channel so the reply actually
 answers what's there:

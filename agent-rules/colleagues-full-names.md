@@ -16,3 +16,6 @@ Popup labels and `description`s count too: two first names as an option got
 option says in a few words why that person. A first name from a DM or a quote
 is not an identity: check `work-people` before a draft with a ping, and when
 more than one person fits, one popup with full names and roles (ccb41f8d).
+In a popup the full name appears once, in `question`; `description` and labels
+say "reviewer" or the role, never an inflected first name (6 sessions,
+2f5af49f).

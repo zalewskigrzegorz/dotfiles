@@ -71,6 +71,10 @@ tries (2026-10-09 … 10-12):
   wychodzi") and pass his reply verbatim. Never invent it; YOLO is not consent
   to a destructive reset.
 
+## Screenshots: "before" first
+
+Take the "before" shot on clean `origin/main` first. After `lde restart ui` wait for a 200 in one `timeout` loop, not repeated probes (0be57794).
+
 ## Shared lab environments (`lab*`) are the same story, remotely
 
 Before `gh workflow run deploy-env.yml` / `redeploy-env.yml` against a shared

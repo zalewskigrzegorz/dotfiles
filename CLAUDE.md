@@ -141,7 +141,7 @@ Notes, footguns and porting rules: `scriptc/CLAUDE.md` (loads when you touch `sc
 
 ## Claude-specific
 
-**Testing a `pre-tool-use/*` hook.** Feed it fixture JSON on stdin with guards on (no YOLO marker, `permission_mode: default`) and read `hookSpecificOutput.permissionDecision`; a table of `command → expect allow|ask|deny` cases, run against the working copy **and** against `git show HEAD:<hook>` in a scratch dir, separates a regression from old behaviour in one pass and catches inconsistencies (2026-09-25: commit asked while push passed). Only the cases whose result changed need reading. The `/dev/null;` false positive (fixed 2026-09-29) had exactly this shape.
+**Testing a `pre-tool-use/*` hook.** Feed it fixture JSON on stdin with guards on (no YOLO marker, `permission_mode: default`; from a YOLO session run it as `env -u CLAUDE_CODE_SESSION_ID`, or the session's marker still applies, edb80735) and read `hookSpecificOutput.permissionDecision`; a table of `command → expect allow|ask|deny` cases, run against the working copy **and** against `git show HEAD:<hook>` in a scratch dir, separates a regression from old behaviour in one pass and catches inconsistencies (2026-09-25: commit asked while push passed). Only the cases whose result changed need reading. The `/dev/null;` false positive (fixed 2026-09-29) had exactly this shape.
 
 **ponytail band.** Toggled with `/ponytail band [off]`; its state is `~/.claude/.ponytail-band`, tracked as `dot_claude/dot_ponytail-band` (69a88ca). Its buttons need the mouse, which does not exist with the alt screen off. Never patch `register.tsx` (`agent-rules/plugin-own-switch-not-patch.md`). A running session keeps the old band until `/exit` + `claude --continue`.
 

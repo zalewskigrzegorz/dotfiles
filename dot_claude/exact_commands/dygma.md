@@ -18,6 +18,7 @@ edit the layout competently is here. Don't make it a skill — rare use.
   function change himself ("pokaż który, sam sobie zmienię"). You CANNOT flash
   from CLI. ⚠️ Tell Greg to import BEFORE he re-exports, or his export clobbers
   your edits.
+- The export path is wherever Greg points Bazecor at: ask or take the newest `Untitled*.json`, don't assume the path above (0b5f17ca).
 - Auto-backups: check where Bazecor writes them before relying on them; the
   `~/Raise/Backups/Defy/<neuronID>/` path no longer had files on 2026-10-25.
 - Full decoder + format notes: `~/Code/personal/bazgroly/dotfiles/notes/dygma-decoder.py`
@@ -77,7 +78,7 @@ Palette (his neon, W=0): red `#FF0044` · green `#00FF66` · cyan `#00E5FF` · g
 `#FFCC00` · orange `#FF5500` · mauve `#B300FF` · blue `#0033CC` · pink `#FF00AA`.
 Scheme: ESC=white · superkeys=mauve · litery=blue · symbole=cyan · modyfikatory=gold ·
 Control/Space/Tab/Enter=green · DEL/X/Bksp=red · screenshot=pink · layer-buttons=orange ·
-NoKey=black · Transparent(return)=red · numpad=Greg's. ⚠️ High White-channel washes
+NoKey=black · Transparent(return)=red · numpad=Greg's. Before showing a new palette, check the ΔE between neighbouring colors (key groups must stay distinguishable on the board) (0b5f17ca). ⚠️ High White-channel washes
 colors — keep W=0; true OFF = `0 0 0 0`.
 
 ## Workflow

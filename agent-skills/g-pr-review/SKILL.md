@@ -80,8 +80,10 @@ If `USE_LOCAL=true` from P0:
 ```bash
 BASE_REF="$(gh pr view "$NUMBER" ${REPO_FLAG:+-R "$OWNER/$REPO"} --json baseRefName --jq .baseRefName)"
 git fetch origin "$BASE_REF" --quiet 2>/dev/null || true
-git diff "$(git merge-base HEAD "origin/$BASE_REF")"..HEAD
+rtk proxy git diff "origin/$BASE_REF"...HEAD > <scratch>/pr.diff   # three dots = merge-base diff, no $MB variable
 ```
+
+Read the diff from the file; the rtk filter otherwise truncates it (cd881b89, e1ff698c).
 
 This is byte-equivalent to `gh pr diff` when the branch is up-to-date with remote, and skips one API hit (significant on large PRs where `gh pr diff` streams a multi-MB unified diff over REST).
 
@@ -148,7 +150,7 @@ A tuicr PR session exists only once the TUI has opened it (`review add` before t
 tuicr-split "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" pr "$NUMBER" --repo-url "https://github.com/$OWNER/$REPO"
 ```
 
-The first output line is `window=<id>`. Wait for the session, then take its slug:
+The tuicr session is per PR: for a second PR run `tuicr-split … pr <n>` again and check `tuicr review list --all` before any `review add` (88ae43e7). The first output line is `window=<id>`. Wait for the session, then take its slug:
 
 ```bash
 tuios wait-for window-output -w <id> --pattern 'PR Mode' --timeout 60000 >/dev/null
@@ -389,7 +391,7 @@ If user picks a verdict, "robimy approve" after checking the author's answer is 
 
 ## Flow B (`fresh`)
 
-* [ ] B1 diff source picked per P0 (`git diff merge-base..HEAD` when `USE_LOCAL=true`, else `gh pr diff`)
+* [ ] B1 diff source picked per P0 (`git diff origin/<base>...HEAD` when `USE_LOCAL=true`, else `gh pr diff`)
 * [ ] B1.5 what/why summary printed (≤ 10 lines) and focus popup asked (skipped only for trivial PRs); picked areas prioritized in B2
 * [ ] Diff analyzed silently (no diff dump in chat)
 * [ ] Findings recorded with severity, anchor, body, recommendation

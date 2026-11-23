@@ -66,6 +66,14 @@ HEAD:master` from a worktree: `git -C ~/Code/dotfiles fetch -q origin master
 && git -C ~/Code/dotfiles merge --ff-only origin/master`, only when that
 checkout is clean and on `master`; otherwise one line (dc819c48).
 
+## Renaming or retiring a skill
+
+`rg` the old name across the repo and fix every hit outside `legacy/`. Add the name to `RETIRED=(…)` in stage 30 in the same commit that deletes its `agent-skills/` dir: `--delete` cleans `~/.claude/skills`, but a copy already placed in a repo's `.claude/skills/` stays without it (be66f15e).
+
+## Work skills reach the monorepo through `bin/place-work-skills`
+
+A work skill is not copied by hand into the monorepo checkout: run `bin/place-work-skills` (edb80735).
+
 ## Before writing "X puts Y first on PATH"
 
 Run `env PATH=<prefix>:/usr/bin:/bin command -v <tool>` and `<tool>
