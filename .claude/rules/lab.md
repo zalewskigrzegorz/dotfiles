@@ -15,7 +15,7 @@ paths:
 
 ## `run_*` scripts on the lab
 
-The lab's `rsync` and other brew tools sit in `/home/linuxbrew/.linuxbrew/bin`, missing from a non-interactive PATH (stage 28 failed while 30 and 33 worked, fixed in `88c008e`).
+The lab's `rsync` and other brew tools sit in `/home/linuxbrew/.linuxbrew/bin`, missing from a non-interactive PATH (stage 28 failed while 30 and 33 worked, fixed in `521ce06`).
 
 - A script calling `rsync` or any brew tool exports the linuxbrew PATH at its top, as stage 30 does. Mac-only stages (`if eq .chezmoi.os "darwin"`) are exempt.
 - Check with `ssh mrglaszki 'command -v rsync'`.

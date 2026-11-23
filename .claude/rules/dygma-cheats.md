@@ -17,4 +17,4 @@ Two sessions once edited it at once; a half-done file reached `~/bin` via
 - No `bin/sync` on a half-finished file: stage 28 rsyncs all of `bin/`.
 - A chord on a punctuation key (`; ' , . [ ] \`) added in `bin/hyprmac-config`
   → `bin/dygma-cheats --list | rg '<chord>'`. No row means a keycode missing
-  from the script's map, not a missing chord (fixed for 9 chords in `a31cda2`).
+  from the script's map, not a missing chord (fixed for 9 chords in `2577839`).
