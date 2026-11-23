@@ -49,6 +49,8 @@ Structural pieces available — see `references/design-system.md` for the full c
 
 **Every slide's content must sit inside `.slide-content`** — that is what the overflow check measures.
 
+**The deck is a fixed 1280×720 stage scaled to the window** (`--deck-scale`), so text grows with the screen and the layout never reflows; on a wide monitor the old `clamp()` caps left the text tiny. `Cmd/Ctrl` + wheel or `Cmd/Ctrl` + `=`/`-`/`0` zooms the slide content on top (`--content-zoom`). A deck with short slides can start bigger: `const baseZoom=1.3` in place of `let userZoom=1`, then measure again at that zoom. Sizes inside the stage are plain px at 1280 width, not `vw`.
+
 ### Verify layout by measurement, not by eye
 
 Screenshots are unreliable here: `agent-browser screenshot` returns black frames whenever the browser window isn't visible on screen. Measure instead:
