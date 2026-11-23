@@ -3,72 +3,22 @@ name: skill-scope-duplicates
 description: A /skill shows up twice in Claude Code's picker, or a skill is missing / stale in a repo: how agent-skills are bucketed (global vs work / dotfiles / home-lab), why bin/sync fixes duplicates, never hand-deleting <repo>/.claude/skills, renaming a global skill that collides with a team-tracked one. Load when the picker shows a duplicate, a work skill is missing, or a skill is renamed or moved between buckets.
 ---
 
-# Duplicate `/skill` in the Picker → Run `bin/sync`, Don't Delete by Hand
+# Duplicate `/skill` → `bin/sync`, don't delete by hand
 
-When the same skill shows up **twice** in Claude Code's `/` picker inside a
-repo, the cause is almost always a **stale global copy**, not a rogue project
-copy. Fix it with `bin/sync`. Deleting the project's copy by hand is the wrong
-end of the problem and gets silently undone on the next apply.
+Stage 30 (`run_onchange_after_30-agent-skills-sync.sh.tmpl`) splits `agent-skills/`:
 
-## How skill scoping actually works here
+- **Global** → `rsync --delete` into `~/.claude/skills/`, loaded everywhere.
+- **Project-scoped** → placed into `<repo>/.claude/skills/` and removed from the global dir: `WORK_SKILLS` (from `bin/place-work-skills --list`, shared with `work new`), `DOTFILES_SKILLS`, `HOMELAB_SKILLS`. Stage 30 also writes their `/.claude/skills/<name>/` lines into the repo's `.git/info/exclude`.
 
-`run_onchange_after_30-agent-skills-sync.sh.tmpl` splits `agent-skills/` into
-buckets:
-
-- **Global** → rsync'd (`--delete`) into `~/.claude/skills/`. Loaded in
-  every repo.
-- **Project-scoped** → placed into `<repo>/.claude/skills/` **and removed from
-  the global dir**, so they only cost context inside their own repo. Buckets:
-  `WORK_SKILLS` (from `bin/place-work-skills --list`, shared with `work new`
-  so fresh worktrees get them too), `DOTFILES_SKILLS`, `HOMELAB_SKILLS`.
-- The script also writes the matching `/.claude/skills/<name>/` lines into the
-  target repo's `.git/info/exclude`, so a placed personal skill never shows up
-  in the team's `git status`.
-
-So a work-scoped skill living in `<work-repo>/.claude/skills/` is **correct and
-intended**. A copy of it also sitting in `~/.claude/skills/` is the bug.
-
-## What went wrong on 2026-09-08
-
-Eight work-scoped skills (`g-pr`, `g-pr-bump`, `g-pr-common`,
-`g-pr-fix-checks`, `g-pr-respond`, `g-pr-review`, `g-github-issue`,
-`babysit-prs`) were present in **both** places, so `/g-pr-bump` appeared twice
-and both descriptions loaded into every session (~830 tokens of pure dupe).
-Hand-deleting the project copies "fixed" nothing — the next `bin/sync` put them
-straight back, which is exactly what it is supposed to do. The single `bin/sync`
-is what pruned the stale global copies and left one of each.
+A work skill in `<work-repo>/.claude/skills/` is intended; a copy also in `~/.claude/skills/` is the bug (2026-09-08: eight `g-pr*` skills loaded twice; hand-deleting the project copies was undone by the next sync, one `bin/sync` fixed it).
 
 ## Rules
 
-1. **Duplicate in the picker → `bin/sync` first.** Confirm with
-   `comm -12 <(ls ~/.claude/skills | sort) <(ls <repo>/.claude/skills | sort)` —
-   empty output means clean.
-2. **Never hand-delete a skill dir from `<repo>/.claude/skills/`.** If a skill
-   should stop being placed there, take it out of its bucket in
-   `bin/place-work-skills` (or the arrays in stage 30) and add the name to
-   `RETIRED=` in that script when its `agent-skills/` source is deleted.
-3. **Never hand-edit `.git/info/exclude` for skill entries.** Stage 30 owns
-   those lines and rewrites them.
-4. **A skill that should only load in one repo belongs in a bucket**, not in
-   the global set. That's the whole point of the split.
+1. Duplicate in the picker → `bin/sync` first. Check: `comm -12 <(ls ~/.claude/skills | sort) <(ls <repo>/.claude/skills | sort)` is empty.
+2. Never hand-delete from `<repo>/.claude/skills/`: take the skill out of its bucket (`bin/place-work-skills` or the stage-30 arrays); retiring a skill → `.claude/rules/dotfiles-ops.md` § Skills.
+3. Never hand-edit skill lines in `.git/info/exclude`; stage 30 owns them.
+4. A skill for one repo belongs in a bucket, not the global set.
 
-## Team-tracked name collisions → rename the global one
+## Collision with a team-tracked skill → rename yours
 
-Project scope does **not** shadow user scope in the picker: a global skill and a
-repo-local one sharing a `name:` both load, and `/name` shows up twice with two
-descriptions. `bin/sync` cannot fix this — neither copy is stale.
-
-The team's file is theirs and changing it needs a PR, so the fix is always to
-**rename the global variant**, never to overwrite or delete the team's:
-
-| Name in repo | Team's version (in git) | Greg's, renamed |
-|---|---|---|
-| `deslop` | short "remove AI slop" prompt | `g-deslop` — full pre-commit gate referenced by `g-commit` |
-
-After a rename, update every reference to the old name (other SKILL.md files,
-`CLAUDE.md`, rules) and run `bin/sync` so the stale global dir is deleted.
-
-**Compare `name:`, not directory names.** `grafana-mcp-wtf/` exists in both
-`~/.claude/skills/` (private overlay) and the monorepo, but the team's declares
-`name: grafana-mcp-wtf-dashboards` — different slugs, one picker entry each,
-nothing to fix.
+A global and a repo-local skill with the same `name:` both load; `bin/sync` can't fix it. The team's file needs a PR, so rename the global one (e.g. team `deslop` → Greg's `g-deslop`), update every reference, `bin/sync`. Compare `name:`, not dir names: `grafana-mcp-wtf/` exists in both places but the team's declares `name: grafana-mcp-wtf-dashboards`, nothing to fix.

@@ -1,188 +1,69 @@
 ---
-description: Fill in Greg's daily standup on Slack — gather work-only activity since the last standup (PRs, monorepo commits, meetings, memory), confirm interactively, draft the answers in the team's terse bullet style, and auto-send to the standup bot DM via Greg's own Slack user token (no "Sent using Claude" footer). Not a skill, so it stays out of context until invoked with /g-standup.
+description: Fill in Greg's daily standup on Slack — gather work-only activity since the last standup (PRs, monorepo commits, meetings, memory), confirm interactively, draft terse bullets, and send to the standup bot DM with his own user token (no "Sent using Claude" footer). Explicit-invoke command.
 ---
 
-# /g-standup — daily standup autofill
+# /g-standup
 
-Fill Greg's daily standup. The standup bot DMs four questions; his answers post
-publicly to the team standup channel. Gather what he did (work only), let him
-confirm/trim, then send the answers **as Greg** (no Claude footer) via his
-personal Slack user token.
+The standup bot DMs four questions; answers post publicly to the team standup channel. Gather (work only), let Greg trim, send **as Greg**.
 
-> **All identifiers are private.** Read
-> `~/.local/state/dotfiles/secrets/work-context.md` → **§ "Slack — standup"** for
-> the bot user ID, bot DM channel, public standup channel, and the fixed question
-> list. `source ~/.local/state/dotfiles/secrets/work.env` for `$WORK_GITHUB_ORG`,
-> `$WORK_MAIN_REPO`, `$WORK_PROJECT_DIR`, **and `$WORK_SLACK_POSTER_TOKEN`** (the
-> footer-free user token — already in the env file, so **never `op read` at
-> runtime**; no vault prompt). Never hardcode any of these here.
+> **Identifiers are private:** `~/.local/state/dotfiles/secrets/work-context.md` § "Slack — standup" (bot user ID, bot DM, public channel, the four questions); `source ~/.local/state/dotfiles/secrets/work.env` for `$WORK_GITHUB_ORG`, `$WORK_MAIN_REPO`, `$WORK_PROJECT_DIR`, `$WORK_SLACK_POSTER_TOKEN` (never `op read` at runtime).
 
-## Hard rules (learned the hard way — do not relitigate)
+## Hard rules
 
-- **Never send without Greg's explicit confirmation** of the full drafted set.
-  He must also pick what's included (interactive, step 4).
-- **Send via the user token + `chat.postMessage`, NOT the Slack MCP.** The
-  claude.ai Slack MCP appends `*Sent using* @Claude` to every message — it shows
-  publicly on the standup channel, on every line. The user token posts cleanly
-  as Greg. **Reads go through the Slack MCP** (`slack_read_channel`, no footer on
-  reads) — the standup token is `chat:write` only and **cannot** read history, so
-  don't try `conversations.history` by hand with it (`standup-send` does, and
-  reports `missing_scope` if the scope is still missing).
-- **Blocker answer is `no`, never `-`.** Slack turns a leading `-` into an empty
-  bullet (`•  `) on the public post. `no` / `none` render fine.
-- **Plain text only — no link markup.** The bot mangles Slack `<url|text>` links
-  into garbage. Bare `#24671` is fine; skip `<…>`.
-- **Work only.** Exclude personal repos (dotfiles, bazgroly, home-lab, anything
-  under `~/Code/personal`). No home/pets/side-project items.
-- **The bot sleeps between messages.** After each send it often replies "Please,
-  give me a minute… 💤" and takes ~40–60 s to post the next question. `standup-send` waits
-  for the real next question; skip the sleep line and the plan-echo.
-- **Slack MCP tools are DEFERRED — they are absent from the visible tool list
-  until loaded.** Do NOT conclude "no Slack MCP in this session". Load them
-  first: `ToolSearch("select:mcp__claude_ai_Slack__slack_read_channel")` (add
-  other `mcp__claude_ai_Slack__*` tools to the same call as needed), then call
-  them normally. If ToolSearch returns "No matching deferred tools found" even
-  though `claude mcp list` shows the connector Connected, the tools never
-  registered in THIS session (stale long-lived session) — tell Greg the session
-  needs a restart, or hand the Slack reads to another session that has them.
-  Don't burn time on Chrome automation of app.slack.com as a first resort.
+- Never send without his explicit yes on the full set; he picks what's included (step 4).
+- **Send** with the user token (`standup-send`), never the Slack MCP (its footer shows publicly on every line). **Read** through the Slack MCP (`slack_read_channel`): the token is `chat:write` only.
+- Slack MCP tools are deferred: `ToolSearch("select:mcp__claude_ai_Slack__slack_read_channel")` first, never conclude they're absent. Still "No matching deferred tools" while `claude mcp list` shows Connected → the session needs a restart (or another session does the reads). No Chrome automation of app.slack.com as a first resort.
+- Blocker answer `no`, never `-` (a leading `-` becomes an empty bullet). Plain text, no `<url|text>` links (the bot mangles them); bare `#24671` is fine.
+- Work only: no dotfiles, bazgroly, home-lab, `~/Code/personal`, home, pets, side projects.
 
-## Workflow
+## 1. Active standup?
 
-### 1. Check there's an active standup
+`slack_read_channel` on the bot DM (newest ~6). Bot asking ("It's time for today's stand up!", unanswered question) → note which question is on screen. Finished ("Thank you! Have a nice day") or not started → say so and stop.
 
-Read the bot DM via the Slack MCP (`slack_read_channel`, channel from
-work-context, newest ~6 messages). Confirm the bot
-is currently prompting (a recent "It's time for today's stand up!" / an
-unanswered question). It only accepts answers while asking; if the last standup
-is finished ("Thank you! Have a nice day"), tell Greg there's nothing open and
-stop. Note which question is on screen — that's where sending resumes.
+## 2. Window
 
-### 2. Window = since the last standup
+Since `~/.local/state/dotfiles/standup-last`; no file → last working day (Monday includes Fri + weekend). Greg may override ("tylko dziś", "od czwartku").
 
-Default: **since the last standup**, the time in
-`~/.local/state/dotfiles/standup-last` (step 8 writes it). No file → since the last working day: Mon → include Fri +
-weekend; otherwise = yesterday. Compute the cutoff date, use it for every source. Greg can override
-("tylko dziś", "od czwartku").
-
-### 3. Gather work-only activity (parallel)
+## 3. Gather (parallel)
 
 ```bash
-source ~/.local/state/dotfiles/secrets/work.env
-CUT=<cutoff YYYY-MM-DD>
-
-# PRs (shipped + in-flight) across the work org
-gh search prs --author @me --owner "$WORK_GITHUB_ORG" --updated ">=$CUT" \
-  --json number,title,state,url,repository,updatedAt --limit 30 \
+source ~/.local/state/dotfiles/secrets/work.env; CUT=<YYYY-MM-DD>
+gh search prs --author @me --owner "$WORK_GITHUB_ORG" --updated ">=$CUT" --json number,title,state,url,repository,updatedAt --limit 30 \
   | jq -r '.[] | "[\(.state)] #\(.number) \(.title)"'
-
-# Commits in the monorepo (all branches, Greg's authors)
-git -C "$WORK_PROJECT_DIR" log --author='zalewski\|Grzegorz\|maksim009' \
-  --since="$CUT" --all --no-merges --pretty=format:'%cI %s'
-
-# Meetings attended in the window (transcript optional for a 1-line takeaway)
+git -C "$WORK_PROJECT_DIR" log --author='zalewski\|Grzegorz\|maksim009' --since="$CUT" --all --no-merges --pretty=format:'%cI %s'
 spark meetings --filter "newer_than:<N>d"
-
-# What the Claude sessions worked on: the tuios title hook logs every title check
-# (day, folder, branch, 3–4 word task, session id). Catches analysis and review
-# work that leaves no PR or commit.
-jq -r --arg cut "$CUT" 'select(.ts >= $cut)
-  | "\(.ts[0:10]) \(.cwd | sub(".*/"; "")) [\(.branch)] \(.title)  \(.sid)"' \
-  ~/.local/state/dotfiles/claude-task-log.jsonl | sort -u
+jq -r --arg cut "$CUT" 'select(.ts >= $cut) | "\(.ts[0:10]) \(.cwd | sub(".*/"; "")) [\(.branch)] \(.title)  \(.sid)"' \
+  ~/.local/state/dotfiles/claude-task-log.jsonl | sort -u     # session titles: catches review/analysis with no PR
 ```
 
-Drop rows whose folder is personal (dotfiles, bazgroly, home-lab, `~/Code/personal`).
-Only when a title is too thin to write a bullet, open that one session's
-transcript (`~/.claude/projects/*/<sid>.jsonl`); don't skim transcripts wholesale.
+- Drop personal folders. Open one session transcript (`~/.claude/projects/*/<sid>.jsonl`) only when its title is too thin.
+- **PRs reviewed:** one `gh api graphql` `search(type: ISSUE, first: 50)` → `reviews(last: 30)`, `comments(first: 30)`, counted in `jq` by `createdAt >= today`, to a scratch file (`reviews(last:100)` with nested comments exceeds the 500,000 node limit).
+- **Work without a PR:** `git -C <main checkout> worktree list --porcelain | rg '^(worktree|branch) '` (a glob over `~/Code/tree/wt-<repo>/*` hits type dirs), then per tree `git status -sb` and `git log --oneline origin/main..HEAD`; drafted as "bez PR-a" for him to confirm.
+- Ambient only: `mcp__hindsight__recall(query="work shipped decisions focus <topics>", max_tokens=512)` filtered to the window.
+- **Distill:** many commits on one topic → one bullet; a PR and its commits → one line. Merged/open PRs → "did"; WIP PRs, in-progress issues, today's meetings → "will do". Merged-or-not from PR state (`gh pr list --search <sha> --state all --json number,state` for a stray commit), not `git branch --contains`.
 
-**PRs reviewed today:** one `gh api graphql` with `search(type: ISSUE, first:
-50)` → `reviews(last: 30)` and `comments(first: 30)`, counted in `jq` by
-`createdAt >= today`, saved to a scratch file. `reviews(last:100)` with nested
-`comments` hit `exceeds the maximum limit of 500,000` (7665ab21).
+## 4. Confirm (required)
 
-**Work with no PR yet** (a Grafana board, a branch never pushed): list the
-trees with `git -C <main checkout> worktree list --porcelain | rg '^(worktree|branch) '`
-(a glob over `~/Code/tree/wt-<repo>/*` hits the type dirs `aa/`, `chore/`, the trees sit one
-level deeper), then `git -C <wt> status -sb` and `git -C <wt> log --oneline
-origin/main..HEAD` per tree from that list, then the task log above. It goes into the draft as "bez PR-a" for Greg to confirm.
+Every non-private meeting in the window is a "did" candidate (a5239d4c). Show candidates grouped did / will / blockers; Greg keeps, cuts, merges, adds.
 
-Ambient context (don't over-weight): `mcp__hindsight__recall query="work shipped
-decisions focus <topics>"` filtered to the window.
+## 5. Draft
 
-**Distill, don't dump.** Collapse many commits on one topic into one bullet.
-Merge a PR and its commits into one line. Merged/open PRs → "did"; open/WIP PRs +
-in-progress issues + today's meetings → "will do today". Merged or not comes
-from the PR state in the list above, or `gh pr list --search <sha> --state all
---json number,state` for a stray commit — not `git branch --contains`: an empty
-`$sha` from `git log --grep` failed four times with `malformed object name`
-(2026-10-06).
+English, terse `•` bullets, plain text, team style, bare PR numbers, the four questions in order. "How do you feel": one neutral line ("ok, could be better"), never a health detail, never "feel good" by default: it's public (7665ab21).
 
-### 4. Confirm what to include (interactive — required)
+## 6. Go-ahead
 
-Every non-private meeting in the window goes into "did" as a candidate (a5239d4c).
+Full set as plain text + "powiedz wyślij", no popup (a5239d4c). No clear yes → no send.
 
-Present candidates grouped by question (did / will / blockers). Ask Greg what to
-keep, cut, merge, add. He drives this ("połącz X i Y", "wywal Z", "feel = ok").
+## 7. Send
 
-### 5. Draft the answers
+Per question, in order: match the question on screen to the answer **by content** (feel / did / will / blockers; unknown question → pause and ask), then `standup-send "$BOT_DM" "$ANSWER"` (Bash timeout 150000). It posts as Greg, polls every 5 s, prints the next bot message (skips the "give me a minute… 💤" line and the plan echo, which needs no answer). Exit: `0` next message · `124` no reply in 120 s (sent; never resend, check the DM once) · `1` post failed · `3` posted but history unreadable · `2` usage/no token. Never hand-poll with `slack_read_channel` + `sleep`.
 
-English, terse, `•` bullets, plain text, team style (short imperative fragments,
-PR numbers bare). Match the four questions from work-context in order. The
-"how do you feel" answer is one neutral line ("ok, could be better"), never a
-health detail and never "feel good" by default: it is public (7665ab21).
+Exit 3 / `missing_scope`: history needs `im:history`; until Greg adds it, reinstalls the app and updates 1Password, read the DM via the Slack MCP once per answer after ~60 s. Never resend.
 
-### 6. Get explicit go-ahead
+## 8. Verify
 
-Show the full set as plain text, ending with "powiedz wyślij". No preview popup (a5239d4c). Wait for a clear yes. No yes → don't send.
+Read the public channel once (newest): all four sections, no footer. Report the permalink, then `date +%FT%T%z > ~/.local/state/dotfiles/standup-last` (stops the `standup-pending` nudge, sets the next window).
 
-### 7. Send sequentially with the user token
+## 9. Draft-only fallback
 
-One script does send + wait: `standup-send <bot DM channel> <answer>` (`bin/standup-send`,
-reads `$WORK_SLACK_POSTER_TOKEN` itself, never echoes it). It posts the answer as
-Greg, then polls `conversations.history` every 5 s and prints the bot's next
-message (skipping the "give me a minute" sleep line) as soon as it lands.
-
-For each of Q1-Q4, in order:
-
-1. Take the question currently on screen (from step 1, then from the script's
-   output). Match it to the drafted answer **by content** (feel / did / will /
-   blockers), not blind position. If it doesn't match the known four, **pause and
-   ask Greg**.
-2. Run `standup-send "$BOT_DM" "$ANSWER"` (Bash timeout 150000). Output = next
-   question text, or "Thank you! Have a nice day" after Q4.
-3. Exit codes: `0` next message printed · `124` no reply in 120 s (answer WAS
-   sent, never resend, check the DM once) · `1` post failed (error printed) ·
-   `3` posted but history unreadable, see below · `2` bad usage / no token.
-
-Blocker answer = `no`. Don't hand-poll with `slack_read_channel` + `sleep`; that
-cost 13 reads and 6 sleeps for four answers (2026-10-09).
-
-**Exit 3 / `missing_scope`:** the `slack-poster` token has `chat:write` only, and
-history needs `im:history` (verified 2026-10-09). Until Greg adds the scope to the
-app, reinstalls it and pastes the new token into 1Password, fall back to reading
-the DM through the Slack MCP once per answer after ~60 s. The answer was already
-sent, so never resend.
-
-### 8. Verify
-
-Read the public standup channel **once, now** (id from work-context, newest message); confirm
-Greg's update posted with all four sections and **no footer**. Report the
-permalink, then `date +%FT%T%z > ~/.local/state/dotfiles/standup-last`: it
-stops the `standup-pending` SessionStart nudge until the next weekday and sets
-the next window.
-
-### 9. Fallback — draft-only
-
-If the token is missing/invalid, the bot isn't prompting, or Greg prefers to send
-himself: **don't auto-send.** Output the four answers as clean copy-paste blocks
-for him to paste. Gather → confirm stays the same. Once he says it's sent, run
-`date +%FT%T%z > ~/.local/state/dotfiles/standup-last` so the nudge stops.
-
-## Notes
-
-- The bot stores "yesterday's plan" and echoes it under Q2 — a nudge, not
-  something to answer.
-- Run before the bot has kicked off the day's standup → nothing to answer yet;
-  say so and stop.
-- Token setup lives in work-context; if it stops working, reinstall the Slack app
-  and repaste the token into the 1Password item.
+Token missing/invalid, bot not prompting, or Greg sends himself: four copy-paste blocks, same gather/confirm; write `standup-last` once he says it's sent. Token broken → reinstall the Slack app and repaste into the 1Password item (setup in work-context).

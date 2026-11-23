@@ -2,105 +2,60 @@
 description: Edit or inspect Greg's Dygma Defy keyboard layout (Bazecor). Loads the full decode/edit workflow on demand — not a skill, so it stays out of context until invoked.
 ---
 
-# /dygma — Dygma Defy layout editing
-
-Load this when Greg wants to tweak/inspect his keyboard. Everything you need to
-edit the layout competently is here. Don't make it a skill — rare use.
+# /dygma — Dygma Defy layout
 
 ## Hardware & files
-- **Dygma Defy wireless** ("Defy red devil"), configured via Bazecor.
-- **Working file:** `~/Desktop/Untitled.json` (Bazecor › Preferences › Backups › Export saves
-  there since 2026-10; the old `~/Raise/Backups/` paths are stale) — the single current layout.
-  Edit it SURGICALLY (string-replace the `data` of `keymap.custom` /
-  `colormap.map` / `palette`; for superkeys edit `superkeys.map` + the matching
-  `neuron.superkeys[].actions`). Keep the rest byte-identical.
-- Greg flashes by **Load backup → Untitled.json** in Bazecor; he applies every
-  function change himself ("pokaż który, sam sobie zmienię"). You CANNOT flash
-  from CLI. ⚠️ Tell Greg to import BEFORE he re-exports, or his export clobbers
-  your edits.
-- The export path is wherever Greg points Bazecor at: ask or take the newest `Untitled*.json`, don't assume the path above (0b5f17ca).
-- Auto-backups: check where Bazecor writes them before relying on them; the
-  `~/Raise/Backups/Defy/<neuronID>/` path no longer had files on 2026-10-25.
-- Full decoder + format notes: `~/Code/personal/bazgroly/dotfiles/notes/dygma-decoder.py`
-- Runtime cheat-sheet for Greg: `~/Code/dotfiles/bin/dygma-cheats` (bound to Mouse+win `?`).
 
-## Division of labor (LEARNED THE HARD WAY)
-- **Bindings / keymap → Claude.** Reliable: pure matrix, index = `row*16 + col`,
-  80 keys/layer, 10 layers (800 ints in `keymap.custom`). Left cols 0-6, right
-  9-15, cols 7-8 gap, row 4 = thumb cluster.
-- **Colors → Greg in Bazecor GUI.** The colormap LED→key mapping is BUGGY (see
-  `led_index_BUGGY` in the decoder) — do NOT write colors programmatically.
-- **Function changes → ASK FIRST.** Greg confirms manually (he flashes). Colors
-  he's fine with you proposing but he applies them.
+- Dygma Defy wireless, configured in Bazecor. Working file: the newest `Untitled*.json` where Greg points the export (Bazecor › Preferences › Backups › Export, `~/Desktop/Untitled.json` since 2026-10; ask or take the newest, don't assume, 0b5f17ca). `~/Raise/Backups/` is stale; check where auto-backups go before relying on them.
+- Edit **surgically**: string-replace the `data` of `keymap.custom` / `colormap.map` / `palette`; superkeys = `superkeys.map` + matching `neuron.superkeys[].actions`. Everything else byte-identical.
+- Greg flashes himself (Load backup → the file); you can't from the CLI. Tell him to import BEFORE he re-exports, or his export clobbers your edits.
+- Decoder + format notes: `~/Code/personal/bazgroly/dotfiles/notes/dygma-decoder.py`. Cheat-sheet: `bin/dygma-cheats` (Mouse+win `?`).
 
-## Keycode decode (Kaleidoscope)
-- Modified key = `base_HID + (flag << 8)`, flags: LCtrl=1, LAlt=2, RAlt=4,
-  LShift=8, LGui=16. e.g. `Cmd+Shift+1` = (16|8)<<8 + 30 = **6174**.
-- `0` = NoKey (dead, color BLACK). `65535` = Transparent (falls to lower layer,
-  color RED = "return" per Greg's scheme).
-- OneShotLayer = 49161+layer. OSM mods = 49153-49160. Mouse = 20480-20620
-  (move 20481/2/4/8 = U/D/L/R; buttons 20545/6/8 = L/R/M; 20552/20560 = back/fwd;
-  20497/8 = wheel up/down). Consumer/media ≈ 18000-24000.
-- **Superkeys:** keymap code = **53980 + id** (NOT 53852). `superkeys.map` = flat
-  list of 5 actions + `0` separator per superkey, then 65535 padding. Action
-  slots = [tap, hold, tap&hold, 2×tap, 2×hold]. Greg can't trigger tap&hold /
-  2×hold — keep those `1` (none). Codes 54108/54109 = Dygma BT-pair / Battery.
+## Division of labour
 
-## Layers (as of 2026-06-16)
-- **L0 Main** · **L1 Arrows+numpad** · **L2 Media+fn** · **L3 Mouse+win** + L4-L9 empty (leave empty — Greg won't remember more layers).
-- Thumb **cluster is identical across all layers** (copied from L0). On layer N
-  the OneShotLayer(N) key + transparents = red ("you're here / return").
-- **L3 Mouse+win** = nav-tools layer: ruch krzyż (`@E/S/D/F`) + scroll (`@3/@C`) +
-  back/fwd (`@W/@R`) left; L/R/M click (`@H/@J/@K`) right; tools `@Q`=Wooshy
-  (Ctrl⌘/), `@A`=kindaVim (Ctrl[), `@?`=cheat-sheet (Ctrl⌥/).
-- Mouse tuning: `mouse.speed`=1, `accelSpeed`=24, `speedLimit`=96 (tap=precise, hold=fast).
+- **Bindings → Claude** (proposed, then OK'd: function changes always ASK FIRST, "pokaż który, sam sobie zmienię"). Matrix: index = `row*16 + col`, 80 keys/layer, 10 layers (800 ints); left cols 0–6, right 9–15, 7–8 gap, row 4 = thumbs.
+- **Colors → Greg in Bazecor.** The colormap LED→key mapping is buggy (`led_index_BUGGY`): never write colors programmatically; propose, he applies.
 
-## Superkeys (current map — also in dygma-cheats descriptions)
+## Keycodes (Kaleidoscope)
 
-Bazecor shows them 1-indexed: **"Super 7" = id 6 "Windows", "Super 8" = id 7 "leaders"**.
-Super 8 is Greg's leader key; don't repurpose it without asking.
+- Modified = `base_HID + (flag << 8)`; LCtrl=1, LAlt=2, RAlt=4, LShift=8, LGui=16 (`Cmd+Shift+1` = 6174).
+- `0` NoKey (black), `65535` Transparent (red = "return"). OneShotLayer = 49161+layer, OSM mods 49153–49160. Mouse 20480–20620 (move 20481/2/4/8 U/D/L/R; buttons 20545/6/8 L/R/M; 20552/20560 back/fwd; 20497/8 wheel). Consumer ≈ 18000–24000.
+- **Superkeys:** code = **53980 + id** (not 53852). `superkeys.map` = 5 actions + `0` per superkey, then 65535 padding; slots [tap, hold, tap&hold, 2×tap, 2×hold]. Greg can't trigger tap&hold / 2×hold: keep them `1`. 54108/54109 = BT-pair / Battery.
+
+## Layers (2026-06-16)
+
+L0 Main · L1 Arrows+numpad · L2 Media+fn · L3 Mouse+win; L4–L9 stay empty (he won't remember more). Thumb cluster identical on every layer; on layer N the OneShotLayer(N) key + transparents are red. L3: move `@E/S/D/F`, scroll `@3/@C`, back/fwd `@W/@R`, clicks `@H/@J/@K`, `@Q` Wooshy (Ctrl⌘/), `@A` kindaVim (Ctrl[), `@?` cheat-sheet (Ctrl⌥/). Mouse: `speed`=1, `accelSpeed`=24, `speedLimit`=96.
+
+## Superkeys (Bazecor shows 1-indexed: "Super 7" = id 6, "Super 8" = id 7, his leader key; don't repurpose without asking)
+
 | # | name | tap | hold | 2×tap |
 |---|---|---|---|---|
 | 0 | AI | Raycast (⌘Space) | AI light-rewrite (⌘G) | AI grammar (⇧⌘G) |
 | 1 | Paste | paste | Raycast clipboard | 1Password search |
 | 2 | Revert | undo | select-all | redo |
-| 3 | Copy | copy | AI translate | — (free) |
-| 4 | vs autocomplete | autocomplete | AI hard-rewrite ADHD-Slack (⌃⌘G) | read selection (⌥Esc system TTS) |
-| 5 | Read reset talk | reset layers→base | — (free) | Slack channel/contact search |
-| 6 | Windows | workspace overview (⌃⌘L, ⌃⌥Space) | Wooshy (⌃⌘/) | kindaVim Normal Mode (⌃[) |
-| 7 | leaders | tuios prefix (⌃Space) | — (free, was AeroSpace leader) | — (free) |
-- Free slots to fill later: `[3]2×tap, [5]hold, [7]2×tap`.
-- AI prompts (grammar/light/hard) live in Raycast AI commands; Defy just sends
-  ⇧⌘G / ⌘G / ⌃⌘G. Use a cheap fast model (Haiku/4o-mini) for grammar/light.
+| 3 | Copy | copy | AI translate | free |
+| 4 | vs autocomplete | autocomplete | AI hard-rewrite (⌃⌘G) | read selection (⌥Esc) |
+| 5 | Read reset talk | reset layers | free | Slack search |
+| 6 | Windows | overview (⌃⌘L, ⌃⌥Space) | Wooshy (⌃⌘/) | kindaVim Normal (⌃[) |
+| 7 | leaders | tuios prefix (⌃Space) | free | free |
 
-## Colors — Mocha Neon (Greg owns these in Bazecor)
-Palette (his neon, W=0): red `#FF0044` · green `#00FF66` · cyan `#00E5FF` · gold
-`#FFCC00` · orange `#FF5500` · mauve `#B300FF` · blue `#0033CC` · pink `#FF00AA`.
-Scheme: ESC=white · superkeys=mauve · litery=blue · symbole=cyan · modyfikatory=gold ·
-Control/Space/Tab/Enter=green · DEL/X/Bksp=red · screenshot=pink · layer-buttons=orange ·
-NoKey=black · Transparent(return)=red · numpad=Greg's. Before showing a new palette, check the ΔE between neighbouring colors (key groups must stay distinguishable on the board) (0b5f17ca). ⚠️ High White-channel washes
-colors — keep W=0; true OFF = `0 0 0 0`.
+AI prompts live in Raycast AI commands (cheap fast model for grammar/light).
+
+## Colors — Mocha Neon (W=0; true OFF = `0 0 0 0`; high W washes colors)
+
+red `#FF0044` · green `#00FF66` · cyan `#00E5FF` · gold `#FFCC00` · orange `#FF5500` · mauve `#B300FF` · blue `#0033CC` · pink `#FF00AA`. ESC white · superkeys mauve · letters blue · symbols cyan · modifiers gold · Control/Space/Tab/Enter green · DEL/X/Bksp red · screenshot pink · layer buttons orange · NoKey black · Transparent red · numpad his. Check ΔE between neighbouring groups before showing a new palette (0b5f17ca).
 
 ## Workflow
-1. Read the working file, decode what's relevant (use the decoder as reference).
-2. For bindings: propose the change, get Greg's OK (function changes), edit
-   surgically, tell Greg to import.
-3. For colors: propose the scheme; Greg applies in Bazecor.
-4. After substantial changes, offer to commit the layout export to dotfiles.
 
-## Defy halves stuck in bootloader (`isBootloader: true`)
+Read and decode → propose → his OK for function changes → surgical edit → tell him to import. Colors: propose, he applies. After big changes offer to commit the export to dotfiles.
 
-From Dygma support's mail, 2026-10-21; not verified past "Enable Features"
-(fa747937). Greg runs every step himself; never flash for him.
+## Halves stuck in bootloader (`isBootloader: true`)
 
-1. Export a backup to `~/Desktop/` (Bazecor › Preferences › Backups › Export,
-   saves as `Untitled.json`), quit Bazecor.
-2. Support ships FlasherTools (arm64 dmg, check `codesign -dv`:
-   `TeamIdentifier=2X7P6KJ6LJ`) and a "Sides loader Defy" firmware folder.
-3. FlasherTools menu bar › Advanced › Enable Features; only then "Skip serial
-   number input" and the folder picker appear. Pick the outer folder, tick
-   Force sides flash, Flash Neuron, then Flash Sides.
-4. On each half press the red corner key until it goes green.
+From Dygma support (2026-10-21), unverified past "Enable Features" (fa747937). Greg runs every step; never flash for him.
+1. Export a backup, quit Bazecor.
+2. Support's FlasherTools (arm64 dmg, `codesign -dv` → `TeamIdentifier=2X7P6KJ6LJ`) + "Sides loader Defy" folder.
+3. Menu bar › Advanced › Enable Features (then "Skip serial number input" and the folder picker appear): outer folder, tick Force sides flash, Flash Neuron, then Flash Sides.
+4. Press each half's red corner key until green.
 5. Bazecor firmware update, then Load Backup.
 
 $ARGUMENTS

@@ -1,198 +1,219 @@
 # g-pr shared primitives
 
-Reference file for `g-pr-review` and `g-pr-respond`. **Not a skill** — this
-directory deliberately has no `SKILL.md`, so nothing registers it, nothing
-auto-triggers it, and it costs no description context. Read it when either skill
-points here; never invoke it directly.
+Reference for `g-pr-review` and `g-pr-respond` (P5 also for `g-pr`, P10 also
+for `g-pr-fix-checks` and `babysit-prs`). **Not a skill**: no `SKILL.md`, so it
+never triggers and costs no description context. Read it once per run, with
+`Read`, when a skill points here.
 
-P2 (the ownership guard) is deliberately absent: it's a one-line compare of
-`$ME` (P0b) against `author.login` (P1), but the two skills branch on the result
-differently — `g-pr-review` then picks fresh/followup, `g-pr-respond` just
-proceeds. Each keeps its own P2.
+P2 (ownership guard) lives in each skill: both compare `$ME` (P0b) with
+`author.login` (P1), then branch differently.
 
-These apply to both flows below.
+**Language.** Anything posted to GitHub (review bodies, inline comments, thread
+replies, verdicts) is English. Chat with Greg stays in his language.
 
-## P0. Local-first PR resolution (optimization, run first)
+## P0. Local-first resolution (run first)
 
-Goal: skip GitHub API calls we don't need. Comments/threads always go through `gh` (no local mirror exists), but diff + identity can come from the local git checkout when state matches remote.
+Threads always come from `gh`; diff and identity can come from the local
+checkout when it matches the remote.
 
 ### P0a. Detect working state
 
 ```bash
 BRANCH="$(git branch --show-current 2>/dev/null || echo)"
 DIRTY="$(git status --porcelain 2>/dev/null | head -1)"
-
 if [[ -n "$BRANCH" ]]; then
-  # fetch failure must not hide: `|| true` swallowed `Permission denied (publickey)`, origin/$BRANCH stayed stale and USE_LOCAL=true despite a moved PR head
+  # no `|| true` on fetch: it once hid `Permission denied (publickey)` and USE_LOCAL stayed true on a moved head
   if git fetch origin "$BRANCH" --quiet; then
     LOCAL_SHA="$(git rev-parse HEAD 2>/dev/null || echo)"
     REMOTE_SHA="$(gh pr view --json headRefOid --jq .headRefOid 2>/dev/null || git rev-parse "origin/$BRANCH" 2>/dev/null || echo)"
-    if [[ -n "$REMOTE_SHA" && "$LOCAL_SHA" == "$REMOTE_SHA" ]]; then
-      USE_LOCAL=true
-    else
-      USE_LOCAL=false
-    fi
+    [[ -n "$REMOTE_SHA" && "$LOCAL_SHA" == "$REMOTE_SHA" ]] && USE_LOCAL=true || USE_LOCAL=false
   else
-    USE_LOCAL=false
-    echo "fetch padł (ssh), liczę po API"
+    USE_LOCAL=false; echo "fetch padł (ssh), liczę po API"
   fi
 else
-  USE_LOCAL=false  # no branch (PR by number/URL, not checked out)
+  USE_LOCAL=false   # PR by number/URL, not checked out
 fi
 ```
 
-| Signal | Meaning | Action |
-|--------|---------|--------|
-| `USE_LOCAL=true`, `DIRTY` empty | Branch up-to-date with remote, clean worktree | **Use local git for diff/identity. Skip `gh pr diff` in Flow B.** |
-| `USE_LOCAL=true`, `DIRTY` non-empty | Up-to-date but uncommitted changes | Warn user: "Worktree has uncommitted changes — review/triage will use the committed state. Continue?" Then proceed with local. |
-| `USE_LOCAL=false`, `git merge-base --is-ancestor HEAD "origin/$BRANCH"` true, `DIRTY` empty | Local is only behind, no commits of its own | `git merge --ff-only "origin/$BRANCH"`, then `USE_LOCAL=true`. One line in chat: "fast-forward `<old>` → `<new>`". |
-| `USE_LOCAL=false`, branch exists, SHA mismatch (diverged, or local ahead) | Remote moved (someone pushed) OR local moved (unpushed commits) | Warn explicitly: "Local HEAD `<short>` differs from `origin/<branch>` `<short>` — falling back to `gh` API so review/triage reflects what reviewers see on GitHub." Use `gh pr diff` in Flow B. |
-| `USE_LOCAL=false`, no branch | User passed PR number/URL, not checked out | Silent fallback — `gh pr diff` is the only option. |
+| State | Action |
+|---|---|
+| `USE_LOCAL=true`, clean | Local git for diff/identity, skip `gh pr diff`. |
+| `USE_LOCAL=true`, `DIRTY` | Warn "uncommitted changes, using the committed state", then local. |
+| `false`, `git merge-base --is-ancestor HEAD "origin/$BRANCH"`, clean | `git merge --ff-only "origin/$BRANCH"`, `USE_LOCAL=true`, one line "fast-forward `<old>` → `<new>`". |
+| `false`, diverged or local ahead | Warn "local `<short>` differs from `origin/<branch>` `<short>`, using the API", `gh pr diff`. |
+| `false`, no branch | Silent API fallback. |
 
-State `USE_LOCAL=<true|false>` in one line in chat alongside the `MODE=` line from P2. The user can override ("force fresh API", "trust local").
+State `USE_LOCAL=<…>` in one line next to the P2 line. Greg can override
+("force fresh API", "trust local").
 
-### P0b. Cache identity for the session
+### P0b. Identity cache
 
 ```bash
-ME="${G_PR_ME:-$(gh api user --jq .login)}"
-export G_PR_ME="$ME"
+ME="${G_PR_ME:-$(gh api user --jq .login)}"; export G_PR_ME="$ME"
 ```
-
-After first call in a session, subsequent runs read from env — saves one API hit per re-invocation.
-
----
 
 ## P1. Resolve the target
 
-Capture `OWNER`, `REPO`, `NUMBER`, `SHA` (`headRefOid`), `AUTHOR` (`author.login`), and the PR URL. Pass `-R "$OWNER/$REPO"` on every `gh` call when working from a PR URL or across forks.
-
-**When `USE_LOCAL=true` from P0**, derive locally and only call `gh pr view` for the PR-side fields (number, URL, author):
-
-```bash
-REPO_URL="$(git config --get remote.origin.url)"   # parse OWNER/REPO (git@ or https://)
-SHA="$(git rev-parse HEAD)"
-gh pr view --json number,url,author,baseRefName     # PR metadata not in local git
-```
-
-**Otherwise** (no checkout, or stale branch):
+Capture `OWNER`, `REPO`, `NUMBER`, `SHA` (`headRefOid`), `AUTHOR`
+(`author.login`, from the same response), URL. From a PR URL or a fork, `-R
+"$OWNER/$REPO"` on every `gh` call.
 
 ```bash
-gh pr view --json number,url,title,baseRefName,headRefName,headRepositoryOwner,headRepository,headRefOid,author
-gh pr view <n> --json number,url,title,baseRefName,headRefName,headRepositoryOwner,headRepository,headRefOid,author
-# By URL: parse owner/repo/number from the URL, then -R owner/repo on every gh call
+# USE_LOCAL=true: OWNER/REPO from `git config --get remote.origin.url`, SHA from `git rev-parse HEAD`, plus
+gh pr view --json number,url,author,baseRefName
+# otherwise:
+gh pr view [<n>] --json number,url,title,baseRefName,headRefName,headRepositoryOwner,headRepository,headRefOid,author
+export G_PR_NUMBER="$NUMBER" G_PR_OWNER="$OWNER" G_PR_REPO="$REPO"
 ```
 
-Cache for the session:
-
-```bash
-export G_PR_NUMBER="$NUMBER"
-export G_PR_OWNER="$OWNER"
-export G_PR_REPO="$REPO"
-```
-
-`AUTHOR` comes from the `author.login` field of the `gh pr view --json ...` call
-above — parse it out of that same response, no extra API hit. P2 compares it
-against `$ME`.
+No PR for HEAD and no number/URL given → stop and ask.
 
 **Load `work-people` here, before the first line to Greg**, and resolve
-`AUTHOR` plus every other login the run will name (reviewers, thread authors,
-the author of a linked or competing PR) in one `rg -i 'a|b|c'` on the matrix.
-Chat, popups and the closing mail say the full name, never
-the bare login. A brief that already carries `Autor: @login` does not count as
-resolved. A competing PR's author reached Greg three times as a bare login:
-"kim jest <login>? miałeś mi to tłumaczyć na nazwy ludzi" (da31126c, 2026-10-29).
-
-If no PR exists for HEAD and the user gave no number/URL → stop and ask for one.
+`AUTHOR` and every login the run will name (reviewers, thread authors,
+competing PR authors) in one `rg -i 'a|b|c'`. Chat, popups and the closing
+mail use full names. `Autor: @login` in a brief is not resolved (da31126c).
 
 ## P3. `AskUserQuestion` conventions
 
-* **One finding or thread reply per `AskUserQuestion`, chained.** Ask, get the answer, ask the next. The draft comment or reply goes in the `preview` of the options. Never put two drafts in one call: two batched reply popups were both rejected as "clarify" while the one-per-popup ones went through (2026-10-01, `adhd-actions-not-walls`). The only exception is the `g-pr-respond` A4 fast path, when Greg asks for it ("hurtem", "szybko").
-* **Recommended option first**, with ` (Recommended)` appended to its label. Claude Code defaults to option 1.
-* Each option's `description` carries the **why** and (where applicable) the exact comment/reply body, so the user decides from the question alone — no code dumped in chat.
-* Severity order: CRITICAL → HIGH → MEDIUM → LOW (or Critical → Suggestion → Nit for fresh reviews).
+- **One finding or reply per popup, chained**, the draft in the options'
+  `preview`. Two drafts in one call were both rejected. Only exception: the
+  `g-pr-respond` A4 fast path when Greg asks ("hurtem", "szybko").
+- Recommended option first, `(Recommended)` on its label.
+- Each `description` carries the why (and the body where it applies); no code
+  dumped in chat.
+- Severity order CRITICAL → HIGH → MEDIUM → LOW (fresh review: Critical →
+  Suggestion → Nit).
+- PR number never in `question` (guard denies digits): it goes in
+  `description`. Every PR or branch named carries its title or a one-line
+  what-it-does.
 
 ## P4. Cluster duplicates
 
-Near-duplicate findings/threads (same reviewer, same theme, same nit class — e.g. CodeRabbit firing five identical "missing `readonly`" hits) → cluster into **one** question with one shared comment/reply, list the per-file links inside.
+Near-duplicates (same reviewer, same theme, e.g. five identical "missing
+`readonly`" bot hits) → one question, one shared comment, per-file links inside.
 
 ## P5. Comment writing rules
 
-Write like a senior engineer leaving a quick review note, not like an AI assistant.
+Write like a senior engineer's quick note.
 
-* **Lead with the point.** State the issue or ask directly. No "Great work!", "Good catch", "I noticed that…", "It seems like…", "Consider…" preambles.
-* **Concrete, not abstract.** Name the exact symbol/line/behavior. "`user` can be null here → 401" beats "There might be a potential issue with null handling."
-* **Show, don't describe.** If a fix fits in a line or two, give a `suggestion` block or inline code instead of prose explaining it.
-* **A reference to an issue or PR is a full URL**, in a tuicr draft and on GitHub alike. Never a bare `#n` (Greg fixed it by hand, 2 extra calls).
-* **One issue per comment.** Don't bundle unrelated points or pad with extra advice the reviewer didn't ask about.
-* **Say why only when it's not obvious.** Skip rationale for trivial stuff. For real bugs, one short clause is enough ("…otherwise it throws on empty input").
-* **No hedging, no filler.** Cut "I think", "maybe", "just", "simply", "in order to", "it's worth noting". No closing pleasantries ("Hope this helps!", "Let me know!").
-* **Match length to weight.** Nit = one line. Real bug = 1–3 lines max. Never a paragraph for a small thing.
-* **No semicolons in prose.** New sentences, commas, or em dashes. Literal code may use `;`.
-* Plain technical English. No emoji unless mirroring the reviewer's own.
-* **"False alarm" only after a test.** Before replying that a bot's or reviewer's finding is wrong, reproduce it with a control run that shows the check can fail. The reply's first line says it was tested and how ("False alarm, tested 4.0 and 4.2 against a fake floci"). If you only read the code, say "read the code, didn't run it". Greg asked "skąd mamy pewność że to false alarm?" when the verdict came from config inspection alone (2026-10-01).
-* **"It's missing / do it separately" only after searching issues.** Before a comment or reply claims something is missing, duplicated or belongs in a follow-up, run `gh search issues --repo <owner/repo> "<term>" --json number,title,state` (epics included) and put the issue numbers in the draft. A "nie ma, trzeba zrobić" turned into "planned in #26530" only after Greg said "zobacz w issues na naszym boardzie" (2026-10-01).
+- **Point first.** No "Great work!", "Good catch", "I noticed that…", "It
+  seems like…", "Consider…".
+- **Concrete**: exact symbol/line/behaviour ("`user` can be null here → 401").
+- **Show, don't describe**: a fix of 1–2 lines is a `suggestion` block or
+  inline code.
+- **Issue/PR references are full URLs**, never a bare `#n` (tuicr and GitHub).
+- **One issue per comment**, no extra advice.
+- **Why only when not obvious**, one short clause for real bugs.
+- **No hedging or filler** ("I think", "maybe", "just", "simply", "in order
+  to", "it's worth noting", "Hope this helps!").
+- **Length matches weight**: nit = one line, real bug 1–3 lines.
+- **No semicolons in prose** (code may have them). Plain English, no emoji
+  unless mirroring the other side.
+- **"False alarm" only after a test**: reproduce with a control run that shows
+  the check can fail; first line says how ("False alarm, tested 4.0 and 4.2
+  against a fake floci"). Only read the code → "read the code, didn't run it".
+- **"Missing / do it separately" only after searching issues**: `gh search
+  issues --repo <owner/repo> "<term>" --json number,title,state` (epics too),
+  numbers in the draft.
 
 ## P5.5. Voice gate (mandatory)
 
-P5 is how you write the first draft. The `greg-voice` skill is the net that catches what still slips through — review comments here keep reading as machine-generated even after P5. So **every body bound for GitHub passes through the `greg-voice` skill before the user sees it for confirmation**: inline comments, thread replies, review summary bodies, verdict rationales. If it gets posted, it went through the voice first — no exceptions.
+Every GitHub-bound body (inline comments, replies, review bodies, verdict
+rationales, tuicr drafts) passes `greg-voice` before Greg sees it.
 
-How to run it without burning the whole turn:
+- Load `greg-voice` once per run; voice all drafts of the run in one batch,
+  then show only the voiced text.
+- Full voice, review comments included: point first, casual, every path, line,
+  version and limit kept. A terse nit stays terse.
+- Text Greg typed himself (`Modify`) is posted verbatim, no voice pass.
 
-* **Load the `greg-voice` skill once per run** (Skill tool), the first time you draft any GitHub-bound text. It stays loaded for the rest of the flow — don't re-invoke per comment.
-* **Humanize per batch, not per comment.** Once you've drafted the bodies for the run, run all of them through greg-voice together, then put the *voiced* versions into the question. The user should only ever see post-voice text.
-* **Full voice, including here.** A review comment is not an exception — it should read like Greg typed it in the PR: point first, casual, plainly owned. Keep every exact path, line number, version and limit; drop the stiff register around them. "It appears that this implementation may not correctly handle…" becomes "this breaks when the list is empty — line 42". Never flatten it into a neutral senior-engineer note.
-* **Don't re-humanize `Modify` text.** When Greg pastes a reply himself, it's already human — post it verbatim.
+## P6. Blob links
 
-Why batch: a per-comment full-skill pass on a 20-thread PR is slow, and it tempts the model to inflate a terse nit into a chatty paragraph. Casual is not longer — a terse nit stays terse. A one-line nit that's already clean should come back as the same one line.
-
-## P6. GitHub blob links
-
-Every file reference uses a clickable blob link pinned to `SHA`:
-
-```
-[<path> (L<line>)](https://github.com/<OWNER>/<REPO>/blob/<SHA>/<path>#L<line>)
-```
-
-For a range, append `-L<endLine>`. When a comment is anchored to a GraphQL thread, also show the thread URL on its own line.
+`[<path> (L<line>)](https://github.com/<OWNER>/<REPO>/blob/<SHA>/<path>#L<line>)`,
+`-L<end>` for a range; a thread-anchored comment also shows the thread URL.
 
 ## P7. Scripts location
-
-Bundled scripts live next to this skill:
 
 ```bash
 SCRIPTS="${G_PR_REVIEW_SCRIPTS:-$(git rev-parse --show-toplevel)/.claude/skills/g-pr-review/scripts}"
 [[ -d "$SCRIPTS" ]] || SCRIPTS="$HOME/.claude/skills/g-pr-review/scripts"
 [[ -d "$SCRIPTS" ]] || SCRIPTS="$HOME/.cursor/skills/g-pr-review/scripts"
-[[ -d "$SCRIPTS" ]] || echo "g-pr-review scripts not found (repo .claude/skills, ~/.claude/skills, ~/.cursor/skills) → place-work-skills $(git rev-parse --show-toplevel)"
+[[ -d "$SCRIPTS" ]] || echo "g-pr-review scripts not found → place-work-skills $(git rev-parse --show-toplevel)"
 ```
 
-`g-pr-review` is work-scoped, so `bin/sync` places it in the repo's `.claude/skills/` and removes it from `~/.claude/skills/`. The repo path comes first; three blind searches for `fetch-comments.sh` happened before it did (2026-10-15).
+`g-pr-review` is work-scoped (`bin/sync` places it in the repo's
+`.claude/skills/`), so the repo path comes first.
 
-* `fetch-comments.sh OWNER REPO NUMBER` — unresolved inline threads (GraphQL, paginated), enriched with `pr_author`, `last_comment_author`, `last_comment_at`, `author_replied_last`, `reviewer_followed_up`.
-* `fetch-reviews.sh OWNER REPO NUMBER` — PR-level review bodies + merged top-level inline comments (humans + bots like CodeRabbit, Gemini, Copilot).
+- `fetch-comments.sh OWNER REPO NUMBER`: unresolved threads (GraphQL,
+  paginated) with `pr_author`, `last_comment_author`, `last_comment_at`,
+  `author_replied_last`, `reviewer_followed_up`; `comments[0]` opens,
+  `comments[-1]` is latest.
+- `fetch-reviews.sh OWNER REPO NUMBER`: review bodies + top-level inline
+  comments (humans and bots).
 
 ## P8. Rate limits
 
-`gh api` can hit secondary rate limits on large PRs with many bot reviews. On `403` with `secondary rate limit` in the body: wait ~30s, retry **once**. On second failure, surface the error and ask the user.
+`403` with `secondary rate limit`: wait ~30 s, retry once; second failure →
+surface it and ask.
 
 ## P9. Posting a thread reply
 
-1. `POST repos/<o>/<r>/pulls/<n>/comments/<id>/replies` takes the `databaseId` of the thread's **first** comment (`.comments[0]`). GitHub: "This must be the ID of a top-level review comment, not a reply to that comment." The id of the latest reply gives 404, or a 500 that looks like an outage (2026-10-01).
-2. On a 5xx, one try through GraphQL with the thread's node `id`:
+1. Popup per reply, chained (P3): question "Post this reply?", the voiced body
+   in `preview`, options **Yes — post it** (Recommended) · **Modify** · **No —
+   skip**. The Yes is the confirmation, no extra prompt.
+2. `gh api "repos/$OWNER/$REPO/pulls/$NUMBER/comments/$COMMENT_ID/replies" -X
+   POST -f body="$REPLY_BODY"`. `$COMMENT_ID` = `databaseId` of the thread's
+   **first** comment (`.comments[0]`): a reply's id gives 404 or a 500 that
+   looks like an outage.
+3. 5xx → one try via GraphQL with the thread node id:
    ```bash
    gh api graphql -f query='mutation($t:ID!,$b:String!){addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$t,body:$b}){comment{url}}}' -f t="$THREAD_ID" -f b="$REPLY_BODY"
    ```
-3. If that fails too, print the voiced reply as plain paragraphs with the thread URL and end the turn ("wklej ręcznie albo powiedz wyślij"). No further REST variants.
+   Fails too → print the voiced reply as plain paragraphs with the thread URL,
+   end the turn ("wklej ręcznie albo powiedz wyślij").
+4. Success → `✅ Posted: <html_url>`. 422/404/403 → print verbatim, ask
+   (retry / modify / skip); no auto-retry except P8. `Modify` → "Paste the new
+   reply text", post the next message verbatim.
+5. `422 … line must be part of the diff`: thread outdated; usually irrelevant
+   for `/replies`, else modify or skip. `originalLine` off by >~5 from the
+   current line → warn, post anyway, link uses the current SHA.
 
 ## P10. Unattended tuios tab: close with a mail
 
-Applies when the first message carried a `Raport:` line (a `workctl` tab, `bin/pr-brief`) and `TUIOS_PANE_ID` is set. Questions stay `AskUserQuestion`: the popup is on screen and in Greg's Inbox at once, never `tuios ask-human` (`agent-rules/adhd-actions-not-walls.md`). The last step of the run, after the URL or summary line:
+When the first message has a `Raport:` line (a `workctl` tab, `bin/pr-brief`)
+and `TUIOS_PANE_ID` is set. Questions stay `AskUserQuestion`. Last step, after
+the URL or summary line:
 
 ```bash
 tuios send-agent-message -w human --from "$TUIOS_PANE_ID" --subject 'PR #<n>: <verdict>' '<≤5 lines: done, posted, what waits on Greg>'
 ```
 
-* Subject at most 120 chars (`PR #31204: approved`, `PR #31204: 3 replies posted, 1 skipped`). Body in Polish, plain, no recap of the comments.
-* The mail lives in this session's ring, and `workctl rm --self` kills it with the session (checked 2026-10-27: the Inbox row went with `kill-session`). A run that closes its worktree (g-pr-review B6) carries the verdict in the closing question instead, or on APPROVE leaves the review on GitHub as the report.
+Subject ≤120 chars (`PR #31204: 3 replies posted, 1 skipped`), body in
+Polish, no recap of comments. The mail dies with the session (`workctl rm
+--self`), so a run that closes its worktree carries the verdict in its closing
+question instead, or on APPROVE leaves the review on GitHub as the report.
 
----
+## P11. Shared never
+
+- No post without an explicit Yes; no GitHub-bound body that skipped P5.5.
+- Nothing non-English on GitHub.
+- Never delete or edit other people's comments on the PR.
+- Never `--no-verify`; a failed pre-commit hook → fix, re-stage, a **new**
+  commit (no `--amend`).
+
+## P12. Troubleshooting
+
+| Problem | Do |
+|---|---|
+| `gh` not authenticated | `gh auth login` |
+| No PR for the branch | ask for number or URL |
+| Fork / ambiguous repo | `-R owner/repo` from the URL |
+| >100 threads | `fetch-comments.sh` paginates |
+| Reviewer already suggested code | acknowledge it, don't duplicate the diff |
+| Script errors | `bash`, `jq`, `gh` installed? |
+
+## Per-run checklist (both skills)
+
+P0 `USE_LOCAL` stated, dirty/mismatch warned · `$G_PR_ME` cached · P1
+resolved, logins → full names · P2 stated · P3 one per popup · P5 rules,
+English · P5.5 voiced in one batch · P6 links pinned to `SHA`.

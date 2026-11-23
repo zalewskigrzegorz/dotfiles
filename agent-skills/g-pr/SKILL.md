@@ -1,139 +1,84 @@
 ---
 name: g-pr
-description: Creates or updates a GitHub PR using gh CLI and the repo pull_request_template.md, changesets for the work monorepo, no-changeset-needed label when appropriate, and Fixes/Closes issue links in Reference. Use when the user wants to open or refresh a PR body/title.
+description: Creates or updates a GitHub PR with gh and the repo's pull_request_template.md (changesets in the work monorepo, no-changeset-needed label, Fixes/Closes links), ready for review with auto-merge. Use when the user wants to open a PR or refresh a PR title/body.
 ---
 
 # g-pr
 
-## When to use
+Create a PR, refresh its title/body, or align it with the template, once
+commits exist on the branch.
 
-User wants to create a PR, update PR description, or align with the project PR template (after commits exist on a branch).
+## Text
 
-## Language
+- Title and body in **English**. Body through `greg-voice` before create/edit:
+  voice only the prose (What/Why/How?, Reference, Testing); template headers
+  and every checkbox stay exactly. Voicing never expands: Brevity wins.
+- Read `.github/pull_request_template.md` and keep all headers and checkboxes.
+- No source changes beyond what the user allows (e.g. a changeset file).
+- **Title**: `type(scope): subject`, types from `commitlint.config.js` (work
+  monorepo: `feat`, `fix`, `docs`, `chore`, `tests`, `hotfix`). Gitmoji optional.
 
-All **generated** PR title and body content must be **English**, even if the conversation is in another language.
+## Brevity (overrides everything)
 
-Always run the **generated PR body through the `greg-voice` skill** (voice mode — it is Greg's own PR) before creating/updating the PR — strip AI tells (em dashes, significance-inflation, rule-of-three, promotional filler). Keep the template headers and every checkbox exactly; voice only the prose in `What/Why/How?`, `Reference`, and `Testing`. Voice is a rewrite pass, **not** a license to expand — the Brevity rules below cap the length and win over everything.
+- **What/Why/How? ≤3 short lines**: what changed; why only when not obvious;
+  how only when surprising. One line is ideal.
+- Never enumerate the diff (no per-file bullets, no "Changes:"), no context
+  essays, no selling ("This PR introduces/enhances/ensures", "comprehensive",
+  "robust", "seamless", benefit lists).
+- **Testing** = one line of what you ran or clicked. **Reference** = bare links.
+- In doubt, cut: 4 lines good, 20 lines failed.
 
-## Constraints
-
-- Do **not** change source code except what the user explicitly allows (e.g. creating a changeset file via the commands below).
-- Read `.github/pull_request_template.md` from the repo and **preserve** all section headers and checkboxes; only fill in content.
-
-## Title
-
-Same convention as commits: `type(scope): subject` with types from repo `commitlint.config.js` when present (work monorepo: `feat`, `fix`, `docs`, `chore`, `tests`, `hotfix`). Gitmoji on the PR title is optional; match the latest or main commit if helpful.
-
-## Brevity — hard rules (override everything else)
-
-The reader is a tired reviewer; every sentence costs them focus. The code is the source of truth — the description only points at it.
-
-- **What/Why/How? = max 3 short lines total.** One line *what* changed; one line *why* only when it's not obvious; one line *how* only when the approach is surprising. One line is the ideal.
-- **Never enumerate the diff.** No per-file bullets, no "Changes:" lists, no restating what the reviewer will see in the code anyway.
-- **No context essays.** No background paragraphs, no problem-domain explanations, no motivation build-up. If the reviewer doesn't get it, they'll ask in a thread.
-- **No selling.** Ban "This PR introduces/enhances/improves/ensures", "comprehensive", "robust", "seamless", benefit lists, rule-of-three summaries.
-- **Testing = one line** (what you actually ran or clicked). **Reference = bare links** (+ `Fixes #n`), no prose describing the links.
-- When in doubt, cut. A 4-line body is a good body; a 20-line body is a failed one.
-
-## Body sections
+## Sections
 
 | Section | Content |
-|---------|---------|
-| What/Why/How? | Max 3 short lines — see Brevity rules above. |
-| Reference | Links to Slack, docs, issues. **If this PR should close a GitHub issue when merged**, add a closing keyword on its own line: `Fixes #123` or `Closes #123` (GitHub recognizes these in the PR description). Use the exact issue number—if unknown, **ask**; do not guess. Also include any non-closing references as normal links or `Related #456`. |
-| Testing | One line: what was run/clicked to verify. |
-| Check yourself | Check/uncheck boxes to match reality. |
-| Security | Check boxes when applicable. |
+|---|---|
+| What/Why/How? | per Brevity |
+| Reference | links (Slack, docs, issues); a PR that closes an issue gets `Fixes #123` / `Closes #123` on its own line; others `Related #456` |
+| Testing | one line |
+| Check yourself / Security | boxes matching reality |
 
-### Detecting linked issues
-
-Infer `Fixes #n` / `Closes #n` only when the user stated it, the branch name contains the issue number in a clear convention, or an existing PR body already references that issue. Otherwise ask for the issue number.
+`Fixes #n` only when the user said it, the branch name carries the number by
+a clear convention, or an existing body references it. Otherwise ask, never guess.
 
 ## Changesets (work monorepo)
 
-When working in **the work monorepo** with user-facing changes:
+User-facing Reunite → `pnpm changeset:reunite --empty`; Realm →
+`pnpm changeset:realm --empty`; copy per
+`docs/intranet/engineering/changelog-process.md`. Not user-facing → no
+changeset, label `no-changeset-needed` (if the label exists).
 
-- **Reunite** user-facing: run `pnpm changeset:reunite --empty`
-- **Realm** user-facing: run `pnpm changeset:realm --empty`
-- **Not user-facing:** skip changeset and add label `no-changeset-needed` on the PR (if the label exists in the repo).
+## Create vs update
 
-Changeset copy: follow `docs/intranet/engineering/changelog-process.md`.
+1. `gh auth login` if needed. Push (`git push -u origin HEAD`) when asked and
+   allowed; say so if the environment can't push.
+2. Existing PR? `gh pr view --json number,title,url` or `gh pr list --head
+   "$(git branch --show-current)" --json number,url`.
+3. **None → create ready for review, auto-merge on:**
+   ```bash
+   gh pr create --title "<type>(<scope>): <subject>" --body-file <tmp>/pr-body.md [--label no-changeset-needed]
+   gh pr merge <number> --auto --squash
+   ```
+   - `--squash` when allowed, else `gh repo view --json viewerDefaultMergeMethod`.
+   - `auto merge is not allowed` → one line, PR stays ready, no retry.
+   - **Draft, no auto-merge only when Greg (or the brief) says so** ("draft",
+     "bez auto-merge", "nie merguj sam"); the body then says why and what
+     unblocks it, in Greg's words. Brief and Greg differ → Greg wins.
+   - A PR stacked on another open PR gets auto-merge too (GitHub retargets it).
+4. **Trim auto-requested reviewers.** CODEOWNERS requests a team for every
+   matched path, incidental files included (copy strings, generated files,
+   flag registries). Check `gh pr view <n> --json reviewRequests --jq
+   '[.reviewRequests[] | .name // .login]'`; extra teams → list them with the
+   triggering paths, ask which to drop, then `gh api -X DELETE
+   repos/<owner>/<repo>/pulls/<n>/requested_reviewers -f
+   'team_reviewers[]=<Team>'`. Removal does not waive a ruleset
+   `require_code_owner_review`.
+5. **E2e (work monorepo)** runs only on `pull_request: labeled`. "See e2e on
+   CI" → `gh pr edit <n> --add-label run_e2e`, then `gh run list --branch
+   "$(git branch --show-current)" --workflow e2e.yml --limit 1 --json
+   databaseId,url`. Re-run after a push = remove and re-add the label.
+   `reunite-e2e-dispatch` is a lab test of dispatched jobs, not PR e2e.
+6. **PR exists → refresh**: `gh pr edit <n> --title "…" --body-file
+   <tmp>/pr-body.md`. A small body may go through a heredoc if the template
+   structure stays.
 
-## GitHub CLI prerequisites
-
-- `gh auth login` if needed.
-- `git push -u origin HEAD` before create (or ensure branch is pushed). **Do not assume sandbox allows push**—warn if push cannot run in the environment.
-
-## Create vs update PR
-
-1. Push the branch if the user asked to open/update the PR and push is allowed.
-2. Check whether a PR already exists for the current branch, e.g.:
-
-```bash
-gh pr view --json number,title,url 2>/dev/null
-```
-
-or `gh pr list --head "$(git branch --show-current)" --json number,url`.
-
-3. **If no PR:** create it **ready for review with auto-merge on** (Greg, 2026-11-19: walking back to click "Ready" and "Enable auto-merge" was pure waste). It merges itself once checks and approvals are green:
-
-```bash
-gh pr create --title "<type>(<scope>): <subject>" --body-file /tmp/pr-body.md
-gh pr merge <number> --auto --squash
-```
-
-- Merge method: `--squash` when the repo allows it, otherwise the repo's `viewerDefaultMergeMethod` (`gh repo view --json viewerDefaultMergeMethod`).
-- `auto merge is not allowed` (repo setting off) → one line in the report, the PR stays ready, no retry.
-- **Draft and no auto-merge only when Greg says so** for this PR ("draft", "bez auto-merge", "nie merguj sam"), or the brief does. Then the body says why it is a draft and what unblocks the merge (a flag, GA), in Greg's words, not only the orchestrator's brief. Brief and Greg differ → Greg wins.
-- A PR stacked on another open PR gets auto-merge too: GitHub retargets it when the base merges.
-
-Add `--label "no-changeset-needed"` when applicable (skip if label missing in repo).
-
-3a. **Trim auto-requested reviewers.** Right after `gh pr create`, CODEOWNERS auto-requests a team for EVERY matched path — incidental files (copy strings, generated files, feature-flag registries) pull in teams that have no business reviewing the PR (Technical Writers for a copy tweak, etc.). Check what got requested:
-
-```bash
-gh pr view <number> --json reviewRequests --jq '[.reviewRequests[] | .name // .login]'
-```
-
-If more than the obviously-relevant team(s) got requested, list them to Greg with the likely triggering paths and ask which to drop, then remove with:
-
-```bash
-gh api -X DELETE repos/<owner>/<repo>/pulls/<number>/requested_reviewers -f 'team_reviewers[]=<Team>'
-```
-
-Caveat: removing a request does NOT waive a ruleset `require_code_owner_review` on `main`-based PRs — a required team still has to approve to merge. Removal only cleans up noise for teams that are not hard-required.
-
-3b. **E2e on the PR (work monorepo).** E2e never runs on its own for a PR — `e2e.yml` fires only on `pull_request: labeled`. When Greg wants to "see e2e on CI", add the label and watch the run:
-
-```bash
-gh pr edit <number> --add-label run_e2e
-gh run list --branch "$(git branch --show-current)" --workflow e2e.yml --limit 1 --json databaseId,url
-```
-
-The affected matrix picks which suites run (Reunite e2e, API contract tests, …). To re-run after a push, remove and re-add the label (see `g-pr-fix-checks`). The `reunite-e2e-dispatch` skill is a manual test of dispatched jobs on a lab, not PR e2e — do not use it for this.
-
-4. **If PR exists:** refresh title/body from the template and current understanding of the diff:
-
-```bash
-gh pr edit <number> --title "<type>(<scope>): <subject>" --body-file /tmp/pr-body.md
-```
-
-Write the filled template to `/tmp/pr-body.md` (or another temp path), then pass `--body-file`.
-
-## Optional one-liner body (small PRs)
-
-You may use heredoc with `gh pr create` as long as the template structure (headers + checkboxes) is preserved.
-
-
-## Comment writing rules
-
-Write like a senior engineer leaving a quick review note, not like an AI assistant.
-
-- **Lead with the point.** State the issue or ask directly. No "Great work!", "Good catch", "I noticed that…", "It seems like…", "Consider…" preambles.
-- **Concrete, not abstract.** Name the exact symbol/line/behavior. "`user` can be null here → 401" beats "There might be a potential issue with null handling."
-- **Show, don't describe.** If a fix fits in a line or two, give a `suggestion` block or inline code instead of prose explaining it.
-- **One issue per comment.** Don't bundle unrelated points or pad with extra advice the reviewer didn't ask about.
-- **Say why only when it's not obvious.** Skip rationale for trivial stuff. For real bugs, one short clause is enough ("…otherwise it throws on empty input").
-- **No hedging, no filler.** Cut "I think", "maybe", "just", "simply", "in order to", "it's worth noting". No closing pleasantries ("Hope this helps!", "Let me know!").
-- **Match length to weight.** Nit = one line. Real bug = 1–3 lines max. Never a paragraph for a small thing.
-- Plain technical English. No emoji unless mirroring the reviewer's own.
+Comments on a PR follow `../g-pr-common/PRIMITIVES.md` P5.

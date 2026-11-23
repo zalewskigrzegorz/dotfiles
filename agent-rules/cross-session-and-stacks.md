@@ -7,77 +7,26 @@ alwaysApply: true
 
 ## A `<cross-session-message>` gets its answer from you, not through Greg
 
-Another Claude session asking for an export, a signature or a sha (`from=`,
-`from-name=` on the message) is answered with `SendMessage` to that sender —
-`ListAgents` if the name is unclear. Put the exact signatures and the commit
-sha in it, and reply before moving on to the next item. Greg gets one status
-line, not a relay of the answer. On 2026-10-04 two requests were summarised to
-Greg in prose until he asked "może bezpośrednio napisz do agentów?" (a752428e).
+Another Claude session asking for an export, a signature or a sha (`from=`, `from-name=`) is answered with `SendMessage` to that sender (`ListAgents` if the name is unclear): exact signatures and the commit sha, before the next item. Greg gets one status line, not a relay (a752428e).
 
 ## After a resume, look for a twin before taking the next queued item
 
-A conversation resumed in two panes runs twice: on 2026-10-28 both copies
-worked the same `sprawy` queue and made the pr-band and pulpit changes twice.
-It surfaced only as "File has been modified since read". After a resume or a
-reboot, and before each queued item: `git log --oneline -5` against your own
-last commit and `tuios list-agents -s "$TUIOS_SESSION"`. A commit you did not
-make on your item, or a second pane with your task title → stop, say so in one
-line, leave the item to that pane.
+A conversation resumed in two panes runs twice (both copies worked one `sprawy` queue; it surfaced only as "File has been modified since read"). After a resume or reboot, and before each queued item: `git log --oneline -5` against your own last commit and `tuios list-agents -s "$TUIOS_SESSION"`. A commit you didn't make on your item, or a second pane with your task title → stop, say so in one line, leave the item to that pane.
 
-## A branch stacked on a non-main base tracks that base
+## Fetch the base before you design, commit, ask or open a PR
 
-When the base is another feature branch (a cycle branch, an earlier PR),
-commits land there while you work. On 2026-10-04 an ADR landed on the base
-while the design was being written against the stale copy. Greg: "na branch
-wszedł adr 15, weź go pod uwagę, bo teraz tego nie robisz" (a752428e).
+Sessions on a stale local view opened a PR into a conflict, asked about "no PR" while one existed, read prod from an old worktree, and designed against a base that had gained an ADR ("na branch wszedł adr 15, weź go pod uwagę").
 
-- `git fetch origin <base>` and `git log --oneline HEAD..origin/<base>` at
-  three points: the start of the task, before the first commit, and before
-  opening or updating the PR.
-- New commits that touch ADRs or docs → read them first and say in one line
-  which one applies.
-- A second PR that depends on an unmerged first one → propose stacking it on
-  that PR up front (`workctl --base origin/<first-branch>`). Don't wait for
-  Greg to ask.
-
-## `main` moves too — fetch before you commit, ask or open a PR
-
-The stacked-base check above applies to a branch cut from `main` as well. Four
-sessions acted on a stale local view: a PR opened into a conflict (02be04c1),
-popups built on "the branch has no PR" while one existed (4bf5a457), a prod
-investigation read from an old worktree (13ddf2cf), a question another open PR
-already answered (2f5fe621).
-
-- **Before the first commit and before push / `gh pr create`:** `git fetch
-  origin main` and `git log --oneline HEAD..origin/main -- <paths you
-  touched>`. A hit → read that commit and rebase now. Right after opening the
-  PR: `gh pr view <n> --json mergeable,mergeStateStatus`; `CONFLICTING` or
-  `DIRTY` → rebase first, no "co dalej" popup.
-- **Work on a branch that already exists:** `git fetch origin <branch>`, `git
-  rev-list --left-right --count HEAD...origin/<branch>` and `gh pr list --head
-  <branch> --state all` before any fork about PRs, rebase or merge. A brief's
-  "no PR yet" is a claim to check. Remote differs or a PR exists → say so in
-  one line first.
-- **"Why does prod do X":** `git fetch origin main` and read `origin/main`
-  (`git show origin/main:<path>`, `git grep <pat> origin/main`) when the
-  worktree is behind. Say in one line which sha you read.
-- **A question about another open PR:** read its diff first (`git ls-tree`,
-  `git show` on its branch). Only what the diff does not settle goes to Greg.
-- **After a rebase or merge from `main`, run what CI runs before the push**;
-  red locally = no push. In the work monorepo the exact commands, the
-  red-check-on-a-stacked-branch triage and the e2e label traps are in
-  `~/.claude/rules/work-ci-and-rebase.md` (loads with monorepo files).
+- **Stacked on a non-main base** (cycle branch, earlier PR): `git fetch origin <base>` + `git log --oneline HEAD..origin/<base>` at the task start, before the first commit, and before opening or updating the PR. New commits touching ADRs or docs → read them, say in one line which applies. A second PR depending on an unmerged first → propose stacking it up front (`workctl --base origin/<first-branch>`).
+- **Cut from `main`**: before the first commit and before push / `gh pr create`: `git fetch origin main` + `git log --oneline HEAD..origin/main -- <paths you touched>`; a hit → read that commit and rebase now. Right after opening: `gh pr view <n> --json mergeable,mergeStateStatus`; `CONFLICTING`/`DIRTY` → rebase, no "co dalej" popup.
+- **Work on an existing branch**: `git fetch origin <branch>`, `git rev-list --left-right --count HEAD...origin/<branch>` and `gh pr list --head <branch> --state all` before any fork about PRs, rebase or merge. A brief's "no PR yet" is a claim to check; remote differs or a PR exists → one line first.
+- **"Why does prod do X"**: when the worktree is behind, read `origin/main` (`git show origin/main:<path>`, `git grep <pat> origin/main`) and name the sha.
+- **A question about another open PR**: read its diff first (`git ls-tree`, `git show` on its branch); only what it doesn't settle goes to Greg.
+- **After a rebase or merge from `main`, run what CI runs before the push**; red locally = no push. Monorepo commands, stacked-branch triage, e2e label traps: `~/.claude/rules/work-ci-and-rebase.md` (loads with monorepo files).
 
 ## History rewrites and hand-offs
 
-- **Squash / amend and push in separate calls.** `old=$(git rev-parse HEAD)`
-  as backup, before the push `git rev-list --count origin/main..HEAD` ≥1 and
-  `git diff --stat <old> HEAD`, no `;` between `reset --soft` and the push. A
-  HEAD equal to the merge-base once closed the PR (255f38c7).
-- **Before `gh pr create --base <b>`:** `git ls-remote --heads origin <b>`.
-  Empty = base merged and deleted: `git rebase --onto origin/main <last base
-  commit>`, never the same create again (6a89b245).
-- **A brief says "the file lands on main now":** before the "gotowe" mail
-  fetch, `git log HEAD..origin/main -- <file>`, rebase, sha in the mail (6b5a0119).
-- **"Mail me before polishing" is a gate:** after the mail only the
-  independent part and one line "czekam na go/no-go" (12d387ae).
+- **Squash/amend and push in separate calls.** `old=$(git rev-parse HEAD)` as backup; before the push `git rev-list --count origin/main..HEAD` ≥1 and `git diff --stat <old> HEAD`; no `;` between `reset --soft` and the push (a HEAD equal to the merge-base once closed the PR, 255f38c7).
+- **Before `gh pr create --base <b>`:** `git ls-remote --heads origin <b>`. Empty = base merged and deleted: `git rebase --onto origin/main <last base commit>`, never the same create again.
+- **A brief says "the file lands on main now"**: before the "gotowe" mail, fetch, `git log HEAD..origin/main -- <file>`, rebase, sha in the mail.
+- **"Mail me before polishing" is a gate**: after the mail only the independent part, and one line "czekam na go/no-go".

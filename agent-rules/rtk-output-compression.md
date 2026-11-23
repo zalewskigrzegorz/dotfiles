@@ -3,61 +3,11 @@ description: rtk (Rust Token Killer) compresses command output before it reaches
 alwaysApply: true
 ---
 
-# rtk — output compression on the Bash tool
+# rtk: output compression on the Bash tool
 
-[`rtk`](https://github.com/rtk-ai/rtk) is a local Rust binary that filters, groups
-and deduplicates command output so less of it lands in the context. It runs as a
-**PreToolUse hook on `Bash`** (`rtk hook claude`, registered in
-`.chezmoitemplates/claude-settings.json`), which rewrites `git status` into
-`rtk git status` and so on. That part is automatic — do not prefix commands with
-`rtk` by hand.
+[`rtk`](https://github.com/rtk-ai/rtk) filters, groups and dedupes command output. It runs as a PreToolUse hook on `Bash` (`rtk hook claude` in `.chezmoitemplates/claude-settings.json`) that rewrites e.g. `git status` into `rtk git status`: never prefix `rtk` by hand. By hand only: `rtk gain` (`--history` per command), `rtk discover` (raw commands with an rtk equivalent), `rtk proxy <cmd>` (filtering off).
 
-## What to call directly
-
-```bash
-rtk gain              # how much output the filters actually removed
-rtk gain --history    # per-command breakdown
-rtk discover          # commands that ran raw and had an rtk equivalent
-rtk proxy <cmd>       # run a command with filtering OFF (debugging)
-```
-
-## What to know when reading filtered output
-
-- **Nothing is silently lost on failure.** When a command exits non-zero, rtk
-  writes the full raw output to `~/.local/share/rtk/tee/` and prints the path in
-  the filtered output. Read that file instead of re-running the command.
-- **Unknown subcommands pass through untouched.** A missing filter degrades to
-  the raw command, never to a blocked one.
-- **`rtk proxy <cmd>`** is the escape hatch when you suspect the filter itself is
-  hiding the thing you need.
-
-## The auto-allow caveat
-
-The hook returns `permissionDecision: "allow"` for any command it rewrites, so a
-rewritten command **skips the permission prompt**. Explicit `deny` and `ask`
-rules still win — rtk detects them and steps aside. This does mean Greg's prompt
-is no longer the review gate for the commands rtk covers, which is a deliberate
-trade, not an oversight. Anything that must keep prompting belongs in an explicit
-`ask`/`deny` rule, or in `exclude_commands` in rtk's `config.toml`.
-
-## Telemetry
-
-Off, and it stays off — `rtk telemetry status` should report `enabled: no`. Never
-run `rtk telemetry enable`: work identifiers and repo names must not leave the
-machine.
-
-## Existence checks go through `rtk proxy`
-
-A filtered `find … -maxdepth`, `ls <dir>` or `rg -l` can come back as
-`… (N filtered) [+N hidden: rtk recall …]` or empty while the file exists,
-which reads exactly like "not there". On 2026-09-27 that cost 57 re-runs
-through `rtk proxy rg` while hunting an `.npmrc`. When the question is
-**does X exist / which files match**, run it as `rtk proxy <cmd>` the first
-time, or use the `Glob`/`Read` tools, which rtk never touches.
-
-**Only existence checks.** Three sessions on 2026-10-08 turned this into a
-habit: 163, 321 and 364 `rtk proxy` calls, so most of the search output went
-in unfiltered. Content searches that read lines (`rg -n`, `-B/-A`) use plain
-`rg` or the `Grep` tool, capped with `-m N`. If a filtered result looks
-suspiciously empty or shows `[+N hidden]`, re-run that one command through
-`rtk proxy`, and go back to plain `rg` for the next one.
+- **Nothing is lost on failure**: a non-zero exit writes the full raw output to `~/.local/share/rtk/tee/` and prints the path; read that file instead of re-running. Unknown subcommands pass through untouched.
+- **Auto-allow caveat**: a rewritten command returns `permissionDecision: "allow"` and skips the prompt (explicit `deny`/`ask` rules still win). That trade is deliberate; anything that must keep prompting needs an explicit `ask`/`deny` rule or `exclude_commands` in rtk's `config.toml`.
+- **Telemetry stays off** (`rtk telemetry status` → `enabled: no`); never `rtk telemetry enable`, work identifiers must not leave the machine.
+- **Existence checks** ("does X exist / which files match") go through `rtk proxy <cmd>` the first time, or `Glob`/`Read`: a filtered `find`, `ls` or `rg -l` can come back empty or `[+N hidden: rtk recall …]` while the file exists (57 re-runs once). **Only existence checks**: content searches (`rg -n`, `-B/-A`) use plain `rg` or `Grep` capped with `-m N` (guard denies `rtk proxy rg -n`). A suspicious empty or `[+N hidden]` result → re-run that one command via `rtk proxy`, then back to plain `rg`.

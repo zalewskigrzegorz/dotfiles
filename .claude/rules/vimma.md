@@ -8,9 +8,8 @@ paths:
 # Vimma
 
 - **Quote a shortcut only from the uncommented lines** of `[keys]` and `[modal]`.
-  The stock comments describe Vimma's defaults: `ctrl+b ?` from the header was
-  wrong, the live prefix is `ctrl+space` (56251e09). Prefix works in every
-  mode; leader `" "` only in normal mode and the side panel, so `<leader>?` in
+  The stock comments describe Vimma's defaults (`ctrl+b ?` from the header was
+  wrong, the live prefix is `ctrl+space`). Prefix works in every mode; leader `" "` only in normal mode and the side panel, so `<leader>?` in
   `show_keybinds` means `spacja ?`.
 - **Vimma's own keymap and guide** live in
   `/Applications/Vimma.app/Contents/Resources/browser/omni.ja`
@@ -19,8 +18,8 @@ paths:
 - **Hints:** colour is `[theme.colors] bright_green` (hints only, the letter
   colour is picked by Vimma). The size is hard-coded at 11px; the override is
   `userChrome.css` (`#vimma-hints .vimma-hint`), copied to both profiles by
-  stage 39 together with the `user.js` pref. Selectors can change in an
-  update: after one, check the 14px still applies (7c37679b).
+  stage 39 together with the `user.js` pref. After a Vimma update check the
+  14px still applies (selectors change).
 - **Reload:** `config.toml` reloads live (`:source`); CSS and `user.js` need ⌘Q
   and a reopen.
 - **Tab chords are `cmd+alt+←/→`**: plain Ctrl belongs to HyprMac. Mouse tilt
@@ -29,9 +28,9 @@ paths:
   `open-here -a logioptionsplus`.
 - **A key for a web page** (pause on YouTube): check Vimma's normal-mode keymap
   first (`core/defaults.mjs`, `core/keymap.mjs` in `omni.ja`); `k`, `j` and
-  `space` are taken (673e7d5e: "`k` pauzuje" was wrong).
+  `space` are taken ("`k` pauzuje" was wrong once).
 - **Vimma's version** comes from `vimma-ctl` or the app plist, never from the
-  Firefox version (an issue went out as 158.0.1 instead of 0.1.8). Issues go to
+  Firefox version. Issues go to
   `vimma-browser/vimma` per its `bug_report.yml`; `:bug` copies a report.
 - **`:restart` closes Vimma and does not reopen it**: `open-here -a Vimma`.
 - **One action per key**: "open and switch" in one key is not possible (#533);
@@ -53,7 +52,7 @@ paths:
   GitHub can serve the old version for ~5 min. A change to a script that shares
   a key with another bumps the version of both, and the report says which
   scripts need the update. Never announce a fix "independent of the update" while
-  an older script still holds that key (a space fix lost to an old script).
+  an older script still holds that key.
 - **Greg has no usable console in Vimma.** No DevTools steps and no `copy()`.
   A probe is a userscript with `GM_registerMenuCommand` that writes its result
   to a file in `~/Downloads`, or a ready panel on the page. A locally served
@@ -61,8 +60,7 @@ paths:
   push, with Update.
 - **"Key X does not work in Vimma"** → first the mode on a screenshot (bottom
   left corner). Single-letter keys work only in NORMAL, `Esc` returns. Reload is
-  `Ctrl+R` / `F5`, hard reload `Ctrl+Shift+R` / `Ctrl+F5`. Quote keys only from
-  the uncommented `[keys]` lines.
+  `Ctrl+R` / `F5`, hard reload `Ctrl+Shift+R` / `Ctrl+F5`.
 - **An add-on options page (`moz-extension://`) is unreachable for `browsentic`**
   (`TAB_UNREACHABLE`). The source is
   `~/Library/Application Support/Vimma/Profiles/<profile>/extensions/<id>.xpi`:

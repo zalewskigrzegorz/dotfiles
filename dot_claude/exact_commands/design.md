@@ -5,12 +5,7 @@ argument-hint: "[design-type] [context]"
 
 # /design
 
-Unified design entry point: logo, CIP, slides, banners, icons, social photos,
-brand identity, design tokens.
-
-**All payload paths below are relative to `~/.claude/design-assets/`.** Read only
-the reference you actually need — the tree is large and loading it whole is the
-thing this command exists to avoid.
+**Payload paths are relative to `~/.claude/design-assets/`.** Read only the reference you need: loading the large tree whole is what this command avoids.
 
 ## Routing
 
@@ -54,7 +49,4 @@ Screenshot HTML to PNG at exact dimensions with the `agent-browser` skill
 (`--device-scale-factor 2` for retina). Output path convention lives in
 `references/banner-sizes-and-styles.md`.
 
-The `ui-ux-pro-max`, `frontend-design`, `ai-artist`, `ai-multimodal` and
-`chrome-devtools` skills that the original claudekit text referenced are **not
-installed here** — some payload files still name them. Ignore those calls and use
-your own design judgment plus `agent-browser` instead.
+Payload files still name claudekit skills that are **not installed** (`ui-ux-pro-max`, `frontend-design`, `ai-artist`, `ai-multimodal`, `chrome-devtools`): skip those calls, use your own judgment plus `agent-browser`.

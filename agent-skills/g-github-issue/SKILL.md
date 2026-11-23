@@ -1,98 +1,67 @@
 ---
 name: g-github-issue
-description: Creates GitHub issues for the work monorepo via gh CLI with template choice (bug/maintenance), default team label, English body, confirmation before create. Use for bug report, maintenance, feature request, idea, docs, epic, or onboarding issue.
+description: Creates GitHub issues in the work monorepo with gh (template per type, team label, English body, confirmation before create), plus epics with sub-issues and board fields. Use for a bug report, maintenance, feature request, idea, docs, epic or onboarding issue ("create issue", "file a bug", "maintenance ticket").
 ---
 
 # g-github-issue
 
-## When to use
+`source ~/.local/state/dotfiles/secrets/work.env` → repo `$WORK_MAIN_REPO`,
+default label `$WORK_TEAM_LABEL` (always added, plus any the user names).
+Create with `gh issue create -R "$WORK_MAIN_REPO"` only, no MCP unless the user
+insists. `gh` missing or logged out (`gh auth status`) → tell the user, no MCP
+fallback. Titles and bodies in **English**.
 
-User wants to create an issue on the **work monorepo** (`$WORK_MAIN_REPO` after `source ~/.local/state/dotfiles/secrets/work.env`) (e.g. "create issue", "file a bug", "maintenance ticket").
+## Types
 
-## Constants
+| Type | When | Title prefix |
+|---|---|---|
+| Bug report | defect, repro, expected vs actual | — |
+| Feature request | new capability | — |
+| Idea | to validate | `[Idea] ` |
+| Maintenance | tech debt, initiative | — |
+| Epic | large multi-feature goal | `[Epic] ` |
+| Docs change / New docs | docs | `docs: ` |
+| Onboarding | checklist | `Onboarding checklist [full name]` |
 
-- **Repo:** `$WORK_MAIN_REPO`
-- **Default label:** `$WORK_TEAM_LABEL` (exact spelling; pass as `-l "$WORK_TEAM_LABEL"` unless the user specifies others)
-- **Creation:** use **GitHub CLI only** — `gh issue create -R "$WORK_MAIN_REPO"`. Do not use MCP for creating issues unless the user insists.
-
-## Language
-
-All **generated** issue titles and body text must be **English**, even if the conversation is in another language.
-
-## Bug vs maintenance
-
-If the intent is ambiguous (error vs technical debt / initiative), **ask** explicitly: e.g. "Should this be a **Bug report** or a **Maintenance** issue?" Do **not** pick one by default.
-
-## Issue types and title prefixes
-
-| Type            | When to use              | Title prefix (if any)        |
-|-----------------|--------------------------|-------------------------------|
-| Bug report      | Defect, repro, expected vs actual | —                    |
-| Feature request | New product capability   | —                             |
-| Idea            | Idea to validate         | `[Idea] `                     |
-| Maintenance     | Tech debt, initiative    | —                             |
-| Epic            | Large multi-feature goal | `[Epic] `                   |
-| Docs change     | Change existing docs     | `docs: `                      |
-| New docs        | New documentation        | `docs: `                      |
-| Onboarding      | Onboarding checklist     | `Onboarding checklist [full name]` |
-
-Body structure per type: see [reference.md](reference.md). In the monorepo workspace you may also read `.github/ISSUE_TEMPLATE/*.md`.
-
-## Rules
-
-1. **Ask when information is missing** — title, issue type, required sections. Do not guess critical details (repro steps, issue number for PR links, environment).
-2. **Labels:** default `$WORK_TEAM_LABEL` in addition to any the user requests.
-3. **Before `gh issue create`:** show a short summary (repo, title, labels, body preview or full body) and ask for confirmation (e.g. "Proceed and create this issue?"). **Do not run** `gh issue create` until the user clearly confirms (yes / proceed / send).
+Bug vs maintenance unclear → ask, never pick a default. Body sections:
+[reference.md](reference.md) (or `.github/ISSUE_TEMPLATE/*.md`).
 
 ## Flow
 
-1. Determine **type**. If bug vs maintenance is unclear, ask (see above).
-2. **Title:** ask if missing; apply prefixes per table.
-3. **Body:** fill sections from [reference.md](reference.md) in **English**. Ask for missing sections.
-4. **Labels:** include `"$WORK_TEAM_LABEL"` by default.
-5. **Confirm** with the user.
-6. **Create** after confirmation:
-   - Short body: `gh issue create -R "$WORK_MAIN_REPO" -t "Title" -b '...' -l "$WORK_TEAM_LABEL"`
-   - Long / multiline body: write to e.g. `/tmp/issue-body.md` then:
+1. Type, title (ask if missing), body per reference.md. Ask for missing
+   sections; never guess repro steps, environment or issue numbers.
+2. **Confirm**: show repo, title, labels, body; create only after a clear yes.
+3. Create: `gh issue create -R "$WORK_MAIN_REPO" -t "<title>" --body-file
+   <tmp>/issue-body.md -l "$WORK_TEAM_LABEL"` (`-b '…'` for a one-liner).
+4. **Sub-issue** (the epic asks for it, or a parent is named): no parent flag,
+   attach afterwards:
+   ```bash
+   parent=$(gh issue view <epic> -R "$WORK_MAIN_REPO" --json id --jq .id)
+   child=$(gh issue view <new> -R "$WORK_MAIN_REPO" --json id --jq .id)
+   gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,subIssueId:$c}){issue{number} subIssue{number}}}' -f p="$parent" -f c="$child"
+   ```
+   Older `gh` needs `-H "GraphQL-Features: sub_issues"`. The team label puts
+   it on the board (`Pending`) by itself: check `gh issue view <n> --json
+   projectItems`, don't add it twice.
+5. **Board fields** (a status like "This Week", a type like "Maintenance"):
+   board number from `work-context.md` (Board line), ids looked up by name:
+   ```bash
+   org=${WORK_MAIN_REPO%%/*}; proj=<board number>
+   pid=$(gh project view "$proj" --owner "$org" --format json --jq .id)
+   item=$(gh project item-add "$proj" --owner "$org" --url <issue url> --format json --jq .id)   # idempotent
+   [ -n "$item" ] || { echo "no item"; exit 1; }
+   gh project field-list "$proj" --owner "$org" --format json --jq '.fields[] | select(.name=="Status") | {id, options}'
+   gh project item-edit --project-id "$pid" --id "$item" --field-id <field id> --single-select-option-id <option id>
+   ```
 
-```bash
-gh issue create -R "$WORK_MAIN_REPO" -t "Title" --body-file /tmp/issue-body.md -l "$WORK_TEAM_LABEL"
-```
+## Epic / cycle tracker
 
-Prefer `--body-file` for multiline content to avoid shell escaping issues.
-
-7. **Sub-issue of an epic** (the epic's protocol asks for it, or the user names a parent): `gh issue create` has no parent flag, so attach it afterwards through GraphQL with the node ids of both issues:
-
-```bash
-parent=$(gh issue view <epic-number> -R "$WORK_MAIN_REPO" --json id --jq .id)
-child=$(gh issue view <new-number> -R "$WORK_MAIN_REPO" --json id --jq .id)
-gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,subIssueId:$c}){issue{number} subIssue{number}}}' -f p="$parent" -f c="$child"
-```
-
-   The team label adds the issue to the team board on its own (status `Pending`); check with `gh issue view <n> --json projectItems` instead of adding it again.
-
-8. **Set board fields** (the user names a status like "This Week" or a custom type like "Maintenance"): the board number is in `work-context.md` (Board line). Look the ids up by name, never from memory files:
-
-```bash
-org=${WORK_MAIN_REPO%%/*}; proj=<board number>
-pid=$(gh project view "$proj" --owner "$org" --format json --jq .id)
-item=$(gh project item-add "$proj" --owner "$org" --url <issue url> --format json --jq .id)  # idempotent
-[ -n "$item" ] || { echo "no item"; exit 1; }
-gh project field-list "$proj" --owner "$org" --format json \
-  --jq '.fields[] | select(.name=="Status") | {id, options}'   # option id by name
-gh project item-edit --project-id "$pid" --id "$item" --field-id <field id> --single-select-option-id <option id>
-```
-
-## Epic / cycle tracker with sub-issues
-
-An epic (a cycle tracker like #27854, built on 2026-09-25 from raw `gh` calls because this section did not exist) is a normal issue plus N sub-issues:
-
-1. **Body = the previous epic's body, headings untouched.** `gh issue view <last-epic> --json body` and keep every heading verbatim: a GitHub Action parses them 1:1. Only the content under them changes.
-2. **Sub-issues** each through the flow above, labels `"$WORK_TEAM_LABEL"` plus a `size:*`, then step 7's `addSubIssue` with the epic as parent. The GraphQL call needs the header `-H "GraphQL-Features: sub_issues"` on older `gh` versions.
-3. **No `--assignee` unless Greg names a person.** A "Kto" column in his table is a plan, not an assignment; six sub-issues went out assigned to him and he had to say "nie przypisuj do nich ludzi".
-4. End with the epic number and the list of sub-issue numbers on one line.
-5. **Before proposing a new sub-issue, open the related ones with their comments.** Titles are not enough: `gh issue view <n> --comments` on every sub-issue with a neighbouring scope, and look for a "scope note" or "moves to". If the scope already has an owner, propose that issue instead. A popup to create a login sub-issue was rejected because #27880's comments already said login lands there (2026-10-02).
-
-## When gh is unavailable
-
-If `gh` is missing or not authenticated (`gh auth status`), tell the user to install or log in. Do not switch to MCP unless the user asks.
+1. **Body = the previous epic's body, headings verbatim** (`gh issue view
+   <last-epic> --json body`): a GitHub Action parses them 1:1; only content
+   changes.
+2. Sub-issues via the flow, labels `$WORK_TEAM_LABEL` + a `size:*`, then step 4.
+3. **No `--assignee` unless Greg names a person**; a "Kto" column is a plan.
+4. End with the epic number and the sub-issue numbers on one line.
+5. Before proposing a new sub-issue, `gh issue view <n> --comments` on every
+   neighbouring sub-issue and look for "scope note" / "moves to". An owner
+   exists → propose that issue instead.

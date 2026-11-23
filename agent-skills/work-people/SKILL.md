@@ -1,25 +1,22 @@
 ---
 name: work-people
 description: >-
-  Turn a work colleague's GitHub login, Slack handle, Slack user ID or bare
-  first name into their full name (and back), using the people matrix that
-  this skill keeps fresh from GitHub org members and Slack users.list. Use it
-  every time you are about to name a coworker: PR authors and reviewers,
-  review comments, "who approved", CODEOWNERS, issue assignees, Slack
-  threads, standups, recaps, digests, briefs for other agents. Greg does not
-  know who `pixelfox42` or `quietstorm` is, so a login in a reply to him is
-  a bug even when he did not ask about people. Also triggers on "kto to jest
-  <nick>", "who is <login>", "jak się nazywa", "slack id <osoby>", "github
-  login <osoby>", "zaktualizuj listę ludzi", "odśwież macierz", "nowa osoba
-  w firmie".
+  Turn a coworker's GitHub login, Slack handle, Slack user ID or bare first
+  name into their full name (and back) from the people matrix this skill keeps
+  fresh (GitHub org + Slack users.list). Use every time you name a coworker:
+  PR authors and reviewers, review comments, "who approved", CODEOWNERS,
+  issue assignees, Slack threads, standups, recaps, digests, agent briefs. A
+  login like `pixelfox42` in a reply to Greg is a bug even when he did not
+  ask about people. Also on "kto to jest <nick>", "who is <login>", "jak się
+  nazywa", "slack id <osoby>", "github login <osoby>", "zaktualizuj listę
+  ludzi", "odśwież macierz", "nowa osoba w firmie".
 ---
 
 # work-people
 
-Greg reads GitHub logins and Slack nicknames as noise: `pixelfox42`,
-`quietstorm`, "Vlad", "Sasha" say nothing about who the person is, and with two
-people sharing a first name a first name alone picks the wrong one.
-So every coworker you name gets a **full name**, looked up, never guessed.
+Logins and nicknames (`pixelfox42`, a bare first name) tell Greg nothing, and
+two people can share a first name. Every coworker you name gets a **full
+name**, looked up, never guessed.
 
 ## The matrix
 
@@ -59,7 +56,7 @@ remembering to do it.
 | Slack text | Full name; `<@U…>` only for a real ping (it renders as their name) |
 | Table or list where the login matters (reviewer assignment, CODEOWNERS) | `Full Name (\`login\`)` |
 
-When Greg himself uses a nickname ("co z PR-em Vlada?"), resolve it and
+When Greg himself uses a nickname ("co z PR-em <imię>?"), resolve it and
 answer with the full name, so you both know it is the same person.
 
 ## Miss: login or name not in the matrix

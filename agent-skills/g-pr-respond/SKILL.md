@@ -1,339 +1,153 @@
 ---
 name: g-pr-respond
-description: Answer reviewers on YOUR OWN pull request. Fetches unresolved review threads and bot inline comments on a PR you authored, triages each by severity, asks per thread in one AskUserQuestion each, chained (batched only on request; recommendation each), drafts English replies and fix plans, applies fixes, commits with g-commit style (you push), then posts thread replies one by one via gh. Never submits an APPROVE/REQUEST_CHANGES verdict — you can't review your own PR. Use whenever you want to respond to review feedback, answer reviewers, reply to review threads, or address comments on a PR you opened — current branch, PR number, or PR URL. If the PR is someone else's and you're the reviewer, use g-pr-review instead.
+description: Answer reviewers on YOUR OWN pull request. Fetches unresolved review threads and bot comments, triages by severity, asks per thread (one popup each, batched only on request), drafts English replies and fix plans, applies fixes, commits via g-commit, posts the replies via gh. Never submits a verdict on your own PR. Use to respond to review feedback, answer reviewers, reply to review threads, or address comments on a PR you opened — current branch, PR number or URL. Someone else's PR → g-pr-review.
 ---
 
 # g-pr-respond
 
-Answer reviewers on a PR **you authored**. Single flow: fetch threads → triage → ask → fix → commit → you push → post replies. **Never** `gh pr review` — GitHub rejects self-approve anyway.
+Answer reviewers on a PR **you authored**: fetch → triage → ask → fix →
+commit → push → post replies. **Never** `gh pr review` (GitHub rejects a
+self-review; verdicts are `g-pr-review`'s). Replies go to
+`…/comments/{id}/replies`.
 
-This is the author-side half of PR review. The reviewer-side half (leaving a fresh review on someone else's PR, or following up on one you already reviewed) lives in the sibling skill **`g-pr-review`**.
+Read `../g-pr-common/PRIMITIVES.md` now (language, P0–P12). Everything below
+assumes it.
 
-## When to use
+## P2. Confirm it's your PR
 
-The PR is **yours** and you want to deal with the feedback on it — reply to reviewers, apply their suggestions, push back, or work through unresolved threads. Target can be the **current branch**, a **PR number**, or a **PR URL**.
-
-If it turns out the PR is someone else's, this is the wrong skill — see P2, which redirects you to `g-pr-review`.
-
-## Language
-
-Conversation can be in any language. **Anything posted to GitHub (thread replies, issue comments) must be English** — that's what reviewers and the author read. Explanations to the user can be in whatever language the user is using.
-
----
-
-# Shared primitives
-
-Read `../g-pr-common/PRIMITIVES.md` now. It carries P0 (local-first
-resolution + identity cache), P1 (target resolution), P3 (`AskUserQuestion`
-conventions), P4 (duplicate clustering), P5 and P5.5 (comment rules and the
-mandatory voice gate), P6 (blob links), P7 (scripts location), P8 (rate
-limits) and P10 (unattended tuios tab: closing mail).
-Everything below assumes it.
-
-P2 is NOT in that file — the ownership guard differs per flow, so it stays
-here:
-
-## P2. Confirm it's your PR (guard)
-
-This skill only handles PRs **you authored**. One authorship check settles it — being a co-author or having commits on the branch does **not** make it yours; only `author.login == me` does. Both sides are already in hand: `$ME` cached in P0b, `author.login` fetched in P1 (no PR → P1 already stopped and asked). No extra API call.
+Only `author.login == me` counts (co-authoring or pushing doesn't); `$ME` from
+P0b, `$AUTHOR` from P1.
 
 ```bash
-[[ "$ME" == "$AUTHOR" ]] && MINE=true || MINE=false   # $AUTHOR = author.login from P1
-echo "MINE=$MINE (me=$ME author=$AUTHOR)"
+[[ "$ME" == "$AUTHOR" ]] && MINE=true || MINE=false
 ```
 
-* `MINE=true` → proceed with the flow below.
-* `MINE=false` → **wrong skill.** This PR is someone else's and you're the reviewer. Tell the user: "This is @author's PR, not yours — use `g-pr-review` to leave or follow up on a review." Stop unless the user explicitly overrides ("no, just draft author-style replies anyway").
+`MINE=true` → state it in one line, proceed. `MINE=false` → "This is <full
+name>'s PR, not yours — use `g-pr-review`", stop unless Greg overrides ("just
+draft author-style replies anyway").
 
-State `MINE=true` in one line before proceeding.
-
-# The flow — answer reviewers on my PR
-
-End-to-end: fetch threads → triage → ask → fix → commit → user pushes → post replies. **Never** `gh pr review`.
-
-## A1. Fetch threads + reviews
+## A1. Fetch
 
 ```bash
-bash "$SCRIPTS/fetch-comments.sh" "$OWNER" "$REPO" "$NUMBER"  # unresolved threads
-bash "$SCRIPTS/fetch-reviews.sh"  "$OWNER" "$REPO" "$NUMBER"  # PR-level review bodies + top-level inline
+bash "$SCRIPTS/fetch-comments.sh" "$OWNER" "$REPO" "$NUMBER"   # unresolved threads
+bash "$SCRIPTS/fetch-reviews.sh"  "$OWNER" "$REPO" "$NUMBER"   # review bodies + top-level inline
 ```
 
-Each thread: `comments[]` flat. `comments[0]` = opening, `comments[-1]` = latest. Reply to `comments[0].databaseId` — `/replies` rejects the id of a reply (P9).
-
-### Filter live vs already-replied
-
-* **Live** — `author_replied_last == false` OR `reviewer_followed_up == true`. Triage these.
-* **Already replied** — `author_replied_last == true` AND `reviewer_followed_up == false`. Skip by default.
-
-Surface the skipped count. If user asks "show already-replied", include with `Status: already-replied`.
+Live = `author_replied_last == false` OR `reviewer_followed_up == true`.
+Already replied (the rest) is skipped; surface the count, include on "show
+already-replied".
 
 ## A2. Severity
 
-| Severity | Signals | Default stance |
-|----------|---------|----------------|
-| **CRITICAL** | `🔒 Security`, `🚨 Critical`, `🔴 Critical`, clear security wording | Must-fix unless false positive |
-| **HIGH** | `⚠️ Potential issue`, `🐛 Bug`, `⚡ Performance`, `🟠 Major` | Should fix |
-| **MEDIUM** | `🛠️ Refactor suggestion`, `💡 Suggestion` | Recommended |
-| **LOW** | `🧹 Nitpick`, `🔧 Optional`, `🟡 Minor`, `⚪ Info`, style/nit | Optional |
+| Severity | Signals | Stance |
+|---|---|---|
+| CRITICAL | `🔒 Security`, `🚨`/`🔴 Critical`, security wording | must-fix unless false positive |
+| HIGH | `⚠️ Potential issue`, `🐛 Bug`, `⚡ Performance`, `🟠 Major` | should fix |
+| MEDIUM | `🛠️ Refactor suggestion`, `💡 Suggestion` | recommended |
+| LOW | `🧹 Nitpick`, `🔧 Optional`, `🟡 Minor`, `⚪ Info`, style | optional |
 
-When a comment mixes a type label and a color badge, prefer the **badge/explicit severity**.
+A type label plus a colour badge → the badge wins.
 
-## A3. Summary table (emit once)
+## A3. Summary table, once
 
-| # | Severity | Source | File:line | Author | Status | Rec | Summary |
-|---|----------|--------|-----------|--------|--------|-----|---------|
-| 1 | CRITICAL | inline | apps/api/src/auth.ts:17 | @alice | new | Apply | missing null guard |
+| # | Severity | Source | File:line | Author | Status | Rec | O co chodzi | Summary |
+|---|---|---|---|---|---|---|---|---|
 
-* **Status**: `new` / `awaiting-you` (reviewer followed up) / `already-replied` (only when user asked).
-* **Source**: `inline` / `review` / `issue`.
-* **Rec**: option that will be marked default in A4.
-* Cluster (P4) duplicate nits into one row.
-* Below the table: `Skipped N already-replied thread(s) — say "show already-replied" to include them.` Omit if N == 0.
+Status `new` / `awaiting-you` / `already-replied` (on request); Source
+`inline` / `review` / `issue`; Rec = the A4 default; "O co chodzi" in Polish:
+what the reviewer means, not what they wrote. Cluster per P4. Below it:
+`Skipped N already-replied thread(s) — say "show already-replied" to include
+them.` (omit at 0). No fix plans or replies yet. Never repeat the table.
 
-**Do NOT emit per-thread fix plans or replies here.** Those come after the user picks.
+## A4. Decisions: one thread per popup
 
-## A4. Batched questions (≤4 per call) — fast path only, see A4a
+Default, and always on docs, pitch and design PRs:
 
-For each batch of up to 4 live threads, **one** `AskUserQuestion` call with 4 questions:
+- Order that unblocks the rest: the thread that changes scope first.
+- **Explain before asking**: 2–4 Polish sentences above the popup on what the
+  reviewer points at, what the code/pitch says today, what each option costs.
+  Verify claims in the code first ("zobacz jak to teraz działa żeby nie pisać
+  głupot").
+- **Decision forks before drafts**: a thread that changes what we build gets
+  its own decision popup; the reply is drafted after, describing the decision.
+- A thread questioning the design of Greg's own feature: the recommended
+  option defends the goal and fixes the concrete flaws. "Split it out" is never
+  recommended unless Greg said so.
+- Greg rejects a popup to clarify → answer in prose, then re-ask the same
+  popup with the new context.
 
-```
-Q1. Title: Thread 2/6 · CRITICAL · src/auth.py L45
-    Prompt: @alice flags SQL injection in raw query string. Apply her parameterized query?
-    Options:
-      1. Apply reviewer's suggestion — parameterized query (Recommended)
-      2. Keep my code, reply explaining the validator already sanitizes
-      3. Different approach — I'll describe
-      4. Skip / already handled
+Options per thread, recommended first: **Apply reviewer's suggestion**
+(CRITICAL/HIGH concrete bug, small agreed fix) · **Keep my code, reply
+explaining** (taste, nit, out of scope, code is right) · **Different approach —
+I'll describe** (valid concern, wrong fix) · **Skip / already handled**
+(outdated, duplicate, done later).
 
-Q2. Title: Thread 5/6 · LOW · src/user.controller.ts L88
-    Prompt: @bob suggests `readonly` on injected services — taste. Keep current style?
-    Options:
-      1. Keep my code, reply explaining the module convention (Recommended)
-      2. Apply reviewer's suggestion — add `readonly`
-      3. Different approach — I'll describe
-      4. Skip / already handled
-```
+**Fast path** only on "szybko", "hurtem", "ogarnij wszystko", "just fix them",
+or when every live thread is an obvious nit: up to 4 threads per call, each
+question titled `Thread 2/6 · CRITICAL · src/auth.py L45`.
 
-Recommendation per thread (P3-default first):
+## A5. Plan + reply per answered thread
 
-| Recommend… | When |
-|------------|------|
-| `Apply reviewer's suggestion` | CRITICAL/HIGH + concrete bug, agreed fix, small/easy |
-| `Keep my code, reply explaining` | Taste/style/nit, out-of-scope, existing code is right |
-| `Different approach — I'll describe` | Valid concern, but reviewer's specific fix is wrong |
-| `Skip / already handled` | Outdated, duplicate, done in a later commit |
-
-### A4a. Default: one thread at a time
-
-The ≤4-per-call batching in A4 is the **fast path**, not the default. Use it only when Greg asks for it ("szybko", "hurtem", "ogarnij wszystko", "just fix them") or when every live thread is a nit (typo, formatting, rename) with an obvious answer. Everything else, and always on docs, pitch and design PRs, runs like this:
-
-* **Summary table once (A3), with a Polish "o co chodzi" column** — one line per thread saying what the reviewer means, not what they wrote.
-* **One thread per `AskUserQuestion`**, in the order that unblocks the rest: the thread that changes the pitch/design scope first (the one others depend on), then the rest.
-* **Explain before asking.** The prompt above the popup carries 2–4 sentences of context in Polish: what the reviewer is pointing at, what the code/pitch says today, what each option costs. Verify claims in the code before stating them (Greg: "zobacz jak to teraz działa żeby nie pisać głupot").
-* **Decision forks before drafts.** A thread that changes what we build (scope in/out, keep vs replace, window vs no window) gets its own decision popup first; the reply is drafted only after the decision, so the reply describes what was decided.
-* **A thread that questions the design of the author's own feature:** the first, recommended option defends the goal and fixes the concrete flaws the reviewer found. "Split it out" is never recommended unless Greg said so (67aa873d).
-* **Every PR or branch mentioned to Greg carries its title or a one-line what-it-does**, in the thread popup too. A number or branch name alone tells him nothing (Greg, 2026-11-23).
-* **When Greg rejects a popup to clarify**, answer his question in prose, then re-ask the same popup with the new context — do not move on.
-* Replies still go through greg-voice and the A8 per-reply confirmation, but the confirmation can carry 4 replies per popup once the decisions are made — that part is not what he wants slowed down.
-
-Observed 2026-09-17 on PR #27522: 19 threads handled this way took 8 popups for decisions and 5 for posting, and every reply matched a change already in the pitch.
-
-## A5. After answers, emit plan + reply per thread
-
-Draft each reply per P5. Every sentence about code behaviour is checked against a file read this turn (`file:line`); Greg's intent is written as intent, not as fact about the code (67aa873d). Then run the batch through greg-voice (P5.5) before emitting. The reply shown here and posted in A8 is the humanized version.
-
-For each answered thread, emit this block (drop sections that don't apply):
+Draft per P5; every sentence about code behaviour is checked against a file
+read this turn (`file:line`), Greg's intent written as intent. Voice the batch
+(P5.5). Per thread:
 
 ```
 ### Thread <n> · <SEVERITY> · [<path> (L<line>)](...)
-Decision: <option label>
-
-Fix plan (when Apply or Different):
-- What: <one or two sentences>
-- Where: [<path> (L<line>)](...)
-- Feasible: yes | needs-discussion | no — <why>
-
-Suggested reply (English, paste-ready):
-` ` `text
-<reply — no semicolons in prose>
-` ` `
-
-Optional — Suggested change (when one-click accept makes sense):
-` ` `suggestion
-<replacement lines>
-` ` `
+Decision: <option>
+Fix plan (Apply/Different): What · Where · Feasible: yes | needs-discussion | no — <why>
+Suggested reply (English, paste-ready): <text block>
+Optional suggestion block when one-click accept makes sense
 ```
 
-For `Keep my code` → reply only, no fix plan. For `Skip` → one line why, no reply, no fix.
-
-Store internally per thread: `{thread_id, decision, reply_body, last_comment_databaseId, path, line, fix_required, suggestion_block}`.
-
-For `isOutdated: true` threads — keep if still unresolved, mark `outdated` next to the line, lean on thread URL.
+Keep my code → reply only. Skip → one line why. Outdated but unresolved →
+keep, mark `outdated`, lean on the thread URL.
 
 ## A6. Apply fixes
 
-For each `Apply` / `Different` with a concrete fix → `Edit` the file. Non-trivial / cross-cutting fixes: restate plan, confirm before editing.
+`Edit` per Apply/Different; non-trivial or cross-cutting → restate the plan
+and confirm first. Then show `git diff`. No fixes at all → skip A6–A7.
 
-After all edits: `git diff` → show.
+## A7. Commit
 
-### Anchor mismatch check
+Through `g-commit` (its popup; none in YOLO): scope from the touched paths and
+`commitlint.config.js` (`git log --oneline -20` if unsure). "Tylko commit" →
+"Committed, not pushed — say `pushed` (or `go`) once it's on the remote", wait.
 
-If `originalLine` (from the thread) differs from the current line by more than ~5, warn the user: "Thread anchored at L<original> but current code has it at L<actual>. Reply will still post; the line link uses current SHA."
+## A8. Post replies once the fix is on the remote
 
-## A7. Confirm + commit
+After the push (or Greg's `pushed`/`go`/`ready`/`ok`/`done`), per P9.
+Recommend **Yes** for Apply/Different and clean Keep replies, **No** for
+outdated or empty ones. Once the decisions are made, a confirmation popup may
+carry up to 4 replies.
 
-Gate the commit and push through the **g-commit** popup (preview = message + `git diff --cached --stat`; no popup in YOLO). On **Commit + push**, commit using **g-commit style** — conventional commits, lowercase imperative subject, one trailing gitmoji, single line by default, **no co-author trailer, no Generated-with-Claude footer**:
+- **Correcting a posted reply: edit it**, never a "Correction:" below:
+  `gh api -X PATCH "repos/$OWNER/$REPO/pulls/comments/$MY_COMMENT_ID" -f
+  body="$FIXED_BODY"`, voiced, the popup's first line saying it is an edit. A
+  new reply only when someone answered below yours.
+- **Review bodies without a thread** (bot summaries): ask once per session,
+  **Issue comment** (`gh api "repos/$OWNER/$REPO/issues/$NUMBER/comments" -X
+  POST -f body=…`) or **Skip**.
+- **Bot reviewers come back after every push** and may add threads that block
+  the merge again. After the push start `gh-pr-checks-wait <n>` in the
+  background; wait for the bot's check, then refetch `reviewThreads` with
+  `isResolved:false`. Only an empty list allows "wątki zamknięte"; new ones →
+  another round, the report counts rounds. A red check: `gh run view <id>
+  --log-failed`, fix in a new commit. "Done" only when checks are green or the
+  one blocker is `REVIEW_REQUIRED`.
 
-```bash
-git add <changed files>
-git commit -m "fix(<scope>): <subject> <gitmoji>"
-git push
-```
+## A9. After the loop
 
-Pick `<scope>` from modified paths (e.g., `auth`, `api`, package name from repo's `commitlint.config.js`). For multi-area changes use the broadest sensible scope or omit. Match repo convention via `git log --oneline -20` if unsure.
+`Posted: N · Modified: M · Skipped: S`, `Outstanding: <count>`. Where Greg's
+reply is last in a thread, resolve it: GraphQL `resolveReviewThread(input:
+{threadId: "<node id>"})`; on error one line "resolve threads on GitHub
+manually". Close with merge blockers: unresolved threads, ruleset flags
+(`require_code_owner_review`, `required_review_thread_resolution`), CODEOWNERS
+of the changed paths and who approved, red checks. Unattended tab: P10 mail,
+`--subject 'PR #<n>: <N> replies posted, <S> skipped'`.
 
-If no fixes (everyone picked `Keep my code` / `Skip`), skip A6–A7.
+## Rules
 
-If Greg picked **Tylko commit**, say "Committed, not pushed — say `pushed` (or `go`) once it's on the remote." and wait. Otherwise go straight on.
-
-## A8. Post replies once the fix is on the remote (batched)
-
-After the push (or once Greg says `pushed`, `go`, `ready`, `ok`, `done`).
-
-Then one prepared reply per `AskUserQuestion`, chained (per P3). Each question:
-
-```
-Title: Post reply <n>/<total> · <path>:<line> → @<reviewer>
-Prompt: Post this reply?
-
-<the full reply body — multi-line is fine>
-
-Options:
-  1. Yes — post it (Recommended)
-  2. Modify — let me edit first
-  3. No — skip this one
-```
-
-Recommendation per reply:
-
-| Recommend… | When |
-|------------|------|
-| `Yes — post it` | Decision was `Apply` / `Different`, or a `Keep my code` reply that cleanly answers the reviewer |
-| `No — skip this one` | Outdated/duplicate thread, or the reply adds nothing |
-
-After the batch returns, post `Yes` ones via `gh api` (A8a) in order, handle any `Modify` (A8b), then next batch. **The `Yes` in the batch is the confirmation — no extra prompt.**
-
-### A8a. Post via `gh api`
-
-```bash
-gh api "repos/$OWNER/$REPO/pulls/$NUMBER/comments/$COMMENT_ID/replies" \
-  -X POST \
-  -f body="$REPLY_BODY"
-```
-
-`$COMMENT_ID` = `databaseId` of `.comments[0]` (the thread's first comment) from `fetch-comments.sh`; 5xx and fallback per P9.
-
-On success: `✅ Posted: <html_url>`.
-On 422 / 404 / 403: print verbatim, ask user (retry / modify / skip). Never auto-retry except the P8 rate-limit case.
-
-### A8c. Correcting a reply already posted
-
-Edit it, don't post a "Correction:" under it. Two comments in a row are noise for reviewers; Greg asked "a nie możesz zedytować tego komentarza?" after a correction popup (2026-10-15).
-
-```bash
-gh api -X PATCH "repos/$OWNER/$REPO/pulls/comments/$MY_COMMENT_ID" -f body="$FIXED_BODY"
-```
-
-Run the new body through greg-voice, and say in the popup's first line that it is an edit of the existing comment. A new reply only when someone already answered below yours.
-
-### A8b. If `Modify`
-
-Plain prompt: "Paste the new reply text." Read the next user message as the body. Then post.
-
-### A8c. PR-level review bodies (no thread to reply to)
-
-When the source is `review` (bot summary, not an inline thread), no `comment_id` exists. Per session, ask once:
-
-* **Issue comment** — `gh api "repos/$OWNER/$REPO/issues/$NUMBER/comments" -X POST -f body="$REPLY_BODY"`
-* **Skip** — note in summary.
-
-### A8c2. Bot reviewers come back after every push
-
-The AI review bot reviews again after each push and can add new threads; with
-required thread resolution every push can block the merge again (c333538c:
-"I dalej są jakieś bot-komentarze"). After pushing fixes: wait for the bot's
-check (`gh pr checks <n> --json name,state`), then fetch `reviewThreads` with
-`isResolved:false` again. Only an empty list allows "wątki zamknięte"; new
-ones → one more round, and the report says how many rounds.
-
-The same turn as the push starts the checks watcher (`timeout 3000 gh pr checks
-<n> --watch --interval 90`, in the background). A red check is read with `gh
-run view <id> --log-failed` and fixed in a new commit; "done" only when checks
-are green or the one blocker is `REVIEW_REQUIRED`. A Recheck run went red on
-the reply's own ADR text and Greg had to ask for the babysit (bc00373d).
-
-### A8d. After the loop
-
-```
-Posted: <N>  ·  Modified: <M>  ·  Skipped: <S>
-Outstanding (skipped + already-replied): <count>
-```
-
-API replies don't auto-resolve. Where Greg's reply is the last in a thread, resolve it via GraphQL `resolveReviewThread(input: {threadId: "<node id>"})` (the thread's node id from `fetch-comments.sh`). On error (permissions, ruleset) fall back to one line: "resolve threads on GitHub manually" (67aa873d, cdcb5b8a).
-
-Close with a merge-blocker block: unresolved threads left, ruleset flags (`require_code_owner_review`, `required_review_thread_resolution`), CODEOWNERS of the changed paths and who approved, red checks.
-
-Unattended tab (P10): close with the mail to Greg, `--subject 'PR #<n>: <N> replies posted, <S> skipped'`.
-
----
-
-# Things to avoid
-
-* Never post a reply or comment without explicit Yes (batched or single).
-* Never surface or post a GitHub-bound body that has not passed greg-voice (P5.5) — except `Modify` text Greg typed himself.
-* Never commit or push without the A7 popup (skipped only in YOLO).
-* Never post anything in a language other than English on GitHub.
-* Never emit per-thread fix plans or replies before asking the question (A4 before A5).
-* Never repeat the summary table after first emission.
-* Never use `--no-verify` to bypass hooks. If pre-commit fails, fix and create a new commit.
-* **Never `gh pr review --approve` / `--request-changes` / `--comment`.** This is your own PR — GitHub rejects self-approve, and verdicts are the reviewer's job (that's `g-pr-review`). Per-thread replies use `.../comments/{id}/replies`.
-* Never delete or edit existing comments on the PR.
-
----
-
-# Troubleshooting
-
-| Problem | What to do |
-|---------|------------|
-| `gh` not authenticated | `gh auth login` |
-| No PR for current branch | Ask for PR number or URL |
-| `MINE=false` (not my PR) | Wrong skill — switch to `g-pr-review` |
-| Fork / ambiguous repo | Pass `-R owner/repo` from the PR URL |
-| More than 100 threads | `fetch-comments.sh` paginates |
-| `403` secondary rate limit | Wait ~30s, retry once; on second failure surface error |
-| Reviewer already suggested code | Acknowledge their suggestion, don't duplicate the same diff |
-| Pre-commit hook fails | Fix the issue, re-stage, **new** commit (never `--amend` after hook failure) |
-| `422 ...line must be part of the diff` | Thread outdated against HEAD — for `.../replies` usually irrelevant; if not, modify or skip |
-| Anchor mismatch (originalLine ≠ current) | Warn user, post reply anyway, link uses current SHA |
-| Script errors | Ensure `bash`, `jq`, `gh` are installed |
-
----
-
-# Internal checklist
-
-* [ ] P0: `USE_LOCAL` resolved; `DIRTY` worktree warned if non-empty; mismatch surfaced explicitly
-* [ ] P0: `$G_PR_ME` cached for the session
-* [ ] P1: PR resolved (`OWNER`, `REPO`, `NUMBER`, `SHA`, URL)
-* [ ] P2: `MINE=true` confirmed and stated; redirected to `g-pr-review` if false
-* [ ] P3 applied (one reply per `AskUserQuestion`, chained, `(Recommended)` on default)
-* [ ] P5 comment-writing rules followed; English only on GitHub
-* [ ] P5.5 greg-voice gate: every GitHub-bound body voiced (full voice, batched); `Modify` text exempt
-* [ ] P6 blob links pinned to `SHA`
-* [ ] `fetch-comments.sh` + `fetch-reviews.sh` run
-* [ ] Already-replied threads filtered; skipped count surfaced
-* [ ] One summary table with `Rec` column
-* [ ] A4 questions FIRST per batch, A5 plan/reply AFTER
-* [ ] A6 fixes applied for `Apply` / `Different`; `git diff` shown; anchor mismatches warned
-* [ ] A7 commit follows g-commit style; **no co-author, no AI footer**
-* [ ] A8 batched post; final summary with Posted/Modified/Skipped + resolve reminder
-* [ ] **No** `gh pr review` issued
+- P11 applies. No commit or push without the A7 gate (skipped only in YOLO).
+- Questions (A4) before plans and replies (A5).
+- Never `gh pr review --approve/--request-changes/--comment`.

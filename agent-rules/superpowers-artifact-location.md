@@ -5,79 +5,23 @@ alwaysApply: true
 
 # AI Artifact Location
 
-**All AI-generated meta-artifacts live in the dedicated `bazgroly` repo** — never inside the repo the user is currently working in. This applies to *every* file you generate that exists to capture AI thinking, planning, or analysis, regardless of which skill or tool produced it.
+**Every AI-generated meta-artifact lives in the `bazgroly` repo**, never in the repo you work in. This overrides the default save locations of `superpowers:writing-plans`, `brainstorming`, `executing-plans`, `subagent-driven-development` and any ad-hoc file.
 
-This overrides the default save locations of skills like `superpowers:writing-plans`, `superpowers:brainstorming`, `superpowers:executing-plans`, `superpowers:subagent-driven-development`, as well as any ad-hoc file you'd otherwise drop into the working repo.
+- **In scope (→ bazgroly)**: plans, specs, design docs, architecture notes, brainstorms, option comparisons, decision logs, analyses, audits, research notes, code reviews written as files, investigation notes, debugging timelines, AI post-mortems, any scratch markdown made to organize your reasoning, hand copies of Plan Mode exports.
+- **Out of scope (→ project repo)**: `README.md`, `CHANGELOG.md`, `LICENSE`, `CONTRIBUTING.md`, shipped docs dirs (`docs/`, `apps/*/docs/`), code comments and docstrings, commit/PR/issue bodies, config, source, tests, anything for the product's human readers.
+- The test: **would a teammate notice if this file disappeared from the project repo?** Yes → project; no → bazgroly.
+- "Zanotuj pomysł, obrabiamy później" → a `notes/` file in his words, then pros and cons, a visual or a send only after his "kk"; no `superpowers:brainstorming`, the goal is known (e4228afc).
 
-## What counts as an AI artifact
+## Where and how
 
-In scope (→ bazgroly):
+Path: `~/Code/personal/bazgroly/<repo-basename>/{plans,specs,brainstorm,analysis,notes}/YYYY-MM-DD-<topic>.md` (specs: `-<topic>-design.md`). `<repo-basename>` = basename of `git rev-parse --show-toplevel`; outside a repo `scratch/` or another descriptive folder. Create the dir if missing, never refuse. Say the chosen path in the reply.
 
-- Plans, specs, design docs, architecture notes
-- Brainstorm notes, option comparisons, decision logs
-- Analysis reports, audit summaries, research notes, code reviews written as files
-- Investigation notes, debugging timelines, post-mortems for AI sessions
-- Any "thinking made durable" — scratch markdown the AI produces to organize its own reasoning
-- Plan Mode exports / copies if you mirror them by hand
+Remote: `github.com/zalewskigrzegorz/bazgroly` (private). `~/.claude/hooks/bazgroly.sh` auto-stages on Edit/Write and squash-commits + pushes on Stop: no manual commit, never bypass it (`--no-verify`); if it fails, fix it.
 
-"Zanotuj pomysł, obrabiamy później" → a `notes/` file in his words, then pros
-and cons, then a visual or a send only after his "kk". No
-`superpowers:brainstorming`: the goal is already known (e4228afc).
-
-Out of scope (→ project repo, as usual):
-
-- `README.md`, `CHANGELOG.md`, `LICENSE`, `CONTRIBUTING.md`
-- Project documentation directories that ship with the codebase (`docs/`, `apps/*/docs/`, etc.)
-- Inline code comments, JSDoc, docstrings
-- Commit messages, PR bodies, issue bodies
-- Configuration files, source code, tests
-- Anything intended for human readers as part of the product
-
-The test: **"If this file disappeared from the project repo, would a teammate notice?"** If yes — it belongs in the project. If no — it belongs in bazgroly.
-
-## Why
-
-AI scratch artifacts pollute diffs, PRs and history in any repo that has its own purpose. Even personal repos (like `dotfiles`) clutter up fast. `bazgroly` is the single private GitHub repo dedicated to these artifacts — versioned, searchable, and separated from product code.
-
-## Where to save artifacts
-
-Always:
-
-```
-~/Code/personal/bazgroly/<repo-basename>/
-├── plans/YYYY-MM-DD-<feature>.md
-├── specs/YYYY-MM-DD-<topic>-design.md
-├── brainstorm/YYYY-MM-DD-<topic>.md
-├── analysis/YYYY-MM-DD-<topic>.md
-└── notes/YYYY-MM-DD-<topic>.md
-```
-
-`<repo-basename>` = the basename of the repo root the user is currently working in (e.g. `dotfiles`, `home-lab`, a work repo basename). If the user is not inside a git repo, use `scratch/` or another descriptive folder. Create the directory if missing — never refuse, just relocate.
-
-`bazgroly` lives at `github.com/zalewskigrzegorz/bazgroly` (private). Working tree: `~/Code/personal/bazgroly/`. The `~/.claude/hooks/bazgroly.sh` hook auto-stages on `PostToolUse` (Edit|Write) and squash-commits + pushes on `Stop` to `origin/master` — you do not need to commit by hand.
-
-## Detection rules
-
-Before writing any plan / spec / brainstorm / analysis / design / audit file:
-
-1. Resolve the current repo root with `git rev-parse --show-toplevel` (or use cwd basename if not in a repo).
-2. Ask: is this file for human readers of the project (README-class), or is it AI scratch (planning/analysis-class)? If the latter, route to bazgroly.
-3. Write to `~/Code/personal/bazgroly/<repo-basename>/{plans,specs,brainstorm,analysis,notes}/...` — **never** inside the resolved repo.
-4. Mention the chosen path in the response so the user can redirect if needed.
-5. A spec or plan Greg must approve opens at once with `plannotator annotate
-   <file> --gate` (the MCP tool fails on CC 2.1.326, plannotator#3578).
-   `Approved` = go-ahead, `Feedback` = revise and reopen (d709807a).
+A spec or plan Greg must approve opens at once with `plannotator annotate <file> --gate` (the MCP tool fails on CC 2.1.326, plannotator#3578). `Approved` = go-ahead, `Feedback` = revise and reopen (d709807a).
 
 ## Never
 
-- Never `git add` an AI artifact in any project repo, even if it was created there by mistake — move it out (to `~/Code/personal/bazgroly/<repo-basename>/...`) and remove the in-repo copy.
-- Never include AI artifacts in a commit or PR for the project repo.
-- Never silently relocate without telling the user where the artifact went.
-- Never bypass the autopush hook (`--no-verify`, etc.). If it fails, fix it.
-- Never re-introduce a `docs/superpowers/` directory anywhere.
-- Never write a connection string with credentials (`postgres://user:pass@host/…`) into **any** file — plan, spec, a brief for another agent (tuios, `workctl`, `tuios start-agent`), notes, a scratch script — even the repo's local dev defaults. bazgroly is pushed to GitHub, and the secret-scan hook blocks the whole write: on 2026-09-23 it cost a switch to YOLO mode, and between 09-30 and 10-02 three more sessions hit it with agent briefs and plans. Point at the file instead: "`DATABASE_URL` from `packages/database/.env.example`", or use `$DATABASE_URL` in commands.
-- **A `scan-secrets` block is not a puzzle, and the hook wins**, even in YOLO.
-  Never get round it by assembling the file from pieces in the scratchpad or
-  writing it with `node` (86abd453). Use a point `Edit` on lines without the
-  secret, and when the fixture itself must carry one, ask Greg once. Code with
-  a fake connection string or an existing secret constant is blocked the same.
+- `git add` an AI artifact in a project repo or put one in its commit/PR; one created there by mistake moves to bazgroly and the in-repo copy goes. No silent relocation, no `docs/superpowers/` directory anywhere.
+- **A connection string with credentials** (`postgres://user:pass@host/…`) in **any** file (plan, spec, agent brief for tuios/`workctl`/`tuios start-agent`, notes, scratch script), even local dev defaults: bazgroly is on GitHub and the secret-scan hook blocks the whole write. Point at the file ("`DATABASE_URL` from `packages/database/.env.example`") or use `$DATABASE_URL`.
+- **Getting round a `scan-secrets` block**: the hook wins, even in YOLO. No assembling the file from pieces or writing it with `node` (86abd453). Use a point `Edit` on lines without the secret; when a fixture itself must carry one, ask Greg once. A fake connection string or an existing secret constant in code is blocked the same.

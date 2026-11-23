@@ -3,42 +3,12 @@ description: Proactively use Serena (LSP) for code navigation
 alwaysApply: true
 ---
 
-# Proactive Code Indexing — Use Serena By Default
+# Proactive Code Indexing: Serena by default
 
-One local, zero-key code-intelligence MCP server is always available: **Serena**
-(LSP-based symbol navigation). Reach for it **on your own initiative** — the user
-should NOT have to ask. Treat it as the default way to understand an unfamiliar
-codebase, ahead of blind `grep`/`rg` sweeps or reading files top-to-bottom.
+**Serena** (local LSP MCP, no key, no pre-indexing) is the default for understanding code in an LSP language (TS/JS, Python, Go, Rust, …); use it unasked, before wide `rg` sweeps or top-to-bottom reads:
 
-> CocoIndex (`ccc`) was removed 2026-08-05 — its per-session embedding fleet plus
-> per-worktree re-indexing cost more than it helped. Don't reach for `ccc` and
-> don't suggest reinstalling it.
-
-## When to use Serena — decide automatically
-
-Use it when you need *structure and exact symbols* in a language with LSP support
-(TypeScript/JavaScript, Python, Go, Rust, and the rest Serena supports):
-
-- "where is `X` defined" → find the symbol, don't grep for the string.
-- "who calls `X` / what references it" → use reference-finding, not text search.
-- "what's in this file / module" → get a symbols overview before reading raw.
-- any refactor/impact question that hinges on real call graphs.
-
-## Hardening rules — make it reliable, not noisy
-
-1. **Serena first, grep second.** In any non-trivial codebase, try Serena before a
-   wide `grep`/`rg`/manual read. Fall back to grep only when it doesn't fit (e.g.
-   a literal string/regex, a one-file known location) or returns nothing. Serena
-   needs no pre-indexing.
-2. **Never claim you searched semantically when a tool errored or was empty.**
-   Report the miss and fall back explicitly. Evidence over assertion.
-3. **Don't over-fire.** For a trivially known single location, or a repo where
-   Serena isn't set up, just read/grep directly — don't perform ceremony.
-4. **Local + free.** Serena runs fully offline (local language servers, no API
-   key), so there is no cost reason to avoid it — prefer it liberally.
-5. **Serena's tools are deferred.** Without `ToolSearch select:mcp__serena__get_symbols_overview,mcp__serena__find_symbol,mcp__serena__find_referencing_symbols`
-   they don't exist (7+ sessions on a 1300-line file ran 0 Serena calls). A file
-   >500 lines gets an overview before ranged `Read`s. Swift via sourcekit-lsp is
-   unverified: test once, then record it.
-6. **Not a web tool.** Never send the user to a browser/dashboard URL for this;
-   use its MCP tools only.
+- "where is `X` defined" → find the symbol; "who calls `X`" → referencing symbols; "what's in this file" → symbols overview; refactor/impact → real call graphs.
+- **Its tools are deferred**: load `ToolSearch select:mcp__serena__get_symbols_overview,mcp__serena__find_symbol,mcp__serena__find_referencing_symbols` first. A file >500 lines gets an overview before ranged `Read`s.
+- Grep only for literal strings/regex, a known one-file location, or when Serena returns nothing. Never claim a semantic search when the tool errored or was empty: say so and fall back.
+- No ceremony for a trivially known location or a repo without Serena. Swift via sourcekit-lsp is unverified: test once, then record it.
+- MCP tools only, never a browser/dashboard URL. CocoIndex (`ccc`) was removed 2026-08-05: don't use or reinstall it.

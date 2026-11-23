@@ -7,11 +7,11 @@ paths:
 
 # Clop
 
-## "Nie widzę dropzone / progressu" — check in this order (3c5d8334, ~15 calls)
+## "Nie widzę dropzone / progressu" — check in this order (3c5d8334)
 
-1. **Onboarding finished?** Its window can sit hidden under Finder on the ultrawide. Look for off-screen windows and bring Clop to the front.
-2. **Grants.** With no Accessibility, drag detection never starts. A missing grant goes through `grant-failure-ask` and `open-here`, never a TCC reset.
-3. **Which screen has the cursor.** Floating results show there; they appeared on the left monitor at X=-1920.
+1. **Onboarding finished?** Its window can hide under Finder on the ultrawide: find off-screen windows, bring Clop to the front.
+2. **Grants.** Without Accessibility, drag detection never starts (`grant-failure-ask`, `open-here`).
+3. **Which screen has the cursor.** Floating results show there (once on the left monitor at X=-1920).
 4. **The drop zone only shows during a drag.** Say so before debugging it.
 5. A fresh PNG on `~/Desktop` may not trigger the watcher while a clipboard copy does.
 
@@ -23,4 +23,4 @@ paths:
 
 ## What dotfiles tracks
 
-Tracked: watched folders and `mcpEnabled` (stage 14 `defaults write`), `bin/clop-share`, the MCP entry. **Not tracked yet:** conversion rules and pipelines, which live only in Clop's plist. A new Mac does not get them; exporting them is a separate task.
+Tracked: watched folders and `mcpEnabled` (stage 14 `defaults write`), `bin/clop-share`, the MCP entry. **Not tracked yet:** conversion rules and pipelines (only in Clop's plist, so a new Mac lacks them; exporting is a separate task).

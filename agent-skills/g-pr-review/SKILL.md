@@ -1,419 +1,292 @@
 ---
 name: g-pr-review
-description: Review SOMEONE ELSE'S pull request as the reviewer. Two modes, auto-picked — a fresh review (orient with a what/why summary + focus popup → analyze the diff → voiced draft comments dropped into the agent's own tuicr workspace, where Greg edits, deletes and sends them himself with :submit), or a follow-up when you already reviewed and the author replied (handle their responses, optionally update the verdict). Fetches unresolved threads and bot inline comments, asks per finding/thread in one AskUserQuestion each, chained (recommendation each), drafts English comments/replies, humanizes them, posts via gh. Use whenever you want to review a PR, leave PR comments, approve/request changes, or respond to the author on a PR you're reviewing — current branch, PR number, or PR URL. If the PR is YOURS and you're answering reviewers, use g-pr-respond instead.
+description: Review SOMEONE ELSE'S pull request as the reviewer. Fresh review (what/why summary + focus popup, voiced draft comments in tuicr, Greg sends them with :submit) or a follow-up after the author replied (answer threads, optionally update the verdict). Use to review a PR, leave PR comments, approve/request changes, or respond to the author on a PR you review — current branch, PR number or URL. Your own PR and answering reviewers → g-pr-respond.
 ---
 
 # g-pr-review
 
-Review a PR **you did not author**. Two flows, auto-selected: a fresh review, or a follow-up on one you already reviewed.
+Review a PR **you did not author**: a fresh review, or a follow-up on one you
+already left. The author side is `g-pr-respond`.
 
-This is the reviewer-side half of PR review. The author-side half — answering reviewers on a PR **you** opened — lives in the sibling skill **`g-pr-respond`**.
-
-## When to use
-
-The PR is **someone else's** and you're acting as a reviewer — leave a fresh review, approve/request changes, or follow up on the author's replies to a review you already left. Target can be the **current branch**, a **PR number**, or a **PR URL**.
-
-If it turns out the PR is yours, this is the wrong skill — see P2, which redirects you to `g-pr-respond`.
-
-## Language
-
-Conversation can be in any language. **Anything posted to GitHub (review bodies, inline comments, thread replies, verdict summaries) must be English** — that's what reviewers and authors read. Explanations to the user can be in whatever language the user is using.
-
----
-
-# Shared primitives
-
-Read `../g-pr-common/PRIMITIVES.md` now, once, with `Read` (not `cat`, ~3k tokens each time). It carries P0 (local-first
-resolution + identity cache), P1 (target resolution), P3 (`AskUserQuestion`
-conventions), P4 (duplicate clustering), P5 and P5.5 (comment rules and the
-mandatory voice gate), P6 (blob links), P7 (scripts location), P8 (rate
-limits) and P10 (unattended tuios tab: closing mail).
+Read `../g-pr-common/PRIMITIVES.md` now, once, with `Read` (language, P0–P12).
 Everything below assumes it.
-
-P2 is NOT in that file — the ownership guard differs per flow, so it stays
-here:
 
 ## P2. Guard + pick the flow
 
-This skill only handles PRs **you did not author**. First settle authorship — being a co-author or having pushed commits does **not** make it yours; only `author.login == me` does. Both sides are already in hand: `$ME` cached in P0b, `author.login` fetched in P1 (no PR → P1 already stopped and asked). No extra API call for the guard.
+Only `author.login == me` makes a PR yours (co-authoring or pushing doesn't).
+`$ME` comes from P0b, `$AUTHOR` from P1, no extra call.
 
 ```bash
-[[ "$ME" == "$AUTHOR" ]] && MINE=true || MINE=false   # $AUTHOR = author.login from P1
+[[ "$ME" == "$AUTHOR" ]] && MINE=true || MINE=false
 MY_REVIEWS="$(gh api "repos/$OWNER/$REPO/pulls/$NUMBER/reviews" --jq "[.[] | select(.user.login == \"$ME\")] | length")"
+[[ "$MY_REVIEWS" -gt 0 ]] && MODE=followup || MODE=fresh
 ```
 
-**Guard first:**
+- `MINE=true` → wrong skill: "This PR is yours — use `g-pr-respond` to answer
+  reviewers" (GitHub rejects self-approve too). Two overrides, each stated in
+  one line first:
+  - **Own-branch analysis** ("to mój branch, ale przejrzyj i przeanalizuj
+    zmiany"): B1, B1.5, B2 only, nothing posted, no verdict. A large diff →
+    Sonnet agents per package, count and model said first. Findings become
+    fixes committed via `g-commit` plus a report in
+    `~/Code/personal/bazgroly/<repo>/analysis/`; reviewers are answered later
+    with `g-pr-respond`.
+  - **Author away, fix on their branch** (the author is unreachable): after a
+    normal Flow B, when Greg asks to apply the review himself. Push to their
+    branch only after a popup. Seed the worktree first (`place-work-skills`,
+    `copy-env-from-main.sh`), name a throwaway DB container with a session
+    prefix (`<branch>-review-pg`) and remove it at the end; a stale
+    `index.lock` → check running git processes and its mtime before removing.
+    After the fixes offer `/loop babysit-prs` with an explicit end condition.
+- `MINE=false` → `MODE=fresh` (Flow B) or `followup` (Flow C). State the mode
+  in one line; Greg's override wins ("do a fresh review").
 
-* `MINE=true` → **wrong skill** for answering reviewers — that is `g-pr-respond`'s job (and GitHub rejects self-approve). Tell the user: "This PR is yours — use `g-pr-respond` to answer reviewers." Two overrides exist, both stated in one line before proceeding:
-  * **Own-branch analysis** ("to mój branch, ale przejrzyj i przeanalizuj zmiany"): run B1 and B1.5, analyse (B2) and **skip B3–B5 entirely** — nothing is posted, no verdict. For a large diff fan out Sonnet agents per package and say the count and model first (`subagent-model-by-weight` rule). Findings become fixes committed on the branch through `g-commit`, plus a report in `~/Code/personal/bazgroly/<repo>/analysis/`. Reviewers are answered afterwards with `g-pr-respond`.
-  * **Author away, fix on their branch** ("Kuby nie będzie, leci samolotem"): after a normal Flow B, when Greg asks to apply the review himself. Push to someone else's branch only after a popup. Seed the worktree first (`place-work-skills`, `copy-env-from-main.sh`), name any throwaway DB container with a session prefix (`<branch>-review-pg`) and remove it at the end, treat a stale `index.lock` as "check running git processes and the file's mtime first, then remove". After the fixes, offer `/loop babysit-prs` with an explicit end condition.
-* `MINE=false` → proceed, then pick the flow by whether you already reviewed:
+**You are the reviewer.** A thread opened by reviewer X and answered by the
+author is X's to resolve. Never frame replies as the author closing threads;
+applying fixes as the author is `g-pr-respond`.
 
-```bash
-if [[ "$MY_REVIEWS" -gt 0 ]]; then
-  MODE=followup   # Flow C
-else
-  MODE=fresh      # Flow B
-fi
-echo "MODE=$MODE (mine=$MINE, my_reviews=$MY_REVIEWS)"
-```
+# Flow B — fresh review
 
-State the detected mode in one line before proceeding. User override always wins ("do a fresh review" → treat as `fresh` even if I have prior reviews).
-
-| Mode | Meaning | Flow |
-|------|---------|------|
-| `fresh` | Someone else's PR, no prior review from me | **Flow B — Fresh review** (orient: what/why summary + focus popup → analyze diff silently → drafts into tuicr → Greg sends with `:submit`). |
-| `followup` | Someone else's PR, I already left ≥1 review | **Flow C — Follow-up** (handle threads where the author replied to me, optionally finalize an updated verdict). |
-
-**You are the reviewer, not the author.** A thread opened by reviewer X and answered by the PR author is X's to resolve — don't jump in unless you have something to add. Never frame replies as the author "closing" threads. If you find yourself wanting to apply the fix + commit + reply as the author, you're in the wrong skill — that's `g-pr-respond`.
-
-# Flow B — `MODE=fresh` (fresh review on someone else's PR)
-
-Token-frugal: analyze silently, then hand the drafts over in tuicr. Never dump the diff or a long markdown report into chat — the drafts sit on their lines in the diff.
+Analyse silently, hand the drafts over in tuicr. Never dump the diff or a long
+report into chat.
 
 ## B1. Get the diff
 
-First `gh pr view "$NUMBER" --json changedFiles --jq .changedFiles`. Over 300 files GitHub refuses the diff (HTTP 406 `too_large`): skip B3 and go straight to the popup flow from the `g-pr-review-popups` tag (one popup per draft from Critical down, PR number outside `question`, one review after the verdict).
-
-If `USE_LOCAL=true` from P0:
+`gh pr view "$NUMBER" --json changedFiles --jq .changedFiles`. Over 300 files
+GitHub refuses the diff (406 `too_large`): skip B3, use the popup flow from
+the `g-pr-review-popups` tag (one popup per draft from Critical down, one
+review after the verdict).
 
 ```bash
+# USE_LOCAL=true
 BASE_REF="$(gh pr view "$NUMBER" ${REPO_FLAG:+-R "$OWNER/$REPO"} --json baseRefName --jq .baseRefName)"
 git fetch origin "$BASE_REF" --quiet 2>/dev/null || true
-rtk proxy git diff "origin/$BASE_REF"...HEAD > <scratch>/pr.diff   # three dots = merge-base diff, no $MB variable
-```
-
-Read the diff from the file; the rtk filter otherwise truncates it (cd881b89, e1ff698c).
-
-This is byte-equivalent to `gh pr diff` when the branch is up-to-date with remote, and skips one API hit (significant on large PRs where `gh pr diff` streams a multi-MB unified diff over REST).
-
-Otherwise (`USE_LOCAL=false`):
-
-```bash
+rtk proxy git diff "origin/$BASE_REF"...HEAD > <scratch>/pr.diff   # three dots = merge-base diff
+# USE_LOCAL=false
 gh pr diff "$NUMBER" ${REPO_FLAG:+-R "$OWNER/$REPO"}
 ```
 
-## B1.5. Orient the reviewer, then let him aim the review
+Read the diff from the file; the rtk filter truncates it otherwise.
 
-Before hunting for findings, read the PR body (`gh pr view --json body`) and the diff once, and give the user the picture he needs to steer. He merges PRs he did not write and often comes in cold — the summary is what lets him say "look hard at X".
+## B1.5. Orient, then let Greg aim the review
 
-Print, in the user's language, **≤ 10 lines total**:
+Read the body (`gh pr view --json body`) and the diff once. Print in his
+language, **≤10 lines**: **Cel** (what and why, epic link if any), **Co robi**
+(2–5 concrete points: hook / endpoint / flag names), **Skala + flagi** (files,
+`+/−`, areas, what bites at merge: conflict, draft, red CI, migrations, flags).
 
-* **Cel** — one or two sentences: what the PR changes and why (link the epic / parent issue if the body names one).
-* **Co robi** — 2–5 numbered points, one per behavioural change, concrete (hook / endpoint / flag names, not "refactors the UI").
-* **Skala + flagi** — one line: files, `+/−`, areas touched, and anything that bites at merge time (conflict with base, draft, red CI, migrations, feature flags).
+Then one `AskUserQuestion`, `multiSelect: true`, header `Fokus`, "Na co review
+ma zwrócić szczególną uwagę?": `Standardowy pełny przegląd (Recommended)` plus
+2–3 risky areas from the summary, each label naming the spot, the description
+saying why. Picked areas (and free text) are B2's priority: dig first, follow
+call sites beyond the diff, and each ends in a finding or an explicit "checked,
+clean" line in B4. Skip the popup for a trivial PR (≤3 files, one change) or
+when the prompt says `Fokus: standard` (an unattended `workctl` tab); the
+summary still prints.
 
-Then one `AskUserQuestion`, `multiSelect: true`, header `Fokus`:
-`"Na co review ma zwrócić szczególną uwagę?"`. Options:
-
-* `Standardowy pełny przegląd (Recommended)` — security / perf / quality / tests per B2, nothing singled out.
-* 2–3 concrete areas the summary surfaced as risky or surprising — each label names the spot (`Kolejność gate'ów w WithACL`, `Nowa ścieżka password login`), the description says why it deserves a closer look.
-
-Picked areas become priority targets in B2: dig into them first, follow call sites beyond the diff if needed, and make sure each picked area yields either a finding or an explicit "checked, clean" line in the B4 hand-over. Free text from `Other` is treated the same way.
-
-Skip the popup when the PR is trivial (≤ 3 files, one obvious change), or when the prompt carries `Fokus: standard` (a review `workctl` started in its own tab: nobody sits there to answer, and the tab waited on this popup) — the summary still prints, and B2 runs the standard full review.
-
-**Pending reviews of mine on linked PRs.** If the body links a pitch, design or parent PR, check those for a review of mine stuck in `PENDING` (never submitted). On 2026-09-29 one sat on pitch #27110 with two comments that decided the direction of #27820, found by accident. Show it in a popup with the comments in `preview` (send / leave / delete) before the findings:
+**Pending reviews of mine on linked PRs** (pitch, design, parent): one stuck in
+`PENDING` once decided a PR's direction unseen. Show it in a popup with the
+comments in `preview` (send / leave / delete) before the findings:
 
 ```bash
 gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviews(first:20,states:PENDING){nodes{author{login} comments(first:20){nodes{path line body}}}}}}}' -F o="$OWNER" -F r="$REPO" -F n=<linked-pr>
 ```
 
-**Red CI: this PR or its base?** Before a red check becomes a finding, look at the same workflow on the base: `gh run list --branch "$BASE_REF" --workflow <workflow> --limit 1 --json conclusion,url`. Base red on the same job → one line "red z base, poza zakresem review" in the summary, then move on. When the job log is needed, pull it once to a file with `rtk proxy gh run view <run> --job <job-id> --log > <scratchpad>/job.log` and `rg -F '##[error]'` it; `--log-failed | tail` came back filtered and cut, and the attribution took ~7 calls (2026-10-06).
+**Red CI: this PR or its base?** `gh run list --branch "$BASE_REF" --workflow
+<wf> --limit 1 --json conclusion,url`. Same job red on base → "red z base, poza
+zakresem review", move on. A job log: `rtk proxy gh run view <run> --job <id>
+--log > <scratch>/job.log`, then `rg -F '##[error]'` (`--log-failed | tail`
+came back cut).
 
-## B2. Analyze silently
+## B2. Analyse silently
 
-Categories — only surface things that genuinely matter:
+Only what matters: **Security** (injection, deserialization, secrets, weak
+authz/authn, IDOR), **Performance** (N+1, missing indexes, re-renders, leaks,
+blocking async, caching), **Quality** (DRY/SRP, nesting, magic values, naming,
+error handling, typing), **Testing** (missing coverage, non-asserting, flaky,
+over-mocking).
 
-* **Security:** injection (SQL/command/XSS), insecure deserialization, hardcoded secrets, weak authz/authn, IDOR.
-* **Performance:** N+1, missing indexes, needless re-renders, memory leaks, blocking async, missing caching.
-* **Quality:** DRY/SRP, deep nesting, magic values, naming, error handling, typing gaps.
-* **Testing:** missing coverage for new behavior, non-asserting tests, flaky patterns, over-mocking.
-
-**A finding that hinges on a dependency.** When it depends on what an external package does, `ls <worktree>/node_modules/<pkg>` first. Missing → don't loop on `realpath`: `cd <scratchpad> && npm pack <pkg>@<version from the lockfile> && tar -xzf <pkg>-*.tgz`, then read `package/dist` (two empty `realpath` tries first on 2026-10-06).
-
-**Check every finding before it is voiced.** A subagent's finding is read against the code and the PR body first, before greg-voice and before the first popup (an approved comment about a `window_ms` limit turned out wrong). Put "checked / not checked" in the `description`.
-
-Per finding, record: `severity` (Critical / Suggestion / Nit), `path`, `line`, one-line `title`, one-line `why`, exact `comment_body`, `recommended_action` (Post / Skip).
-
-**Anchoring:** `line` must appear in the diff (right side for added/changed, `side: "LEFT"` for removed). If un-anchorable → fold into the review summary body instead of posting inline.
-
-Cluster duplicates (P4).
+- A finding hinging on a dependency: `ls <worktree>/node_modules/<pkg>`;
+  missing → `cd <scratch> && npm pack <pkg>@<lockfile version> && tar -xzf
+  <pkg>-*.tgz`, read `package/dist` (no `realpath` loop).
+- **Check every finding against the code and the body before voicing it**,
+  subagent findings included; "checked / not checked" in the `description`.
+- Per finding: severity (Critical / Suggestion / Nit), `path`, `line`, title,
+  why, `comment_body`, Post/Skip.
+- **Anchor**: `line` must be in the diff (right side; `LEFT` for removed).
+  Un-anchorable → review-level comment. Cluster duplicates (P4).
 
 ## B3. Open tuicr on its own workspace
 
-Greg reviews in **tuicr**, not in popups: he reads the code, edits or deletes Claude's drafts, and sends the review himself. The popup flow (Post/Skip per finding, verdict popup) lives at git tag `g-pr-review-popups` in dotfiles; going back = `git checkout g-pr-review-popups -- agent-skills/g-pr-review`.
-
-A tuicr PR session exists only once the TUI has opened it (`review add` before that fails with `no PR session found`), so the split comes first and the drafts land in it live. Run in the background (`run_in_background: true`); it returns when Greg quits tuicr:
+Greg reviews in **tuicr**: he reads, edits or deletes the drafts and sends
+himself. The popup flow lives at tag `g-pr-review-popups` (`git checkout
+g-pr-review-popups -- agent-skills/g-pr-review`). A tuicr PR session exists
+only once the TUI opened it, so the split comes first. In the background
+(`run_in_background`, returns when Greg quits tuicr):
 
 ```bash
 tuicr-split "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" pr "$NUMBER" --repo-url "https://github.com/$OWNER/$REPO"
-```
-
-The tuicr session is per PR: for a second PR run `tuicr-split … pr <n>` again and check `tuicr review list --all` before any `review add` (88ae43e7). The first output line is `window=<id>`. Wait for the session, then take its slug:
-
-```bash
-tuios wait-for window-output -w <id> --pattern 'PR Mode' --timeout 60000 >/dev/null
+tuios wait-for window-output -w <id> --pattern 'PR Mode' --timeout 60000 >/dev/null   # <id> from the first line, window=<id>
 SLUG="gh:$OWNER/$REPO/pr/$NUMBER"
 tuicr review list --repo "$OWNER/$REPO" | jq -e --arg s "$SLUG" '.[] | select(.slug == $s and .active)' >/dev/null
 ```
 
-`tuicr-split` opens tuicr on its own workspace (the first empty one after the agent's, named `tuicr`), never as a split under the agent: Greg keeps the agent on one workspace and tuicr on the next (2026-11-03). It mails his Inbox with the workspace number, so a detached `workctl` tab works the same way. Tell him the workspace number in the hand-over line. No `TUIOS_PANE_ID` (outside tuios) or `tuicr-split` fails → say so in one line and fall back to the popup flow from the tag.
-
-Every popup in this skill keeps the PR number out of `question` (`guard` denies a digit there): "PR <full name>a: …", the number goes in `description`.
+Sessions are per PR: a second PR needs its own `tuicr-split`, and check
+`tuicr review list --all` before any `review add`. `tuicr-split` opens a
+`tuicr` workspace (first empty after the agent's, never a split) and mails
+Greg's Inbox the number. No `TUIOS_PANE_ID` or `tuicr-split` fails → one line,
+popup flow from the tag.
 
 ## B4. Drop the drafts in
 
-Run every `comment_body` through greg-voice (P5.5) first, in one batch. Then one `tuicr review add` per finding, severity mapped to the types in `~/.config/tuicr/config.toml`: Critical → `issue`, Suggestion → `suggestion`, Nit → `nit`, a question to the author → `note`.
+Voice every `comment_body` in one batch (P5.5), then per finding (Critical →
+`issue`, Suggestion → `suggestion`, Nit → `nit`, a question → `note`):
 
 ```bash
 tuicr review add --session "$SLUG" --username Wintermute --type issue \
   --target-file <path> --line <line> [--end-line <n>] --side new "<comment_body>"
 ```
 
-`--side old` for removed lines. An un-anchorable finding (B2) is a review-level comment: omit `--target-file`. Duplicates clustered per P4 go in as one comment.
+`--side old` for removed lines; review-level → omit `--target-file`; clustered
+duplicates → one comment.
 
-A finding that changes who has access or which path runs gets a ```` ```mermaid ```` flowchart in the comment, between the description and the request. The chat verdict opens with "before: X, after: Y", no symbol names. "Dodaj graf" in a review means a diagram in the PR comment, never ASCII in chat.
+- A finding that changes who has access or which path runs gets a ```` ```mermaid ````
+  flowchart between description and request; the chat verdict opens with
+  "before: X, after: Y", no symbol names. "Dodaj graf" = a diagram in the PR
+  comment, never ASCII in chat.
+- **Verify every anchor**: a comment outside the diff is stored, exits 0 and
+  never renders. After the last add `tuicr review comments --session "$SLUG"`,
+  check each `start_line` against the hunks; a miss → `tuicr review delete
+  --session "$SLUG" --comment-id <id>`, re-add at the nearest changed line or
+  review-level.
+- Zero findings → no drafts, the split still opens for Greg to approve.
 
-**Verify every anchor.** A comment on a line outside the diff is stored and exits 0, but never renders, so Greg never sees it. After the last add, `tuicr review comments --session "$SLUG"` and check each `start_line` against the diff hunks on the side given. A miss → `tuicr review delete --session "$SLUG" --comment-id <id>` and re-add it at the nearest changed line or as review-level.
+End the turn in ≤3 lines, no popup:
 
-Zero findings → no drafts; the split still opens so Greg can look and approve.
+- the verdict you'd pick and why: **Request changes** with any `issue`,
+  **Approve** with only nits or nothing, **Comment** with real suggestions.
+  Red CI from the diff is never Approve; red CI proven unrelated (same job red
+  on `main`, no overlap with `git diff --name-only origin/main...HEAD`) + zero
+  findings → Approve with one review-level sentence naming those checks;
+- `N szkiców w tuicr, workspace <k>. Szkic jest lokalny, na GitHubie dopiero po
+  :submit, poleci pod Twoim kontem. W diffie m/M skok do szkicu, dd usuwa, c
+  dodaje. :summary to tylko lista, Enter skacze do kodu.` Keys:
+  `references/tuicr-keys.md`.
 
-Then end the turn with ≤ 3 lines, no popup:
-
-* the verdict you'd pick and why, in one sentence: **Request changes** with any `issue`, **Approve** with only nits or nothing, **Comment** with non-trivial suggestions. Red CI from the diff is never Approve; red CI proven unrelated (same job red on `main`, no overlap with `git diff --name-only origin/main...HEAD`) + zero findings → Approve with one review-level sentence naming the unrelated checks (31f0293b),
-* `N szkiców w tuicr, workspace <k>. Szkic jest lokalny, na GitHubie dopiero po :submit, poleci pod Twoim kontem. W diffie m/M skok do szkicu, dd usuwa, c dodaje. :summary to tylko lista, Enter skacze do kodu.` Keys: `references/tuicr-keys.md`.
-
-Greg's `:submit` picks Comment / Approve / Request changes / Draft; nothing reaches GitHub before that. The review summary stays empty unless he writes one.
+Greg's `:submit` picks Comment / Approve / Request changes / Draft. The summary
+stays empty unless he writes one.
 
 ## B5. Read what went out
 
-When the background `tuicr-split` finishes (Greg quit tuicr):
+When `tuicr-split` returns:
 
 ```bash
 tuicr review comments --session "$SLUG" 2>/dev/null | jq -c '.[] | {author, lifecycle_state, location, content}'
 gh api "repos/$OWNER/$REPO/pulls/$NUMBER/reviews" --jq "[.[] | select(.user.login == \"$ME\")] | last | {state, html_url, submitted_at}"
 ```
 
-* A review of mine submitted after B3 started → one line: state + `html_url`. Then B6 (an `APPROVED` state counts as `APPROVE`).
-* No new review and drafts still `local_draft` → he quit without sending: one line "nic nie poszło, szkice zostały w sesji `$SLUG`", and `tuicr-split` again on his word.
-* Session gone and no review → he deleted everything; say so in one line, then B6.
+- New review of mine → one line: state + `html_url`, then B6 (`APPROVED`
+  counts as `APPROVE`).
+- No review, drafts still `local_draft` → "nic nie poszło, szkice zostały w
+  sesji `$SLUG`"; `tuicr-split` again on his word.
+- Session gone, no review → he deleted everything: one line, then B6.
 
-Never run `:submit` for him, and never send the drafts through the API instead. A 5xx on `:submit`: read `reviews`, say in one line "nic nie poszło, `<code>`", and Greg repeats `:submit` in the same session. Sending through the API only with 0 drafts left in tuicr and after his word.
-
-## C6. Submit via the API (Flow C verdict only)
-
-Flow C posts its thread replies itself and may end with a verdict; that one still goes through the API, two calls — pending review, then event.
-
-Map verdict → event: Approve→`APPROVE`, Request changes→`REQUEST_CHANGES`, Comment only→`COMMENT`, Don't submit→abort.
-
-**Never submit in one call.** Creating a review with `event` set makes `body` mandatory for `REQUEST_CHANGES`/`COMMENT`, which is what puts a "see inline comments" blob on the PR. Create it **pending** (no `event`, no `body`), then submit the event separately — `body` is optional on that endpoint, so the review carries no summary at all.
-
-Step 1 — create pending review. Pipe JSON via stdin heredoc; **do not** write to a fixed temp path (collides with stale files):
-
-```bash
-REVIEW_ID=$(gh api --method POST "repos/$OWNER/$REPO/pulls/$NUMBER/reviews" --input - <<'JSON' | jq -r .id
-{
-  "commit_id": "<SHA>",
-  "comments": [
-    { "path": "<path>", "line": <line>, "side": "RIGHT", "body": "<comment_body>" }
-  ]
-}
-JSON
-)
-```
-
-Step 2 — submit the verdict, no body:
-
-```bash
-gh api --method POST "repos/$OWNER/$REPO/pulls/$NUMBER/reviews/$REVIEW_ID/events" -f event=<EVENT>
-```
-
-**The review body is always empty** — inline comments carry the feedback, no recap paragraph on the PR, no "see inline comments" filler. One exception: a finding that couldn't be anchored inline may go in the body — just that finding, nothing else. In that case pass `-f body="<finding>"` on step 2.
-
-If you genuinely need a file: `PAYLOAD=$(mktemp -t g-pr-review.XXXXXX.json)` — never a fixed `/tmp/g-pr-review.json`.
-
-* Multi-line anchors: add `"start_line": <n>` alongside `"line"`.
-* Empty `comments` works for `APPROVE` only. `COMMENT` or `REQUEST_CHANGES` with no inline comment and no body fails on step 2 with 422 `You need to leave a comment indicating the requested changes` (2026-10-02, #28392), and step 1 has already left an empty `PENDING` review behind. With zero comments: never offer `COMMENT`, and `REQUEST_CHANGES` takes a one-line body naming the open thread (the API-required exception). If step 2 fails anyway, delete the pending review: `gh api -X DELETE "repos/$OWNER/$REPO/pulls/$NUMBER/reviews/$REVIEW_ID"`.
-
-Report the review URL (from `html_url` in the response). One line. Don't re-print comments. Then B6.
+Never `:submit` for him, never send drafts via the API instead. A 5xx on
+`:submit`: read `reviews`, "nic nie poszło, `<code>`", he repeats `:submit`.
+API sending only with 0 drafts left and after his word.
 
 ## B6. Close the review worktree
 
-The review worktree is opened by `workctl`'s "review this PR" just for this session. Once the verdict is in, it isn't needed any more. This applies only when **all** of these hold: `git rev-parse --show-toplevel` sits under `~/Code/tree/wt-*`, `git branch --show-current` is the PR head, `git status --porcelain` is empty, and nothing was committed or pushed here (the "Author away, fix on their branch" override keeps its tree). If any check fails, there is nothing to do, so say nothing.
+Only when all hold: toplevel under `~/Code/tree/wt-*`, current branch = PR
+head, `git status --porcelain` empty, nothing committed or pushed here (the
+author-away override keeps its tree). Any check fails → say nothing.
 
-* **`APPROVE` submitted → remove it without asking.** The review URL line ends with "zamykam worktree", and then `workctl rm --self` is the **last tool call** of the session. It deletes the tree and the local branch, then kills this tuios session together with this agent, so nothing printed after it will be seen.
-* **Anything else** (`REQUEST_CHANGES`, `COMMENT`, Don't submit, Flow C without a new verdict) → no popup, one line: "worktree zostaje, zamkniesz `prefix+X`". The popup stays only for an unattended tab (below).
-* **Unattended tab (P10)** → one `AskUserQuestion`, **Zamknij worktree** (Recommended) or **Zostaw**, with the verdict in its question, since the mail would die with the session. On Zamknij, same call as above. On Zostaw, or when a B6 check failed, send the P10 mail. APPROVE closes with no mail.
+- **`APPROVE` submitted** → the URL line ends with "zamykam worktree", and
+  `workctl rm --self` is the **last tool call** (it kills this session).
+- **Anything else** → one line "worktree zostaje, zamkniesz `prefix+X`".
+- **Unattended tab (P10)** → one popup **Zamknij worktree** (Recommended) /
+  **Zostaw**, verdict in its question. Zamknij → same call. Zostaw or a failed
+  check → the P10 mail. APPROVE closes with no mail.
 
-Never pass `--force`. A dirty tree makes `workctl rm` exit with "has uncommitted changes". Report that in one line and leave the tree in place.
+Never `--force`; "has uncommitted changes" → one line, tree stays.
 
----
+# Flow C — follow-up (I already reviewed, author replied)
 
-# Flow C — `MODE=followup` (someone else's PR, I already reviewed, author replied)
+## C1. Threads that follow up on me
 
-Hybrid: handle follow-up threads where the author addressed my comments, optionally update the verdict.
+`bash "$SCRIPTS/fetch-comments.sh" "$OWNER" "$REPO" "$NUMBER"`. Live:
 
-## C1. Fetch threads, filter to "follow-ups to me"
+- `last_comment_author == PR_AUTHOR` and I was earlier in the thread, or
+- `reviewer_followed_up == true`, latest reviewer comment mine, author silent
+  → surface but recommend Skip.
 
-```bash
-bash "$SCRIPTS/fetch-comments.sh" "$OWNER" "$REPO" "$NUMBER"
-```
-
-Treat as **live** any thread where:
-
-* `last_comment_author == PR_AUTHOR` AND I was earlier in the thread (the author replied to my comment), OR
-* `reviewer_followed_up == true` and the latest reviewer comment is mine and the author hasn't answered yet — surface but recommend `Skip` (ball is in their court).
-
-Plus: scan `fetch-reviews.sh` output for **new** findings from other reviewers since my last review — those go through Flow B logic if the user wants to add more comments.
+New findings from other reviewers since my last review (`fetch-reviews.sh`) go
+through Flow B logic if Greg wants to add comments.
 
 ## C2. Summary table
 
 | # | Severity | Source | File:line | Author | Mine? | Status | Rec | Summary |
-|---|----------|--------|-----------|--------|-------|--------|-----|---------|
-| 1 | HIGH | inline | apps/api/src/auth.ts:17 | @alice | yes | awaiting-you | Accept | author added the guard |
+|---|---|---|---|---|---|---|---|---|
 
-* `Mine?` = `yes` if the thread's opening comment is mine.
-* Cluster (P4) duplicates into one row.
+`Mine?` = the thread's opening comment is mine. Cluster per P4.
 
-## C3. Questions per follow-up
+## C3. One popup per thread (P3)
 
-`AskUserQuestion`, one thread per popup, chained (P3). Options shift to the reviewer's stance:
-
-| Option | When |
-|--------|------|
-| `Accept — author resolved it, post 👍 reply` | Author's fix looks right (Recommended for clear resolutions) |
-| `Push back — reply with counter-argument` | Author dismissed a valid concern |
-| `Ask for clarification` | Author's reply is ambiguous |
-| `Skip` | Already resolved in spirit, no reply needed |
+**Accept** — author resolved it, post 👍 (Recommended for clear fixes) ·
+**Push back** — dismissed a valid concern · **Ask for clarification** —
+ambiguous reply · **Skip** — resolved in spirit.
 
 ## C4. Post replies
 
-One `AskUserQuestion` per prepared reply, chained, then post via `gh api`. Drafted replies pass through greg-voice (P5.5) before the first popup. When `headRefOid` differs from the sha the draft was written against, run `gh api repos/$OWNER/$REPO/compare/<old>...<new>` first. If the comment text has to change, the new version goes through greg-voice and back to Greg before the post. An `APPROVE` on a newer sha after changes in the drafted files needs his "kk".
-
-```
-Title: Post reply <n>/<total> · <path>:<line> → @<author>
-Prompt: Post this reply?
-
-<the full reply body — multi-line is fine>
-
-Options:
-  1. Yes — post it (Recommended)
-  2. Modify — let me edit first
-  3. No — skip this one
-```
-
-Post `Yes` ones via `gh api` in order; **the `Yes` is the confirmation — no extra prompt.**
-
-```bash
-gh api "repos/$OWNER/$REPO/pulls/$NUMBER/comments/$COMMENT_ID/replies" -X POST -f body="$REPLY_BODY"
-```
-
-`$COMMENT_ID` = `databaseId` of `.comments[0]` (the thread's first comment) from `fetch-comments.sh`; 5xx and fallback per P9. On success: `✅ Posted: <html_url>`. On 422/404/403: print verbatim, ask user (retry / modify / skip). If `Modify`: "Paste the new reply text", read next message as body, post verbatim (already human — no voice pass).
+Voice the drafts (P5.5), then post per P9. `headRefOid` differs from the sha
+the draft was written against → `gh api repos/$OWNER/$REPO/compare/<old>...<new>`
+first; a changed text goes through greg-voice and back to Greg. An `APPROVE`
+on a newer sha with changes in the drafted files needs his "kk".
 
 ## C5. Optional updated verdict
 
-After replies, one `AskUserQuestion`:
+One popup, recommended first: **APPROVE** (all my Criticals resolved, nits
+left) · **REQUEST_CHANGES** (Criticals remain) · **COMMENT** (mixed, and at
+least one new inline comment; otherwise not offered) · **Skip** (no material
+change, or only thread replies this round). "Robimy approve" after reading the
+author's answer = bare `APPROVE`, empty body. Submit via C6, then B6.
 
+## C6. Submit via the API (Flow C only)
+
+Two calls, never one: a review created with `event` makes `body` mandatory for
+`REQUEST_CHANGES`/`COMMENT`, which puts a "see inline comments" blob on the PR.
+
+```bash
+REVIEW_ID=$(gh api --method POST "repos/$OWNER/$REPO/pulls/$NUMBER/reviews" --input - <<'JSON' | jq -r .id
+{ "commit_id": "<SHA>", "comments": [ { "path": "<path>", "line": <line>, "side": "RIGHT", "body": "<comment_body>" } ] }
+JSON
+)
+gh api --method POST "repos/$OWNER/$REPO/pulls/$NUMBER/reviews/$REVIEW_ID/events" -f event=<APPROVE|REQUEST_CHANGES|COMMENT>
 ```
-Title: Update review verdict for #<NUMBER>?
-Prompt: Author addressed feedback. Submit an updated verdict?
 
-Suggested: <APPROVE | REQUEST_CHANGES | COMMENT | Skip>
-<one-line rationale>
+- **Body always empty.** Exceptions: an un-anchorable finding (`-f body=…` on
+  step 2), and `REQUEST_CHANGES` with zero inline comments, which takes a
+  one-line body naming the open thread (else 422 `You need to leave a
+  comment…`). Empty `comments` works for `APPROVE` only; never offer
+  `COMMENT` with zero comments.
+- Step 2 fails → delete the pending review: `gh api -X DELETE
+  "repos/$OWNER/$REPO/pulls/$NUMBER/reviews/$REVIEW_ID"`.
+- Payload via stdin heredoc; a file only via `mktemp -t g-pr-review.XXXXXX.json`,
+  never a fixed `/tmp` path. Multi-line anchors: `"start_line"` next to `"line"`.
+- Report `html_url` in one line, don't re-print comments. Then B6.
 
-Options:
-  1. <recommended verdict> (Recommended)
-  2. <next most likely>
-  3. COMMENT — feedback only
-  4. Skip — no new verdict
-```
+# Rules
 
-Recommendation:
+- P11 applies. In Flow B Greg's `:submit` is the only send; C6 only after
+  his explicit Yes.
+- `MINE=true` → stop and redirect; never apply the author's fix or answer as
+  the author. `APPROVE`/`REQUEST_CHANGES` returning 422 means the same.
+- Never resolve another reviewer's thread.
 
-| Recommend… | When |
-|------------|------|
-| `APPROVE` | All my prior Criticals resolved, only nits left |
-| `REQUEST_CHANGES` | Unresolved Criticals remain |
-| `COMMENT` | Mixed/uncertain, and there is at least one new inline comment |
-| `Skip` | No material change since my last review, or only thread replies this round — they already carry the feedback |
+## Running the PR's tests locally
 
-With no new inline comment, `COMMENT` is not an option (see the C6 note on empty `comments`).
-
-If user picks a verdict, "robimy approve" after checking the author's answer is a bare `APPROVE` with an empty body. A reply in a thread goes only through C3/C4 (voiced, behind an explicit Yes). Submit via C6 (pending review, then event). Either way, finish with B6.
-
----
-
-# Things to avoid
-
-* Never post a comment or reply without explicit Yes (batched or single). In Flow B Greg's `:submit` in tuicr is the only send.
-* Never put a draft into tuicr or post a GitHub-bound body that has not passed greg-voice (P5.5) — except text Greg typed himself.
-* Never post anything in a language other than English on GitHub.
-* A finalizing review via the API (C6) is allowed **only** after explicit Yes. Never finalize silently.
-* Never delete or edit existing comments on the PR.
-* Never write the review payload to a fixed temp path. Use stdin heredoc, or `mktemp` if a file is required.
-* Never write a summary/recap into the review `body` — it stays empty except the C6 exceptions (API-required one-liner, un-anchorable finding).
-* **When `MINE=true`, stop and redirect to `g-pr-respond`.** This skill never applies the author's fix, commits, or answers reviewers as the author.
-* Don't resolve threads that belong to another reviewer — a thread opened by X and answered by the author is X's to close.
-
----
-
-# Troubleshooting
-
-| Problem | What to do |
-|---------|------------|
-| `gh` not authenticated | `gh auth login` |
-| No PR for current branch | Ask for PR number or URL |
-| `MINE=true` (my own PR) | Wrong skill — switch to `g-pr-respond` |
-| Fork / ambiguous repo | Pass `-R owner/repo` from the PR URL |
-| More than 100 threads | `fetch-comments.sh` paginates |
-| `403` secondary rate limit | Wait ~30s, retry once; on second failure surface error |
-| Reviewer already suggested code | Acknowledge their suggestion, don't duplicate the same diff |
-| `422 pull_request_review_thread.line must be part of the diff` | Thread outdated against HEAD — for `.../replies` usually irrelevant; if not, modify or skip |
-| `APPROVE` / `REQUEST_CHANGES` returns 422 | You're the PR author — wrong skill, switch to `g-pr-respond` |
-| Anchor mismatch (originalLine ≠ current) | Warn user, post reply anyway, link uses current SHA |
-| Script errors | Ensure `bash`, `jq`, `gh` are installed |
-
----
-
-# Internal checklist
-
-## Per run
-
-* [ ] P0: `USE_LOCAL` resolved; `DIRTY` worktree warned if non-empty; mismatch surfaced explicitly
-* [ ] P0: `$G_PR_ME` cached for the session
-* [ ] P1: PR resolved (`OWNER`, `REPO`, `NUMBER`, `SHA`, URL)
-* [ ] P2: `MINE=false` confirmed; redirected to `g-pr-respond` if true; `MODE` (`fresh` / `followup`) detected and stated
-* [ ] P3 applied in Flow C (one thread per `AskUserQuestion`, chained, `(Recommended)` on default)
-* [ ] P5 comment-writing rules followed; English only on GitHub
-* [ ] P5.5 greg-voice gate: every tuicr draft and GitHub-bound body voiced (full voice, batched); Greg's own text exempt
-* [ ] P6 blob links pinned to `SHA`
-
-## Flow B (`fresh`)
-
-* [ ] B1 diff source picked per P0 (`git diff origin/<base>...HEAD` when `USE_LOCAL=true`, else `gh pr diff`)
-* [ ] B1.5 what/why summary printed (≤ 10 lines) and focus popup asked (skipped only for trivial PRs); picked areas prioritized in B2
-* [ ] Diff analyzed silently (no diff dump in chat)
-* [ ] Findings recorded with severity, anchor, body, recommendation
-* [ ] B3 tuicr split opened in the background, PR session active
-* [ ] B4 voiced drafts added with `--username Wintermute`, every anchor verified, verdict hint given in ≤ 3 lines
-* [ ] B5 after Greg quits: what went out read back, review URL reported (or "nic nie poszło")
-* [ ] B6 review worktree closed (auto on `APPROVE`, popup otherwise)
-
-## Flow C (`followup`)
-
-* [ ] Follow-up threads (author replied to me) identified
-* [ ] C2 summary table with `Mine?` column
-* [ ] C3 batched questions with Accept/Push back/Ask/Skip
-* [ ] C4 replies posted via batched flow
-* [ ] C5 verdict offered (or skipped on user request), submitted via C6
-* [ ] B6 review worktree closed (auto on `APPROVE`, popup otherwise)
-
-# Running the PR's tests locally
-
-A fresh review worktree has no built workspace packages, so vitest dies on
-`Failed to resolve import "@<org>/shared"` (3e254d67, twice). Precheck
-`test -d packages/shared/dist || echo unbuilt`; unbuilt → don't run vitest,
-say in one line "unit nie puszczone lokalnie, paczki niezbudowane (~3–6 min)",
-and build only when the PR's risk is worth it. Run one file from
-`apps/<app>` with `pnpm exec vitest run <file>`.
+A fresh review worktree has no built packages: vitest dies on `Failed to
+resolve import "@<org>/shared"`. Precheck `test -d packages/shared/dist ||
+echo unbuilt`; unbuilt → "unit nie puszczone lokalnie, paczki niezbudowane
+(~3–6 min)", build only when the risk is worth it. One file from
+`apps/<app>`: `pnpm exec vitest run <file>`.

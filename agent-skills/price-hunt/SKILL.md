@@ -1,61 +1,25 @@
 ---
 name: price-hunt
-description: Find a product cheaper than the price Greg is looking at, comparing final delivered totals across Allegro, eBay, AliExpress and its clones, Amazon.de and OLX. Use when he says "znajdź taniej", "gdzie taniej", "czy jest gdzieś taniej", "porównaj ceny", "find it cheaper", or sends a product page or part number and asks about price. Not for leasing or car offers (those have their own threads and money rules).
+description: Find a product cheaper than the price Greg is looking at, comparing final delivered totals across Allegro, eBay, AliExpress and clones, Amazon.de and OLX. Use on "znajdź taniej", "gdzie taniej", "czy jest gdzieś taniej", "porównaj ceny", "find it cheaper", or a product page / part number with a price question. Not for leasing or car offers.
 ---
 
 # Price hunt
 
-From 45126c6e: the first answer quoted $39 / €35,10 without the €20 shipping
-("to jest cena + shipping"), and every shop was a separate popup.
+Totals, brutto/netto, source labels, conversion rate, "bez wysyłki, nie sprawdzone": rule `money-figures.md`. WebFetch 429/empty → `browsentic` in the same turn: rule `browser-stacks.md`.
 
 ## Start
 
-- The starting point is the product page Greg has open, read through
-  `browsentic` (`page_getPageInfo`, `page_extractText`): exact model, part
-  number, variant, and the price **with shipping to Poland**. That total is the
-  baseline. No page? Ask for the link or the part number in one line.
-- Say in one sentence what you are searching for ("szukam <model>, part
-  <number>, baza <kwota> brutto z wysyłką").
+- Baseline = the product page Greg has open, read via `browsentic` (`page_getPageInfo`, `page_extractText`): exact model, part number, variant, price **with shipping to Poland**. No page → ask for the link or part number in one line.
+- One sentence: "szukam <model>, part <number>, baza <kwota> brutto z wysyłką".
 
-## Search, no popup between stages
+## Search all, then report once (no popup between shops)
 
-Go through all of these in one run, then report once:
+Allegro (filter "Nowe" unless used is fine) → eBay (shipping shown at checkout) → AliExpress, Temu, Banggood (generic items, parts) → Amazon.de/.pl → OLX (used). A shop behind a captcha gets "captcha" in the table.
 
-1. Allegro (filter "Nowe" unless he wants used).
-2. eBay (ships to Poland, shipping cost shown at checkout).
-3. AliExpress and clones (Temu, Banggood) when the item is generic or a part.
-4. Amazon.de (and .pl).
-5. OLX for used.
-
-A shop page that `WebFetch` answers with 429, an empty body or no price goes to
-`browsentic` (`page_openTab` + `page_extractText`) in the same turn. No waiting
-for the limit, no "try again" popup. A shop behind a captcha is skipped with
-one word in the table ("captcha").
-
-## Every price is a final total
-
-- Total = item + shipping to Poland + VAT/customs. Label it **brutto** or
-  **netto** and with its source: `oferta` (the shop's page or cart), `szacunek`
-  (our arithmetic). Rule: `agent-rules/money-figures.md`.
-- Shipping not visible → write "bez wysyłki, nie sprawdzone" on the same line,
-  never a bare item price.
-- From outside the EU: check whether the cart price already includes VAT
-  (marketplaces collect it under IOSS up to €150). If not, add 23% VAT plus the
-  carrier's customs fee and mark it `szacunek`.
-- Currency conversion states the rate (`przy 4,25`).
-- Compare and sort by the total only.
-
-## Substitutes and DIY
-
-- A different brand or a compatible part only with confirmed compatibility
-  (the listing names the exact model or part number, or the manufacturer's
-  compatibility list). Unconfirmed → leave it out or mark "zgodność
-  niepotwierdzona".
-- DIY (print it, repair, build) only when Greg asks.
+- From outside the EU: check whether the cart includes VAT (IOSS up to €150); if not, add 23% VAT + the carrier's customs fee, marked `szacunek`.
+- Sort by total only.
+- Substitutes only with confirmed compatibility (listing names the exact model/part, or the maker's list); otherwise leave out or mark "zgodność niepotwierdzona". DIY only when he asks.
 
 ## Report
 
-One table: shop, offer (link), total, brutto/netto, source, delivery time,
-condition. Cheapest first, the baseline row marked. Under it one line: the
-cheapest real option and how much it saves against the baseline. Buying is
-Greg's click: never add to cart or pay (browser-stacks rule 1).
+One table: shop, offer (link), total, brutto/netto, source, delivery time, condition; cheapest first, baseline row marked. One line under it: the cheapest real option and the saving. Never add to cart or pay.

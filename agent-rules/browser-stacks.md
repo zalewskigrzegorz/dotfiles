@@ -5,66 +5,24 @@ alwaysApply: true
 
 # Browser stacks
 
-`bsk` (BrowserSkill → Comet) was removed on 2026-10-30, after Browsentic was
-configured. Don't propose bringing it back. Comet itself stays installed.
+| Stack | Use it when |
+| --- | --- |
+| **`browsentic`** (MCP → Vimma, his daily browser) | **Default for his logged-in browser**: read, click, type, screenshot while he watches. Rides his session; the MCP refuses submits, uploads, captchas and tab switches by design (those go to Greg). Skill: `agent-skills/browsentic/`. |
+| **`vimma`** (MCP → Vimma's agent workspace) | **Fallback** when Browsentic is down (`browsentic_status` not connected and `browsentic start` doesn't fix it, or `DAEMON_UNREACHABLE`). Go straight to `vimma_screenshot` / `vimma_read_page`, never `screencapture`; say "Browsentic nieaktywny, jadę na Vimmie". Own tabs and cookies; showing a page, sending a form or paying asks every time. |
+| **`agent-browser`** (skill, Chrome/CDP, own profile) | **Unattended throwaway work**: public page, docs scrape, URL check, a deployed page, a test needing no intervention. Cheapest in tokens. |
 
-| Stack | Use it when | Why |
-| --- | --- | --- |
-| **`browsentic`** (MCP → Vimma, his daily browser) | **Default for anything in his logged-in browser**: read, click, type, screenshot in Vimma while he watches the tab. | Rides his real session, action cues show him each element before it is touched. The MCP refuses submits, uploads, captchas and tab switches by design: those go to Greg or the side panel. Skill: `agent-skills/browsentic/`. |
-| **`vimma`** (MCP → Vimma's agent workspace) | **Fallback** when Browsentic is down (`browsentic_status` not connected and `browsentic start` does not fix it, or it answers `DAEMON_UNREACHABLE`: `start` only reports the bridge). Go straight to `vimma_screenshot` / `vimma_read_page`, never `screencapture`: "Browsentic nieaktywny, jadę na Vimmie" (76d3b8f1). | Separate tabs with their own cookies, so no logins of his; the first call asks Greg in Vimma. Showing a page, sending a form or paying asks every time. |
-| **`agent-browser`** (skill, Chrome/CDP, own profile) | **A quick shot Greg doesn't need to watch**: fetch a public page, scrape docs, check a URL, poke a deployed page, a test that needs no intervention from him. | Cheapest in tokens, no window, doesn't touch his profile. Default for throwaway work. |
-
-Rule of thumb: **his login or his eyes → `browsentic`; it is down →
-`vimma`; otherwise → `agent-browser`.** A site that blocks `agent-browser`
-(otomoto.pl and other anti-bot classifieds) goes to `browsentic`.
+Rule of thumb: **his login or his eyes → `browsentic`; down → `vimma`; otherwise → `agent-browser`.** Sites that block `agent-browser` (otomoto.pl, anti-bot classifieds) → `browsentic`. `bsk` was removed 2026-10-30 (Comet stays installed); `claude-in-chrome` is retired and in `permissions.deny`: if its tools show up, turn the extension off (`/chrome` or `chrome://extensions`), never propose either back. macOS only, the lab has no browser.
 
 ## Rules inside his logged-in sessions
 
-1. **Read-only by default.** Navigating and reading is fine; sending,
-   posting, paying, deleting or changing account settings needs his go-ahead
-   in the moment, even in YOLO mode. Browsentic blocks submits for MCP
-   callers, but a plain click on a "Save" or "Delete" button in a single-page
-   app is not a submit and goes through, so this rule is the gate there.
-   "Cofnij" or "wycofaj" is not a go-ahead for Delete / Usuń: undo what the
-   tool did itself (removal from an album) or ask, the delete button only
-   after a named "usuń to" (02fd3d1c).
-2. **Never export credential material.** No cookies, `localStorage` auth
-   blobs, passwords or bearer tokens to a file, a log, the transcript or an
-   outward-facing message. Browsentic hands back sealed placeholders
-   (`⟦password:…⟧`); pass them through unchanged, never rebuild them.
-3. **Human steps are his.** Login, 2FA, a captcha nothing can answer, an
-   irreversible confirm: stop, say what is ready, let him do it, then carry
-   on in the same tab.
-4. **Blocked sites stay blocked.** `SITE_BLOCKED` (ING, 1Password) is his
-   list in the Browsentic settings: no retry, no other route.
-5. **Close what you opened** with `page_closeTab` when the task ends, not while
-   his hand test on that tab is pending (db368cfb).
-6. **After one `TARGET_NOT_FOUND` read the state.** `page_closeTab` lists the
-   open tabs in its error: a missing id is already closed. For an element
-   `page_getPageInfo`, then a stable selector, never the same `text`+`role`
-   again or a generated `#dialog-<uuid>` (02fd3d1c, 233482bc).
-7. **`WebFetch` giving 429 or no price on a shop page** → same turn
-   `page_openTab` + `page_extractText`, no retry popup (45126c6e).
+1. **Read-only by default.** Sending, posting, paying, deleting or changing account settings needs his go-ahead in the moment, even in YOLO. A plain click on "Save"/"Delete" in a single-page app is not a submit and goes through, so this rule is the gate. "Cofnij"/"wycofaj" is not a go-ahead for Delete: undo only what the tool did itself or ask; delete only after a named "usuń to" (02fd3d1c).
+2. **Never export credential material** (cookies, `localStorage` auth, passwords, bearer tokens) to a file, log, transcript or message. Pass Browsentic's sealed placeholders (`⟦password:…⟧`) through unchanged, never rebuild them.
+3. **Human steps are his**: login, 2FA, an unanswerable captcha, an irreversible confirm. Stop, say what is ready, carry on in the same tab after.
+4. **`SITE_BLOCKED`** (ING, 1Password) is his list: no retry, no other route.
+5. **Close what you opened** with `page_closeTab` when the task ends, not while his hand test on that tab is pending.
+6. **After one `TARGET_NOT_FOUND` read the state**: `page_closeTab`'s error lists open tabs (a missing id is closed); for an element, `page_getPageInfo`, then a stable selector, never the same `text`+`role` again or a generated `#dialog-<uuid>`.
+7. **`WebFetch` 429 or no price on a shop page** → same turn `page_openTab` + `page_extractText`, no retry popup.
 
-**Minting a token or API key on a site behind his login is a browser job, not
-a step list.** On 2026-09-28 Greg got the Docker Hub PAT instructions twice and
-answered "to co mam zrobić? ogarnij to". Flow: `browsentic` to the token page,
-Greg logs in, a click to generate, Greg copies the token. The token then goes
-from the clipboard straight into the consumer (`pbpaste | docker login
---password-stdin`, or `op item create`), never echoed, never in a file, and
-`pbcopy < /dev/null` clears the clipboard afterwards, as the last step: offer
-to store it in 1Password before that (a cleared clipboard made him copy it
-twice, 233482bc). Say plainly if the consumer keeps it in plaintext
-(`~/.docker/config.json` without a credential helper does).
+**Minting a token or API key behind his login is a browser job, not a step list** ("to co mam zrobić? ogarnij to"). `browsentic` to the token page, Greg logs in, a click to generate, Greg copies it. The token goes from the clipboard straight into the consumer (`pbpaste | docker login --password-stdin`, `op item create`), never echoed or written to a file; offer to store it in 1Password, then `pbcopy < /dev/null` as the last step (233482bc). Say if the consumer keeps it in plaintext (`~/.docker/config.json` without a credential helper).
 
-**A step list for Greg that starts with "open <url>" in his browser: open it
-yourself** with `browsentic` in the same turn, before the list ("moze sam
-otworz?", 127b663a). Login, DevTools and copying a token stay his steps, and
-the token still never reaches the transcript, a file or your clipboard.
-
-**`claude-in-chrome` is retired (2026-08-23).** It kept hanging.
-`mcp__claude-in-chrome__*` is in `permissions.deny`. If those tools still show
-up, the Chrome extension is still paired: turn it off with `/chrome` or in
-`chrome://extensions`. Don't reach for them or propose the stack back.
-
-**macOS only.** The lab is headless — no browser there.
+**A step list that starts with "open <url>" in his browser: open it yourself** with `browsentic` in the same turn (127b663a). Login, DevTools and copying a token stay his.

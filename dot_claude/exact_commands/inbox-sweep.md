@@ -1,242 +1,92 @@
 ---
-description: Sweep Greg's mailbox — verify pending unsubscribes, classify noise senders, then unsubscribe / block via Spark, bulc.club and agent-browser. Explicit-invoke command; nothing is executed without a confirmation popup.
+description: Sweep Greg's mailbox — verify pending unsubscribes, classify noise senders, then unsubscribe / block via Spark, bulc.club and agent-browser. Explicit-invoke command; nothing runs without a confirmation popup.
 ---
 
 # inbox-sweep
 
-Periodic mailbox cleanup. Finds noise senders, decides unsubscribe vs block vs keep,
-executes through whichever mechanism actually works for that sender, and records
-everything so the next run can check whether they obeyed.
-
-Run it monthly, or whenever Greg says the inbox is getting loud.
+Monthly, or when Greg says the inbox is loud. Find noise senders, decide unsubscribe / block / keep, act through whatever works for that sender, record it so the next run checks they obeyed.
 
 ## Hard rules
 
-1. **Never archive, delete, or move a message.** This command may only unsubscribe,
-   block future mail, and mark contacts as priority. Everything it does is reversible.
-2. **Never click an unsubscribe link on mail classified as spam.** A click confirms the
-   address is live. Spam gets blocked, never asked politely.
-3. **Never enter a password, create an account, or solve a captcha.** If a page demands
-   a login, stop and report BLOCKED for that sender.
-4. **Nothing executes before the plan popup.** Present the full verdict as text first,
-   then one popup over grouped batches.
-5. **The white list is untouchable.** Anything in `never_touch` or already marked
-   primary is skipped before classification even runs.
+1. Never archive, delete or move a message: only unsubscribe, block, mark priority (all reversible).
+2. Never click an unsubscribe link in spam (confirms the address); spam gets blocked.
+3. Never enter a password, create an account or solve a captcha: login wall → BLOCKED for that sender.
+4. Nothing executes before the plan popup.
+5. `never_touch` and already-primary senders are skipped before classification.
 
 ## Ledger
 
-`~/.local/state/inbox-sweep/ledger.json` (schema v2). Top level holds `never_touch` and
-`vip_primary` — the cumulative white list, read before anything else. `runs[]` holds one
-entry per run with `blocked`, `unsubscribed`, `spared`, `findings`. Every action carries a
-`verify_after` date 14 days out. This file is the only state; there is no service.
+`~/.local/state/inbox-sweep/ledger.json` (v2), the only state. Top level: `never_touch`, `vip_primary` (the cumulative white list; never re-derive it from one run). `runs[]`: `blocked`, `unsubscribed`, `spared`, `findings`, each action with `verify_after` +14 days.
 
-Never re-derive the white list from a single run — read it from the top level.
-
-**First run:** no file and no directory. Don't hunt for it with `fd`; create it
-and say "pierwszy bieg, brak ledgera" in one line (0303ab99):
+First run (no file, don't hunt with `fd`): create it and say "pierwszy bieg, brak ledgera":
 
 ```bash
 L=~/.local/state/inbox-sweep/ledger.json
 test -f "$L" || { mkdir -p ~/.local/state/inbox-sweep && echo '{"version":2,"runs":[],"never_touch":[],"vip_primary":[]}' > "$L"; }
 ```
 
-Shapes are mixed, so every `jq` over entries starts defensive (3 probes and a
-false exit 5 after a good write, 2026-10-09):
+Defensive `jq`: version is `version` (not `schema`); `blocked[]`/`unsubscribed[]` hold strings (old) or objects keyed `sender`/`domain`/`contact` → `.blocked[]? | objects`; `(.verified // false)`.
 
-- The version sits in `version`, not `schema`.
-- `blocked[]` / `unsubscribed[]` hold strings in older runs and objects keyed
-  `sender`, `domain` or `contact` in newer ones → `.blocked[]? | objects`.
-- `verified` is optional → `(.verified // false)`.
+## 0. Verify the last run
 
-## Step 0 — verify what the last run did
+For each action past `verify_after`: `spark search "<brand>" --in maksim009@gmail.com` for mail after the action date. None → `verified: true`. Still arriving → escalate one rung (polite unsubscribe → bulc `/ba/` → bulc `/bd/` → `spark contact-action blockDomain`), shown in the plan popup.
 
-Read the ledger. For every `blocked` / `unsubscribed` entry whose `verify_after` has
-passed, check whether mail arrived from that sender **after** the action date:
+## 1. Scan
+
+Wrap pipelines in `bash -lc '…'` (nushell doesn't word-split).
 
 ```bash
-spark search "<brand>" --in maksim009@gmail.com
+spark emails Archive --filter "newer_than:120d" --page N --page-size 100   # same for Inbox; 365d for the long tail
 ```
 
-- Nothing new → mark `verified: true`, done.
-- Still arriving → they ignored the unsubscribe. Escalate one rung:
-  polite unsubscribe → bulc `/ba/` → bulc `/bd/` → `spark contact-action blockDomain`.
+Delegate paging to a read-only subagent (`emails`, `search`, `thread`, `folders`) that returns one compact table. Group by leading display name (`From` truncates at ~30 chars); real address via `spark thread <id>`. **Gmail-only:** marketing to `zalewski.grzegorz@icloud.com` never shows; say so in the report.
 
-Report the escalations in the plan popup like any other action.
-
-## Step 1 — scan
-
-Shell is nushell and does **not** word-split. Wrap every pipeline in `bash -lc '...'`.
-
-```bash
-spark emails Archive --filter "newer_than:120d" --page N --page-size 100
-spark emails Inbox   --filter "newer_than:120d" --page N --page-size 100
-```
-
-Widen to `newer_than:365d` when hunting the long tail — monthly and quarterly senders
-look like one-offs in a 120-day window.
-
-Delegate the paging to a subagent with a read-only brief (`emails`, `search`, `thread`,
-`folders` only) and ask for one compact table back. The raw listings are large and do
-not belong in the main context.
-
-Group by the **leading display name** — the `From` column is truncated at ~30 chars, so
-the domain is not readable there. Get the real address from `spark thread <id>`.
-
-**Blind spot: this scan is Gmail-only.** Marketing addressed to
-`zalewski.grzegorz@icloud.com` (Apple, NestJS, tellmeGen, MediClub, Elegear, …) never
-shows up here. Say so in the report rather than implying the sweep was exhaustive.
-
-## Step 2 — classify each sender
+## 2. Classify
 
 | Signal | Bucket |
 |---|---|
-| transactional history (order, invoice, receipt, shipping, login code, device alert) | **keep** — never touch |
-| `List-Unsubscribe` or a body unsubscribe link, plus a real purchase or account | **unsubscribe** |
-| no transactional history, no unsubscribe link, fresh or rotating domains | **spam** — block, no clicks |
+| transactional history (order, invoice, shipping, login code, device alert) | **keep** |
+| unsubscribe header/link + a real purchase or account | **unsubscribe** |
+| no transactional history and no unsubscribe link (fresh/rotating domains) | **spam**: block, browser never runs |
 
-Safety default: **no transactional history AND no unsubscribe link → treat as spam.**
-The browser does not run on those.
+Device/account alerts on the marketing domain (SwitchBot) → keep the whole domain. A shop he may buy from again → block the address (`/ba/`), never the domain.
 
-Signals that override volume:
-- Device or account alerts on the same domain as the marketing (SwitchBot sends door-lock
-  low-battery warnings and sale mail through one alias) → **keep the whole domain.**
-- A shop Greg might buy from again → block the **address** (`/ba/`), never the domain.
+## 3. Present, one popup
 
-## Step 3 — present, then one popup
+Verdict as text, grouped, with volume and last-seen; then one `AskUserQuestion` over groups (unsubscribe N newsletters / block N spam domains / sort N notification senders). A second popup only for the 3–6 genuinely conflicting senders; never one per sender.
 
-Print the verdict as text, grouped, with per-sender volume and last-seen. Then a single
-`AskUserQuestion` over the **groups**, not the senders:
+## 4. Execute, cheapest rung first
 
-- ☑ Unsubscribe from N newsletters
-- ☑ Block N spam domains
-- ☐ Sort N notification senders
+a. **Spark header unsubscribe:** `spark action unsubscribe <id> …`, batched; `Skipped` = no `List-Unsubscribe`, not an error.
 
-A second popup only for senders where the signals genuinely conflict — usually 3–6.
-Never one popup per sender.
+b. **bulc.club relay** (`relay@bulcclub.com`; Spark's blocklist fails on it): `spark thread <id> | grep -oE "https://www.bulc.club/(ba|bd)/[^)]*"`. Links need his session (curl gets the login page): `browsentic` `page_openTab` on the first, then `page_navigate` + `page_extractText` (~300 chars) per link, `page_closeTab` at the end. The page text (`YOU'VE (ALREADY) BLOCKED THIS DOMAIN`, rating, counters) is the confirmation to record. `/ba/` and `/bd/` share a token; prefer `/ba/`.
+   - Member console `members.bulc.club`: its Block buttons never fire under automation (JS click, CDP click, bulk menu; 2026-08-31) and a row's `disabled` state verifies nothing. Read it only: `#/forwarders/N` (100 rows/page) and a forwarder's Statistics view find leaked aliases; scrape with `page_extractText`, act via footer links.
+   - Gmail filters: not via XML import (the file picker never appears). One at a time: `#create-filter/has=<query>`, toggle checkboxes with `Space` (JS `.click()` is ignored).
 
-## Step 4 — execute, cheapest rung first
+c. **Direct senders:** `spark contact-action blockDomain|blockContact <addr>` → Gmail `Blocked` label, reversible with `acceptDomain`/`acceptContact`.
 
-**a. Spark header unsubscribe** — free, but only ~10% of mail carries `List-Unsubscribe`.
-Batch it; unsupported ids come back as `Skipped`, which is not an error.
+d. **Body-link unsubscribe** (~90%): a subagent with the `agent-browser` skill, only the approved URLs, safety rules restated, one screenshot and one-line result per target, no HTML or snapshots back. Shapes: Klaviyo → `manage.kmail-lists.com`, one click; TrustMate confirm gate then YES (idempotent); Insta360 button inside an iframe; some are a plain GET.
 
-```bash
-spark action unsubscribe <id> <id> ...
-```
+e. **White list:** `spark contact-action markContactAsPrimary <addr> …`.
 
-**b. bulc.club relay** — for anything arriving via `relay@bulcclub.com`.
-`spark contact-action blockDomain` **cannot touch these** — Spark only sees
-`relay@bulcclub.com`, so it returns `Failed`. Use the footer links instead:
+## 5. Record the run
+
+Date, blocked (how), unsubscribed (confirmation text), spared (why), `verify_after`, new mechanisms in `findings`:
 
 ```bash
-spark thread <id> | grep -oE "https://www.bulc.club/(ba|bd)/[^)]*"
-```
-
-**The links need Greg's logged-in session — `curl` lands on the login page.** Open them
-through `browsentic` in his Vimma session instead, one link at a time:
-`page_openTab` on the first link, then `page_navigate` + `page_extractText`
-(first ~300 chars) per link, `page_closeTab` at the end.
-
-The landing page states the outcome in plain text — `YOU'VE BLOCKED THIS DOMAIN` or
-`YOU'VE ALREADY BLOCKED THIS DOMAIN`, plus the member rating and received/blocks/held
-counters. That text is the confirmation to record; do not verify any other way.
-
-`/ba/` and `/bd/` share the same per-message token. Prefer `/ba/`.
-
-**Gmail filters: do not try the XML import.** Settings → "Importuj filtry" never surfaces
-a file input under automation — the click registers, the picker never appears. Create
-filters one at a time instead: navigate to `#create-filter/has=<query>`, focus the
-checkboxes and toggle them with `Space` (a JS `.click()` on them is ignored).
-
-**Do not try the member console at `members.bulc.club`.** Its `Block Domain` /
-`Block Address` buttons never fire under automation — measured 2026-08-31, no POST in
-the network log from a JS `.click()`, from a real CDP click, or from the bulk
-`Edit N Items` menu. The greyed-out `disabled` state on a dropdown item is that single
-message's state, not a standing rule, so the same domain reads blocked on one row and
-open on the next; it cannot verify anything.
-
-The console is still worth reading. `#/forwarders/N` (100 rows/page) lists every
-forwarder with last-used, distinct addresses, distinct domains, received and forwarded
-counts, and a forwarder's Statistics view names its top sending domains — that is how
-you find a leaked alias. Scrape it with `page_extractText`, act through the footer links.
-
-**c. Direct senders** — Spark handles these:
-
-```bash
-spark contact-action blockDomain  <addr>   # whole domain
-spark contact-action blockContact <addr>   # one address
-```
-
-Blocked mail lands under the Gmail `Blocked` label — still delivered, out of the inbox,
-reversible with `acceptDomain` / `acceptContact`.
-
-**d. Body-link unsubscribe** — the remaining ~90%. Delegate to a subagent running the
-`agent-browser` skill, one brief listing only the approved URLs, with the safety rules
-above restated. Ask for a screenshot per target and a one-line result each. Do not let
-it paste page HTML or accessibility snapshots back.
-
-Observed shapes: Klaviyo redirects to `manage.kmail-lists.com` and needs one click;
-TrustMate shows a confirm gate then a YES link, and is idempotent; Insta360 keeps the
-button **inside an iframe**; some tokens are a plain GET with no click at all.
-
-**e. White list** — for anything that must never be lost:
-
-```bash
-spark contact-action markContactAsPrimary <addr> ...
-```
-
-## Step 5 — write the run to the ledger
-
-Append a run object with the date, what was blocked and how, what was unsubscribed and
-with what confirmation text, who was deliberately spared and why, and a `verify_after`
-14 days out. Add any new mechanism discovered to `findings` — that is how this command
-gets smarter between runs.
-
-The write, no stdin:
-
-```bash
-f=~/.local/state/inbox-sweep/ledger.json
-cp "$f" "$f.bak-$(date +%F)"
-# the run object goes to <scratch>/run.json first
+f=~/.local/state/inbox-sweep/ledger.json; cp "$f" "$f.bak-$(date +%F)"
 jq --slurpfile run <scratch>/run.json '.runs += $run' "$f" > "$f.tmp" && jq empty "$f.tmp" && mv "$f.tmp" "$f"
 jq '.runs | length' "$f"
 ```
 
-## Known facts (measured, do not re-derive)
+## Known facts (measured)
 
-- `spark action unsubscribe` needs a real `List-Unsubscribe` header. Measured coverage:
-  **4 of 40 newsletters, 10%.** Everything else needs the browser.
-- bulc.club relay strips `List-Unsubscribe`, so **no** bulc-relayed mail is reachable
-  by Spark's unsubscribe or its blocklist.
-- bulc alias addresses look like `<alias>@zinsoft.bulc.club`; the alias also appears as
-  a `(alias)` prefix on every relayed subject line.
-- Spark has no rule engine. Its only durable rules are per-contact and per-domain, both
-  keyed on the **sender**. Recipient-side rules (plus-tags, alias domains) do not exist
-  there — those belong in Gmail filters or Cloudflare Email Routing.
-- `spark emails --filter "subject:(alias)"` fails when the alias contains a hyphen.
-- Aliases are not one-to-one with senders: `allegro` also carries InPost and Poczta
-  Polska, `emp` also carries DHL. Never kill an alias wholesale without checking.
-- Greg has **402 bulc forwarders**, not the ~63 an earlier pass assumed. 25 477 messages
-  received by the relay lifetime; only 35 forwarders used in the last 90 days, 194 silent
-  for 3+ years. Two aliases are 39% of all traffic: `kickstarter` and `allegro`.
-- A leaked alias looks like this: `kickstarter` took 5 339 messages from **134 distinct
-  sender domains**, of which real `kickstarter.com` is a twelfth. Block the resale ring
-  domain by domain; never `Block All` an alias that also carries orders or shipping.
-- Blocking a domain whose bulc **member rating is 100%** holds it for every Bulc Club
-  member, not just Greg. At 50% it only holds for him until the rating climbs.
-- Never block `shared.klaviyomail.com` (rating 91) or any other shared ESP relay —
-  legitimate senders ride the same infrastructure. Block the address, not the domain.
-- AliExpress **no longer splits cleanly** (corrected 2026-09-21). Promo still rides
-  `selections.` / `mail.` / `newarrival.aliexpress.com` plus `promotion@aliexpress.com`,
-  but `notice.aliexpress.com` is no longer transactional-only — member-benefit promo
-  (`aeug-member-benefits@notice.aliexpress.com`) now shares the subdomain with parcels.
-  The filter that works: `from:(aliexpress.com) -from:(transaction@notice.aliexpress.com)`
-  → Blocked.
-- **Greg's DNS blocklist resolves tracking domains to NXDOMAIN locally.**
-  `click.revolut.com`, `campaign.synerise.com` and friends look dead from his machine but
-  are alive on `1.1.1.1`. A "dead unsubscribe link" is a false alarm until it also fails
-  against a public resolver — check before recording one.
-- **Kick unsubscribe is broken.** `link.kick.com/ss/c/u001…` answers with a JSON error;
-  go straight to a bulc `/ba/` block on `***@notifications.kick.com` (rating ~33%, so it
-  holds for Greg only) and record it in the run's `findings` (2026-10-09).
-- Mail sent to `*@mrglaszki.com` is Greg's own Cloudflare Email Routing setup — he manages
-  those aliases himself at `mail.mrglaszki.com`. Report them, do not touch them.
+- Spark unsubscribe covered 4 of 40 newsletters (needs `List-Unsubscribe`); bulc strips that header, so no bulc mail is reachable by Spark unsubscribe or blocklist.
+- Spark has no rule engine: only per-contact/per-domain rules keyed on the sender. Recipient-side rules (plus-tags, alias domains) go to Gmail filters or Cloudflare Email Routing.
+- bulc aliases: `<alias>@zinsoft.bulc.club`, `(alias)` prefix on subjects; `--filter "subject:(alias)"` fails on hyphens. Aliases carry several senders (`allegro` also InPost, Poczta Polska; `emp` also DHL): never kill one wholesale.
+- 402 forwarders, 25 477 messages lifetime, 35 used in 90 days, 194 silent 3+ years; `kickstarter` + `allegro` = 39% of traffic. Leaked alias: `kickstarter` got mail from 134 domains (real one ~1/12): block the ring domain by domain, never `Block All` an alias that carries orders.
+- A domain block holds for every member at bulc rating 100%, only for Greg at ~50%. Never block shared ESP relays (`shared.klaviyomail.com`): block the address.
+- AliExpress: promo on `selections.`/`mail.`/`newarrival.aliexpress.com`, `promotion@`, and member-benefit promo now on `notice.` too. Working filter: `from:(aliexpress.com) -from:(transaction@notice.aliexpress.com)` → Blocked.
+- His DNS blocklist NXDOMAINs tracking domains (`click.revolut.com`, `campaign.synerise.com`): a "dead link" counts only if it also fails on `1.1.1.1`.
+- Kick unsubscribe returns a JSON error: go straight to bulc `/ba/` on `***@notifications.kick.com` (~33%, holds for Greg only) and note it in `findings`.
+- `*@mrglaszki.com` is his own Cloudflare Email Routing (`mail.mrglaszki.com`): report, don't touch.

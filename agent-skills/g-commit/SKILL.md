@@ -1,107 +1,89 @@
 ---
 name: g-commit
-description: Generates conventional commit messages from `git diff --cached` per commitlint and appends one gitmoji at the end of the subject, then commits and pushes after one confirmation popup (no popup in YOLO). In configured work repos it also runs the deslop gate and creates a feature branch off main/master. Use when the user asks to commit, write a commit message, or align with conventional commits / commitlint — and at the end of every finished task that left changes.
+description: Conventional commit message from `git diff --cached` per commitlint with one trailing gitmoji, then commit and push after one popup (none in YOLO). Work repos add the deslop gate and a feature branch off main/master. Use when the user asks to commit, write a commit message, or align with conventional commits / commitlint — and at the end of every finished task that left changes.
 ---
 
 # g-commit
 
-## When to use
+Policy (own paths only, the popup gate, YOLO, push, "Jeszcze nie"): the
+"Commit + push at the end of a task" section of `commit-message-rules.md`.
+This skill is the mechanics and the message format. It never opens a PR
+(`g-pr`). Message text in **English**.
 
-- The user asks to commit, write a commit message, or align with commitlint / conventional commits.
-- A logical unit of work is done and verified and left changes — close it here instead of leaving it for Greg (`agent-rules/commit-message-rules.md` → "Commit + push at the end of a task").
+## Mode
 
-## Language
+- **work**: `$WORK_COMPANY` is set and the `origin` remote URL (fallback: first
+  remote) contains it, case-insensitive. Deslop gate, branch guard, then
+  gate → commit → push.
+- **personal**: everything else (unset marker → personal, one short line).
+  Gate → commit → push on the current branch (`master` in dotfiles/home-lab).
 
-All **generated** text (commit message subject/body) must be **English**, even if the conversation is in another language.
-
-## Gate (applies to every mode)
-
-One `AskUserQuestion` popup approves both the commit and the push. There is no permission prompt on `git commit`; the popup is the review point. In YOLO (`claude-yolo status` prints `YOLO ON`) there is no popup at all. This skill never opens a PR — point at `g-pr` for that.
-
-## Modes
-
-The skill operates in one of two modes:
-
-- **work mode** — deslop gate, branch guard on `main`/`master`, then gate → commit → push.
-- **personal mode** — every other repo: gate → commit → push on the current branch (in dotfiles / home-lab that is `master`).
-
-### Detecting the mode
-
-The work-org identifier is **not** stored anywhere in this repository. It comes from the runtime environment, which the user's shell loads from a secret manager.
-
-1. Read the work-org marker from `$WORK_COMPANY` (env var). If it's unset, empty, or whitespace → **personal mode** for this repo. Do not warn loudly; one short line is enough.
-2. Read the repo's primary remote: `git remote get-url origin` (fallback to the first remote if `origin` is missing). Lowercase it.
-3. If the remote URL contains the value of `$WORK_COMPANY` (case-insensitive substring) → **work mode**. Otherwise → **personal mode**.
-4. Announce the mode in one short line before showing the message, e.g. `mode: work (matched remote)` or `mode: personal`. Do **not** echo the marker value or any other secret env contents back to the user — they're private.
-
-If `$WORK_COMPANY` is available, `$WORK_MAIN_PROJECT` usually is too — you may use it (case-insensitive) as a hint when guessing scope, but never print it back.
+Announce `mode: work (matched remote)` or `mode: personal` in one line. Never
+echo `$WORK_COMPANY`, `$WORK_MAIN_PROJECT` (a scope hint) or other secrets.
+Detect the mode in its own call, so a `fatal:` isn't lost mid-output.
 
 ## Steps
 
-1. Run `git status`. Stage **only the files this session touched**, by explicit path — never `git add -A` / `git add .`, other agents share the checkout. Staged files this session touched are the commit. **Staged files from someone else stay out**: the index of a shared checkout can already hold another agent's hunks (2026-09-25: `scriptc/workctl.ts` and a `work.nu` hunk were staged by a sibling session). A plain `git commit` would sweep them in. Build a temporary index with only your paths and commit with it:
+1. **Stage your paths in a temp index**, from `git status --short`, never from
+   memory. The real index may hold another agent's hunks:
    ```bash
    GIT_INDEX_FILE=<scratchpad>/idx git read-tree HEAD
    GIT_INDEX_FILE=<scratchpad>/idx git add <your paths>
-   GIT_INDEX_FILE=<scratchpad>/idx git commit -m "…"
-   git reset -q            # resync the real index to the new HEAD; their staged hunks are re-staged by them
+   GIT_INDEX_FILE=<scratchpad>/idx git rm -q --cached -- <removed path>   # a removal; a move = rm --cached <old> + add <new>
+   GIT_INDEX_FILE=<scratchpad>/idx git diff --cached --stat               # check before the popup
    ```
-   Name the foreign dirty or staged files in one line. Nothing staged and nothing touched → stop and say so.
-   Take the paths from `git status --short`, not from memory. A path removed with `git rm` is gone from disk and from the real index, so `git add <it>` there fails with `pathspec … did not match` and aborts the **whole** `add`; the gate then saw only the deletions (2026-10-06). In the temp index (read from `HEAD`) stage a removal with `GIT_INDEX_FILE=<scratchpad>/idx git rm -q --cached -- <path>` and a move with `git rm --cached <old>` + `git add <new>`. Never `git add -A`, the guard denies it in every form. Check `GIT_INDEX_FILE=<scratchpad>/idx git diff --cached --stat` before the popup, and keep mode detection in its own call so a `fatal:` doesn't get lost in the middle of the output.
-2. Determine the mode (see above).
-3. Analyze the staged diff: `git diff --cached`.
-4. **Work mode, deslop gate (mandatory):** invoke `Skill(g-deslop)` on the staged diff before composing the message. Never `deslop` — that is the team's shorter prompt in the monorepo and it won once by name collision (2026-09-25), skipping the full gate. If the pass edits files, re-stage exactly those files and re-read `git diff --cached` — the message must describe the cleaned diff. The gate passes only by running the pass; "the diff already looks clean" is not a pass. Skipped only when the user explicitly says to skip it. Staged `.md` files under `docs/` with a `recheck.yaml` at the repo root → `pnpm exec <docs-cli> recheck --config recheck.yaml <files> --format=table` too (the docs CLI from the root `package.json`); errors block the commit, because oxfmt and the deslop gate miss semantic line breaks (bc00373d).
-5. Build the commit message (rules below).
-6. **Work mode, branch guard:** if `git rev-parse --abbrev-ref HEAD` is `main` or `master`, create a feature branch first:
-   - `git checkout -b <type>/<scope>-<short-slug>` (e.g. `feat/<scope>-short-thing`).
-   - Slug: lowercase, hyphens, short. Pick `type`/`scope` consistent with the commit you are about to make.
-7. **Gate.** Run `claude-yolo status` on its own: it exits 1 when YOLO is off, which is normal, so never put it mid-`&&` chain (ebcbd85f).
-   - `YOLO ON` → skip to step 8, no popup.
-   - Otherwise → `AskUserQuestion`, header `Commit`. Put the **raw** commit message, a blank line, and `git diff --cached --stat` in the `preview` (whole preview ≤15 lines, the guard rejects more: the `branch:` line and the human sentence count, `--stat` up to 6 files then `+N more`; count before the first call, after a deny cut lines) of the first option — never in prose above the popup. If the branch or worktree differs from the session's cwd or the branch last discussed, the preview opens with `branch: <name> (base <ref> <sha>)` and the worktree path. Options: **Commit + push** (Recommended) · **Tylko commit** · **Jeszcze nie** (leave staged, ask again at the end of the next task).
-8. **Commit** (see Execution), then **push** unless "Tylko commit" was picked: `git push`, or `git push -u origin HEAD` when the branch has no upstream.
-9. Report in one line: short sha, branch, pushed or not. A failed push gets its output and a recovery move; never retry with `--force`.
+   A `git rm`'d path in the real index makes `git add <it>` fail with
+   `pathspec … did not match` and abort the whole `add`. Name foreign dirty or
+   staged files in one line. Nothing touched → stop and say so.
+2. Read the staged diff.
+3. **Work: deslop gate.** `Skill(g-deslop)` on the staged diff, never the
+   team's `deslop` (it once won by name). Edited files are re-staged and the
+   diff re-read; "looks clean" without running the pass is not a pass. Skip
+   only on the user's word. Staged `docs/**.md` and a root `recheck.yaml` →
+   `pnpm exec <docs-cli> recheck --config recheck.yaml <files> --format=table`
+   (CLI from the root `package.json`); errors block the commit.
+4. Build the message (below).
+5. **Work: branch guard.** On `main`/`master` → `git checkout -b
+   <type>/<scope>-<short-slug>` (lowercase, hyphens, matching the commit).
+6. **Gate.** `claude-yolo status` in its own call (exit 1 = off, normal; never
+   mid-`&&`). `YOLO ON` → no popup. Else `AskUserQuestion`, header `Commit`,
+   preview per the rule (raw message, blank line, `--stat`; ≤15 lines with the
+   `branch:` and human lines), options **Commit + push** (Recommended) ·
+   **Tylko commit** · **Jeszcze nie**.
+7. **Commit, then push** unless "Tylko commit":
+   ```bash
+   GIT_INDEX_FILE=<scratchpad>/idx git commit -m "<type>(<scope>): <subject> <emoji>" [-m "<body>"] && git push   # -u origin HEAD on a new branch
+   git reset -q   # resync the real index to the new HEAD
+   ```
+   One `&&` chain so a hook failure stops the push. **Never pipe `git commit`
+   through `tail`/`head`**: it swallows the exit code and the push ships the old
+   branch. Check `git log -1` before reporting.
+8. One line: short sha, branch, pushed or not. A failed push: its output and a
+   recovery move.
 
-A commit rejected by a pre-commit hook (lint-staged, a stricter lint config for new code) is fixed in the code, re-staged and committed once more. Never re-run the identical commit: twice in one session the same `no-unnecessary-type-assertion` failure came back because nothing had changed (2026-10-15). When the repo's lint-staged runs a lint config the normal `--fix` pass does not use, run that same command on the staged files before the gate.
+A pre-commit hook rejection (lint-staged, stricter lint for new code) is fixed
+in the code and committed once more; never re-run the identical commit. When
+lint-staged uses a config the normal `--fix` doesn't, run that command on the
+staged files before the gate. Never `--no-verify`, never `--force`.
 
-## Commit message rules
+## Message
 
-1. Test with `[ -f commitlint.config.js ] && echo commitlint || echo none` (a bare `ls` errors and reads as a failure). If it exists, read it and honour its `type-enum`, `scope-enum`, and `scope-empty` rules before the popup, not only the scope. In work mode check the finished message with `printf '%s' "$msg" | pnpm exec commitlint`, so the preview shows the text the hook accepts. A `type-enum` without `ci`, `refactor`, `perf`, `build` means a workflow change is `chore` and a test change `tests` (the gitmoji table below still applies). Changing the type after the popup costs one line: "type changed from X to Y, commitlint". Workers briefed without this skill get "commit types: see commitlint.config.js".
-2. If there is none, use plain conventional-commit defaults (`feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `perf`, `build`, `ci`, `revert`). Scope is optional; infer from changed paths if it's obvious, otherwise omit.
-3. Format: `type(scope): subject` plus optional body/footer.
-4. **Subject:** all lowercase, imperative mood ("add endpoint", not "added"), no period at the end, no leading capital, ~72 chars max **before** the gitmoji.
-5. **Compound scopes** (e.g. `a,b`) are allowed only if the project's `scope-enum` lists that combination. Otherwise pick one scope or split the work — never invent scopes that fail commitlint.
-6. When the user asks only for a message (not a commit), output **only** the raw message — no fences, no commentary around it.
-7. Never append `Co-Authored-By:` trailers, "🤖 Generated with Claude Code" footers, or any other AI signature. The commit body — if any — only carries actual change context.
+1. `[ -f commitlint.config.js ] && echo commitlint || echo none` (a bare `ls`
+   errors). Present → honour `type-enum`, `scope-enum`, `scope-empty` before
+   the popup; in work mode check with `printf '%s' "$msg" | pnpm exec
+   commitlint`. A `type-enum` without `ci`, `refactor`, `perf`, `build` makes a
+   workflow change `chore` and a test change `tests`. A type changed after the
+   popup costs one line ("type changed from X to Y, commitlint").
+2. None → `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `perf`, `build`,
+   `ci`, `revert`; scope only when obvious from the paths.
+3. `type(scope): subject`, subject lowercase, imperative, no period, ≤~72 chars
+   before the gitmoji. Compound scopes (`a,b`) only if `scope-enum` lists them.
+4. Single line by default; a body only on request or when the change needs it.
+   No `Co-Authored-By`, no AI footer.
+5. Message only (no commit) → output only the raw message, no fences.
 
-## Gitmoji (end of subject line)
+## Gitmoji, one, at the end of the subject
 
-Append **one** Unicode emoji at the **end** of the first line, after a space, based on the primary `type`:
-
-| type           | emoji |
-|----------------|-------|
-| feat           | ✨    |
-| fix            | 🐛    |
-| docs           | 📝    |
-| chore          | 🔧    |
-| tests / test   | ✅    |
-| hotfix         | 🚑    |
-| refactor       | ♻️    |
-| perf           | ⚡    |
-| build          | 📦    |
-| ci             | 👷    |
-| revert         | ⏪    |
-
-Example first line: `fix(api): resolve session handling 🐛`
-
-If the repo's commitlint or CI rejects non-ASCII characters, say so and offer the same message **without** the emoji.
-
-## Execution
-
-```bash
-git commit -m "<type>(<scope>): <subject> <emoji>" && git push
-# or with body:
-git commit -m "<type>(<scope>): <subject> <emoji>" -m "<body>" && git push
-```
-
-Commit and push are one `&&` chain, so a hook failure stops the push. **Never pipe `git commit` through `tail` or `head`**: the pipe swallows the exit code, and a push on the next line then ships whatever was already on the branch (2026-09-28: husky failed, nothing was committed, `git push` ran anyway). Check `git log -1` before reporting.
-
-Never `--no-verify`, never `--force` push, never bypass hooks. If a commit or push hook fails, surface the failure and let the user decide.
+feat ✨ · fix 🐛 · docs 📝 · chore 🔧 · tests/test ✅ · hotfix 🚑 · refactor ♻️
+· perf ⚡ · build 📦 · ci 👷 · revert ⏪. Example: `fix(api): resolve session
+handling 🐛`. Commitlint or CI rejects non-ASCII → say so, offer it without.

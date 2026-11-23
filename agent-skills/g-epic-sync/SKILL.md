@@ -1,6 +1,6 @@
 ---
 name: g-epic-sync
-description: Checks that every sub-issue of the active cycle epic is up to date — state, linked PRs (merged into which base), board Status — and finds cycle-labeled issues that sit outside the epic. Reports mismatches in one table, fixes them after one popup. Use for "sprawdź epika", "czy taski w epiku są zaktualizowane", "epic sync", "zsynchronizuj epika", "check the epic", "are the epic tasks up to date", "co jest nie domknięte w cyklu".
+description: Checks every sub-issue of the active cycle epic against reality — state, linked PRs (merged into which base), board Status — and finds cycle-labeled issues outside the epic. One mismatch table, fixes after one popup. Use for "sprawdź epika", "czy taski w epiku są zaktualizowane", "epic sync", "zsynchronizuj epika", "check the epic", "are the epic tasks up to date", "co jest nie domknięte w cyklu".
 ---
 
 # g-epic-sync

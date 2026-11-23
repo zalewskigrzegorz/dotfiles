@@ -3,24 +3,13 @@ description: Local Docker and Postgres are shared with Greg's other sessions —
 alwaysApply: true
 ---
 
-# Local Docker Is Shared — Check Before You Disrupt It
+# Local Docker Is Shared: Check Before You Disrupt It
 
-The local Docker stack (the `<co>-*` containers, `<co>-postgres-1`, the `main`
-database; `<co>` is `$WORK_COMPANY` lowercased) is not yours alone. Other tuios
-agents and Greg's own long jobs use it at the same time. On 2026-09-23 one was
-dumping production data through it for two hours, and a session's `drop
-database main with (force)`, `pnpm start` or broad `pkill -f 'docker compose
--p <co>'` killed that job.
+The local stack (`<co>-*` containers, `<co>-postgres-1`, database `main`; `<co>` = `$WORK_COMPANY` lowercased) is shared with other tuios agents and Greg's long jobs: a session's `drop database main with (force)` once killed a two-hour production dump.
 
-## Before a disruptive step
+**Disruptive** = `DROP DATABASE` (above all `WITH (force)`), `pg_terminate_backend`, `docker compose up/down/restart`, `pnpm start`/`pnpm stop` in the work monorepo, `docker rm/restart`, image rebuilds, any `pkill`/`killall`. Before one:
 
-Disruptive means: `DROP DATABASE` (above all `WITH (force)`, which kills every
-connection), `pg_terminate_backend`, `docker compose up/down/restart`,
-`pnpm start` / `pnpm stop` in the work monorepo, `docker rm/restart`, image
-rebuilds, and any `pkill`/`killall`.
-
-1. **Look for other users first:**
-
+1. **Look for other users**:
    ```bash
    co=$(printf %s "$WORK_COMPANY" | tr '[:upper:]' '[:lower:]')
    docker exec "$co-postgres-1" psql -U myuser -d postgres -At -c \
@@ -28,35 +17,14 @@ rebuilds, and any `pkill`/`killall`.
       from pg_stat_activity where pid <> pg_backend_pid() and datname is not null"
    ps -axo pid,etime,command | rg -i 'pg_dump|pg_restore|psql|docker (exec|run|compose)' | rg -v rg
    ```
+   plus other agents (`ListAgents` / the tuios sidebar).
+2. **Anything long-running you didn't start → stop and ask Greg**, naming pid, command and runtime; never decide it is stale.
+3. **Nothing found → one line, proceed.**
 
-   Also check other agents with `ListAgents` / the tuios sidebar.
-2. **Anything long-running you did not start → stop and ask Greg.** Name what
-   you found (pid, command, how long it has run). Do not decide it is stale.
-3. **Nothing found → say so in one line, then proceed.**
+- **Never `pkill -f` a broad pattern** (`docker compose -p <co>` matches every session): stop only your task id (`TaskStop`) or recorded pid.
+- **Plain `DROP DATABASE` failing on "being accessed"** is the signal to look, not an obstacle to force.
+- **A full `pnpm start` is heavy** and touches every container: say so first, run once, on failure read the log instead of retrying.
+- **A stopped container whose network is gone** (`docker start` → `network … not found`; `compose up -d` alone keeps the old network): after the check, `docker inspect <c> --format '{{range .Mounts}}{{.Type}} {{.Name}}{{"\n"}}{{end}}'` (data on a named volume = safe), then `docker compose -p <project label> up -d --no-deps --force-recreate <service>`.
+- **`docker build` failing on `Lockfile failed supply-chain policy check` is not flaky**: don't rebuild (~17 min each); report the package and rule from the policy line with the recovery move (pin or bump), retry only after the lockfile changed. Say the ~17 min cost before any rebuild.
 
-## Rules
-
-- **Never `pkill -f` a broad pattern.** Stop only what you started: its task id
-  (`TaskStop`) or the pid you recorded. A pattern like `docker compose -p
-  <co>` matches every session's processes.
-- **Never `DROP DATABASE … WITH (force)` without the check above.** Plain
-  `DROP DATABASE` failing on "database is being accessed" is the signal to look,
-  not an obstacle to force through.
-- **A full `pnpm start` is heavy and touches every container.** Say so before
-  starting it, run it once, and on failure read the log instead of retrying in
-  a loop — each retry rebuilds and restarts again.
-- **A stopped container whose network is gone needs a recreate.** `docker
-  start <c>` → `network … not found`, and `docker compose up -d` alone keeps
-  the old network. After the check above: `docker inspect <c> --format
-  '{{range .Mounts}}{{.Type}} {{.Name}}{{"\n"}}{{end}}'` (data on a named
-  volume = recreate is safe), then `docker compose -p <project label> up -d
-  --no-deps --force-recreate <service>`.
-- **`docker build` failing on `Lockfile failed supply-chain policy check` is
-  not flaky** (two ~17 min rebuilds hit it, 2026-10-04). Don't rebuild: read
-  the policy line, report the package and rule with the recovery move (pin or
-  bump it), retry only after the lockfile changed. Say the ~17 min cost before
-  any rebuild.
-
-Reading and seeding the local database, shared `lab*` deploys and PR
-screenshots from a local stack: `~/.claude/rules/work-local-stack.md` (loads
-with monorepo files; `Read` it before a DB step if it is not in context yet).
+Reading and seeding the local DB, shared `lab*` deploys, PR screenshots from a local stack: `~/.claude/rules/work-local-stack.md` (`Read` it before a DB step if not in context).

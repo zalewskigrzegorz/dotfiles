@@ -5,83 +5,30 @@ alwaysApply: true
 
 # Do Not Create Native Git Worktrees
 
-Greg manages git worktrees himself through his own `work` CLI (a nushell
-function over `workctl`: `work new/ls/switch/rm/pr`). Worktrees that Claude Code creates on its own — the
-`.claude/worktrees/agent-*` and `.claude/worktrees/wf_*` directories — are pure
-clutter to him and must not be produced.
+Greg manages worktrees with his own `work` CLI (nushell over `workctl`: `work new/ls/switch/rm/pr`). Claude-made ones (`.claude/worktrees/agent-*`, `wf_*`) are clutter.
 
-## Rules
-
-1. **No `isolation: "worktree"` and no `EnterWorktree`.** The `guard` mod
-   denies both; run subagents in the shared workspace.
-2. Dynamic workflows are disabled globally (`disableWorkflows: true`) — do not
-   route around that.
-3. **If a task genuinely needs an isolated checkout, use `workctl`** (his
-   tooling, below), or ask him — do not reach for native worktree isolation.
-4. This is about *Claude-created* worktrees only. Greg's own `work`/tuios
-   worktrees, and reading/searching inside them, are entirely fine.
+1. **No `isolation: "worktree"` and no `EnterWorktree`** (guard denies both); subagents run in the shared workspace. Dynamic workflows are off globally (`disableWorkflows: true`): don't route around it.
+2. **A task that needs an isolated checkout uses `workctl`** or asks him.
+3. His own `work`/tuios worktrees, and reading inside them, are fine; leave one you made in place when the task ends unless he asks otherwise.
 
 ## `work` is not callable from the Bash tool
 
-`work` is a nushell function, not a binary on `PATH`. The Bash tool
-runs zsh and reports `command not found: work`; the nushell MCP fails the same
-way (`Command \`work\` not found`). Don't retry it and don't ask Greg to install
-anything — his own shell has it, yours doesn't.
-
-`work new` is a thin wrapper over **`workctl`**, and `workctl` is a binary on
-`PATH`. Call it directly, from inside the repo:
+It is a nushell function (zsh and the nushell MCP both say not found): don't retry or ask him to install anything. Call the binary from inside the repo:
 
 ```bash
 workctl --branch <branch> [--base origin/<ref>] --action wt-full --yes --no-focus
 ```
 
-That is the same path `work new` takes: the worktree in his layout
-(`~/Code/tree/wt-<repo>/<branch>`), a tuios session `<repo>-<branch>` with the `nu` and `claude`
-workspaces, `node_modules` and `.env*` cloned (from the base's worktree for a stacked
-branch), and the work skills placed. It works for a new branch, an existing
-branch and an existing worktree, with or without a PR. `--base` defaults to
-`origin/<default>`; pass it for a stacked branch.
+Same path as `work new`: worktree at `~/Code/tree/wt-<repo>/<branch>`, a tuios session `<repo>-<branch>` with `nu` and `claude` workspaces, `node_modules` and `.env*` cloned (from the base's worktree when stacked), work skills placed. Works for new or existing branches and worktrees, with or without a PR; pass `--base` for a stacked branch.
 
-**You do the work yourself from this session → add `--no-claude`.** Without
-it every worktree gets its own Claude pane that never hears a word, and Greg
-sees idle agents in the sidebar whose worktrees hold changes: "doc sharing
-recorders jest pustym agentem bez ani jednego słowa ale na jego wt są zmiany"
-(gzyms, 2026-11-18, three such sessions). Say in the turn that opens it
-"worktree `<branch>`, pracuję z tego okna". Once its PR is open, close it with
-`workctl done` from the worktree, don't wait for Greg to find it.
+- **Working on it yourself from this session → add `--no-claude`**, else an idle Claude pane sits in the sidebar on a worktree with changes. Say "worktree `<branch>`, pracuję z tego okna"; once its PR is open, close it with `workctl done` from the worktree.
+- After `workctl` on an existing branch take the path from `git worktree list --porcelain | rg -B2 'refs/heads/<branch>$'`, not the naming convention, and never `cd` into an unchecked path (b5531ea1).
+- **Fallback only where tuios is missing (the lab)**: `git worktree add -b <branch> ~/Code/tree/wt-<repo>/<branch> origin/main`, said in one line. It lacks the session, agent workspace, work skills, `.env*`, `node_modules`, `.husky/_` and built packages; the fixes are in `~/.claude/rules/work-local-stack.md` (`Read` it before the first commit in a worktree `workctl` didn't make).
 
-Plain `git worktree add -b <branch> ~/Code/tree/wt-<repo>/<branch> origin/main`
-is the fallback only where tuios is missing (the lab). It leaves a bare checkout
-with no session, no agent workspace and no `node_modules`. On 2026-09-29 a worktree
-made that way had to be reopened by hand through the multiplexer's worktree
-command (then herdr's, `tuios worktree new` has the same gap), the layout and
-the seed, and Greg asked for the `workctl` path. Say in one line when you
-fall back. An unseeded worktree misses work skills, `.env*`, `node_modules`,
-`.husky/_` and built packages: the seven gaps and their fixes are in
-`~/.claude/rules/work-local-stack.md` (loads with monorepo files; `Read` it
-before the first commit in a worktree `workctl` did not make).
+## A fix gets its own worktree off `main`, before the first `Edit`
 
-A worktree made either way is one of Greg's, not a Claude-managed one, so rule 4
-covers it: leave it in place when the task ends unless he asks otherwise.
-After `workctl` on an existing branch take the path from `git worktree list
---porcelain | rg -B2 'refs/heads/<branch>$'`, not from the `wt-<repo>/<branch>`
-convention, and don't `cd` into an unchecked path (b5531ea1).
+`git fetch origin main`, then `workctl --branch fix/<slug> --base origin/main --action wt-full --yes --no-focus`; test, commit and open the PR from there. Don't switch branches in place or cherry-pick back.
 
-## A fix gets its own worktree off `main` — before the first `Edit`
-
-`git fetch origin main`, then `workctl --branch fix/<slug> --base origin/main
---action wt-full --yes --no-focus`, then test, commit and open the PR from that
-worktree. Don't switch branches in place and don't cherry-pick back.
-
-- **Decide at the start, not at commit time.** A standalone fix someone is
-  waiting for → `workctl` before the first `Edit` (a commit popup onto the
-  feature branch got "nie, zrób osobny branch i pr teraz", d3a33909).
-- **The main checkout counts too.** A session on a clean `main` in the shared
-  main checkout still goes through `workctl`: `git checkout -b` there moves
-  every other tuios agent onto your branch (02be04c1).
-- **Already staged on the feature branch?** Move it as a patch:
-  `git diff --cached > <scratch>/fix.patch && test -s <scratch>/fix.patch`,
-  `git diff --stat HEAD origin/main -- <files>` (empty = files identical on
-  `main`), `workctl …`, then `git apply --index <scratch>/fix.patch` in the new
-  worktree and `git restore --staged --worktree <files>` in the old one
-  (28875263, merged in 3 days).
+- **Decide at the start**: a standalone fix someone waits for → `workctl` before the first `Edit` (a commit popup onto the feature branch got "nie, zrób osobny branch i pr teraz").
+- **The main checkout counts too**: `git checkout -b` there moves every other tuios agent onto your branch.
+- **Already staged on the feature branch?** Move it as a patch: `git diff --cached > <scratch>/fix.patch && test -s <scratch>/fix.patch`, `git diff --stat HEAD origin/main -- <files>` (empty = identical on `main`), `workctl …`, `git apply --index <scratch>/fix.patch` in the new worktree, `git restore --staged --worktree <files>` in the old one (28875263).

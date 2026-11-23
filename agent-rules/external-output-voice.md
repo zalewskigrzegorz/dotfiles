@@ -3,163 +3,44 @@ description: Always run outward-facing text (PRs, reviews, issues, Slack) throug
 alwaysApply: true
 ---
 
-# Outward-Facing Text — Always Voice It
+# Outward-Facing Text: Always Voice It
 
-Any text that leaves Greg's machine for other people to read MUST be passed
-through the **`greg-voice`** skill before it is posted, created, or sent. This is
-automatic — Greg should never have to ask for it.
+Every text that leaves Greg's machine for other people (PR titles and bodies, PR reviews, inline comments, replies to reviewers, GitHub issues and comments, Slack messages, release notes, other human-facing commit-adjacent prose) goes through the **`greg-voice`** skill before it is posted, created or sent, unasked. Not for code, commit messages (own rules), config, or internal AI artifacts.
 
-## When this applies
+## How
 
-Apply it to every external deliverable, including (not limited to):
+1. **One pass, `greg-voice`.** It strips AI tells and puts his tone in at once. **No `humanizer` before or after**: it flattens the live verbs, dashes and uneven rhythm the voice then rebuilds. **One register everywhere, code review included**: casual, point-first; exact paths, line numbers and versions stay, the stiff wrapper goes, a terse nit stays terse.
+2. **Leave template scaffolding untouched**: changesets, `Reference` / `Fixes #` / `Closes #` links, checklists, templated headings, tables, code blocks. Voice the prose around them.
+3. A skill that drafts the text itself (`g-pr-review`) still gets `greg-voice` over the draft before it leaves.
+4. **The first draft Greg sees is already voiced**, in prose and in a popup `preview` (68513abd). **Every new draft and every edit after his remark gets its own full pass** over the whole text: a skill loaded for an earlier comment doesn't voice the next, and "puszczałeś przez greg voice?" came twice after hand edits. A comment with measurements: the conclusion first, one line per fix with one number, no mechanism.
+5. **His own pasted draft is not rewritten.** "Popraw / uzupełnij" keeps his wording: fix typos, mark added points as `propozycja` and an unchecked one "nie weryfikowałem"; `greg-voice` only on request (e4228afc).
 
-- **PRs** — title and body (`g-pr`, `g-pr-fix-checks` descriptions)
-- **PR reviews** — review summaries, inline comments, replies to reviewers
-  (`g-pr-review`, `g-pr-bump`)
-- **GitHub issues** — bodies and comments (`g-github-issue`)
-- **Slack** — messages, replies, status updates, recaps
-- Any commit-adjacent prose meant for humans, release notes, or other
-  outward-facing writing
+`humanizer` stays for text that is not in his voice: docs, a README, someone else's draft.
 
-It does **not** apply to: code, commit messages (own rules), config, or internal
-scratch/AI artifacts.
+## Slack: send through `g-slack`, as Greg
 
-## How to apply
+Anything that speaks as Greg (reply, opinion, decision, DM) goes through **`g-slack`**: voiced and sent with his user token, no footer. Never the claude.ai Slack MCP `slack_send_message` for that: it stamps `*Sent using* @Claude` publicly. Automation that needs no judgement (PR bumps via `g-pr-bump`, scheduled notifications, daily-brief drops) keeps the Claude footer on its own flow.
 
-1. **One pass, `greg-voice`.** It strips the AI tells and puts Greg's tone in as
-   a single edit. **Do not run `humanizer` before or after it** — that was the
-   old two-step flow and it forced a second trip: humanizer flattens the live
-   verbs, em dashes and uneven rhythm that the voice then has to rebuild.
-   **One register everywhere, code review included.** A PR review comment or a
-   reply to a reviewer gets the same casual, point-first voice as a Slack
-   message — that is the point, not an exception. Casual does not mean vague or
-   longer: exact paths, line numbers and versions stay, the stiff wrapper around
-   them goes, and a terse nit stays terse.
-2. **Leave structured template parts untouched** — do NOT let the voice layer
-   rewrite changesets, `Reference` / `Fixes #` / `Closes #` links, checklists,
-   templated headings, tables, or code blocks. Voice the prose around them; keep
-   the scaffolding intact.
-3. If a skill's own flow (e.g. `g-pr-review`) already drafts the text, run
-   `greg-voice` over that draft before it leaves the machine.
-4. **The first draft Greg sees is already voiced**, in prose and in a popup
-   `preview`. An unvoiced DM draft cost "krócej", then "moim glosem" (68513abd).
-   Every new draft gets its own `greg-voice` pass: a skill loaded for an
-   earlier comment in the session does not voice the next one (f14da52d).
-   **An edit after his remark is a new draft too**: an added paragraph or a
-   cut sentence gets a full `greg-voice` pass over the whole text before he
-   sees it. "puszczałeś przez greg voice?" came twice in one session after
-   hand edits (dca362b1). A comment with measurements: the conclusion first,
-   one line per fix with one number, no mechanism.
-5. **His own pasted draft is not rewritten.** "Popraw / uzupełnij" on text he
-   wrote keeps his wording: fix typos, mark added points as `propozycja` and an
-   unchecked one "nie weryfikowałem". `greg-voice` only on request ("Greg Voice
-   nie zawsze jest tym, co ja piszę", e4228afc).
+**A request to another team: one thread, one message per ask** ("za dużo informacji! 1 wątek na support i osobne wiadomości", fba8a1cf). The top-level is one sentence on what this is about; each ask is its own thread message opening with what we ask for. Greg owns only the tasks he named; everything else is a request to the reader, and unclear ownership is asked before drafting. Things he attaches himself (screenshot, link) are not mentioned.
 
-## Slack — send through `g-slack`, as Greg
+## What the text may say
 
-Slack has a second requirement on top of the voice: **identity.** Any message
-that speaks as Greg goes out through the **`g-slack`** skill, which posts with
-his personal user token (footer-free) after voicing the text. Never send a
-Greg-reply through the claude.ai Slack MCP (`slack_send_message`) — it stamps
-`*Sent using* @Claude` on every message, publicly.
-
-- **Represents Greg** (a reply, an opinion, a decision, a DM) → `g-slack`: voiced
-  + sent as Greg, no footer. This is the default for anything you'd type in a
-  channel on his behalf.
-- **Automation** that transparently didn't need his judgement — PR bumps
-  (`g-pr-bump`), scheduled notifications, daily-brief drops — keeps the Claude
-  footer and stays on its own flow. That footer is correct there, not a bug.
-
-## A request to another team: one thread, one message per ask
-
-A Slack hand-off to support or another team was corrected three times in one
-session (fba8a1cf, 2026-10-12: "za dużo informacji! 1 wątek na support i
-osobne wiadomości").
-
-- **Top-level = one sentence** saying what this is about. Each ask is its own
-  message in the thread, and each opens with what we are asking for.
-- **Greg owns only the tasks he named himself.** Everything else is written as
-  a request to the reader. If ownership is unclear, ask him before drafting:
-  "nie, ja mogę tylko baner, status page nie jestem w stanie".
-- **Things he will attach himself** (a screenshot, a link) are not mentioned in
-  the text.
-
-## Telling a customer to trace an email — search criteria, not our ID
-
-When the text asks someone (a customer, their IT, a partner's admin) to check
-whether an email arrived, give them **sender address + subject + timestamp
-window**, the fields a message trace searches on. **Never hand over our
-internal SES `Message-ID`**: it is opaque outside our system ("id mu przecież
-nic nie da", 2026-09-22).
-
-## Customer-facing text promises only what the source says
-
-Status page, customer mail, banner (805e0816, 2026-10-13, "to jest zle nie
-owinelismy tego tak piosac"):
-
-- **Take only what the source marks as public or what Greg said himself.** An
-  internal technical note is not a promise. "nobody needs to reset anything"
-  was our inference; cut such a sentence or label it `propozycja` before it goes.
-- **"Uprość, bez technicznych detali" swaps jargon for plain words; it does
-  not delete facts.** Every sentence that tells the reader they must act ("orgs
-  using SCIM must update their config") stays. How it works underneath can go.
+- **Customer-facing text (status page, customer mail, banner) promises only what the source marks public or Greg said himself.** An internal note is not a promise: cut our inferences ("nobody needs to reset anything") or label them `propozycja` (805e0816). **"Uprość, bez technicznych detali"** swaps jargon for plain words, it does not delete facts: every sentence telling the reader to act stays.
+- **A mail or message in Greg's name carries only his facts and asks**, including a `spark draft` he reads first and a `g-slack` draft. Run `greg-voice` on a mail to a notary, court, office or firm too. No acceptance, offer or promise he did not state (a price, an action he'd take): make it a question to him or leave it out. Unknown facts stay unknown ("nie wiem, czy…"). "Zapytaj X czy …" is a question, no recommendation he did not give; facts you checked go on their own line above the draft.
+- **A team announcement states no company plan he did not give** ("before lde becomes our default"): a question to him or cut (bb7f0a72).
+- **Text committed to a shared repo is English** (skills, docs, comments); check the whole touched file, frontmatter and trigger lists too, not only the added lines.
+- **Work done with an agent is "I" outward**, "we" only when he speaks for the team.
+- **A review comment about a finding** gives the effect for a user and one ask; function names and mechanism stay in the verdict to Greg.
+- **Telling someone to trace an email**: sender address + subject + timestamp window, never our internal SES `Message-ID` ("id mu przecież nic nie da").
 
 ## Before drafting an issue on someone else's repo
 
-`gh issue list -R <owner/repo> --search "<keywords>" --state all` first. A hit
-→ a comment (+1 with our case) instead of a new issue, and its number goes in
-the first line of the reply. A full draft was thrown away for an open duplicate
-on 2026-10-13 (72209d68).
+`gh issue list -R <owner/repo> --search "<keywords>" --state all` first. A hit → a comment (+1 with our case) instead of a new issue, its number in the first line of the reply (72209d68).
 
 ## UI strings you write
 
-Messages, alerts, empty states, tooltips: short sentences, no `;`, no `—`. Two
-sentences instead of one joined by a semicolon. One look for `[;—]` in the diff
-after writing them. "te copy jest ai generated, ma `;`" (2fcb7035). This is
-product text in code, not replies to Greg.
+Messages, alerts, empty states, tooltips: short sentences, no `;`, no `—` (two sentences instead). One look for `[;—]` in the diff after writing them ("te copy jest ai generated, ma `;`").
 
 ## A reader's example is the spec
 
-When the person who reads the output gives an example of the format they want
-("e.g. …"), copy it line for line: same blocks, same line length, same labels,
-same markup or lack of it. Don't carry over sections, bullets, bold, ticket
-numbers, counters or estimates from the old format, and don't "improve" it. What
-the example doesn't show stays out unless Greg asks for it.
-
-After changing a skill or command that produces that output, run it once
-draft-only on real data and put the draft next to the example before committing.
-
-Caught 2026-09-29 on `g-cycle-daily`: the rewrite kept bold, bullets, `#n`, a
-week counter and blockers; stripping them took 3 drafts.
-
-## When `humanizer` is still the right skill
-
-`humanizer` remains a standalone tool for text that is **not** in Greg's voice —
-docs, a README, someone else's draft he is cleaning up, anything where the goal
-is "sounds less like AI" rather than "sounds like Greg". Outward-facing text in
-his own name goes through `greg-voice` instead.
-
-## A mail in Greg's name carries only his facts and asks
-
-A formal mail to a notary was drafted without `greg-voice` and with two lines
-Greg never gave ("koszt 300 zł brutto jest dla mnie w porządku", "mogę
-wystąpić do sądu o te informacje") (2026-10-21).
-
-- **Run `greg-voice` on a mail to a notary, court, office or firm** even when
-  the draft goes through `spark draft` and Greg will read it first.
-- **No acceptance, offer or promise he did not state** (a price, an action he
-  would take). Put it in the draft as a question to him or leave it out.
-- **Unknown facts stay unknown in the text** ("nie wiem, czy…"); don't fill
-  them with a plausible guess, and let him change the wording.
-- **The same holds for a Slack draft through `g-slack`.** "Zapytaj X czy …"
-  is a question, no recommendation he did not give. Facts you checked go on
-  their own line above the draft (05b043b3).
-- **Work done with an agent is "I" outward**, "we" only when he speaks for the
-  team (1e9327a9).
-- **A review comment about a finding** gives the effect for a user and one ask.
-  Function names and mechanism stay in the verdict to Greg (1e67bfbf).
-- **A team announcement states no company plan he did not give** ("before lde
-  becomes our default"): a question to him or cut (bb7f0a72).
-- **Text committed to a shared repo is English** (skills, docs, comments), and
-  the whole touched file is checked, frontmatter and trigger lists too, not only
-  the added lines (3320054c).
+When the reader of an output gives an example of the format ("e.g. …"), copy it line for line: same blocks, line length, labels, markup or its absence. Carry nothing over from the old format (sections, bullets, bold, ticket numbers, counters, estimates) and don't "improve" it; what the example doesn't show stays out unless Greg asks (`g-cycle-daily` took 3 drafts). After changing a skill or command that produces it, run it once draft-only on real data and compare with the example before committing.

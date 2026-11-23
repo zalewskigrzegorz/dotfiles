@@ -5,9 +5,8 @@ description: Walk Greg's open PRs one by one and get a decision for each — reb
 
 # pr-triage-walk
 
-Born from ecc92e2d (2026-10-23): Greg said "jest tego 9", there were 11, old
-drafts went into one "co zamykamy, niezaznaczone zostają" multi-select, and a
-PR he wanted refreshed was reported as "zostawione bez zmian".
+Why (ecc92e2d): Greg's count was off by two, and one multi-select reported a PR
+he wanted refreshed as "zostawione".
 
 ## Steps
 

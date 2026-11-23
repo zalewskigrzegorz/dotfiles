@@ -1,77 +1,35 @@
 ---
 name: mac-cpu-triage
-description: Diagnose why a macOS process is eating CPU (or memory) and decide whether it's tunable or a symptom of something else. Use when Greg points at Activity Monitor, sends a screenshot of a hot process, or says "te procesy szaleją", "co żre CPU", "czemu to mieli", "proces wisi", "load jest wysoki", "wentylatory szaleją", "why is X using so much CPU", "what's pegging my mac", "high CPU", "fan is spinning", "myszka się zacina", "kursor staje", "trackball przerywa". Covers the full triage flow (top consumers → per-process sample → driver attribution → verdict) and the classes of culprit on Greg's machine: Kandji ESF (MDM, untunable amplifier of git/node churn), Accessibility-API window managers (HyprMac now, AeroSpace until 2026-10-25: refresh storms from chatty apps), Slack renderer hangs, and display-reconfig crashes of sketchybar.
+description: Diagnose why a macOS process eats CPU or memory and whether it's tunable or a symptom. Use when Greg points at Activity Monitor or a screenshot of a hot process, or says "te procesy szaleją", "co żre CPU", "czemu to mieli", "proces wisi", "load jest wysoki", "wentylatory szaleją", "why is X using so much CPU", "what's pegging my mac", "high CPU", "fan is spinning", "myszka się zacina", "kursor staje", "trackball przerywa". Covers the triage flow and known culprits (Kandji ESF, AX window managers, Slack renderer, sketchybar, WindowServer stalls).
 ---
 
 # mac-cpu-triage
 
-Diagnose a hot macOS process, attribute the CPU to a *driver*, and give a verdict: tunable, untunable-amplifier, or fixable-symptom. Greg does this often — don't reinvent the flow each time.
+A hot process is often a **symptom**: observers (Kandji ESF, Spotlight, HyprMac, WindowServer) burn CPU in proportion to what *other* processes do. Ask what it reacts to before naming it the culprit.
 
-## Core principle
+## Flow (stop when the verdict is clear)
 
-A process pegging CPU is often a **symptom**, not the cause. Security/observer processes (Kandji ESF, Spotlight, the window manager (HyprMac), WindowServer) burn CPU **proportional to what *other* processes do**. Always ask "what is this process *reacting to*?" before declaring it the culprit.
+1. **Top now:** `ps -Ao pid,ppid,%cpu,%mem,user,comm -r | head -15` and `uptime` (load ≫ cores = spawn/IO storm from git/node/exec churn, not one thread). `ps -r` ranks; don't trust lifetime `%cpu` for "right now".
+2. **Attribute:** `sample <PID> 2 -mayDie | sed -n '/Call graph/,/^$/p' | grep -E "[0-9]{3,} +[A-Za-z]" | head -25`. Skip idle waits (`mach_msg`, `RunCurrentEventLoopInMode`); find the deepest heavy frame in the app's code. Root-owned (Kandji ESF) can't be sampled without sudo: attribute by event volume from step 1.
+3. **Driver:** exec/file amplifiers (ESF, `mds`) ← git, node, builds, `softwareupdated`, reindex. AX observers (HyprMac) ← one chatty app (animated Electron, stuck "Loading" window, menubar timer): sample the WM, quit suspects one at a time. WindowServer ← redraw volume.
+4. **Verdict:** **Tunable** (config, quit chatty app, file upstream) · **Untunable amplifier** (reduce churn, move it to a VM/lab, ask IT for MDM path exclusions) · **Fixable symptom** (watchdog that restarts).
 
-## The flow
+## Known culprits
 
-Run these in order. Stop as soon as the verdict is clear.
-
-### 1. Top consumers (instantaneous, not lifetime avg)
-
-```bash
-ps -Ao pid,ppid,%cpu,%mem,user,comm -r | head -15
-uptime   # load average — >cores means a spawn/IO storm, not one heavy thread
-```
-
-`%cpu` from `ps -r` is a decaying average, good enough to rank. Load average ≫ core count = many short-lived processes or IO storm (look at git/node/exec churn), **not** a single hot thread.
-
-### 2. Per-process attribution — where does the CPU actually go?
-
-For a process you own (or any non-root), `sample` gives the hot call stack without sudo:
-
-```bash
-sample <PID> 2 -mayDie 2>/dev/null | sed -n '/Call graph/,/^$/p' \
-  | grep -E "[0-9]{3,} +[A-Za-z]" | head -25
-```
-
-Read the heaviest leaf frames. The sample count next to a frame = how many of the N samples sat there. Idle event-loop waits (`mach_msg`, `RunCurrentEventLoopInMode`) are NOT the work — skip them, find the deepest frame with a big count in the app's own code.
-
-Root-owned processes (system extensions like Kandji ESF) **cannot be sampled without sudo** and you usually can't/shouldn't. Attribute them indirectly: their CPU = f(system event volume), so look at what's generating events in step 1.
-
-### 3. Driver attribution
-
-- **exec/file-event amplifiers** (Kandji ESF, any EndpointSecurity client, Spotlight `mds`/`spotlightknowledged`): driven by `exec()` + filesystem event volume. Drivers = git, node, build tools, `softwareupdated`, Spotlight reindex. Confirm by checking step-1 list for those.
-- **Accessibility observers** (HyprMac, formerly AeroSpace, other AX window managers): driven by AX notifications from open apps. A single chatty app (Electron showing animated content, an app with a stuck/"Loading" window, a live menubar timer) triggers a full refresh loop. Confirm: `sample <pid>` on the window manager, then quit suspects one at a time and re-check CPU.
-- **Compositors** (WindowServer): driven by redraw volume — animation, borders (JankyBorders), constant repaints from a busy renderer.
-
-### 4. Verdict
-
-Classify into one of three:
-
-| Verdict | Meaning | Action |
-|---|---|---|
-| **Tunable** | App you own, real config/usage lever | change config, quit chatty app, file upstream |
-| **Untunable amplifier** | MDM/system, CPU = other procs' churn | reduce the churn, or move it off-host (VM/lab); for MDM, request path-exclusions from IT |
-| **Fixable symptom** | A specific app hangs/leaks | watchdog that detects + restarts (see below) |
-
-## Known culprits on Greg's machine
-
-- **`io.kandji.KandjiAgent.ESF-Extension`** (root, PID ~523) — Kandji EDR Endpoint Security extension. **Untunable amplifier.** Hooks every exec + file event system-wide. Spikes during heavy git/node multiagent-worktree work, `softwareupdated`, Spotlight reindex. Greg cannot kill/throttle it (MDM). Levers: ask Kandji admin for path-exclusions on `~/Code`; run multiagent churn in a VM/lab; cap agent concurrency. See `~/Code/personal/bazgroly/dotfiles/analysis/2026-06-26-kandji-esf-aerospace-cpu.md`.
-- **`AeroSpace`** (retired 2026-10-25, replaced by HyprMac; kept as history, not checked on HyprMac) — AX-based tiling WM. Hot path = `scheduleRefreshSession → refresh() → refreshAllAndGetAliveWindowIds`. **Tunable via the chatty app, not window count.** Greg's ~5 windows are fine; a single app spamming AX (Comet on animated pages, a stuck Boom "Loading" window) drives the refresh storm. Find it by quitting suspects. The ~80 `on-window-detected` rules in `aerospace.toml` are NOT the cause (watcher/sketchybar are cheap).
-- **`Slack Helper (Renderer)`** — periodically hangs and pegs 130-185%. **Fixable symptom.** Handled by `com.greg.slack-watch` launchd agent → `bin/slack-renderer-watchdog` (restarts Slack after sustained high CPU, with cooldown).
-- **sketchybar dying on display reconfig** (resolution change, monitor connect/disconnect) — known crash class. It dies OR hangs (frozen but alive); AeroSpace did the same and had its own watchdog, retired with it. The watchdog `com.greg.sketchybar-watch` → `bin/sketchybar-watchdog` (restarts sketchybar if dead OR unresponsive to a `--query bar` liveness probe, 15s). Detection is consequence-based, so it catches any trigger, not just display changes. **"Why did the bar die / restart / lag" starts with `bin/sketchybar-why`** (`-v` for the samples before a restart): `com.greg.sketchybar-diag` records pid changes, who ran `sketchybar-restart` (process chain + reason), hot or piling-up processes in the tree, and a `sample` on every slow watchdog probe, in `~/Library/Logs/sketchybar-diag/`. It sees processes only: a bar that vanished while the log shows nothing is the render-freeze (alive, answering `--query`, not drawing), which the display listener handles.
-- **sketchybar event loop** — sketchybar (~35%), launchd (~26%), notifyd, cfprefsd and WindowServer (~70%) all hot together, load far above normal, right after a sketchybar config change. **Fixable symptom.** A handler subscribed to `forced` that runs `sketchybar --update` (which fires `forced`) or `--trigger forced` calls itself forever (2026-10-19, `items/compact.lua`). Check `git log -p --since=2.hours dot_config/sketchybar`, guard the call so it runs only on a real state change, then `bin/sketchybar-restart` — its probe flags sketchybar above 20% cpu.
-- **Cursor freezes for 1–10 s, trackball or mouse "przerywa"** — not the mouse, not its software (Logi Options+ since 2026-10-25, ruled out the next day by stopping its agent), not CleanShot (screenshot times matched stalls at chance level). WindowServer logs bursts of `transaction N timed out` and `Cursor disabled: failed set_cursor_surface`, ~220 episodes in 6 h, starting at a monitor reconfig. On 2026-10-22, ruled out one at a time with a 5-minute count each: both externals on a fixed 60 Hz, quitting Spark, killing the Comet GPU process. **Cause: JankyBorders (`borders`)**, 2 days up with `hidpi=on` on 3 displays (upstream #128, #188). Killing it gave 12 minutes with 0 timeouts where bursts had come every 1–4 min. `hidpi=off` brought a 53-timeout burst back within a minute, so borders was removed for good (formula, `bordersrc`, `aerospace.toml` startup, `mocha-neon-reload`). Don't propose reinstalling it. `failed set_cursor_surface` without timeouts is log noise, not a freeze. Count the stalls with `scripts/ws-stall-count.sh [minutes=10]` (one line per minute, run it in the background), not a new `log show` loop; the burst right after a refresh change or an app restart is that event itself. To test Comet or another Chromium app, `kill` only its helper with `--type=gpu-process`: Chromium respawns it and the tabs stay.
-- **Cursor jumps instead of gliding, no freezes** (2026-10-26). Ask first whether the trackpad is smooth: if it is, the system is fine and the mouse loses radio packets. WindowServer had 0 timeouts. The Bolt receiver (`0xc548`) sat in a hub next to a USB 3.0 hub, which jams 2.4 GHz. Moving it to a port close to the mouse fixed it in 3 steps. Stopping the Options+ agent (`launchctl bootout`, then `bootstrap gui/501 /Library/LaunchAgents/com.logi.optionsplus.plist`) and HyprMac (it taps the keyboard only) changed nothing.
-- **Input reaches the Mac but the UI ignores it** (Greg writes from the phone, 2026-10-23, ~28 calls from scratch). In order: (1) `scripts/synth-events.sh [minutes]` counts WindowServer `prohibited from synthesizing` per minute; a flood means an event-tap app. (2) `system_profiler SPUSBDataType SPThunderboltDataType` empty → dock or cable, not CPU. (3) Kill the event-tap apps (Clop, CleanShot, Raycast, HyprMac) in one command with pids re-read by `ps -p` right before `kill` (a stale pid killed JamSQL), then bring them back one by one. (4) WindowServer itself → `sudo` goes to a split under your pane (ops-traps); no input at all → hard restart (hold Touch ID ~10 s). That day the flood started with Spark; the culprit was never caught.
-- **"Wszystko się zawiesiło, zrestartowałem"** (2026-10-28, ~10 calls). After the reboot: `sysctl -n kern.boottime`, then `ls -lt /Library/Logs/DiagnosticReports/`. `forceReset-*.diag` with `panic(...): btn_rst` is Greg holding the power button, not a kernel panic. `JetsamEvent-*.ips` minutes before it is memory exhaustion: `sed 1d <f> | jq` over `.processes` sorted by `rpages` (×16384 B), grouped by `.name`, and `.memoryStatus.memoryPages.free`. That day: free ~137 MB of 48 GB after a wake from sleep (`log show` around it: `IOPlatformWakeAction`), the Vimma GPU Helper at 5.2 GB plus 17 `plugin-container` (Gecko, ~10.5 GB in all), and colima's `com.apple.Virtualization.VirtualMachine` at 3 GB. A Gecko GPU process that grows is upstream (Bugzilla 1962210); `about:processes` kills it without a browser restart.
-- **Audio drops in headphones.** `pmset -g assertions` plus the age of Electron GPU helpers (`ps -o etime`): a 2-day audio stream in a chat app's GPU process was the cause. Restart that app, not `coreaudiod`.
-- **Spotlight is off on all volumes since 2026-10-23** (`sudo mdutil -ai off`, Greg uses Raycast). `mds_*` in the top list now means it was switched back on; `sudo mdutil -ai on` restores it.
+- **`io.kandji.KandjiAgent.ESF-Extension`** (root) — untunable amplifier, spikes with multi-agent git/node work. Can't kill/throttle. Levers: path exclusions on `~/Code` from the Kandji admin, churn on the lab, fewer parallel agents. `~/Code/personal/bazgroly/dotfiles/analysis/2026-06-26-kandji-esf-aerospace-cpu.md`.
+- **AeroSpace** (retired 2026-10-25, history): refresh storms came from one chatty app, not window count or the `on-window-detected` rules; never tune those.
+- **`Slack Helper (Renderer)`** pegging 130–185% — handled by `com.greg.slack-watch` → `bin/slack-renderer-watchdog`.
+- **sketchybar dies or hangs on display reconfig** — `com.greg.sketchybar-watch` → `bin/sketchybar-watchdog` (dead or no `--query bar` answer in 15 s). "Why did the bar die/restart/lag" → `bin/sketchybar-why` (`-v`), from `com.greg.sketchybar-diag` logs in `~/Library/Logs/sketchybar-diag/`. A bar gone while logs show nothing = render freeze, handled by the display listener.
+- **sketchybar event loop** (sketchybar, launchd, notifyd, cfprefsd, WindowServer all hot after a config change): a `forced` handler that runs `sketchybar --update` / `--trigger forced` calls itself. `git log -p --since=2.hours dot_config/sketchybar`, guard the call, `bin/sketchybar-restart` (flags >20% cpu).
+- **Cursor freezes 1–10 s** (WindowServer `transaction N timed out` bursts): was JankyBorders with `hidpi=on`, removed for good; don't reinstall. Not the mouse, Options+, CleanShot, refresh rate. `failed set_cursor_surface` alone is noise. Count with `scripts/ws-stall-count.sh [minutes=10]` in the background; the burst right after a refresh change or app restart is that event. Test a Chromium app by killing only its `--type=gpu-process` helper.
+- **Cursor jumps, no freezes** (trackpad smooth) → radio: the Bolt receiver next to a USB 3.0 hub. Move it close to the mouse.
+- **Input reaches the Mac, UI ignores it:** (1) `scripts/synth-events.sh [minutes]` (flood of `prohibited from synthesizing` = event-tap app); (2) empty `system_profiler SPUSBDataType SPThunderboltDataType` → dock/cable; (3) kill Clop, CleanShot, Raycast, HyprMac in one command with pids re-read by `ps -p` right before `kill` (a stale pid killed JamSQL), bring back one by one; (4) WindowServer → `sudo` split (ops-traps); no input at all → hold Touch ID ~10 s.
+- **"Wszystko się zawiesiło, zrestartowałem":** `sysctl -n kern.boottime`, `ls -lt /Library/Logs/DiagnosticReports/`. `forceReset-*.diag` with `btn_rst` = Greg held power, not a panic. `JetsamEvent-*.ips` just before = memory exhaustion: `sed 1d <f> | jq` over `.processes` by `rpages` (×16384 B) grouped by `.name`, plus `.memoryStatus.memoryPages.free`. Growing Gecko GPU process (Vimma) is upstream (Bugzilla 1962210); `about:processes` kills it in place.
+- **Audio drops:** `pmset -g assertions` + age of Electron GPU helpers (`ps -o etime`); restart that app, not `coreaudiod`.
+- **Spotlight off since 2026-10-23** (`sudo mdutil -ai off`); `mds_*` hot = it was turned back on.
 
 ## Don't
 
-- Don't declare the top process the culprit before checking what it reacts to.
-- Don't trust `ps` lifetime `%cpu` for a "right now" question — use `ps -r` ranking or `sample`.
-- Don't try to `kill`/`renice` a root-owned MDM extension — it's locked and respawns.
-- Don't propose tuning `aerospace.toml` callback rules for AeroSpace CPU (history, AeroSpace is retired) — the cost is AX refresh, not the callbacks.
-- Don't call an intermittent problem fixed after one or two clean minutes. A test window is at least 10 minutes, or 3× the longest gap between bursts, and nothing goes into this skill or Hindsight as "the fix" before that window held (2026-10-22: 60 Hz was declared the fix and retracted three times).
-- Don't date when a problem started from the tail of a per-minute count. Take the first matching log line.
+- Don't `kill`/`renice` a root MDM extension (locked, respawns).
+- Don't call an intermittent problem fixed before ≥10 min or 3× the longest gap held; nothing goes into this skill or Hindsight as "the fix" before that.
+- Don't date a problem's start from the tail of a per-minute count; take the first matching log line.

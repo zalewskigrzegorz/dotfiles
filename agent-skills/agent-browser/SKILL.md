@@ -1,103 +1,31 @@
 ---
 name: agent-browser
-description: The UNATTENDED browser — headless-ish Chrome/CDP on its own profile, accessibility-tree snapshots with @eN refs, cheapest in tokens. Use when Greg says "agent browser", "strzel na tę stronę", "sprawdź tę stronę", "zescrapuj", "odpal test na deployu" — or for any quick browser job that needs no login and no watching: fetch a public page, scrape docs, read the DOM, screenshot, smoke-test a deployed URL. If the task needs his login/session, gets bot-blocked, needs a captcha or 2FA, or he wants to watch it happen, use the `browsentic` skill instead.
+description: The UNATTENDED browser — Chrome/CDP on its own profile, accessibility snapshots with @eN refs, cheapest in tokens. Use on "agent browser", "strzel na tę stronę", "sprawdź tę stronę", "zescrapuj", "odpal test na deployu", or any browser job with no login and no watching: fetch or scrape a public page, read the DOM, screenshot, smoke-test a deployed URL. His login, bot-block, captcha, 2FA or him watching → `browsentic`.
 allowed-tools: Bash(agent-browser:*) Bash(npx agent-browser:*)
 ---
 
 # agent-browser
 
-Fast browser automation CLI for AI agents. Chrome/Chromium via CDP, no Playwright/Puppeteer dependency. Accessibility-tree snapshots with compact `@eN` refs.
-
-## Load the real skill first
-
-This SKILL.md is a thin pointer. The full, version-matched usage guide ships with the CLI — load it before doing any browser work:
+Stack choice and anti-bot sites: rule `browser-stacks.md` (OLX works here, otomoto does not). This file is a pointer: the version-matched guide ships with the CLI, load it before any work:
 
 ```bash
 agent-browser skills get core --full
+agent-browser skills list    # specialised: electron, slack, dogfood, agentcore, vercel-sandbox (… get <name> --full)
 ```
 
-For specialized tasks load the matching skill instead:
+## Core loop
 
 ```bash
-agent-browser skills list                  # see all available
-agent-browser skills get electron --full   # VS Code, Slack desktop, Discord, Figma desktop
-agent-browser skills get slack --full      # Slack web workspaces
-agent-browser skills get dogfood --full    # exploratory UI testing / bug hunting
-agent-browser skills get agentcore --full  # AWS Bedrock AgentCore cloud browsers
-agent-browser skills get vercel-sandbox --full  # Vercel Sandbox microVMs
+agent-browser open <url>
+agent-browser snapshot -i       # interactive elements → @e1, @e2 …
+agent-browser click @e3         # also fill/type/press/select/check/upload, find role|text|label|testid …
+agent-browser snapshot -i       # refs go stale after ANY page change
+agent-browser close             # or close --all
 ```
 
-## The core loop (cheat sheet)
-
-```bash
-agent-browser open <url>        # 1. open
-agent-browser snapshot -i       # 2. interactive elements only — gives @e1, @e2 ...
-agent-browser click @e3         # 3. act on refs
-agent-browser snapshot -i       # 4. re-snapshot after ANY page change (refs go stale)
-agent-browser close             # 5. when done (or `close --all`)
-```
-
-The browser persists across commands via a daemon, so chained calls share state. Chain with `&&` in a single shell call when you want atomic sequences.
-
-## Quick reference
-
-```bash
-# Reading
-agent-browser get text @e1
-agent-browser get html @e1
-agent-browser get attr @e1 href
-agent-browser get title
-agent-browser get url
-
-# Acting
-agent-browser fill @e2 "hello"
-agent-browser type @e2 " world"
-agent-browser press Enter
-agent-browser select @e4 "option-value"
-agent-browser check @e3
-agent-browser upload @e5 file.pdf
-agent-browser scroll down 500
-
-# Locators (when refs don't fit)
-agent-browser find role button click --name "Submit"
-agent-browser find text "Sign In" click
-agent-browser find label "Email" fill "user@test.com"
-agent-browser find testid "submit-btn" click
-
-# Waiting (pick one; avoid bare `wait <ms>`)
-agent-browser wait @e1
-agent-browser wait --text "Success"
-agent-browser wait --url "**/dashboard"
-agent-browser wait --load networkidle
-
-# Output
-agent-browser screenshot result.png
-agent-browser screenshot --full
-agent-browser screenshot --annotate        # labeled screenshot for vision models
-agent-browser pdf page.pdf
-
-# Sessions / profiles
-agent-browser --profile Default open gmail.com           # reuse Chrome login state
-agent-browser profiles                                    # list available profiles
-agent-browser --session-name myapp open example.com      # auto save/restore state
-agent-browser state save ./auth.json                      # persist cookies + storage
-
-# CDP / streaming
-agent-browser --auto-connect snapshot                     # attach to running Chrome
-agent-browser --cdp 9222 snapshot
-agent-browser stream enable
-
-# AI chat (uses Vercel AI Gateway via AI_GATEWAY_API_KEY)
-agent-browser chat "open google.com and search for cats"
-```
-
-## Notes
-
-- Refs (`@eN`) are reassigned on every snapshot. Always re-snapshot after page-changing actions.
-- Snapshot output is ~200-400 tokens vs. raw HTML — prefer `snapshot -i` over `get html`.
-- Default engine is Chrome. `AGENT_BROWSER_ENGINE=lightpanda` for headless light engine.
-- For credentials use `agent-browser auth save/login` instead of shell history.
-- Shell state does not survive between Bash calls, so a helper function has to be redefined in every call (7× in one session, 2026-10-08). For a series of calls, write `agent-browser --session-name <slug> …` in full each time.
-- Classifieds with anti-bot (otomoto.pl) block this browser. Go straight to `browsentic`; don't spend 2–3 calls finding out. OLX works here.
-- Writing actual Playwright `.spec.ts` files in the work repo is a different job — run them with the `pwt` nushell helper (`test e2e`), which uses the repo's local Playwright. That path is alive and unaffected.
-- What is gone: the playwright MCP block and the global `@playwright/cli`, deleted 2026-07-27 (commented out since 2026-05-24) because agent-browser covered every ad-hoc automation case. The recipe to bring the MCP back is in the comment at that spot in `agent-mcp/mcp-servers.json.tmpl`.
+- A daemon keeps the browser between commands; chain with `&&` for atomic sequences.
+- Wait on a state (`wait @e1`, `--text`, `--url`, `--load networkidle`), not bare `wait <ms>`.
+- `snapshot -i` (~200–400 tokens) over `get html`. `screenshot --annotate` for vision.
+- Credentials: `agent-browser auth save/login`, never shell history.
+- Shell state dies between Bash calls: write `agent-browser --session-name <slug> …` in full each call instead of a helper function.
+- Playwright `.spec.ts` in the work repo is a different job: the `pwt` nushell helper (`test e2e`). The playwright MCP and global `@playwright/cli` were removed 2026-07-27; the restore recipe is a comment in `agent-mcp/mcp-servers.json.tmpl`.

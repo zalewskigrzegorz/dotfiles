@@ -810,65 +810,63 @@ Do not check on every session or before every command - this skill is the source
 
 ## Local notes (Greg's dotfiles — re-add after a `spark skill` refresh)
 
-- **`Spark CLI can't access your Spark Desktop application` → stop after one try.** `spark` is an IPC client; the app is not running or the CLI is off in its settings. One line to Greg ("otwórz Spark Desktop i włącz CLI w ustawieniach"), no retry loop, no guessing the app name with `open -a` (`open -a "Spark Desktop"` fails, 2026-09-25). Resume only after his "gotowe".
-- **"wyślij" means sent, not drafted.** Access differs per account (`spark accounts`): the iCloud one is `triage`, so `spark action send <id>` answers "Waiting for your approval", yet it may already be sent (see "`action send` on a triage account" below); confirm with `spark history` and the `Sent` folder, never assume either way. The flow is: show the text, wait for "wyślij" (or `kk`), `spark draft`, read the echoed `Body:` back, then `spark action send <id>`. Stopping at the draft got "nie tylko szkic!" (2026-10-09). Without a "wyślij", a draft is the end of the task and you say so ("draft 68908 czeka w Sparku").
-- **The Gmail signature is a work one** ("Software Engineer" + phone). For private formal mail (notariusz, urząd, bank, dealer) pass `--no-signature` and end the body with his own sign-off; otherwise keep the default and leave the sign-off out, as the upstream tip says.
-- **Long threads with quoted history and signatures:** `scripts/thread-clean.sh <id>` prints only the new text per message (strips `>` quotes, signatures, NIP/address footers). Reach for it before hand-writing an `rg -v` chain.
-- **`--filter` takes only the documented operators.** A bare word (`Elroq`) errors with `unsupported filter(s)` and `OR` or parentheses are silently ignored, returning unrelated mail (2026-10-21). Keywords go in the positional topic: `spark search "elroq zamówienie" --filter "from:x newer_than:2m"`.
-- **Folder names are Spark's, not Gmail's.** `"<account>:[Gmail]/Sent Mail"` → `folder not found`; use `<account>:Sent` (also `Drafts`, `Archive`, `Trash`). Exact names: `spark folders`.
-- **Attachments are already on disk.** `spark thread <id>` lists them with a `Path` column under `~/Library/Caches/Spark Mail/messagesData/…`; read it from there, no `spark attachment` needed. `pdftotext`, `pdftoppm`, `qpdf`, `ocrmypdf`, `tesseract` (with `pol`) and `mutool` were installed on 2026-10-21, so `pdftotext -layout "<path>" -` works. `spark attachment` only when the path says "(not downloaded)" (dealer offers and an invoice, 2026-10-12).
-- **Before saying Spark can't do something, compare `spark --version` with `metadata.version` above.** "Spark doesn't send mail" was wrong because the file still described 1.1.0 while the CLI was 1.3.1 (2026-10-09). A newer CLI means refresh first.
-- **`draft --body` is markdown: `m.in.` becomes a link.** A sent mail showed `[m.in](m.in)` (2026-10-21). Write "między innymi" and check the echoed `Body:` for domain-like tokens (`m.in.`, `np.`, `tj.` followed by a space is fine, a dotted pair is not).
-- **A draft id changes after Greg edits it in Spark, and the sent copy may leave from another account.** Draft 9654 became 9656, `--delete 9654` said "not found", and the mail went out from the iCloud account as 9658 (2026-10-21). Before `--delete`, list `<account>:Drafts`, and search `to:<recipient> newer_than:1d` across accounts to see whether it was already sent.
-- **"Rozmowa z <imię> dzisiaj", "zobacz spotkanie", "co ustaliliśmy z <imię>" → the meeting transcript first.** `spark meetings --filter "after:<yyyy/MM/dd>"` plus the person's name in `subject:` or the title, then `spark meeting --transcript <id>`. Slack DMs only when no transcript exists.
-- **A draft handed to Greg is alive.** Before `spark draft --edit <id>` check `spark emails <account>:Drafts`. Not there → the mail already left, a change is a new draft with `--reply-to` (`draft 31453 not found`, a paragraph never arrived). Settle wording changes in chat before creating the draft.
-- **Refresh = `spark skill` + this section.** Write the upstream text into this file in dotfiles (never into `~/.claude/skills/`, stage 30 rsyncs over it), re-append this section, then `bin/sync`.
-
-### `spark` not found ≠ Setapp
-
-`command -v spark` failing is not proof of the Setapp build (66c7125f):
-
-1. `ls -ld /usr/local/bin` and `ls /Applications | rg -i spark`.
-2. App under `/Applications/Setapp/` → no CLI, say so in one line.
-3. `Spark Desktop.app` and `/usr/local/bin` is `drwx------` → the fix is
-   `sudo chmod 755 /usr/local/bin`, typed into Greg's pane without Enter (sudo
-   rule). Never guess "CLI wyłączone".
-4. `spark accounts` → "No accounts found" means the agent access level is off
-   (Settings → AI Agents, at least read-only per account). Empty `search`
-   results mean nothing until `accounts` lists them.
-
-### `action send` on a triage account: the "Waiting" message lies
-
-`action send` answers "Waiting for your approval … in Spark Desktop. Nothing
-has been sent yet", but on 2026-10-29 a mail to a kancelaria went out at once
-(it sat in Sent, `spark history` said `action send ok`); twice "nic nie
-wyszło" got "Kłamiesz, bo ja widzę, że jest wysłane". So:
-
-- **Treat `action send` as sending.** Run it only after "wyślij" or `kk` on
-  the final text. "Popraw tekst" opens a new round: show the corrected text
-  again and wait for "wyślij". A footer change is not consent either.
-- **After every `action send`**, before reporting: `spark search --filter
-  "to:<addr> newer_than:1d"` and `spark history`. Report what they show, sent
-  or queued, never the CLI's own message.
-- Away from the Mac → give the draft link and skip `action send`.
-
-### "Przejrzyjmy maile": the list first, then one at a time
-
-A drafted reply in a popup right after "przejrzeć rzeczy z poczty" got
-"najpierw przyjrzyjmy, co tam jest do zrobienia", and a batch "co z resztą"
-got "lecimy po kolei" (0303ab99).
-
-- First a list with no actions: one line per matter, who wrote, what they
-  want, what waits on Greg.
-- Then one matter at a time, in the list's order. No draft and no "wyślij"
-  popup before the list.
-- No batch question about the rest (archive newsletters and the like) until
-  he asks.
-- A matter he has context on from a call or his phone: ask for it in one
-  sentence before drafting, don't guess (the kancelaria had phoned).
-
-### Mail to a company about an order
-
-The sender is the account the order went to: `spark search --filter
-"from:<domain>"` first, not the default account. An image attachment can be
-piped into `spark draft` on stdin; name it in one report line.
+- **Refresh = `spark skill` + this section**: write the upstream text into this
+  file in dotfiles (never `~/.claude/skills/`, stage 30 rsyncs over it),
+  re-append this section, `bin/sync`. Before saying Spark can't do something,
+  compare `spark --version` with `metadata.version` (a 1.1.0 file once said
+  "Spark doesn't send mail" next to a 1.3.1 CLI).
+- **`Spark CLI can't access your Spark Desktop application` → stop after one
+  try**: one line "otwórz Spark Desktop i włącz CLI w ustawieniach", no retry,
+  no guessing `open -a` names. Resume after "gotowe".
+- **`spark` not found ≠ Setapp** (66c7125f): `ls -ld /usr/local/bin`, `ls
+  /Applications | rg -i spark`. Under `/Applications/Setapp/` → no CLI, one
+  line. `Spark Desktop.app` with `/usr/local/bin` at `drwx------` → `sudo
+  chmod 755 /usr/local/bin` into Greg's pane without Enter (sudo rule); never
+  guess "CLI wyłączone". `spark accounts` → "No accounts found" = agent access
+  off (Settings → AI Agents, at least read-only per account); empty `search`
+  means nothing until `accounts` lists them.
+- **"Rozmowa z <imię> dzisiaj", "zobacz spotkanie", "co ustaliliśmy z <imię>"
+  → the transcript first**: `spark meetings --filter "after:<yyyy/MM/dd>"` +
+  the name in `subject:` or the title, then `spark meeting --transcript <id>`.
+  Slack DMs only without a transcript.
+- **"Przejrzyjmy maile"**: first a list with no actions (one line per matter:
+  who, what they want, what waits on Greg), then one matter at a time in that
+  order. No draft or "wyślij" popup before the list, no batch question about
+  the rest until he asks. A matter he knows from a call or his phone → ask in
+  one sentence before drafting.
+- **Search**: `--filter` takes only documented operators; a bare word errors
+  (`unsupported filter(s)`), `OR` and parentheses are silently ignored.
+  Keywords go in the topic: `spark search "elroq zamówienie" --filter "from:x
+  newer_than:2m"`. Folder names are Spark's: `<account>:Sent`, `Drafts`,
+  `Archive`, `Trash` (not `[Gmail]/Sent Mail`); exact names via `spark folders`.
+- **Long threads**: `scripts/thread-clean.sh <id>` prints only the new text per
+  message (strips quotes, signatures, NIP/address footers), before any
+  hand-written `rg -v`.
+- **Attachments are already on disk**: `spark thread <id>` lists a `Path` under
+  `~/Library/Caches/Spark Mail/messagesData/…`; `pdftotext -layout "<path>" -`
+  (also `pdftoppm`, `qpdf`, `ocrmypdf`, `tesseract` with `pol`, `mutool`).
+  `spark attachment` only for "(not downloaded)".
+- **Mail to a company about an order** goes from the account the order went
+  to: `spark search --filter "from:<domain>"` first. An image attachment can be
+  piped into `spark draft` on stdin; name it in one report line.
+- **Drafting**: settle wording in chat before `spark draft`. `--body` is
+  markdown: `m.in.` became a link; write "między innymi" and check the echoed
+  `Body:` for dotted pairs (`np.`, `tj.` + space are fine). The Gmail
+  signature is a work one: private formal mail (notariusz, urząd, bank,
+  dealer) gets `--no-signature` and his own sign-off; otherwise keep the
+  default and no sign-off.
+- **A draft handed to Greg is alive**: its id changes when he edits it in Spark
+  (9654 → 9656), and it may leave from another account. Before `--edit` or
+  `--delete`, list `<account>:Drafts` and search `to:<recipient>
+  newer_than:1d` across accounts. Gone → it was sent; a change is a new draft
+  with `--reply-to`.
+- **"Wyślij" means sent, not drafted**: show the text, wait for "wyślij" or
+  `kk` on the final text, `spark draft`, read the echoed `Body:`, then `spark
+  action send <id>`. "Popraw tekst" or a footer change is a new round, not
+  consent. Without "wyślij" the draft is the end ("draft 68908 czeka w
+  Sparku"). Away from the Mac → the draft link, no `action send`.
+- **`action send` on a triage account (iCloud) lies**: it answers "Waiting for
+  your approval … Nothing has been sent yet" but may have sent already. Treat
+  it as sending; after every `action send`, `spark search --filter
+  "to:<addr> newer_than:1d"` and `spark history`, report what they show,
+  never the CLI's message.

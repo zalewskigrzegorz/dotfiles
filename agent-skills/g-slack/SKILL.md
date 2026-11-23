@@ -1,17 +1,14 @@
 ---
 name: g-slack
 description: |
-  The single gate for sending ANYTHING to Slack on Greg's behalf. Whenever you
-  are about to post, reply, DM, or drop a message in a thread on Slack — this
-  skill runs first. It voices the text through greg-voice and sends it AS GREG
-  via his personal user token (footer-free), NOT the claude.ai Slack MCP (that
-  one stamps "*Sent using* @Claude" on every message). Trigger on "odpowiedz na
-  slacku", "napisz na slacka", "wyślij na slacka", "odpisz w wątku", "napisz do
-  <person> na slacku", "reply on slack", "send this to <channel>", "post in the
-  thread", or any moment a Slack reply/message is about to leave the machine.
-  NOT for automation that intentionally shows it's a bot — PR bumps
-  (g-pr-bump), scheduled notifications, daily-brief posts — those keep the
-  Claude footer and are out of scope here.
+  The single gate for sending ANYTHING to Slack on Greg's behalf (post, reply,
+  DM, thread). Voices the text through greg-voice and sends it AS GREG with his
+  user token (no footer), never the claude.ai Slack MCP (it stamps "*Sent
+  using* @Claude"). Trigger on "odpowiedz na slacku", "napisz na slacka",
+  "wyślij na slacka", "odpisz w wątku", "napisz do <person> na slacku", "reply
+  on slack", "send this to <channel>", "post in the thread", or any Slack
+  message about to leave the machine. NOT for bot-style automation (PR bumps
+  via g-pr-bump, scheduled notifications, daily briefs): those keep the footer.
 license: MIT
 compatibility: claude-code
 allowed-tools:
@@ -24,169 +21,87 @@ allowed-tools:
 
 # /g-slack — send to Slack as Greg
 
-The one path for outbound Slack. Draft → **greg-voice** → confirm → send **as
-Greg** with his user token (no footer). Reads go through the Slack MCP.
+Draft → **greg-voice** → confirm → send **as Greg** with his user token.
+Reads go through the Slack MCP. Which messages are Greg's vs automation: the
+"Slack — send through g-slack" part of `external-output-voice.md` (his reply,
+opinion or decision → here; a mechanical ping → automation, footer fine).
 
-> **All identifiers are private.** Read
-> `~/.local/state/dotfiles/secrets/work-context.md` → the **Slack** sections for
-> channel IDs, subteam IDs, and the roster. `source
-> ~/.local/state/dotfiles/secrets/work.env` for **`$WORK_SLACK_POSTER_TOKEN`**
-> (the footer-free user token — already in the env file, so **never `op read` at
-> runtime**; no vault prompt). Never hardcode a channel, ID, or token here.
+Identifiers are private: channel and subteam IDs and the roster in
+`~/.local/state/dotfiles/secrets/work-context.md` (Slack sections);
+`$WORK_SLACK_POSTER_TOKEN` from `source ~/.local/state/dotfiles/secrets/work.env`
+(never `op read` at runtime). Never hardcode a channel, ID or token here.
 
-## The rule (why this skill exists)
+## Hard rules
 
-Two things went wrong once and this skill exists so they never do again:
-
-1. **Voiced, always.** Every word going to Slack in Greg's name is his voice —
-   run it through `greg-voice` (point-first, casual, just the meat). No stiff
-   AI register, ever.
-2. **Sent as Greg, no footer.** Post with the **user token** + `chat.postMessage`
-   so it lands cleanly as Greg. **Never** send a Greg-reply through the claude.ai
-   Slack MCP (`slack_send_message`) — it appends `*Sent using* @Claude`, which
-   shows publicly and screams "a bot typed this". Reads through the MCP are fine
-   (no footer on reads).
-
-## Footer carve-out — automation only
-
-The Claude footer is *correct* for messages that are transparently automation and
-didn't need Greg's judgement to write: **PR bumps (`g-pr-bump`), scheduled
-notifications, daily-brief drops.** Those are out of scope here — leave them on
-their own flow / the MCP. This skill is only for messages that speak as Greg.
-
-If you're unsure which bucket a message is in: does it represent Greg's own reply
-/ opinion / decision? → g-slack, as Greg, no footer. Is it a mechanical ping the
-recipients read as "the system nudged me"? → automation, footer fine.
-
-## Hard rules (do not relitigate)
-
-- **Never send without Greg's explicit "ok" on the final drafted text.** It posts
-  publicly as him. Draft, show, wait for a clear yes. No yes → don't send.
-- **Send via the user token, not the MCP** (see above). Reads via the MCP.
-- **Slack MCP tools are DEFERRED** — absent from the tool list until loaded. Do
-  NOT conclude "no Slack in this session". Load first:
+- **No send without Greg's explicit ok on the final text.** It posts publicly
+  as him. Another task's go-ahead ("rób PR") is not a send, a link-only
+  message included.
+- **Send with the user token, never `slack_send_message`.**
+- **Slack MCP tools are deferred**: load them, don't conclude "no Slack":
   `ToolSearch("select:mcp__claude_ai_Slack__slack_read_thread,mcp__claude_ai_Slack__slack_read_channel")`
-  (add other `mcp__claude_ai_Slack__*` as needed), then call normally. If
-  ToolSearch returns nothing even though `claude mcp list` shows the connector
-  Connected, the tools never registered in THIS session — tell Greg it needs a
-  restart, or hand the reads to a session that has them.
-- **Plain, clean text.** Match the channel's language (PL/EN). A PR or issue
-  number is always `<full url|#n>`, never a bare `#n` or a long bare URL, and
-  the draft Greg reads already has that shape (3491f3e3: corrected twice).
-- **Work only, unless Greg says otherwise.** Don't post personal-repo noise.
+  (add others as needed). Nothing comes back while `claude mcp list` shows it
+  Connected → this session never registered them: say it needs a restart.
+- **Plain text** in the channel's language; a PR or issue is always `<full
+  url|#n>`, never a bare `#n` or a long bare URL, already in the draft Greg
+  reads. Work only unless Greg says otherwise.
 
-## Workflow
+## 1. Target
 
-### 1. Find the target
+Channel or DM, plus `thread_ts` for a reply. Names → IDs from work-context.
+Ambiguous → ask.
 
-Channel (or DM) + optional `thread_ts` for an in-thread reply. Greg usually
-points at it ("odpisz w tym wątku", a Slack link, a channel name). Resolve
-channel names/IDs from work-context. If it's ambiguous which channel/thread,
-**ask** — don't guess where a public message lands.
+- A thread Greg didn't link: search the run/job ID from the brief or PR body
+  (`slack_search_public_and_private`, concise, `limit ≤ 10`); nothing →
+  `slack_read_channel` on the team channel with `oldest` at the run date, take
+  the root holding the run URL. Never search by PR number or Greg's words
+  (they hit his replies).
+- A DM: `chat.postMessage` with the user's Slack ID as `channel`; no
+  `conversations.open` (`missing_scope`). A thread's `ts` comes from the
+  permalink (`p<digits>` → `<10>.<6>`), never from the transcript.
+- "Napisz do zespołu" = the team channel from work-context; check its recent
+  language first, don't draft in English by default.
+- "Zgłoś autorowi / do teamu, który to zakommitował": map the author to a team
+  first. Greg's own team → one line to the author, no "zgłoszenie" header.
+  Another team → the one-thread request flow from `external-output-voice.md`.
 
-Replying in an existing thread Greg did not link: search for the run or job
-ID from the brief or PR body (`slack_search_public_and_private`, concise,
-`limit ≤ 10`); nothing → `slack_read_channel` on the team channel with
-`oldest` at the run date, and take the root message holding the run URL.
-Never search by PR number or by words from Greg's own messages: those match
-his replies, not the root (0c9ebd23, 5 calls).
+## 2. Read the context
 
-A DM goes straight to `chat.postMessage` with the user's Slack ID as `channel`. Skip `conversations.open`: it fails with `missing_scope` (15c9041d). A thread's `ts` comes from the permalink (`p<digits>` → `<10 digits>.<6 digits>`), never from `rg` over the transcript (67aa873d).
+- Read the thread first (`slack_read_thread`, concise): one sentence "what it
+  already says and asks"; the reply covers only what's missing. Greg already
+  replied → no draft, one line.
+- `slack_read_thread` needs `message_ts` (from a channel read or a search hit).
+  A DM with no replies returns only the parent: read the DM as a channel
+  (`D…` id). Caps and `invalid_union` handling: the MCP-search trap in
+  `ops-traps.md` (`limit: 20`, concise).
+- `permission_error` ("Connector access could not be verified") → Greg runs
+  `/mcp` and reconnects Slack, or pastes the message; don't guess content.
+  Fallback read: `conversations.replies` / `conversations.history` with the
+  poster token works on work channels (result via `jq` to time, author, text;
+  token never to stdout). `missing_scope` elsewhere → `/mcp`.
+- A reply defending a decision first collects its evidence (the issue, PR or
+  report and the complaints behind it; `gh issue list --search` or one narrow
+  Slack search) and asks whether the reader knows that context.
 
-### 2. Read the context
+## 3. Draft and voice
 
-Before drafting a follow-up, read the thread. Greg already replied there → skip the draft and say so in one line (ada9d8d8).
+What Greg would say, point first, then `greg-voice` in the same pass
+(mandatory, no `humanizer`).
 
-Load the Slack MCP read tools and read the thread/channel so the reply actually
-answers what's there:
+## 4. Confirm
 
-```
-ToolSearch("select:mcp__claude_ai_Slack__slack_read_thread,mcp__claude_ai_Slack__slack_read_channel")
-```
+Per the popup rules in `adhd-actions-not-walls.md`: a fresh draft, or one
+changed after his correction, goes out as plain paragraphs ending in "powiedz
+wyślij"; while he keeps editing, every version stays plain text. Only a text
+already on his screen gets the send / don't-send popup, the full text in every
+option's `preview`, target (channel + thread) in the question. "Don't send" →
+repeat the text as plain paragraphs and end the turn without a popup.
 
-Two limits on those reads, both hit on 2026-09-20:
-
-- **Cap the result.** `slack_read_channel` / `slack_search_*` with the default
-  `limit` return 60–96k characters and the harness rejects the result
-  ("exceeds maximum allowed tokens"), four times in one session. Pass
-  `limit: 20` (or less) and `response_format: "concise"`; widen only if the
-  answer is not in the first page.
-- **`slack_read_thread` requires `message_ts`** — it fails with
-  `initialization_failed: Missing value for parameter message_ts` otherwise.
-  Get the parent's ts from `slack_read_channel` or a search hit first. A DM
-  message with no replies returns only the parent; read the DM as a channel
-  (`channel_id` = the `D…` id) to see the surrounding conversation.
-
-When a read fails with `permission_error` ("Connector access could not be
-verified"), the connector needs a new sign-in. Tell Greg to run `/mcp` and
-reconnect Slack, or to paste the message. `conversations.replies` and
-`conversations.history` work with `$WORK_SLACK_POSTER_TOKEN` on work channels
-(checked 2026-11-12, one test call before relying on it). `missing_scope` on
-another channel is the signal for `/mcp`. Don't guess the content in a popup
-either.
-
-`result does not match its output shape (invalid_union)` from `slack_read_thread`
-or `slack_read_channel`: stop, don't retry with another `response_format`.
-A channel: `slack_search_public_and_private` with `in:<#ID> after:<date>`.
-A thread with a known `ts`: `slack_read_thread`, and when that fails too, curl
-`conversations.replies` with the poster token (result through `jq` to time,
-author and text, the token never to stdout). Say "not checked: <what>, the MCP
-returns a shape error" in the result.
-
-A reply that defends a decision first collects its evidence: the issue, PR or
-report it came from, and the complaints behind it (`gh issue list --search`,
-or one narrow Slack search). It also asks whether the reader knows that
-context. 3491f3e3 needed three versions to add "it was a reported security
-bug" and the issue links.
-
-Before drafting a reply into an existing thread: `slack_read_thread` with
-`response_format: "concise"`, one sentence "what the thread already says and
-what it asks", and the text covers only what is missing.
-
-### 3. Draft the reply
-
-Write what Greg would say — point first, just the meat.
-
-### 4. Voice it — greg-voice (mandatory)
-
-Run the draft through `greg-voice` in the same pass (casual, expressive,
-specifics intact, AI tells gone). This is not optional and not a second
-`humanizer` step — greg-voice is the whole voice gate.
-
-### 5. Confirm
-
-Confirm with one `AskUserQuestion` (single-select: send / don't send) and put
-the **full drafted text in the `preview` of every option**, plus the target
-(channel + thread) in the question. Wait for Greg's explicit yes. He can
-trim/redirect here.
-
-**Another task's go-ahead is not a send.** "Rób PR" authorises the PR, not a
-post with its link in a Slack thread. A link-only message still gets this
-confirm step (ebcbd85f: a PR link went out with Greg's token unasked).
-
-**Never rely on text printed above the popup.** The dialog covers the assistant
-message that precedes it, so a draft shown "in the reply, then a popup" is a
-draft Greg never sees — on 2026-09-20 this happened twice in one session, he
-picked "don't send, I'll paste it myself" blind and then asked where the text
-was. The preview is the only place that stays visible while he decides. If the
-answer is "don't send", repeat the text as plain paragraphs (no fence, no
-blockquote) and **end the turn without another popup**, so it stays on screen.
-
-**No popup on a text he has not read.** The first draft of the turn, or a
-draft just changed after his correction, goes out as plain paragraphs ending
-in "powiedz wyślij". The popup is only for a text already on his screen
-(3905c082: two rejected send popups on fresh drafts). While he keeps editing
-("skróć", "dopisz że…"), every new version stays plain text; the send popup
-comes after his "ok" on the last one (3491f3e3: two more rejected).
-
-### 6. Send as Greg
+## 5. Send as Greg
 
 ```bash
 source ~/.local/state/dotfiles/secrets/work.env
 TOKEN="$WORK_SLACK_POSTER_TOKEN"
-case "$TOKEN" in xoxp-*) : ;; *) echo "no user token — falling back to draft-only"; esac   # → step 8
-
-# thread reply: add  thread_ts:$TS  to the payload; top-level post: omit it.
+case "$TOKEN" in xoxp-*) : ;; *) echo "no user token — falling back to draft-only"; esac
 curl -s -H "Authorization: Bearer $TOKEN" -H "Content-type: application/json" \
   -X POST https://slack.com/api/chat.postMessage \
   -d "$(jq -n --arg c "$CHANNEL" --arg t "$TEXT" --arg ts "$THREAD_TS" \
@@ -194,43 +109,16 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "Content-type: application/json" \
   | jq '{ok, error, ts}'
 ```
 
-Never echo `$TOKEN`. `ok:true` = sent; on `ok:false` report the `error`
-(`not_in_channel`, `channel_not_found`, `invalid_auth`) and stop — don't retry
-blind. Keep curl piped straight into `jq`: an `echo "$resp" | jq` in zsh broke
-on `\n` after a post that had already gone out, and the exit 1 looked like a
-failed send (2026-10-08). A parse error after the POST means "read the
-channel", never "resend".
+Never echo `$TOKEN`. `ok:false` → report `error` (`not_in_channel`,
+`channel_not_found`, `invalid_auth`), stop. Keep curl piped straight into
+`jq`; a parse error after the POST means "read the channel", never "resend".
+Then report the permalink (read it back when it matters: no footer).
 
-### 7. Verify
+**Fallback, draft-only**: no valid token, or Greg sends himself → the voiced
+text as a clean copy-paste block.
 
-Confirm it posted as Greg with **no footer** (read the channel/thread back if it
-matters). Report the permalink.
+**Edit a sent message** ("popraw"): `chat.update` with the same token,
+`{"channel": $CH, "ts": $TS, "text": $TEXT}`, `ts` from the post response.
+Never a second message.
 
-### 8. Fallback — draft-only
-
-Token missing/invalid, or Greg prefers to send himself: **don't auto-send.**
-Output the voiced text as a clean copy-paste block. Draft → voice → confirm stays
-the same.
-
-## Notes
-
-- Same user token as `/g-standup` (`$WORK_SLACK_POSTER_TOKEN`) — one footer-free
-  poster identity, `chat:write`, posts to any channel Greg is in.
-- `chat:write` **cannot read history** — reads always go through the MCP.
-
-## Editing a message already sent
-
-"popraw" on a posted message is `chat.update` with the same token handling as
-the post, and `ts` from the post response:
-`{"channel": $CH, "ts": $TS, "text": $TEXT}` to
-`https://slack.com/api/chat.update`. Don't post a second message.
-
-## Which channel, which tone
-
-- "Napisz do zespołu" is the team's own channel from work-context. Check the
-  channel's recent language with `slack_read_channel` before drafting; don't
-  draft in English first (3905c082).
-- "Zgłoś autorowi / do teamu, który to zakommitował": map the author to a team
-  in work-context first. Greg's own team → one line to the author (thread or
-  DM), no "zgłoszenie" header. Another team → the one-thread request flow from
-  the outward-facing rule (df44b632: "to nasz :D").
+Same token as `/g-standup` (`chat:write`, any channel Greg is in).

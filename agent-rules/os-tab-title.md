@@ -3,41 +3,8 @@ description: a Haiku hook titles Claude tabs; call os-title only when that title
 alwaysApply: true
 ---
 
-# tuios Tab Title — the Haiku hook owns Claude tabs, `os-title` is the override
+# tuios Tab Title: the Haiku hook owns Claude tabs, `os-title` is the override
 
-Since 2026-10-21 the Stop hook `dot_claude/hooks/stop/tuios-claude-title.sh`
-gives every Claude tab a 3–4 word essence of the task ("Fix: work nie dodaje
-taba", "Review: łączenie zespołów SSO"). After the first answer, and then at
-most once per 3 prompts or 10 min, Haiku reads the recent conversation and
-keeps or replaces the title, through `os-title`: the tuios workspace name
-(`tuios set-workspace-name`, the tab strip), the agent window name
-(`tuios set-window --name`, the rail's agent row) and the statusline alike. Greg's words: the first prompt and the workspace › topic format "nic
-nie mówi".
+The Stop hook `dot_claude/hooks/stop/tuios-claude-title.sh` gives every Claude tab a 3–4 word essence of the task ("Fix: work nie dodaje taba") after the first answer, then at most once per 3 prompts or 10 min, through `os-title` (tuios workspace name, agent window name, statusline). Non-Claude tabs keep the shell's name; there is no other auto-title plugin (the nushell icon wrappers for `nvim`/`lg`/`dash` were removed: nvim drew nothing through them).
 
-Tabs without Claude keep the name the shell gives them. The nushell TUI wrappers
-that put an icon on the tab while `nvim`, `lg` or `dash` ran were removed on
-2026-11-05: through them nvim drew nothing in a tuios pane. There is no
-auto-title plugin any more.
-
-**Default: do nothing.** Do not call `os-title` at checkpoints.
-
-## The override is sticky
-
-A title you set with `os-title` differs from what the hook last wrote
-(`claude-session-title/<sid>.auto`), and the hook never overwrites it again in
-that session. `/clear` drops both and hands the tab back to auto-title until
-the next answer. So call it only when the Haiku title is actively wrong, and
-pick words that stay true for the rest of the session.
-
-## How, when you do
-
-```bash
-os-title "deslop gate rollout"
-```
-
-- 3–4 words, what Greg wants done, PL or EN.
-- Fire-and-forget, non-blocking, safe outside tuios (it then only writes the statusline store).
-- Trimmed to 30 chars for the tab (`CLAUDE_TUIOS_TITLE_MAX`); the statusline
-  store keeps the full text.
-- One pass by hand for an open session:
-  `CLAUDE_CODE_SESSION_ID=<sid> TUIOS_ENV=1 TUIOS_PANE_ID=<window-id> tuios-claude-title.sh --retitle <transcript>`.
+**Default: do nothing**, no `os-title` at checkpoints. A title set by hand is sticky (the hook never overwrites a title that differs from its last `.auto` write; `/clear` resets both), so call `os-title "<3–4 words, PL or EN>"` only when the Haiku title is actively wrong, with words that stay true for the rest of the session. Fire-and-forget, safe outside tuios; trimmed to 30 chars for the tab (`CLAUDE_TUIOS_TITLE_MAX`). One manual pass for an open session: `CLAUDE_CODE_SESSION_ID=<sid> TUIOS_ENV=1 TUIOS_PANE_ID=<window-id> tuios-claude-title.sh --retitle <transcript>`.

@@ -1,181 +1,58 @@
 ---
 name: tina-announce
-description: Announce something out loud on Greg's house speakers through Tina (the announce-agent on the lab), or fire one of its event recipes. Use when Greg wants the household told something — "ogłoś na głośnikach", "niech Tina powie/ogłosi", "powiedz domownikom", "puść ogłoszenie", "krzyknij że...", "announce that...", "say it on the speakers", "tell the house" — or wants to trigger an announce event by hand ("odpal event pralki", "trigger the weather announcement"). Wraps the `tina` nushell command. NOT for playing an existing audio file on a speaker (that's cast-audio) and NOT for notifications meant only for Greg's Mac.
+description: Announce something out loud on the house speakers through Tina (announce-agent on the lab), ask her about the house, or fire one of her event recipes. Use on "ogłoś na głośnikach", "niech Tina powie/ogłosi", "powiedz domownikom", "puść ogłoszenie", "krzyknij że...", "announce that...", "say it on the speakers", "tell the house", "odpal event pralki", "trigger the weather announcement". Wraps the `tina` nushell command. Not for playing an existing audio file (cast-audio) or Mac-only notifications.
 ---
 
 # tina-announce
 
-The `tina` command is a **nushell** def in `~/.config/nushell/autoload/tina.nu`.
-The Bash tool runs zsh and `nu -c` does not load autoload dirs, so always source
-it explicitly — bare `tina …` gives `command not found`:
+`tina` is a nushell def; `nu -c` doesn't load autoload, so source it (bare `tina` = `command not found`):
 
 ```bash
 nu -c 'source ~/.config/nushell/autoload/tina.nu; tina announce -t livingroom "paczki czekają na dole"'
 ```
 
-Outer single quotes, message in double quotes. Diacritics are fine.
-
 ## `tina announce` speaks, bare `tina` asks
 
-One word = one intention. The two you will confuse if you skim:
-
-| You want | Command |
-|---|---|
-| the house to hear your exact words | `tina announce "..."` |
-| an answer to a question | `tina "..."` |
-
-**Bare `tina "..."` used to be the literal announcement and is now the AI.** If
-you type the old form out of habit, Tina answers your shopping list as if it were
-a question instead of reading it out. Announcements always carry `announce`.
+Bare `tina "..."` used to announce and is now the AI: a shopping list gets *answered*. Announcements always carry `announce`.
 
 ```bash
-tina announce "paczki czekają na dole"   # literal TTS, no LLM. What you type is what she says.
-tina announce -t livingroom "kolacja gotowa"  # one zone
-tina announce -d "..."                   # don't play
-tina announce -r "..."                   # -r/--rephrase: let the LLM word it
-tina history 5                           # recent spoken events (structured table)
+tina announce "…"              # verbatim TTS via POST /say, prints played_on
+tina announce -t kitchen "…"   # one zone;  -d = don't play
+tina announce -r "…"           # LLM rewords (POST /trigger/announce)
+tina "jaka jest pogoda"        # question (jarvis-brain, POST /ask); -d prints instead of speaking
 ```
 
-**Default to verbatim.** Greg's use case is passing a message to another floor,
-so the wording is the point. `-r/--rephrase` routes through the generator, which
-rewrites and has invented whole sentences in the past ("Matka, ale na dole jest
-naprawdę gorąco!" from an unrelated message). Only reach for it when he
-explicitly wants the message composed rather than read.
-
-Both paths do the same ElevenLabs TTS in Tina's voice — `--rephrase` only adds
-the rewrite. Verbatim goes through `POST /say`, which answers synchronously with
-what actually played; `--rephrase` goes through `POST /trigger/announce`.
+**Default verbatim**: the wording is the point, and `-r` has invented whole sentences. Use `-r` only when Greg wants it composed. Free text has exactly these two homes: never smuggle it through a recipe's `--params` (it's ignored).
 
 ## Before you broadcast
 
-Speakers are audible to the whole household, so treat it as an outward-facing
-action: **confirm the target with Greg** unless he named it himself. Zones:
+The whole house hears it: **confirm the target** unless Greg named it. Zones (source: `MEDIA_PLAYERS` in `mrglaszki:/opt/homelab/services/announce-agent/src/zones.js`):
 
-| Target | Speakers | Note |
-|---|---|---|
-| `all` (default) | `greg_office` + `nest` (kitchen) + `fireplace` (living room) | whole house |
-| `office` | `greg_office` | AirPlay |
-| `kitchen` | `nest` → falls back to `fireplace` | |
-| `livingroom` | `fireplace` → falls back to `nest` | |
-| `auto` | presence-based (phones), night-mode aware | may land on a single speaker only |
+| Target | Speakers |
+|---|---|
+| `all` (default) | `greg_office` + `nest` (kitchen) + `fireplace` (living room) |
+| `office` | `greg_office` (AirPlay) |
+| `kitchen` / `livingroom` | `nest` / `fireplace`, each falls back to the other |
+| `auto` | presence-based, night-mode volumes, may hit one speaker |
 
-Source of truth: `MEDIA_PLAYERS` in
-`mrglaszki:/opt/homelab/services/announce-agent/src/zones.js`.
+Explicit zones ignore night mode: a late `-t all` is full volume.
 
-Night hours: `auto` applies night-mode volumes; the explicit zones do not, so a
-late `-t all` is full volume.
+## Recipes and the ask path
 
-## Asking about the house
+- `tina workflow <recipe> [--params {…}] [--dry]` (names from `GET /triggers`); old ask recipe: `tina workflow ask --params {question: "…"}` (`--legacy` is gone).
+- Recipe `ask` fetches the whole sensor bundle each call; the prompt answers only the question plus one sentence when a reading changes the decision.
+- History comes from Homey Insights (`source: insights`, e.g. `{ id: daisy_hist, source: insights, device: Daisy Tracker, capability: in_geofence, merge_gap_minutes: 35, min_minutes: 20 }`). Booleans → `false_periods`/`true_periods` (`count`, `periods`, `last_at`, `last_minutes`, `minutes_total`); numbers → `min/max/avg/first/last`. Capabilities without a log return `logged: false`: guard facts with `(x && x.logged) ? … : null`.
+- **Dog walks are approximate and she says so**: the geofence covers a road (spurious returns, stitched by `merge_gap_minutes`), the tracker polls ~30 min in `power_saving`. Prefer `dogs_last_out` over a count, never "na pewno".
 
-```bash
-tina "jaka jest pogoda"
-tina "czy mogę wyjść z domu"
-tina -d "co się dzieje w domu"    # answer printed, not spoken
-```
+## Verify
 
-This is the jarvis-brain path (`POST /ask`), which picks its own tools. The old
-`ask` recipe below still exists on the announce-agent and is reachable as
-`tina workflow ask --params {question: "..."}`; the `--legacy` flag that used to
-select it is gone.
-
-Recipe `ask` fetches the whole sensor bundle on every call — weather + rain in
-the next hour, PM2.5, indoor/outdoor temps, which doors are open, which
-appliances are running, hob/AC left on, where the dogs are, litter box, Lucy's
-last weight. The prompt makes her answer only the question and add a second
-sentence only when a reading changes the decision (rain when asked about a walk,
-hob left on when asked about leaving). Adding a device to `fetch:` does not make
-her chattier.
-
-History comes from **Homey Insights** via the `insights` fetcher source — Homey
-keeps the time-series itself, nothing is stored on our side. Today's dog walks,
-outdoor min/max, "did the washer run today" all work.
-
-```yaml
-- { id: daisy_hist, source: insights, device: Daisy Tracker,
-    capability: in_geofence, merge_gap_minutes: 35, min_minutes: 20 }
-```
-
-Booleans come back as `false_periods` / `true_periods` (each with `count`,
-`periods`, `last_at`, `last_minutes`, `minutes_total`); numbers as
-`min`/`max`/`avg`/`first`/`last`. Which direction is interesting depends on the
-device — out of a geofence is `false`, a washer running is `true`.
-
-**Dog walks are approximate, and saying so is part of the answer.** The geofence
-covers a road next to the house, so walking past registers a spurious return;
-`merge_gap_minutes` stitches those back together and `min_minutes` drops blips.
-On top of that the tracker only polls every ~30 min in `power_saving`, so short
-walks can be invisible and timestamps land on poll boundaries. The prompt
-therefore prefers `dogs_last_out` ("wyszły o 20:02, na 30 minut") over a walk
-count, and never says "na pewno".
-
-Not every capability has a log — `logged: false` comes back instead of an error,
-so recipe facts must guard on it (`(x && x.logged) ? … : null`).
-
-## Firing event recipes
-
-```bash
-tina workflow washing_machine_done          # waits, prints what she said
-tina workflow meal --params {kind: dinner}
-tina workflow weather_outgoing --dry
-```
-
-Recipe names come live from `GET /triggers` (TAB-completes for Greg). Each recipe
-composes from its own facts — **don't smuggle free text through one** (e.g.
-`service_alert --params {msg: ...}`); it ignores your text and announces
-something unrelated. Free text has exactly two homes: `tina announce` and
-`tina announce -r`.
-
-## Verify it landed
-
-Verbatim prints `played_on` immediately. Otherwise:
-
-```bash
-tina history 3                    # ts, trigger, spoken line, played_on, event_id
-tina history 5 --all              # include recipe-driven events
-tina replay <event_id> -t kitchen
-```
-
-The three read-only views are named after whose record they are — `tina history`
-is her mouth (what she said), `tina brain` her head (questions, tools, cost),
-`tina house` her house (sensor events).
-
-`status: ok` with empty `played_on` means nothing came out of a speaker — check
-`silenced_reason` (`no_target` = that zone has no live media_player).
-
-**`GET /api/events` is a projection — it has no `facts` or `fetched`.** To debug
-what a recipe actually computed, fetch the single event:
-`curl -s http://mrglaszki:3001/api/events/<event_id> | jq .facts`. Reading `facts:
-null` off the list view and concluding the fetch failed is a trap.
+- `tina history 3` (`--all` includes recipes), `tina replay <event_id> -t kitchen`. Views: `tina history` (what she said), `tina brain` (questions, tools, cost), `tina house` (sensor events).
+- `status: ok` with empty `played_on` = nothing played: read `silenced_reason` (`no_target` = no live media_player).
+- `GET /api/events` is a projection without `facts`: debug one event with `curl -s http://mrglaszki:3001/api/events/<event_id> | jq .facts`.
+- Answer cards on `announce.mrglaszki.com/day` and `/review` (48 h) show "odpowiedź na: <question>" (`POST /say` takes `question`, `run_id`); older → `tina history N`.
 
 ## Where it lives
 
-- `POST /say` (literal) and `POST /trigger/:name` on `http://192.168.50.10:3001`
-- Route: `mrglaszki:/opt/homelab/services/announce-agent/src/server.js`
-- LLM path: `recipes/announce.yaml` + `prompts/announce.md`
-- **All of it is baked into the container image**, only `data/` is bind-mounted.
-  After editing any of those on the lab: `ssh mrglaszki 'cd
-  /opt/homelab/services/announce-agent && docker compose up -d --build'` — a
-  `docker cp` alone is lost on the next rebuild.
-
-## Where Tina's latency comes from
-
-Measured on 2026-10-23 (076b9dad): the network is noise (~10 ms RTT, a 24 kB
-POST to Gemini in 89 ms); the time went to 3 Gemini calls in a row per simple
-command (9–15 s), each resending the full prompt.
-
-- Measure from `docker compose logs` in `services/jarvis-brain`, its
-  `/runs?limit=N` on `:3002`, and `took_ms` in the announce-agent `/say` log.
-- Simple on/off commands go through `src/fast-command.js` first (0.4–1.1 s,
-  $0); only unclear ones reach the model.
-- `announce-agent` serves an already-spoken sentence from its disk cache (voice
-  + text) before calling TTS.
-- Count model calls before blaming the network.
-
-## What the announce pages show (2026-09-27)
-
-`POST /say` also takes `question` and `run_id`. When Tina answers a question
-(bare `tina "…"`), the card on `announce.mrglaszki.com/day` and `/review`
-shows "odpowiedź na: <question>" above what she said, so "o co chodziło Tinie
-z 'jestem, czekam'" is answerable from the page. `/review` shows the last 48 h
-only; older events need `tina history N`. The `hey_jarvis` wake word was
-removed from the satellite the same day.
+- `http://192.168.50.10:3001`: `POST /say`, `POST /trigger/:name`; route `services/announce-agent/src/server.js`, LLM path `recipes/announce.yaml` + `prompts/announce.md`.
+- Baked into the image (only `data/` is mounted): after editing on the lab, `ssh mrglaszki 'cd /opt/homelab/services/announce-agent && docker compose up -d --build'`; `docker cp` is lost on rebuild.
+- **Latency** (076b9dad): the network is noise; time goes to sequential Gemini calls. Measure via `services/jarvis-brain` logs, its `/runs?limit=N` on `:3002`, and `took_ms` in the `/say` log; count model calls before blaming the network. On/off commands go through `src/fast-command.js` first; spoken sentences come from a disk cache.

@@ -4,33 +4,32 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 
 ## Hard rules
 
-1. **All settings live here.** Every plugin, MCP server, skill, hook, permission, keybinding, brew formula, and tool config must be mirrored into this repo. If something only exists in `~/` and not under `~/Code/dotfiles/`, it is invisible to `chezmoi apply` and will not survive a reinstall.
-2. **Commit directly to `master`.** No feature branches, no PRs — this is a personal repo. Finished work is committed and pushed through the end-of-task popup (`agent-rules/commit-message-rules.md`).
-3. **Add via chezmoi, not manual copy.** Use `chezmoi add ~/<path>` so the source naming (`dot_*`, `private_*`, `executable_*`, `.tmpl`) is correct.
-4. **Don't edit synced output.** When a source exists under `agent-skills/`, `agent-rules/`, `agent-mcp/`, `agent-plugins/`, or `dot_*`, edit the source — `chezmoi apply` overwrites the target.
-5. **Claude skills go in `agent-skills/`, NOT `dot_claude/skills/`.** `run_onchange_after_30` does `rsync --delete agent-skills/ → ~/.claude/skills/` — anything in `~/.claude/skills/` that isn't in `agent-skills/` is wiped on every apply. If you run `chezmoi add ~/.claude/skills/<x>` you'll create `dot_claude/skills/<x>` that never reaches the target — always `cp -r ~/.claude/skills/<x> agent-skills/<x>` instead.
+1. **All settings live here.** Every plugin, MCP server, skill, hook, permission, keybinding, brew formula and tool config is mirrored into this repo. Something only in `~/` is invisible to `chezmoi apply` and won't survive a reinstall.
+2. **Commit directly to `master`.** No feature branches, no PRs (personal repo). Finished work goes through the end-of-task commit popup (`agent-rules/commit-message-rules.md`).
+3. **Add via chezmoi, not manual copy.** `chezmoi add ~/<path>` so the source naming (`dot_*`, `private_*`, `executable_*`, `.tmpl`) is right.
+4. **Don't edit synced output.** When a source exists under `agent-skills/`, `agent-rules/`, `agent-mcp/`, `agent-plugins/` or `dot_*`, edit the source; `chezmoi apply` overwrites the target.
+5. **Claude skills go in `agent-skills/`, NOT `dot_claude/skills/`.** Stage 30 does `rsync --delete agent-skills/ → ~/.claude/skills/`, so anything else there (live edits included) is wiped on every apply. `chezmoi add ~/.claude/skills/<x>` creates a `dot_claude/skills/<x>` that never reaches the target: `cp -r ~/.claude/skills/<x> agent-skills/<x>` instead.
 
 ## Project structure
 
 ```
 ~/Code/dotfiles/
-├── CLAUDE.md, README.md, LICENSE
-├── .gitignore, .gitleaks.toml, .chezmoiignore
-├── bootstrap.sh                    # one-shot machine bootstrap
+├── bootstrap.sh                    # one-shot machine bootstrap (chezmoi + first apply)
 ├── dot_Brewfile.tmpl               # brew bundle source (templated by profile)
 ├── nushell-mcp.json.tmpl           # MCP servers for the nushell mcp integration
-├── dot_claude/                     # → ~/.claude (settings, hooks, output-styles, skills/, statusline)
+├── dot_claude/                     # → ~/.claude (settings, hooks, output-styles, statusline)
 ├── dot_config/                     # → ~/.config (nushell, tuios, nvim, ghostty, sketchybar, ...)
-├── private_dot_ssh/                # → ~/.ssh (mode 0600, templated)
+├── private_dot_ssh/                # → ~/.ssh (0600, templated)
 ├── agent-plugins/plugins.json.tmpl # Claude Code plugin install list
 ├── agent-mcp/mcp-servers.json.tmpl # Claude Code MCP server list
-├── agent-rules/                    # rendered into ~/.claude/CLAUDE.md
+├── agent-mods/                     # Claude Code mods (greg-mods marketplace, guard)
+├── agent-rules/                    # rendered into ~/.claude/CLAUDE.md (+ scoped/ → ~/.claude/rules)
 ├── agent-skills/                   # synced into ~/.claude/skills
-├── bin/                            # PATH-exposed scripts (sync, gitleaks-dotfiles, ...)
+├── bin/                            # PATH-exposed scripts
 ├── scriptc/                        # TypeScript compiled to native binaries in bin/ (stage 29)
-├── scripts/                        # repo maintenance scripts (not on PATH)
-├── userscripts/                    # Tampermonkey userscripts for Vimma, installed from their raw GitHub URL (auto-update)
-├── docs/                           # operational notes (inventory, secrets, setapp, mcp setup)
+├── scripts/                        # repo maintenance (not on PATH)
+├── userscripts/                    # Tampermonkey userscripts for Vimma (installed from raw GitHub URL)
+├── docs/                           # operational notes
 ├── brew/                           # brew-related helpers
 ├── legacy/                         # archived configs (do not edit)
 ├── private/                        # gitignored secrets staging area
@@ -39,42 +38,35 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io). `chezmoi apply` must
 
 ## Source naming
 
-- `dot_*` → `~/.* ` (e.g. `dot_claude/` → `~/.claude/`, `dot_config/` → `~/.config/`)
-- `*.tmpl` → rendered by chezmoi (use `chezmoi execute-template < file.tmpl` to preview)
-- `private_*` → file mode 0600
-- `executable_*` → file mode 0755
-- `run_once_*` / `run_onchange_*` / `run_after_*` → chezmoi lifecycle hooks (see below)
+- `dot_*` → `~/.*`; `*.tmpl` → rendered (`chezmoi execute-template < file.tmpl` to preview)
+- `private_*` → mode 0600; `executable_*` → 0755
+- `run_once_*` / `run_onchange_*` / `run_after_*` → lifecycle hooks, run in numeric order
 
-## Setup order (`chezmoi apply` runs these in numeric order)
+## Setup order (main stages; `ls run_*` for all)
 
-| Stage | Script | What it does |
-|---|---|---|
-| 00 | `run_once_before_00-install-homebrew.sh.tmpl` | Install Homebrew (Mac + Linux) |
-| 05 | `run_after_05-restore-private-files.sh.tmpl` | Restore secrets from `private/` |
-| 10 | `run_onchange_after_10-brew-bundle.sh.tmpl` | `brew bundle` against rendered Brewfile |
-| 13 | `run_onchange_after_13-macos-sudo-touchid.sh.tmpl` | Touch ID for `sudo` via `/etc/pam.d/sudo_local` + `pam_reattach`, macOS only |
-| 14 | `run_onchange_after_14-macos-defaults.sh.tmpl` | macOS defaults (Dock, hidden menu bar, Finder), macOS only. The bar is Gzyms (`dev.gzyms`, from `~/Code/personal/gzyms`), SketchyBar is not started since 2026-10-30 |
-| 15 | `run_onchange_after_15-macos-nushell-application-support.sh.tmpl` | macOS-only nushell support |
-| 16 | `run_onchange_after_16-sketchybar-deps.sh.tmpl` | SbarLua + sketchybar-app-font (sketchybar's Lua config is empty without them), macOS only |
-| 20 | `run_onchange_after_20-macos-xdg-launchagent.sh.tmpl` | macOS XDG launch agent |
-| 25 | `run_once_after_25-install-claude.sh.tmpl` | Install Claude Code CLI |
-| 27 | `run_onchange_after_27-plannotator.sh.tmpl` | macOS only: Plannotator binary (`--minimal`, pinned tag, SLSA-verified) for the `plannotator@plannotator` plugin; sharing off via `PLANNOTATOR_SHARE=disabled` in `env.nu.tmpl` |
-| 28 | `run_onchange_after_28-bin-exec-bits.sh.tmpl` | rsync `bin/` → `~/bin` (keeps the exec bit; `bin/**` is chezmoi-ignored) |
-| 29 | `run_onchange_after_29-scriptc-build.sh.tmpl` | compile `scriptc/*.ts` → native binaries in `bin/` + `~/bin` |
-| 30 | `run_onchange_after_30-agent-skills-sync.sh.tmpl` | rsync `agent-skills/` → `~/.claude/skills` |
-| 31 | `run_onchange_after_31-agent-rules-sync.sh.tmpl` | `agent-rules/*.md` (`alwaysApply: true`) → `~/.claude/CLAUDE.md`; `agent-rules/scoped/*.md` (`paths:` frontmatter, loaded on demand, off the 150k startup budget) → `~/.claude/rules/`. Work-monorepo-only content goes to `scoped/` |
-| 32 | `run_onchange_after_32-agent-mcp-sync.sh.tmpl` | apply `agent-mcp/mcp-servers.json.tmpl` |
-| 33 | `run_onchange_after_33-claude-plugins-sync.sh.tmpl` | apply `agent-plugins/plugins.json.tmpl` |
-| 34 | `run_after_34-collie.sh` | macOS only: install Collie standalone, write `~/.config/herdr/plugins/config/herdr.collie/.env` (Collie reads it before `~/.config/collie`) (`COLLIE_MUX=tuios`), `collie start` |
-| 35 | `run_after_35-raycast-scripts-compat.sh.tmpl` | Raycast compatibility shim |
-| 35 | `run_onchange_after_35-gh-extensions.sh` | install `gh` CLI extensions (gh-dash, gh-stack, …) |
-| 36 | `run_onchange_after_36-git-hooks.sh.tmpl` | wire tracked git hooks (`core.hooksPath` → gitleaks pre-commit/pre-push) |
-| 43 | `run_onchange_after_43-pr-watch-launchd.sh.tmpl` | macOS only: `com.greg.pr-watch` LaunchAgent running `bin/pr-watch` |
-| 46 | `run_onchange_after_46-pr-eyes-launchd.sh.tmpl` | macOS only: `com.greg.pr-eyes` LaunchAgent, `bin/pr-eyes refresh` every 10 min (gh-dash 👀 preview, see `.claude/rules/workctl-gh-dash.md`) |
-| 50 | `run_onchange_after_50-screens-sweep-launchd.sh.tmpl` | macOS only: `com.greg.screens-sweep` LaunchAgent, daily 13:00 `bin/screens-sweep` deletes Drive `Screenshots` older than 30 days that Apple's on-device `fm` judges junk (Drive bin keeps them 30 days); state and log in `~/.local/state/screens-sweep/` |
-| 49 | `run_onchange_after_49-gzyms-plugins.sh.tmpl` | macOS only: `gzyms plugin add` for the catalog plugins (files untracked, Gzyms updates them itself). Config: `dot_config/private_gzyms/config.toml.tmpl`, a template since the Pollen plugin put a Homey token in it (`homey_id`/`homey_token` from 1Password `HOMEY_ID`/`HOMEY_TOKEN`). `chezmoi re-add` is a no-op on it and would leak the token as a plain file: after a change in Gzyms Settings copy live into the template, keep the two `onepasswordRead` lines, and compare `chezmoi execute-template < <tmpl> | shasum` with `shasum < ~/.config/gzyms/config.toml`. Greg's own plugins `pln-usd` and `pollen` are tracked under `private_plugins/`; the catalog ones are not; phone-push secrets live in the Keychain since Gzyms 0.0.4, seeded from 1Password `gzyms-phone-push` |
-
-Bootstrap from scratch: `./bootstrap.sh` (installs chezmoi + runs first apply).
+| Stage | What it does |
+|---|---|
+| 00 | Homebrew (Mac + Linux) |
+| 05 | restore secrets from `private/` / 1Password (every apply) |
+| 10 | `brew bundle` against the rendered Brewfile |
+| 13 | Mac: Touch ID for `sudo` (`/etc/pam.d/sudo_local` + `pam_reattach`) |
+| 14 | Mac: defaults (Dock, hidden menu bar, Finder). The bar is Gzyms; SketchyBar not started since 2026-10-30 |
+| 15 / 20 | Mac: nushell Application Support; XDG launch agent |
+| 16 | Mac: SbarLua + sketchybar-app-font (sketchybar's Lua config is empty without them) |
+| 25 | install Claude Code CLI |
+| 26 | Serena as a uv tool (user-scope MCP, fetches its own TS server); see `agent-rules/code-indexing-proactive.md` |
+| 27 | Mac: Plannotator binary (pinned, SLSA-verified); sharing off via `PLANNOTATOR_SHARE=disabled` in `env.nu.tmpl` |
+| 28 | rsync `bin/` → `~/bin` (keeps exec bit; `bin/**` is chezmoi-ignored) |
+| 29 | compile `scriptc/*.ts` → native binaries in `bin/` + `~/bin` |
+| 30 | rsync `agent-skills/` → `~/.claude/skills` |
+| 31 | `agent-rules/*.md` (`alwaysApply: true`) → `~/.claude/CLAUDE.md`; `agent-rules/scoped/*.md` (`paths:`, off the 150k startup budget) → `~/.claude/rules/`. Work-monorepo-only content goes to `scoped/` |
+| 32 / 33 | apply `agent-mcp/mcp-servers.json.tmpl` / `agent-plugins/plugins.json.tmpl` |
+| 34 | Mac: Collie (phone) standalone, `collie start` (`.claude/rules/tuios-config.md`) |
+| 35 | Raycast shim; `gh` extensions (`EXTENSIONS` array) |
+| 36 | tracked git hooks (`core.hooksPath` → gitleaks pre-commit/pre-push) |
+| 43 / 46 | Mac LaunchAgents `com.greg.pr-watch`, `com.greg.pr-eyes` (every 10 min, `.claude/rules/workctl-gh-dash.md`) |
+| 49 | Mac: Gzyms catalog plugins (`.claude/rules/gzyms.md`) |
+| 50 | Mac: `com.greg.screens-sweep`, daily junk sweep of Drive `Screenshots` (`.claude/rules/screens-sweep.md`) |
 
 ## Common commands
 
@@ -84,150 +76,75 @@ chezmoi apply                      # apply repo → live (idempotent)
 chezmoi update                     # git pull + apply (use on lab)
 chezmoi add ~/<path>               # track a new file
 chezmoi re-add ~/<path>            # update tracked file from live
-chezmoi execute-template < x.tmpl  # render a template to see output
-bin/sync                           # wrapper: ensures PATH then `chezmoi apply`
+bin/sync                           # ensures PATH, then chezmoi apply
 bin/gitleaks-dotfiles              # scan repo for leaked secrets
 ```
 
 ## Drift audit & adding apps
 
-Run **`bin/audit-drift`** first — it prints a classified view of `chezmoi diff` as `PATH | KIND | SUGGESTED_ACTION` without loading any file content:
+**`bin/audit-drift` first** (compiled from `scriptc/audit-drift.ts`, gitignored: edit the `.ts`). It classifies `chezmoi diff` without loading content:
 
-- `FILE_DRIFT` — plain file, `chezmoi re-add` captures it
-- `TEMPLATE_DRIFT` — source is `.tmpl`; `re-add` may no-op even when live differs, because the template still renders to live. Needs the manual rewrite below.
-- `BINARY_DRIFT` — as FILE_DRIFT, but watch the exec bit (`re-add` can drop it if the source lacks the `executable_` prefix)
-- `FAKE_SCRIPT` — a `run_*` script that always shows in `chezmoi diff` because it executes every apply. Not real drift.
+- `FILE_DRIFT` → `chezmoi re-add`. `BINARY_DRIFT` → same, but `re-add` can drop the exec bit without an `executable_` prefix.
+- `TEMPLATE_DRIFT` → `re-add` may no-op; rewrite the `.tmpl` by hand (`.claude/rules/chezmoi-templates.md`).
+- `FAKE_SCRIPT` → a `run_*` that executes every apply; not drift.
 
-`bin/audit-drift` is a **compiled binary, gitignored** — the source is `scriptc/audit-drift.ts` and stage 29 builds it (see "Native helpers" below). Edit the `.ts`, never the binary.
+Healthy `chezmoi status` is ~2 `R` script rows; more is real drift. Fake-drift traps (`docs/dotfiles-inventory.md` → "Fake drift"): keep `umask = 0o022` pinned in `chezmoi.toml` + `bootstrap.sh`, never rename `bin/*` to `executable_*`.
 
-**Fake-drift traps fixed 2026-08-20** (details: `docs/dotfiles-inventory.md` → "Fake drift"): keep `umask = 0o022` pinned in `chezmoi.toml` + `bootstrap.sh`, and never rename `bin/*` to `executable_*` (stage 28 rsyncs them).
+Beyond it, compare live vs repo and classify each row `LIVE_ONLY` (add), `REPO_ONLY` (apply, or intentional removal), `MODIFIED` (`re-add` live→repo / `apply` repo→live). Order: edit `.tmpl`s, then `re-add`, then `bin/sync`; verify with an empty `chezmoi diff`. Check `.chezmoiignore` before flagging "missing".
 
-A healthy `chezmoi status` is now ~2 rows, both `R` script rows. Anything more is real.
-
-When `bin/audit-drift` isn't enough, compare each live source against the repo:
-
-| Check | Live | Repo |
+| What | Live | Repo (where a new one goes) |
 |---|---|---|
-| brew formulae / casks / taps | `brew leaves`, `brew list --cask`, `brew tap` | `dot_Brewfile.tmpl` |
+| brew formulae / casks / taps | `brew leaves`, `brew list --cask`, `brew tap` | `dot_Brewfile.tmpl`, matching section, alphabetical (`brew info` first; grep the rendered template, entries hide behind `{{ if }}`) |
 | Claude plugins | `claude plugin list` | `agent-plugins/plugins.json.tmpl` |
-| Claude MCP servers | `claude mcp list` | `agent-mcp/mcp-servers.json.tmpl`, `nushell-mcp.json.tmpl` |
-| Claude skills | `ls ~/.claude/skills/` | `ls agent-skills/` |
-| Claude hooks / output-styles | `ls ~/.claude/{hooks,output-styles}/` | `dot_claude/{hooks,output-styles}/` |
-| `gh` CLI extensions | `gh extension list` | `run_onchange_after_35-gh-extensions.sh` (`EXTENSIONS` array) |
+| MCP servers | `claude mcp list` | `agent-mcp/mcp-servers.json.tmpl`, `nushell-mcp.json.tmpl` |
+| skills | `ls ~/.claude/skills/` | `agent-skills/` (`cp -r`, hard rule 5) |
+| hooks / output-styles | `ls ~/.claude/{hooks,output-styles}/` | `dot_claude/{hooks,output-styles}/` |
+| `gh` extensions | `gh extension list` | `EXTENSIONS` in `run_onchange_after_35-gh-extensions.sh` (never `gh extension install` alone: `~/.local/share/gh/` is untracked) |
+| any other dotfile / app config | | `chezmoi add <path>`, then check the prefix |
 
-Classify each row `LIVE_ONLY` (add to repo), `REPO_ONLY` (`chezmoi apply`, or an intentional removal), or `MODIFIED` (`chezmoi re-add` for live→repo, `chezmoi apply` for repo→live). Apply in order: edit `.tmpl` files, then `re-add`, then `bin/sync` last. Verify with an empty `chezmoi diff`.
-
-The Brewfile is templated, so a raw grep misses entries behind `{{ if }}` — render first with `chezmoi execute-template < dot_Brewfile.tmpl`. Check `.chezmoiignore` before flagging "missing in repo".
-
-**Adding one app:**
-
-1. brew formula/cask (`brew info <X>` confirms) → append to the matching section of `dot_Brewfile.tmpl`, alphabetical within section. If it has config, `chezmoi add ~/.config/<X>`.
-2. Claude plugin → `agent-plugins/plugins.json.tmpl`
-3. MCP server → `agent-mcp/mcp-servers.json.tmpl` (or `nushell-mcp.json.tmpl`)
-4. Claude skill → `cp -r ~/.claude/skills/<X> agent-skills/<X>` (never `chezmoi add` — see hard rule 5)
-5. `gh` extension → append `owner/repo` to the `EXTENSIONS` array in `run_onchange_after_35-gh-extensions.sh` (never `gh extension install` alone — extensions live in untracked `~/.local/share/gh/`)
-6. Any other dotfile → `chezmoi add <path>`, then check the source name got the right prefix
-7. A bundle Greg hands over (zip, patch, README) → map every part its README lists to its target in the repo, report "N of M installed, missing: X", and check the effect where Greg looks (a pr-eyes bundle landed only its `claim` part, 536b9fd3)
-
-Finish with `chezmoi diff` to confirm the change was captured, then close the task with the commit + push popup.
-
-**Template-aware re-sync (live → `.tmpl`).** When the source is a `.tmpl`, live drifted, and live is the truth: `chezmoi re-add` is a no-op, so rewrite by hand. Inventory every `{{ ... }}` token in the existing template first — `.chezmoi.*`, `if eq .chezmoi.os` branches, `includeTemplate`, secret functions — copy live in verbatim, then put each token back. Verify byte-identity with `bin/render-and-diff <source.tmpl>` (exit 0 = match, 1 = diff, 2 = bad invocation). Mentally render the *other* OS branch before committing; nothing checks it automatically. Decide once whether live or the template is canonical and stop oscillating.
-
-Live drift in `~/.claude/skills/<name>/` is **overwritten** on the next apply unless persisted back into `agent-skills/`.
+A bundle Greg hands over (zip, patch, README): map every part its README lists to a target, report "N of M installed, missing: X", check the effect where Greg looks (536b9fd3). Finish with `chezmoi diff`, then the commit popup.
 
 ## Native helpers — `scriptc/`
 
-Notes, footguns and porting rules: `scriptc/CLAUDE.md` (loads when you touch `scriptc/`). Read it before editing any `scriptc/*.ts`.
+Read `scriptc/CLAUDE.md` (loads with `scriptc/`) before editing any `scriptc/*.ts`.
 
 ## Claude-specific
 
-**Testing a `pre-tool-use/*` hook.** Feed it fixture JSON on stdin with guards on (no YOLO marker, `permission_mode: default`; from a YOLO session run it as `env -u CLAUDE_CODE_SESSION_ID`, or the session's marker still applies, edb80735) and read `hookSpecificOutput.permissionDecision`; a table of `command → expect allow|ask|deny` cases, run against the working copy **and** against `git show HEAD:<hook>` in a scratch dir, separates a regression from old behaviour in one pass and catches inconsistencies (2026-09-25: commit asked while push passed). Only the cases whose result changed need reading. The `/dev/null;` false positive (fixed 2026-09-29) had exactly this shape.
+Global Claude config: `dot_claude/` → `~/.claude/`.
 
-**ponytail band.** Toggled with `/ponytail band [off]`; its state is `~/.claude/.ponytail-band`, tracked as `dot_claude/dot_ponytail-band` (69a88ca). Its buttons need the mouse, which does not exist with the alt screen off. Never patch `register.tsx` (`agent-rules/plugin-own-switch-not-patch.md`). A running session keeps the old band until `/exit` + `claude --continue`.
-
-Global Claude config lives in `dot_claude/` → `~/.claude/`:
-
-- `modify_settings.json.tmpl` — a chezmoi `modify_` script that merges the managed keys into the live `~/.claude/settings.json`; the settings themselves live in `.chezmoitemplates/claude-settings.json` — edit that, there is no `dot_claude/settings.json.tmpl`
-- `keybindings.json` — key bindings
-- `hooks/` — SessionStart, Stop, etc.
-- `output-styles/` — custom response styles
-- `skills/` — populated by `30-agent-skills-sync`; **edit `agent-skills/` instead**
-- `executable_statusline.sh` — statusline script
-
-Plugins / MCP / skills sources of truth:
-
-- Claude plugins → `agent-plugins/plugins.json.tmpl`
-- Claude MCP servers → `agent-mcp/mcp-servers.json.tmpl` (also `nushell-mcp.json.tmpl` for nushell integration)
-- Claude skills → `agent-skills/<skill-name>/SKILL.md`
-- Claude rules → `agent-rules/`
-
-Anything installed via `/plugin install`, `claude mcp add`, or `~/.claude/skills/<new>` on a machine **must** be reflected in the matching source above before the next `chezmoi apply`.
-
-#### Local code-indexing tools (Serena)
-
-100%-local semantic code nav for Claude Code — no cloud, no API keys.
-Installed as a **uv tool** (→ `~/.local/bin`) by
-`run_onchange_after_26-code-index-tools.sh.tmpl`.
-
-- **Serena** (`oraios/serena`) — LSP-based semantic nav. User-scope MCP in
-  `agent-mcp/mcp-servers.json.tmpl` (`serena start-mcp-server --context claude-code
-  --project-from-cwd`). Auto-downloads its own TS/JS language server on first use
-  — no `typescript-language-server`/`typescript` needed on PATH.
-- **CocoIndex (`ccc`) removed 2026-08-05** (per-session embedding fleets froze the UI on wake). Don't reinstall it.
-
-#### Browser automation (Mac)
-
-When to use which: `agent-rules/browser-stacks.md`. Sources: `agent-browser` → `agent-skills/agent-browser/`; `browsentic` → stage 12 npm globals + `agent-mcp/mcp-servers.json.tmpl` + `agent-skills/browsentic/` + `private_dot_browsentic/` (config, profile); `vimma` MCP → `agent-mcp/mcp-servers.json.tmpl`. `bsk` was removed 2026-10-30. Retired `claude-in-chrome`: `docs/browser-automation.md`.
-
-### Skille z skills.sh (ephemeral)
-
-Jednorazowa wiedza domenowa: **`skill-scout`** → `npx skills use <owner/repo@skill>` (nic nie instaluje; `npx skills add` blokuje guard). Na stałe: `cp -r <temp-dir>/<skill> agent-skills/<skill>` + commit.
+- **Settings live in `.chezmoitemplates/claude-settings.json`**; `dot_claude/modify_settings.json.tmpl` is a `modify_` script that merges the managed keys into live `~/.claude/settings.json`. There is no `dot_claude/settings.json.tmpl`.
+- `keybindings.json`, `hooks/`, `output-styles/`, `executable_statusline.sh`; `skills/` is filled by stage 30 (edit `agent-skills/`).
+- Testing a `pre-tool-use/*` hook: `.claude/rules/claude-hooks.md`.
+- **ponytail band**: `/ponytail band [off]`; state `~/.claude/.ponytail-band`, tracked as `dot_claude/dot_ponytail-band`. Its buttons need the mouse, absent with the alt screen off. Never patch `register.tsx`. A running session keeps the old band until `/exit` + `claude --continue`.
+- **Skills from skills.sh** are ephemeral: `skill-scout` → `npx skills use <owner/repo@skill>` (guard blocks `npx skills add`). Permanent: `cp -r <temp-dir>/<skill> agent-skills/<skill>` + commit.
+- Browser automation sources: `.claude/rules/browser-automation.md`; when to use which: `agent-rules/browser-stacks.md`.
 
 ## Secrets & private data
 
-- `private/` — gitignored staging area, restored to `~/` by `run_after_05`
-- `private_dot_ssh/` → `~/.ssh` at mode 0600 (templated)
-- **Work identifiers (employer, team, roster, Slack IDs, client names) NEVER go in this repo** — it's public. They live in `~/.local/state/dotfiles/secrets/{work-context.md,work.env}` + `.chezmoidata/private-work.toml` (gitignored), all restored from 1Password (see `docs/secrets.md` → "Work identifiers"). Skills reference *work-context*; scripts read `WORK_*` env vars; templates use `{{ index . "work" ... }}`.
-- **A local edit to a restored secret file dies on the next `bin/sync`.** `run_after_05` runs on every apply and does `op document get --force`, so `work-context.md`, `work.env` and the rest come back from the vault. Push the edit first — `op document edit <ITEM> <file> --vault Dotfiles` (item names in `docs/secrets.md`) — then `op document get` it to a scratch file and `cmp` it against the local file, and only then sync. The same holds for the `PRIVATE_AGENT_ASSETS_TAR` overlay. The push needs Greg's 1Password approval: when he is away, leave the `*.pending.tar`, end with "powiedz zatwierdzę", never re-fire the prompt.
-- Private skills/rules (client/product-specific) go in the `PRIVATE_AGENT_ASSETS_TAR` 1Password overlay, not `agent-skills/`/`agent-rules/`.
-- `.gitleaks.toml` — public scanner rules; private identifier rules in `~/.local/state/dotfiles/secrets/gitleaks-private.toml`. Enforced by **tracked hooks** `scripts/git-hooks/{pre-commit,pre-push}` (wired via `core.hooksPath` by `run_onchange_after_36`); both block when the private config is missing. Manual full scan: `bin/gitleaks-dotfiles`.
-- Templated secrets in `*.tmpl` files use chezmoi's secret functions (1Password on Mac, see `docs/secrets.md`)
-- `1Password CLI` on Linux is **not** in homebrew — install via apt (see Linux block in `dot_Brewfile.tmpl`)
+- `private/` — gitignored staging, restored to `~/` by stage 05; `private_dot_ssh/` → `~/.ssh` (0600, templated). Templated secrets use chezmoi's 1Password functions (`docs/secrets.md`). 1Password CLI on Linux comes from apt, not brew.
+- **Work identifiers (employer, team, roster, Slack IDs, client names) NEVER go in this repo** — it's public. They live in `~/.local/state/dotfiles/secrets/{work-context.md,work.env}` + gitignored `.chezmoidata/private-work.toml`, restored from 1Password. Skills reference *work-context*; scripts read `WORK_*`; templates use `{{ index . "work" ... }}`. Private skills/rules go in the `PRIVATE_AGENT_ASSETS_TAR` overlay, not `agent-skills/`/`agent-rules/`.
+- **A local edit to a restored secret file dies on the next `bin/sync`** (stage 05 runs `op document get --force` every apply; same for the overlay tar). Push first: `op document edit <ITEM> <file> --vault Dotfiles` (names in `docs/secrets.md`), `op document get` to scratch and `cmp`, then sync. The push needs Greg's 1Password approval: when he's away leave the `*.pending.tar`, end with "powiedz zatwierdzę", never re-fire the prompt.
+- `.gitleaks.toml` is public; private identifier rules live in `~/.local/state/dotfiles/secrets/gitleaks-private.toml`. The tracked hooks `scripts/git-hooks/{pre-commit,pre-push}` block when it's missing.
+
+## Multiplexer — tuios (Mac + lab)
+
+- **tuios is the only multiplexer.** tmux and herdr are removed (pre-herdr state: tag `pre-herdr`); no shim, scripts call `tuios` directly. Session = one repo+branch worktree, workspace = numbered tab, window = pane. Prefix `ctrl+space`.
+- Nav: `prefix+w` sessions · `prefix+g` goto · `prefix+a` / `prefix+0` next item that needs you · `prefix+t` pane finder · `prefix+h/j/k/l` windows.
+- Worktrees: the `work` CLI (nushell) wraps `bin/workctl` (`scriptc/workctl.ts`). Config, agent sidebar and Collie details: `.claude/rules/tuios-config.md`, full reference `docs/tuios.md` (also for `ctrl+space` stolen by input sources, Collie / phone pairing).
+- **`disk-sweep` is manual only** (Greg, 2026-09-25); worktree cleanup goes through `workctl prune`. Never schedule it.
+
+## Lab (`minis`, Debian)
+
+`ssh mrglaszki`; pull dotfiles with `chezmoi update` (`~/Code/dotfiles` there is not a git checkout). Cold start, terminfo, `run_*` PATH: `.claude/rules/lab.md`.
 
 ## Path-scoped notes — `.claude/rules/`
 
-sketchybar, nushell autoload and workctl / gh-dash gotchas load on demand from `.claude/rules/*.md` (`paths:` frontmatter) when a matching file is read or edited. Put new file-specific gotchas there, not here: instruction files share a 150k-char budget.
-
-## Multiplexer — tuios (Mac)
-
-- **`tuios` is the launcher** (helpers in `dot_config/nushell/autoload/tuios.nu`: `os-restart`, `os-stop`, `os-mrglaszki`). Vocabulary: a tuios **session** = one repo+branch worktree, a **workspace** = a numbered tab inside it, a **window** = a pane. Prefix = `ctrl+space`. The agent **sidebar** (rail) with the Inbox of agents that need you (`needs_input`, `errored`, finished turns) is the core — it replaces the old `claude-agent-presence` stack. Agent state comes from `tuios agent-hook claude-code` hooks in `.chezmoitemplates/claude-settings.json`; tuios `[notifications.agent]` is the only notifier (the Claude Stop hook that played sounds is gone). Worktrees via the `work` CLI (`new`/`ls`/`switch`/`rm`/`pr`); `work new` / `work switch` are thin wrappers over **`bin/workctl`** (`scriptc/workctl.ts`), the one branch / PR command that `prefix+shift+g`, `prefix+shift+o`, gh-dash's `w` and lazygit's `w` all open — see `docs/tuios.md`. Nav: `prefix+w` session picker · `prefix+g` goto · `prefix+a` / `prefix+0` next item that needs you · `prefix+t` pane finder · `prefix+h/j/k/l` windows. Config: `dot_config/tuios/config.d/readonly_10-dotfiles.toml.tmpl` (live is `~/.config/tuios/config.d/10-dotfiles.toml`; `config.toml` is what the settings page writes, tracked as `dot_config/tuios/config.toml`: `chezmoi re-add` it after clicking). Full reference: `docs/tuios.md`.
-- **tmux and herdr removed** (tmux 2026-08-18, herdr on the switch to tuios). tuios is the only multiplexer on Mac and lab. The pre-herdr state is at git tag `pre-herdr` / branch `pre-herdr-backup`; herdr is only in git history. No herdr shim: scripts call `tuios` directly.
-- **`disk-sweep` is manual only** (Greg, 2026-09-25): Docker images (22.8 GB reclaimable at the time), `~/.npm`, stale worktrees. Worktree cleanup goes through `workctl prune`, which calls it. Do not schedule it (no launchd, no cron).
-- **`ctrl+space` stolen by the input-source switcher, or Collie broken / pairing a phone** → read `docs/tuios.md` (sections "ctrl+space and input sources", "Collie (phone)") first.
-
-## Shell history (nushell)
-
-- **`Ctrl+R` = fzf** over the nushell sqlite history (`dot_config/nushell/autoload/fzf-history.nu`). `Alt+T` = Television smart-autocomplete (`tv.nu`). TV's `nu-history` channel is **not** wired to Ctrl+R — its filter quality is too weak.
-- **Do not propose Atuin** until upstream nushell issues close: [atuinsh/atuin#2900](https://github.com/atuinsh/atuin/issues/2900) (executehostcommand pastes literal text) + [#2820](https://github.com/atuinsh/atuin/issues/2820) (nu integration broken). Both still open as of 2026-05-16. Re-verify with `gh issue view` before recommending.
-
-## Lab (`minis`, Debian) — connect & cold-start
-
-- SSH alias: `ssh mrglaszki` (chezmoi-templated `~/.ssh/config`), `HostName 192.168.50.10` on purpose: AdGuard runs on that host, so ssh must not depend on its DNS. The old `lab` name and the `lab` / `*.lab` DNS rewrites were removed 2026-10-23; DNS `mrglaszki` → 192.168.50.10 is an AdGuard rewrite.
-- **tuios runs on the lab too.** Preferred access from the Mac is `os-mrglaszki` (`tuios attach --host mrglaszki`, `[hosts.mrglaszki]` in the tuios config) — the lab's session is drawn in a plain Ghostty window with the local keys and theme, nothing nested; run it outside a tuios pane. Full remote flow in `docs/tuios.md`.
-- **One-time terminfo install per remote** so nvim accepts `xterm-ghostty`:
-  ```
-  infocmp -x xterm-ghostty | ssh <host> -- tic -x -
-  ```
-- Lab login shell is `bash`, not nu. Either run `nu` after login or `chsh -s $(which nu)` (after adding nu to `/etc/shells`).
-- **Pulling new dotfiles on lab from bash:** `chezmoi update` (runs `git pull` in `~/.local/share/chezmoi` + `chezmoi apply`). `~/Code/dotfiles` on lab is NOT a git checkout.
+File-specific gotchas load on demand from `.claude/rules/*.md` (`paths:` frontmatter). Put new ones there, not here: instruction files share a 150k-char budget.
 
 ## Pointers
 
 - `docs/dotfiles-inventory.md` — full inventory of what's tracked
-- `docs/new-mac.md` — step order for moving to a new Mac, with the traps hit on 2026-10-19
-- `docs/agents-sync.md` — agent-* sync internals
-- `docs/mcp-clients-setup.md` — MCP setup per client
-- `docs/secrets.md` — secret management workflow
-- `docs/setapp-apps.md` — Setapp app handling
-- `docs/streamdeck.md` — Stream Deck + layout + Homey office control
-- `README.md` — public-facing intro (keep CLAUDE.md as the operational source)
+- `docs/new-mac.md` — moving to a new Mac, traps from 2026-10-19
+- `docs/agents-sync.md` — agent-* sync internals; `docs/mcp-clients-setup.md` — MCP per client
+- `docs/secrets.md`, `docs/setapp-apps.md`, `docs/streamdeck.md` (Stream Deck + Homey office control)
+- `README.md` — public intro (CLAUDE.md is the operational source)

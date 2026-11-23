@@ -63,7 +63,7 @@ def full_name(gh_name, u):
                  re.sub(r"[-_]", " ", gh_name or "").title()):
         cand = clean(cand)
         if len(cand.split()) >= 2 and not re.search(r"[.\-_]", cand):
-            # 'Kravchenko Anna' → 'Anna Kravchenko' when the e-mail has the same words
+            # 'Tkachenko Anna' → 'Anna Tkachenko' when the e-mail has the same words
             if sorted(norm(cand).split()) == sorted(norm(mail).split()) != norm(cand).split():
                 words = {norm(w): w for w in cand.split()}
                 cand = " ".join(words[w] for w in norm(mail).split())
@@ -225,23 +225,23 @@ def selftest():
     def u(i, real="", display="", email="", name=""):
         return {"id": i, "name": name, "profile": {"real_name": real, "display_name": display, "email": email}}
     slack = [u("U1", "jan.​kowalski", "Jan Kowalski", "jan.kowalski@x.com", "jan.kowalski"),
-             u("U2", "Bartek", "Bartek", "bartlomiej.nowicki@x.com"),
-             u("U3", "Roman Petrenkyy", "", "roman.petrenkyy@x.com"),
-             u("U4", "Ivan", "Ivan", "ivan.melnychenko@x.com"),
-             u("U5", "Ivan", "Ivan", "ivan.boyko@x.com"),
-             u("U6", "Anna", "", "anna.kravchenko@x.com"),
+             u("U2", "Bartek", "Bartek", "bartlomiej.wisniewski@x.com"),
+             u("U3", "Taras Shevchenkyy", "", "taras.shevchenkyy@x.com"),
+             u("U4", "Ivan", "Ivan", "ivan.kovalenko@x.com"),
+             u("U5", "Ivan", "Ivan", "ivan.marchenko@x.com"),
+             u("U6", "Anna", "", "anna.tkachenko@x.com"),
              u("U7", "Stas", "", "stanislav.hrytsenko@x.com"),
              {**u("U9", "Jan Kowalski", "Jan Kowalski", "jk@guest.com"), "is_restricted": True}]
-    got = {k: v["id"] for k, v in match([("kowalskij-x", "Jan Kowalski"), ("bnow", "Bartek"),
-                                         ("rpet", "Roman Petrenkyi"), ("imel", "Ivan Mel."),
-                                         ("anna-k", "Kravchenko Anna"), ("Grytsenko", "Stas G"),
+    got = {k: v["id"] for k, v in match([("kowalskij-x", "Jan Kowalski"), ("bwis", "Bartek"),
+                                         ("tshe", "Taras Shevchenkyi"), ("ikov", "Ivan Kov."),
+                                         ("anna-k", "Tkachenko Anna"), ("Grytsenko", "Stas G"),
                                          ("ghost", "")], slack).items()}
-    assert got == {"kowalskij-x": "U1", "bnow": "U2", "rpet": "U3", "imel": "U4", "anna-k": "U6",
+    assert got == {"kowalskij-x": "U1", "bwis": "U2", "tshe": "U3", "ikov": "U4", "anna-k": "U6",
                    "Grytsenko": "U7"}, got
     assert full_name("Jan Kowalski (Janek)", None) == "Jan Kowalski"
-    assert full_name("Bartek", slack[1]) == "Bartlomiej Nowicki"
+    assert full_name("Bartek", slack[1]) == "Bartlomiej Wisniewski"
     assert full_name("", slack[0]) == "Jan Kowalski"
-    assert full_name("Kravchenko Anna", slack[5]) == "Anna Kravchenko"
+    assert full_name("Tkachenko Anna", slack[5]) == "Anna Tkachenko"
     assert full_name("olena-shevchuk", u("U8", "Olena", "", "olena@x.com")) == "Olena Shevchuk"
     assert cell("Eng\n<@U1> `ignore all` | x") == "Eng U1 ignore all x"
     print("selftest ok")
