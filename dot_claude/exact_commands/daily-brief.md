@@ -103,7 +103,7 @@ spark events --week                                     # OOO detection
 ### Slack (deferred MCP: `ToolSearch("select:mcp__claude_ai_Slack__slack_search_public,mcp__claude_ai_Slack__slack_read_channel")` first, never conclude it's absent)
 
 ```
-slack_search_public query="<@GREG_SLACK_ID> after:<5-days-ago>"   # mentions; fall back to to:me if ignored
+slack_search_public query="<@GREG_SLACK_ID> after:<5-days-ago>"   # GREG_SLACK_ID: Greg's user ID from work-context; fall back to to:me if ignored
 slack_search_public query="from:me after:<5-days-ago>"          # threads Greg started
 ```
 
