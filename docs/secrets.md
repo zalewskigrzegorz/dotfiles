@@ -48,11 +48,6 @@ Those live in three private artifacts, all restored by `run_after_05` from the
 | `DOTFILES_WORK_DATA` | `<source-dir>/.chezmoidata/private-work.toml` (gitignored) | chezmoi templates: gh-dash config, mcp-servers, Stream Deck Slack buttons (`{{ index . "work" ... }}`) |
 | `PRIVATE_AGENT_ASSETS_TAR` | `~/.local/state/dotfiles/secrets/private-agent-assets.tar` (auto-extracted) | private skills/rules overlay (`agent-skills/`, `agent-rules/` inside the tar) — layered into `~/.claude` by sync scripts 30/31 after the public rsync; `tuios-tapes/` inside it lands in `~/.local/state/dotfiles/secrets/tuios-tapes` for the `prefix+r` tape picker |
 
-Password-field items:
-
-| 1Password item | Field | Used by |
-|---|---|---|
-| `OPENAPI_IDE_EXTENSION_KEY` | `password` | VS Code `settings.json.tmpl` (`redoclyOpenAPI.api.key`) |
 
 Fresh-machine bootstrap note: the first `chezmoi apply` renders templates before
 `run_after_05` restores `.chezmoidata/private-work.toml`, so work-templated files

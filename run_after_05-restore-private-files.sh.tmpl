@@ -215,7 +215,7 @@ restore_document "WORK_SCOPE_SKILLS" "$secret_dir/work-scope-skills.txt"
 # 30/31 AFTER the public rsync.
 if restore_document "PRIVATE_AGENT_ASSETS_TAR" "$secret_dir/private-agent-assets.tar"; then
   if tar -tf "$secret_dir/private-agent-assets.tar" >/dev/null 2>&1; then
-    tar -xf "$secret_dir/private-agent-assets.tar" -C "$secret_dir"
+    tar -xf "$secret_dir/private-agent-assets.tar" -C "$secret_dir" --exclude='._*'  # macOS AppleDouble files become junk files on Linux
     echo "Extracted private agent assets overlay."
   fi
 fi
