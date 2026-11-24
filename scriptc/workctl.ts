@@ -239,6 +239,8 @@ function fzfBase(prompt: string, header: string): string[] {
     "--with-nth", "2..",
     "--nth", "1",
     "--tiebreak", "begin,index",
+    // fzf scrolls a row to its match and cuts the start with "··", glyph included.
+    "--no-hscroll",
     "--reverse",
     "--header-first",
     "--with-shell", "sh -c",
