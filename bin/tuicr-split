@@ -37,11 +37,14 @@ tuios send-agent-message "${s[@]}" -w human --from "$TUIOS_PANE_ID" --subject "t
     cur="$(tuios list-workspaces "${s[@]}" --json 2>/dev/null | jq -r '.current_workspace')"
     [ "$cur" = "${ws:-}" ] && tuios set-layout --tiling true "${s[@]}" >/dev/null 2>&1 && break
     sleep 2
-  done ) &
+  done ) 2>/dev/null &
 tiler=$!
 
-tuios wait-for window-exit "${s[@]}" -w "$w" --timeout "${TUICR_SPLIT_TIMEOUT_MS:-7200000}" --json | jq -r '"exit=\(.exit_code // "?")"' || true
+code="$(tuios wait-for window-exit "${s[@]}" -w "$w" --timeout "${TUICR_SPLIT_TIMEOUT_MS:-7200000}" --json | jq -r '.exit_code // "?"')" || true
+echo "exit=$code"
 kill "$tiler" 2>/dev/null || true
+# The window is closed below, so a crash's message would be lost with it.
+[ "$code" = 0 ] || tuios capture-pane "${s[@]}" -w "$w" --scrollback --trim 2>/dev/null | tail -20 >&2 || true
 # A new-window program leaves its window behind after it exits.
 tuios close-window "${s[@]}" "$w" >/dev/null 2>&1 || true
 [ "$ws" != "$own" ] && tuios set-workspace-name "${s[@]}" "$ws" >/dev/null 2>&1 || true
