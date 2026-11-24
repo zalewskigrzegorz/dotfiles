@@ -10,6 +10,8 @@ command -v jq >/dev/null 2>&1 || exit 0
 state="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
 log="$state/claude-task-log.jsonl"
 [ -f "$log" ] && [ "$(date +%u)" -le 5 ] || exit 0
+# Greg sends the standup late in the day; no nudge before 17:00.
+[ "$(date +%H)" -ge 17 ] || exit 0
 
 last=$(cat "$state/standup-last" 2>/dev/null)
 [ "${last:0:10}" = "$(date +%F)" ] && exit 0
