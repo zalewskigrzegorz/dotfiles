@@ -195,7 +195,8 @@ prefix_review = ["o"]
 prefix_explore = ["S"]
 # herdr-pick url/file pickers: label every pane's text, ctrl+label opens it
 # (URL in the browser, path in $EDITOR in a new pane)
-hints_all_panes = ["u", "f"]
+# prefix+f is the pane content finder (bin/tuios-find, a command key below).
+hints_all_panes = ["u"]
 prefix_transfers = []
 prefix_file_search = []
 # navigator plugin
@@ -275,10 +276,10 @@ description = "workctl --all — same picker, other repos' worktrees too"
 width = "90%"
 height = "90%"
 
-# prefix+* (prefix+f is hints_all_panes, ctrl+f is HyprMac's): find a pane by what it printed, in every session (bin/tuios-find). tuios's own
+# prefix+f (hints_all_panes stays on prefix+u): find a pane by what it printed, in every session (bin/tuios-find). tuios's own
 # multi copy mode searches one workspace only; prefix+t matches names only.
 [[keybindings.command]]
-key = "prefix+*"
+key = "prefix+f"
 type = "popup"
 command = '"$HOME/bin/tuios-find"'
 description = "Find a pane by its content, in every session"
