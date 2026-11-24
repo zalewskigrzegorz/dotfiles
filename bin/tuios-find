@@ -1,5 +1,5 @@
 #!/bin/bash
-# prefix+ctrl+f: find a pane by what it printed, in every session. One fzf row per
+# prefix+*: find a pane by what it printed, in every session. One fzf row per
 # line of each pane's scrollback (last 3000 lines); Enter jumps to that pane.
 # --list QUERY prints matching "session<TAB>window<TAB>label<TAB>line" rows.
 set -euo pipefail
