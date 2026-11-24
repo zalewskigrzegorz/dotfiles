@@ -2218,9 +2218,36 @@ function writeBrief(st: St, intent: string): string {
   return p;
 }
 
-// Always a FRESH window, its name contains "claude" so a later applyLayout does
-// not add a bare one. The command is ONE argv element of nushell syntax.
+// The newest claude resting in the session (idle or done), or "". It takes the
+// next brief, so a second review of the same branch does not open a twin tab.
+function idleClaude(ws: string): string {
+  let best = "";
+  let at = "";
+  for (const c of run("tuios", ["list-agents", "-s", ws, "--json"]).out.split(`"agent_session_id"`).slice(1)) {
+    if (jsonField(c, "harness_id") !== "claude-code") continue;
+    const states = jsonValues(c, "state");
+    const state = states.length === 0 ? "" : states[states.length - 1] ?? "";
+    if (state !== "idle" && state !== "done") continue;
+    const m = /"agent_state_at"\s*:\s*(\d+)/.exec(c);
+    const t = m === null ? "" : m[1] ?? "";
+    if (t.length > at.length || (t.length === at.length && t > at)) {
+      at = t;
+      best = jsonField(c, "window_id");
+    }
+  }
+  return best;
+}
+
+// A claude already resting in the session gets the brief; otherwise a FRESH
+// window, its name contains "claude" so a later applyLayout does not add a
+// bare one. The command is ONE argv element of nushell syntax.
 function agentTab(ws: string, cwd: string, intent: string, brief: string): number {
+  const idle = idleClaude(ws);
+  if (idle !== "" && run("tuios", ["queue", "-s", ws, "-w", idle, `Nowe zadanie (${intent}): przeczytaj ${brief} i działaj według tego briefu.`]).code === 0) {
+    run("tuios", ["focus-window", "-s", ws, idle]);
+    err(`tuios: brief queued to the claude already waiting in ${ws}`);
+    return 0;
+  }
   if (mainWindow(ws, cwd, `\u{f06a9}  claude ${intent}`, `claude (open --raw "${brief}")`, false)) return 0;
   err(`tuios: no claude ${intent} tab opened in session ${ws}`);
   return 1;
