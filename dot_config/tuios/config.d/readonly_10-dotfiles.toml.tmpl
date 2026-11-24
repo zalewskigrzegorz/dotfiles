@@ -275,6 +275,16 @@ description = "workctl --all — same picker, other repos' worktrees too"
 width = "90%"
 height = "90%"
 
+# prefix+ctrl+f (prefix+f is hints_all_panes): find a pane by what it printed, in every session (bin/tuios-find). tuios's own
+# multi copy mode searches one workspace only; prefix+t matches names only.
+[[keybindings.command]]
+key = "prefix+ctrl+f"
+type = "popup"
+command = '"$HOME/bin/tuios-find"'
+description = "Find a pane by its content, in every session"
+width = "90%"
+height = "90%"
+
 # Tape picker: fzf over ~/.config/tuios/tapes (public) and the private
 # secrets/tuios-tapes, then `tuios tape exec` of the pick in this session.
 [[keybindings.command]]

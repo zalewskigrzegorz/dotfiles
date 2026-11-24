@@ -1,0 +1,26 @@
+#!/bin/bash
+# prefix+ctrl+f: find a pane by what it printed, in every session. One fzf row per
+# line of each pane's scrollback (last 3000 lines); Enter jumps to that pane.
+# --list QUERY prints matching "session<TAB>window<TAB>label<TAB>line" rows.
+set -euo pipefail
+export SHELL=/bin/bash # fzf runs --preview through $SHELL, nushell in a popup
+
+rows() {
+  tuios list-windows --all --json |
+    jq -r '.panes[] | [.session, .window_id, "\(.session) · ws\(.workspace) · \(.name)"] | @tsv' |
+    while IFS=$'\t' read -r s w label; do
+      tuios capture-pane -s "$s" -w "$w" --scrollback --lines 3000 --unwrap 2>/dev/null |
+        awk -v p="$s"$'\t'"$w"$'\t'"$label" 'NF && !seen[$0]++ { sub(/^[ \t]+/, ""); print p "\t" $0 }' || true
+    done
+}
+
+if [ "${1:-}" = "--list" ]; then rows | awk -F'\t' -v q="${2:-}" 'index(tolower($4), tolower(q))'; exit 0; fi
+
+pick=$(rows | fzf --exact --delimiter=$'\t' --with-nth=3,4 --no-hscroll \
+  --prompt='pane> ' --header='szukaj w treści paneli · Enter = przejdź' \
+  --preview='tuios capture-pane -s {1} -w {2} --scrollback --lines 3000 --unwrap | grep -nF -- {4} | tail -1 | cut -d: -f1 | { read -r n; tuios capture-pane -s {1} -w {2} --scrollback --lines 3000 --unwrap | sed -n "$(( n > 15 ? n - 15 : 1 )),$(( n + 15 ))p"; }' \
+  --preview-window=down,50%) || exit 0
+
+s=$(cut -f1 <<<"$pick"); w=$(cut -f2 <<<"$pick")
+tuios switch-session "$s" >/dev/null
+tuios focus-window -s "$s" "$w" >/dev/null
