@@ -173,15 +173,17 @@ def raise-alerts [prev: record, cur: record]: nothing -> record {
     let unseen = (try { open $ALERTS_PATH } catch { {} })
     let events = (pr-alert diff $prev $cur (date now | format date "%+"))
     if ($events | is-empty) { return $unseen }
-    let sound = ($SOUNDS_DIR | path join $"pr-(pr-alert sound $events).mp3")
-    # in the foreground: launchd kills a finished job's children, so a backgrounded afplay never sounded
-    if ($sound | path exists) { try { ^afplay $sound } }
-    # Without SketchyBar the queue still fills: the Gzyms plugin reads it (and tells each event once).
-    if (which sketchybar | is-empty) {
+    # Installed is not running: only a live SketchyBar shows the blink, else the
+    # Gzyms island shows each event with its own sound (no afplay, no double ring).
+    if (do { ^pgrep -x sketchybar } | complete).exit_code != 0 {
+        for a in (pr-alert notify-args $events) { try { ^gzyms notify ...$a | ignore } }
         let merged = (pr-alert merge $unseen $events)
         $merged | to json | save -f $ALERTS_PATH
         return $merged
     }
+    let sound = ($SOUNDS_DIR | path join $"pr-(pr-alert sound $events).mp3")
+    # in the foreground: launchd kills a finished job's children, so a backgrounded afplay never sounded
+    if ($sound | path exists) { try { ^afplay $sound } }
     let popup = (try { ^sketchybar --query pr_watch | from json | get -o popup.drawing } catch { "off" })
     if $popup == "on" {
         # Greg is looking: no blink, but the rows must still reach the open popup's rebuild

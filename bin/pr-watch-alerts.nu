@@ -11,6 +11,7 @@
 # nothing, so nothing rings on stale state. Tests: scripts/test-pr-watch-alerts.nu
 
 const PR_ALERT_PRIORITY = {ci_fail: 0, approval: 1, ci_success: 2, comment: 3, ci_start: 4}
+const PR_ALERT_TITLE = {ci_fail: "CI failed", approval: "Approved", ci_success: "CI passed", comment: "New comment", ci_start: "CI started"}
 
 # Snapshot fields kept in the pr-watch cache for one `gh pr list` row.
 def "pr-alert snapshot" [pr: record, out: int]: nothing -> record {
@@ -88,4 +89,18 @@ def "pr-alert sound" [events: record]: nothing -> string {
     let kinds = ($events | values | get -o kind | default [])
     if ($kinds | is-empty) { return "" }
     $kinds | sort-by {|k| $PR_ALERT_PRIORITY | get $k } | first
+}
+
+# `gzyms notify` arguments, one list per event: with no SketchyBar running the
+# island shows the alert, so the sound never comes without something to see.
+def "pr-alert notify-args" [events: record]: nothing -> list<list<string>> {
+    $events | items {|key, e|
+        let pr = ($key | split row "#")
+        let url = ($e | get -o url | default "")
+        let link = (if $url != "" { $url } else if ($pr | length) == 2 { $"https://github.com/($pr.0)/pull/($pr.1)" } else { "" })
+        let text = ($e | get -o text | default "")
+        (["--title" $"($PR_ALERT_TITLE | get $e.kind): ($key)" "--id" $"pr-watch:($key)" "--level" (if $e.kind == "ci_fail" { "warning" } else { "info" })]
+            ++ (if $link != "" { ["--link" $link] } else { [] })
+            ++ (if $text != "" { ["--body" $text] } else { [] }))
+    }
 }

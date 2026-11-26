@@ -125,6 +125,14 @@ def test_snapshot [] {
     assert equal (pr-alert snapshot {statusCheckRollup: []} 0).green false
 }
 
+def test_notify_args [] {
+    let a = (pr-alert notify-args {"o/r#7": {kind: "ci_fail", text: "e2e (3)", url: "https://x/job/1"}, "o/r#8": {kind: "approval", text: "", url: ""}})
+    assert equal $a.0 ["--title" "CI failed: o/r#7" "--id" "pr-watch:o/r#7" "--level" "warning" "--link" "https://x/job/1" "--body" "e2e (3)"]
+    assert equal $a.1 ["--title" "Approved: o/r#8" "--id" "pr-watch:o/r#8" "--level" "info" "--link" "https://github.com/o/r/pull/8"]
+    # an old bare-number key has no repo: no link rather than a broken one
+    assert equal (pr-alert notify-args {"7": {kind: "comment", text: "", url: ""}}).0 ["--title" "New comment: 7" "--id" "pr-watch:7" "--level" "info"]
+}
+
 def main [] {
     let tests = [
         [name, run];
@@ -141,6 +149,7 @@ def main [] {
         [merge_priority, {|| test_merge_priority }]
         [sound, {|| test_sound }]
         [snapshot, {|| test_snapshot }]
+        [notify_args, {|| test_notify_args }]
     ]
     for t in $tests {
         do $t.run
