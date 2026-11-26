@@ -8,14 +8,14 @@
       "complex_modifications": {
         "rules": [
           {
-            "description": "Caps: tap = ctrl+space (tuios), hold = ctrl+opt+g (Gzyms)",
+            "description": "Caps: tap = ctrl+space (tuios), hold = ctrl+cmd+l (Gzyms leader, same as the Dygma Windows key)",
             "manipulators": [
               {
                 "type": "basic",
                 "from": { "key_code": "caps_lock", "modifiers": { "optional": ["any"] } },
                 "to_if_alone": [{ "key_code": "spacebar", "modifiers": ["left_control"] }],
-                "to_if_held_down": [{ "key_code": "g", "modifiers": ["left_control", "left_option"], "repeat": false }],
-                "parameters": { "basic.to_if_held_down_threshold_milliseconds": 250 }
+                "to_if_held_down": [{ "key_code": "l", "modifiers": ["left_control", "left_command"], "repeat": false }],
+                "parameters": { "basic.to_if_held_down_threshold_milliseconds": 250, "basic.to_if_alone_timeout_milliseconds": 250 }
               }
             ]
           },
