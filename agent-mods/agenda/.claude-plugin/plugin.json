@@ -1,1 +1,1 @@
-{ "name": "agenda", "version": "0.1.0", "description": "Band above the prompt listing the separate things you raised in this session, queued in order, each with a status the model keeps current.", "types": "./types/index.d.ts" }
+{ "name": "agenda", "version": "0.1.0", "description": "Keeps a list of the separate things you raise in a session, queued in order, each with a status the model keeps current. The dashboard mod shows it above the prompt.", "types": "./types/index.d.ts" }

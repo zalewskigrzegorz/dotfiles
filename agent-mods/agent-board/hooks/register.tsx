@@ -29,7 +29,7 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'agent-board' }, async $ => {
-    await $.ui.open({ id: PANE, title: 'Agenci' })
+    await $.ui.open({ id: PANE, title: 'Agents' })
     return { text: 'Agent board opened.' }
   })
 
@@ -38,7 +38,7 @@ export const register: Register = on => {
     await update($, spawns, all => ({ ...all, [e.description]: { model: e.model ?? 'inherit', startedAt } }))
     if (!isOpened) {
       isOpened = true
-      void $.ui.open({ id: PANE, title: 'Agenci' })
+      void $.ui.open({ id: PANE, title: 'Agents' })
     }
     return next(e)
   })

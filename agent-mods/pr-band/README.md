@@ -2,6 +2,8 @@
 
 Keeps the current branch's pull request in view and tells you when its checks finish.
 
+![pr-band in a Claude Code session](assets/screenshot.png)
+
 - Polls `gh pr view` every 90 s: checks passed, failed and pending, merge state, review state.
 - A toast when the pending checks finish, green or red.
 - `/pr-peek <number|url>`, or a PR link in your prompt, opens a pane with the PR: title, author, size, checks, and buttons to open it, read the failed logs or rebase.
