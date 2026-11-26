@@ -3,14 +3,14 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { BgTask } from '../types'
 
-// The other mods keep the data and the logic; pulpit only draws it, in one line and one pane.
-const items = atom({ plugin: 'sprawy', key: 'items' } as const, [])
+// The other mods keep the data and the logic; dashboard only draws it, in one line and one pane.
+const items = atom({ plugin: 'agenda', key: 'items' } as const, [])
 const pr = atom({ plugin: 'pr-band', key: 'pr' } as const, null)
 const nudges = atom({ plugin: 'nudge-band', key: 'nudges' } as const, { standup: 0, retro: 0 })
 
-const bg = atom({ plugin: 'pulpit', key: 'bg' } as const, [])
+const bg = atom({ plugin: 'dashboard', key: 'bg' } as const, [])
 
-const PANE = 'pulpit'
+const PANE = 'dashboard'
 const POLL_MS = 15_000
 const KEEP_DONE = 5
 
@@ -52,7 +52,7 @@ async function poll($: EngineInterface) {
         x.id === t.id ? { ...x, last, repeats: sameLine(last, x.last) ? x.repeats + 1 : 0, state, endedAt: running ? undefined : now } : x,
       ),
     )
-    if (!running) $.ui.toast(`${state === 'failed' ? '✗' : '✓'} w tle: ${t.desc}`, { timeoutMs: 10_000 })
+    if (!running) $.ui.toast(`${state === 'failed' ? '✗' : '✓'} background: ${t.desc}`, { timeoutMs: 10_000 })
   }
   // Finished ones stay for a look; only the newest few.
   await update($, bg, list => {
@@ -67,7 +67,7 @@ async function openLog($: EngineInterface, t: BgTask) {
   // Workspace 3 is the session's back room; 1 is nu, 2 is claude (workctl).
   await $.process.run([
     'tuios', 'new-window', '-s', session, `bg: ${t.desc.slice(0, 30)}`, '--workspace', '3', '--', 'less', '-R', '-~',
-    '-PsF=sledz dalej   /=szukaj   q=zamknij', '+F', t.file,
+    '-PsF=follow   /=search   q=quit', '+F', t.file,
   ])
   await $.process.run(['tuios', 'select-workspace', '-s', session, '3'])
 }
@@ -75,10 +75,10 @@ async function openLog($: EngineInterface, t: BgTask) {
 const C = { green: '#50FA7B', red: '#FF6B9D', gold: '#FFD700', peach: '#FF8C42', cyan: '#8BE9FD', lavender: '#9580FF', pink: '#FF79C6' }
 
 const AGENT_LABEL: Record<string, string> = {
-  working: 'agent pracuje',
-  waiting: 'agent czeka na Ciebie',
-  done: 'agent skończył',
-  failed: 'agent padł',
+  working: 'agent working',
+  waiting: 'agent waits for you',
+  done: 'agent finished',
+  failed: 'agent failed',
 }
 type Row = { status: string; note?: string; agent?: { state: string } }
 const extraOf = (i: Row) => [i.note, i.agent && i.status !== 'done' ? AGENT_LABEL[i.agent.state] : undefined].filter(Boolean).join(', ')
@@ -91,18 +91,18 @@ export const cleanChecks = (names: readonly string[]) => names.map(n => n.replac
 
 async function toggle($: EngineInterface) {
   if ((await $.ui.panes()).some(p => p.id === PANE)) return void (await $.ui.close({ id: PANE }))
-  const opened = await $.ui.open({ id: PANE, title: 'Pulpit' })
-  if (!opened.isPlaced) $.ui.toast('Pulpit czeka na miejsce: poszerz okno Claude\'a')
+  const opened = await $.ui.open({ id: PANE, title: 'Dashboard' })
+  if (!opened.isPlaced) $.ui.toast('Dashboard waits for room: widen the Claude window')
 }
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'pulpit', description: 'Open or close the pane with items, the PR, standup, retro and background tasks' })
+    await $.command.register({ name: 'dashboard', description: 'Open or close the pane with items, the PR, standup, retro and background tasks' })
     $.clock.every(POLL_MS, () => void poll($).catch(() => {}))
     return next(e)
   })
 
-  // A command the model sent to the background joins the "W tle" list.
+  // A command the model sent to the background joins the "Background" list.
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const r = await next(e)
     // The command already ran: a failure here must never run it again, so no .catch with next.
@@ -119,7 +119,7 @@ export const register: Register = on => {
     return r
   })
 
-  on('command.run', { command: 'pulpit' }, async $ => {
+  on('command.run', { command: 'dashboard' }, async $ => {
     await toggle($)
     return { text: '' }
   })
@@ -141,7 +141,7 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column">
-        <Button key="pulpit" plain hotkey="o" label="pulpit" onPress={() => void toggle($)}>
+        <Button key="dashboard" plain hotkey="o" label="dashboard" onPress={() => void toggle($)}>
           <Text>🦄 </Text>
           {all.length > 0 && (
             // ◐ and ⧗ draw wider than their one cell: the space after each keeps the digit readable.
@@ -172,7 +172,7 @@ export const register: Register = on => {
           {(running > 0 || failed > 0) && (all.length > 0 || p !== null || n.standup > 0 || n.retro > 0) && sep}
           {running > 0 && <Text color={C.cyan}>⚙ {running}</Text>}
           {failed > 0 && <Text color={C.red}> ✗{failed}</Text>}
-          <Text color={C.pink}>  ▸ szczegóły</Text>
+          <Text color={C.pink}>  ▸ details</Text>
         </Button>
         {below}
       </Box>
@@ -193,8 +193,8 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column">
-        <Text bold>Sprawy</Text>
-        {ordered.length === 0 && <Text dimColor>brak</Text>}
+        <Text bold>Agenda</Text>
+        {ordered.length === 0 && <Text dimColor>none</Text>}
         {ordered.map(i => {
           const mark = i.status === 'queued' ? `[${queue.indexOf(i) + 1}]` : i.status === 'done' ? '✓' : '◐'
           const waiting = i.agent?.state === 'waiting' && i.status !== 'done'
@@ -214,15 +214,15 @@ export const register: Register = on => {
         <Text> </Text>
         <Text bold>PR</Text>
         {p === null ? (
-          <Text dimColor>ten branch nie ma PR-a</Text>
+          <Text dimColor>no PR on this branch</Text>
         ) : ended(p) ? (
           <Box flexDirection="column">
             <Text color={C.lavender}>
-              󰘬 #{p.number} {p.state === 'MERGED' ? 'zmergowany' : 'zamknięty'}
+              󰘬 #{p.number} {p.state === 'MERGED' ? 'merged' : 'closed'}
             </Text>
             <Box>
-              <Button key="pr-open" plain hotkey="w" label="otwórz w przeglądarce" onPress={() => void $.process.run(['open', p.url])} />
-              <Button key="pr-peek" plain hotkey="p" label="podgląd PR" onPress={run('pr-peek', String(p.number))} />
+              <Button key="pr-open" plain hotkey="w" label="open in browser" onPress={() => void $.process.run(['open', p.url])} />
+              <Button key="pr-peek" plain hotkey="p" label="PR peek" onPress={run('pr-peek', String(p.number))} />
             </Box>
           </Box>
         ) : (
@@ -239,37 +239,37 @@ export const register: Register = on => {
                 {p.review ? ` · ${p.review.toLowerCase().replace('_', ' ')}` : ''}
               </Text>
             </Text>
-            {p.failed.length > 0 && <Text color={C.red}>padło: {cleanChecks(p.failed)}</Text>}
+            {p.failed.length > 0 && <Text color={C.red}>failed: {cleanChecks(p.failed)}</Text>}
             <Box>
-              <Button key="pr-open" plain hotkey="w" label="otwórz w przeglądarce" onPress={() => void $.process.run(['open', p.url])} />
-              <Button key="pr-peek" plain hotkey="p" label="podgląd PR" onPress={run('pr-peek', String(p.number))} />
+              <Button key="pr-open" plain hotkey="w" label="open in browser" onPress={() => void $.process.run(['open', p.url])} />
+              <Button key="pr-peek" plain hotkey="p" label="PR peek" onPress={run('pr-peek', String(p.number))} />
               {p.fail > 0 && (
                 <Button
                   key="log"
                   plain
                   hotkey="f"
                   label="log-failed"
-                  onPress={ask(`Przeczytaj gh run view --log-failed dla padniętych checków PR #${p.number} (${cleanChecks(p.failed)}) i powiedz, co padło.`)}
+                  onPress={ask(`Read gh run view --log-failed for the failed checks of PR #${p.number} (${cleanChecks(p.failed)}) and tell me what failed.`)}
                 />
               )}
               {needsRebase(p.merge) && (
-                <Button key="rebase" plain hotkey="r" label="rebase" onPress={ask(`Branch PR #${p.number} jest ${p.merge}: zrebase'uj go na bazę PR-a i uruchom lokalnie to, co CI.`)} />
+                <Button key="rebase" plain hotkey="r" label="rebase" onPress={ask(`The branch of PR #${p.number} is ${p.merge}: rebase it onto the PR's base and run locally what CI runs.`)} />
               )}
             </Box>
           </Box>
         )}
 
         <Text> </Text>
-        <Text bold>Do zrobienia</Text>
-        {n.standup === 0 && n.retro === 0 && <Text dimColor>nic nie czeka</Text>}
+        <Text bold>To do</Text>
+        {n.standup === 0 && n.retro === 0 && <Text dimColor>nothing waiting</Text>}
         <Box>
           {n.standup > 0 && <Button key="standup" plain hotkey="s" label={` standup (${n.standup})`} onPress={run('g-standup')} />}
           {n.retro > 0 && <Button key="retro" plain hotkey="b" label={`󰑓 retro (${n.retro})`} onPress={run('retro-backlog')} />}
         </Box>
 
         <Text> </Text>
-        <Text bold>W tle</Text>
-        {tasks.length === 0 && <Text dimColor>nic nie działa w tle</Text>}
+        <Text bold>Background</Text>
+        {tasks.length === 0 && <Text dimColor>nothing running in the background</Text>}
         {tasks.map(t => (
           <Box key={`bg-${t.id}`} flexDirection="column">
             <Box>
@@ -281,8 +281,8 @@ export const register: Register = on => {
             </Box>
             <Text wrap="truncate-end" dimColor>
               {'  '}
-              {t.last || 'jeszcze nic nie wypisało'}
-              {t.repeats > 0 ? `  (bez zmian ×${t.repeats + 1})` : ''}
+              {t.last || 'no output yet'}
+              {t.repeats > 0 ? `  (unchanged ×${t.repeats + 1})` : ''}
             </Text>
           </Box>
         ))}

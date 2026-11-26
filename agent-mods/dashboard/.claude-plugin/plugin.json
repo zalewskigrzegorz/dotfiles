@@ -1,0 +1,10 @@
+{
+  "name": "dashboard",
+  "version": "0.1.0",
+  "description": "One summary line above the prompt (agenda items, the PR, background tasks); a press opens one pane with the details and actions.",
+  "types": "./types/index.d.ts",
+  "dependencies": [
+    "agenda",
+    "pr-band"
+  ]
+}

@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 
-const TOOL = 'mcp__sprawy__sprawa' as const
+const TOOL = 'mcp__agenda__item' as const
 
 const writes: Record<string, unknown> = {}
 const deletes: string[] = []
@@ -31,7 +31,7 @@ async function start(
   on('store.delete', (_, e) => (kv.delete(e.key), deletes.push(e.key), { value: undefined }))
   on('store.keys', () => ({ value: [...kv.keys()] }))
   on('session.id', () => ({ value: id }))
-  on('tool.register', (_, e) => ({ value: { tool: `mcp__sprawy__${e.name}` } }))
+  on('tool.register', (_, e) => ({ value: { tool: `mcp__agenda__${e.name}` } }))
   on('agent.list', () => ({ value: agents as never }))
   on('process.run', () => ({
     value: { exitCode: 0, stdout: JSON.stringify(tuios), stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
@@ -46,15 +46,15 @@ test('items queue, urgent jumps, done ones stay listed', async ($, on) => {
   await start([$, on])
   expect(await list($)).toBe('No items yet.')
 
-  await $.tool.call({ tool: TOOL, action: 'add', title: 'Pasek agentów' })
-  await $.tool.call({ tool: TOOL, action: 'add', title: 'Kolory w tabach' })
-  await $.tool.call({ tool: TOOL, action: 'add', title: 'Popup za szeroki', urgent: true })
+  await $.tool.call({ tool: TOOL, action: 'add', title: 'Agent band' })
+  await $.tool.call({ tool: TOOL, action: 'add', title: 'Tab colours' })
+  await $.tool.call({ tool: TOOL, action: 'add', title: 'Popup too wide', urgent: true })
   await $.tool.call({ tool: TOOL, action: 'set', id: 1, status: 'done' })
 
   const rows = await list($)
-  expect(rows).toContain('3. Popup za szeroki [queued #1]')
-  expect(rows).toContain('2. Kolory w tabach [queued #2]')
-  expect(rows).toContain('1. Pasek agentów [done]')
+  expect(rows).toContain('3. Popup too wide [queued #1]')
+  expect(rows).toContain('2. Tab colours [queued #2]')
+  expect(rows).toContain('1. Agent band [done]')
 
   const bad = await $.tool.call({ tool: TOOL, action: 'set', id: 9, status: 'done' })
   expect('deny' in bad && bad.deny).toContain('No item with id 9')
@@ -90,23 +90,23 @@ test('an item follows its subagent and its tuios agent, and ticks itself done', 
 
 test('the list is stored per session id and loads back on a resume, not on a new id', async ($, on) => {
   await start([$, on])
-  await $.tool.call({ tool: TOOL, action: 'add', title: 'Przetrwa resume' })
-  expect(JSON.stringify(writes['s:A'])).toContain('Przetrwa resume')
+  await $.tool.call({ tool: TOOL, action: 'add', title: 'Survives resume' })
+  expect(JSON.stringify(writes['s:A'])).toContain('Survives resume')
 })
 
 test('a restart with the same session id gets its list back, a different id starts empty', async ($, on) => {
   const entries = {
-    's:A': { at: 0, items: [{ id: 1, title: 'Wrócił po resume', status: 'queued', order: 1 }] },
+    's:A': { at: 0, items: [{ id: 1, title: 'Back after resume', status: 'queued', order: 1 }] },
     's:old': { at: 0, items: [] },
   }
   await start([$, on], 'A', entries)
-  expect(await list($)).toContain('1. Wrócił po resume [queued #1]')
+  expect(await list($)).toContain('1. Back after resume [queued #1]')
 })
 
 test('a different session id starts empty and old lists are dropped', async ($, on) => {
   const day = 24 * 3600_000
   const entries = {
-    's:A': { at: 0, items: [{ id: 1, title: 'Cudza lista', status: 'queued', order: 1 }] },
+    's:A': { at: 0, items: [{ id: 1, title: 'Someone else\'s list', status: 'queued', order: 1 }] },
     's:old': { at: 0, items: [] },
   }
   await start([$, on], 'B', entries, 8 * day)

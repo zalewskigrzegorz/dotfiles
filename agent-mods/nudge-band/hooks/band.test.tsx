@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-// pulpit draws the counts; this mod only keeps them fresh: on start, on a timer and after each turn.
+// dashboard draws the counts; this mod only keeps them fresh: on start, on a timer and after each turn.
 test('the hooks are read at start and again after a turn', async ($, on) => {
   const clock = mock.clock(on)
   const ran: string[] = []

@@ -11,7 +11,7 @@ Another Claude session asking for an export, a signature or a sha (`from=`, `fro
 
 ## After a resume, look for a twin before taking the next queued item
 
-A conversation resumed in two panes runs twice (both copies worked one `sprawy` queue; it surfaced only as "File has been modified since read"). After a resume or reboot, and before each queued item: `git log --oneline -5` against your own last commit and `tuios list-agents -s "$TUIOS_SESSION"`. A commit you didn't make on your item, or a second pane with your task title → stop, say so in one line, leave the item to that pane.
+A conversation resumed in two panes runs twice (both copies worked one `agenda` queue; it surfaced only as "File has been modified since read"). After a resume or reboot, and before each queued item: `git log --oneline -5` against your own last commit and `tuios list-agents -s "$TUIOS_SESSION"`. A commit you didn't make on your item, or a second pane with your task title → stop, say so in one line, leave the item to that pane.
 
 ## Fetch the base before you design, commit, ask or open a PR
 

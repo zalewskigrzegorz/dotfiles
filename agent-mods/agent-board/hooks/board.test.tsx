@@ -11,7 +11,7 @@ test('a spawn opens the pane once; rows show model and age and open the agent', 
   const clock = mock.clock(on)
   let opened = 0
   const viewed: unknown[] = []
-  on('command.register', () => ({ value: { command: 'agenci' } }))
+  on('command.register', () => ({ value: { command: 'agent-board' } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('ui.open', () => (opened++, { value: { isPlaced: true } }))
   on('ui.view', (_, e) => (viewed.push(e), { value: {} }))

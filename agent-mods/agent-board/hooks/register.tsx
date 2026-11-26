@@ -20,7 +20,7 @@ export const register: Register = on => {
   let isOpened = false
 
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'agenci', description: 'Show the subagents of this session in a pane' })
+    await $.command.register({ name: 'agent-board', description: 'Show the subagents of this session in a pane' })
     // agent.list is not state, so poll a redraw while anything still runs.
     $.clock.every(3000, () => {
       void $.agent.list().then(list => list.some(a => a.status === 'running') && $.ui.invalidate('ui.render'))
@@ -28,9 +28,9 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('command.run', { command: 'agenci' }, async $ => {
+  on('command.run', { command: 'agent-board' }, async $ => {
     await $.ui.open({ id: PANE, title: 'Agenci' })
-    return { text: 'Panel agentów otwarty.' }
+    return { text: 'Agent board opened.' }
   })
 
   on('tool.call', { tool: 'Agent' }, async ($, e, next) => {
@@ -50,7 +50,7 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column">
-        {list.length === 0 && <Text dimColor>Brak subagentów w tej sesji.</Text>}
+        {list.length === 0 && <Text dimColor>No subagents in this session.</Text>}
         {list.map((a, i) => {
           const spawn = known[a.description]
           return (
@@ -62,7 +62,7 @@ export const register: Register = on => {
             </Button>
           )
         })}
-        <Button key="main" plain hotkey="g" label="główny wątek" onPress={() => void $.ui.view({})} />
+        <Button key="main" plain hotkey="g" label="main thread" onPress={() => void $.ui.view({})} />
       </Box>
     )
   })

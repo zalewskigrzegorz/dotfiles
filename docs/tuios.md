@@ -117,7 +117,7 @@ generator on every keystroke (~10 ms per keystroke over 2800 branches).
 git for them, not `tuios worktree new` (which would put them under
 `~/.local/share/tuios/worktrees/` and skip the seed). Each worktree gets one tuios session
 `<repo>-<branch>`: workspace 1 holds the `nu` shell, workspace 2 `claude` and agents (the one
-the session opens on); workspace 3 is the back room ("zaplecze": a tunnel, a watcher, a `bg:` log opened from the pulpit mod's "W tle"
+the session opens on); workspace 3 is the back room ("zaplecze": a tunnel, a watcher, a `bg:` log opened from the dashboard mod's "Background"
 section), opened only when needed. Every session of a
 repo gets the accent and space from `~/.config/tuios/projects.tsv` (`dot_config/tuios/projects.tsv.tmpl`);
 `bin/tuios-colorize` applies it to sessions already open. `~/.herdr/worktrees` is still scanned,

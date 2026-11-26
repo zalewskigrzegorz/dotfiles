@@ -48,14 +48,14 @@
       "description": "/zapamietaj saves the given text or the mouse selection to Hindsight."
     },
     {
-      "name": "sprawy",
-      "source": "./sprawy",
+      "name": "agenda",
+      "source": "./agenda",
       "description": "Band above the prompt with the session's separate requests, queued in order, each following its agent until done."
     },
     {
-      "name": "pulpit",
-      "source": "./pulpit",
-      "description": "One summary line above the prompt (items, PR, standup, retro); a press opens one pane with every mod's details and actions."
+      "name": "dashboard",
+      "source": "./dashboard",
+      "description": "One summary line above the prompt (agenda items, the PR, background tasks); a press opens one pane with the details and actions."
     },
     {
       "name": "shot-shrink",

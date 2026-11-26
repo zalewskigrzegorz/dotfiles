@@ -57,7 +57,7 @@ export function summarizePeek(view: PeekView, names: Record<string, string>): Pe
   return {
     ...summarize(view),
     title: view.title ?? '',
-    author: names[login.toLowerCase()] ?? `${login} (nie wiem kto to)`,
+    author: names[login.toLowerCase()] ?? (Object.keys(names).length > 0 ? `${login} (unknown)` : login),
     isDraft: view.isDraft ?? false,
     additions: view.additions ?? 0,
     deletions: view.deletions ?? 0,

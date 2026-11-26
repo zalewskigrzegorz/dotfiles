@@ -3,7 +3,7 @@ import { expect, mock, test } from 'claude-code/testing'
 test('pings every 5 min, at most three times, and stops once answered', async ($, on) => {
   const clock = mock.clock(on)
   const notes: string[] = []
-  on('session.cwd', () => ({ value: '/Users/greg/Code/dotfiles' }))
+  on('session.cwd', () => ({ value: '/repo' }))
   on('ui.notify', (_, e) => (notes.push(e.text), { value: { isSent: true, channel: 'iterm2' } }))
   on('audio.play', () => ({ value: undefined }))
   // The popup stays open for 25 min, then Greg answers.

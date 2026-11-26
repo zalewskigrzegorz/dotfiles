@@ -13,6 +13,8 @@ export type BgTask = {
 
 declare module 'claude-code' {
   interface PluginState {
-    pulpit: { bg: BgTask[] }
+    dashboard: { bg: BgTask[] }
+    // nudge-band stays optional: same shape as its own contract, zero counts when it is not installed.
+    'nudge-band': { nudges: { standup: number; retro: number } }
   }
 }

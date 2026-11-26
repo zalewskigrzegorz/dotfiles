@@ -7,6 +7,6 @@ export type Item = { id: number; title: string; status: Status; order: number; n
 
 declare module 'claude-code' {
   interface PluginState {
-    sprawy: { items: Item[] }
+    agenda: { items: Item[] }
   }
 }

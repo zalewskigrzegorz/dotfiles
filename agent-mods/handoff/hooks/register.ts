@@ -28,14 +28,14 @@ export const register: Register = on => {
     if (pending) {
       pending = false
       const r = await $.session.compact({ instructions: HANDOFF }).catch((err: unknown) => ({ skip: String(err) }))
-      $.ui.toast('skip' in r ? `handoff: nie poszło (${r.skip})` : 'handoff: rozmowa zastąpiona przekazaniem, kontekst od nowa')
+      $.ui.toast('skip' in r ? `handoff: failed (${r.skip})` : 'handoff: the chat was replaced by the hand-over, fresh context')
       return done
     }
     const tokens = (await $.session.usage()).context.tokens ?? 0
     if (tokens < LIMIT) nudged = false // a compaction brought it back down: the next crossing nudges again
     else if (!nudged) {
       nudged = true
-      $.ui.toast(`Kontekst ${Math.round(tokens / 1000)}k tokenów: /handoff przenosi pracę do świeżego kontekstu`)
+      $.ui.toast(`Context at ${Math.round(tokens / 1000)}k tokens: /handoff moves the work to a fresh context`)
     }
     return done
   })
@@ -45,7 +45,7 @@ export const register: Register = on => {
   on('command.run', { command: 'handoff' }, async $ => {
     pending = true
     // A timer of its own: a submit from inside this hook would wait on the turn it holds.
-    $.clock.after(0, () => void $.prompt.submit({ text: 'Handoff: w 1–3 liniach napisz, na czym stoimy i jaki jest następny krok. Nic więcej nie rób.' }).catch(() => (pending = false)))
-    return { text: 'handoff: krótki stan pracy, potem kompakcja do przekazania' }
+    $.clock.after(0, () => void $.prompt.submit({ text: 'Handoff: in 1–3 lines, say where we stand and what the next step is. Do nothing else.' }).catch(() => (pending = false)))
+    return { text: 'handoff: a short status, then compaction into a hand-over' }
   })
 }

@@ -14,6 +14,7 @@ const view = (checks: object[]) =>
 
 test('polls the PR into state, toasts when checks finish, the peek holds the actions', async ($, on) => {
   const clock = mock.clock(on)
+  on('env.get', (_, e) => ({ value: e.name === 'HOME' ? '/home/me' : undefined }))
   let checks: object[] = [{ name: 'unit', status: 'IN_PROGRESS' }]
   const toasts: string[] = []
   const submitted: string[] = []
@@ -30,7 +31,7 @@ test('polls the PR into state, toasts when checks finish, the peek holds the act
 
   checks = [{ name: 'unit', status: 'COMPLETED', conclusion: 'FAILURE' }]
   await clock.advance(90_000)
-  expect(toasts).toEqual(['PR #7: 1 checków padło'])
+  expect(toasts).toEqual(['PR #7: 1 checks failed'])
 
   await $.command.run({ command: 'pr-peek', args: '7', ...RUN })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
@@ -42,6 +43,7 @@ test('polls the PR into state, toasts when checks finish, the peek holds the act
 
 test('a PR link in the prompt opens the peek, the next prompt closes it', async ($, on) => {
   const clock = mock.clock(on)
+  on('env.get', (_, e) => ({ value: e.name === 'HOME' ? '/home/me' : undefined }))
   const opened: string[] = []
   const closed: string[] = []
   on('process.run', (_, e) => ({
@@ -60,7 +62,7 @@ test('a PR link in the prompt opens the peek, the next prompt closes it', async 
   on('prompt.submit', (_, e) => ({ text: e.text }))
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
-  await $.prompt.submit({ text: 'zrób review https://github.com/o/r/pull/9', wait: false, origin: { kind: 'composer' } })
+  await $.prompt.submit({ text: 'review https://github.com/o/r/pull/9', wait: false, origin: { kind: 'composer' } })
   await clock.settle()
   expect(opened).toEqual(['pr-peek'])
 
@@ -72,18 +74,20 @@ test('a PR link in the prompt opens the peek, the next prompt closes it', async 
     props: { title: 'PR', isFocused: false, bodyColumns: 80, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} },
   })
   expect((await ui.find({ type: 'Text', text: /Teams in one table/ }))?.text).toBe('#9 Teams in one table')
-  expect(await ui.find({ type: 'Text', text: /x \(nie wiem kto to\)/ })).toBeDefined()
+  // No people list on this machine: the bare login, no (unknown) mark.
+  expect(await ui.find({ type: 'Text', text: /\(unknown\)/ })).toBeUndefined()
   // A foreign PR gets no prompt actions.
   expect(await ui.find({ type: 'Button', key: 'log' })).toBeUndefined()
   await ui.unmount()
 
-  await $.prompt.submit({ text: 'ok dzięki', wait: false, origin: { kind: 'composer' } })
+  await $.prompt.submit({ text: 'ok thanks', wait: false, origin: { kind: 'composer' } })
   await clock.settle()
   expect(closed).toEqual(['pr-peek'])
 })
 
 test('opening the PR in the browser pins the peek past the timer and the next prompt', async ($, on) => {
   const clock = mock.clock(on)
+  on('env.get', (_, e) => ({ value: e.name === 'HOME' ? '/home/me' : undefined }))
   const closed: string[] = []
   const ran: string[] = []
   on('process.run', (_, e) => (ran.push(e.argv.join(' ')), { value: { exitCode: 0, stdout: view([]), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
@@ -100,7 +104,7 @@ test('opening the PR in the browser pins the peek past the timer and the next pr
   await ui.press({ key: 'open' })
   expect(ran).toContain('open https://x/pr/7')
   await clock.advance(10 * 60_000)
-  await $.prompt.submit({ text: 'ok dzięki', wait: false, origin: { kind: 'composer' } })
+  await $.prompt.submit({ text: 'ok thanks', wait: false, origin: { kind: 'composer' } })
   await clock.settle()
   expect(closed).toEqual([])
   await ui.unmount()
@@ -108,6 +112,7 @@ test('opening the PR in the browser pins the peek past the timer and the next pr
 
 test('the e2e button pulls the failure shots and hands the folder to /shot', async ($, on) => {
   const clock = mock.clock(on)
+  on('env.get', (_, e) => ({ value: e.name === 'HOME' ? '/home/me' : undefined }))
   const shown: string[] = []
   const ran: string[] = []
   const failed = JSON.stringify({
@@ -134,6 +139,6 @@ test('the e2e button pulls the failure shots and hands the folder to /shot', asy
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   await ui.press({ key: 'e2e' })
   expect(ran).toContain('gh run download')
-  expect(shown).toEqual(['shot /Users/greg/Library/Caches/shot-pick/e2e-42'])
+  expect(shown).toEqual(['shot /home/me/Library/Caches/shot-pick/e2e-42'])
   await ui.unmount()
 })

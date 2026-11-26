@@ -49,5 +49,5 @@ test('authors come out as full names, unknown ones say so', () => {
   const names = namesFrom('| Full name | GitHub | Slack ID |\n|---|---|---|\n| Ada Lovelace | `adal` | U1 |\n| Bob | | U2 |')
   expect(names).toEqual({ adal: 'Ada Lovelace' })
   expect(summarizePeek({ number: 1, url: 'u', author: { login: 'AdaL' } }, names).author).toBe('Ada Lovelace')
-  expect(summarizePeek({ number: 1, url: 'u', author: { login: 'zz' } }, names).author).toBe('zz (nie wiem kto to)')
+  expect(summarizePeek({ number: 1, url: 'u', author: { login: 'zz' } }, names).author).toBe('zz (unknown)')
 })

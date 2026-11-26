@@ -30,11 +30,11 @@ test('/handoff asks for a status turn, then compacts with the hand-over instruct
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   await $.command.run({ command: 'handoff', args: '', ...RUN })
   await clock.settle()
-  expect(submitted[0]).toContain('następny krok')
+  expect(submitted[0]).toContain('next step')
   expect(compacted).toEqual([])
   await $.turn.complete(TURN)
   expect(compacted[0]).toContain('hand-over')
-  expect(toasts).toEqual(['handoff: rozmowa zastąpiona przekazaniem, kontekst od nowa'])
+  expect(toasts).toEqual(['handoff: the chat was replaced by the hand-over, fresh context'])
   await $.turn.complete(TURN) // the next turn does not compact again
   expect(compacted.length).toBe(1)
 })

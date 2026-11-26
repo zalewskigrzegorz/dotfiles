@@ -13,7 +13,6 @@ const POLL_MS = 90_000
 const PEEK = 'pr-peek'
 const PEEK_CLOSE_MS = 5 * 60_000
 // Shared with shot-pick: its daily cleanup sweeps this folder too.
-const CACHE = '/Users/greg/Library/Caches/shot-pick'
 const REVIEW_COMMANDS = new Set(['g-pr-review', 'code-review'])
 // Mocha Neon, the statusline's colours (docs/mocha-neon-palette.md).
 const C = { green: '#50FA7B', red: '#FF6B9D', gold: '#FFD700', peach: '#FF8C42', cyan: '#8BE9FD', lavender: '#9580FF', muted: '#A6ADC8' }
@@ -50,7 +49,7 @@ async function sendRail($: EngineInterface) {
 
 // Failure screenshots sit in blob-report-* → report.zip → resources/*.png.
 async function e2eShots($: EngineInterface, repo: string, run: string): Promise<string | null> {
-  const dir = `${CACHE}/e2e-${run}`
+  const dir = `${await $.env.get('HOME')}/Library/Caches/shot-pick/e2e-${run}`
   await $.process.run(['mkdir', '-p', '-m', '700', dir])
   const got = await $.process.run(['gh', 'run', 'download', run, '-R', repo, '-p', 'blob-report-*', '-D', dir], { timeoutMs: 120_000 })
   const zips = await $.process.run(['find', dir, '-name', '*.zip'])
@@ -64,10 +63,11 @@ async function e2eShots($: EngineInterface, repo: string, run: string): Promise<
 async function showE2e($: EngineInterface, now: Pr) {
   const repo = repoOf(now.url)
   if (!repo || !now.e2eRun) return
-  $.ui.toast(`Ściągam screeny e2e z runu ${now.e2eRun}…`)
+  $.ui.toast(`Downloading e2e screenshots from run ${now.e2eRun}…`)
   const dir = await e2eShots($, repo, now.e2eRun).catch(() => null)
-  if (dir) await $.command.run({ command: 'shot', args: dir })
-  else $.ui.toast('W artefaktach e2e nie ma screenów')
+  // /shot comes from the shot-pick mod; without it the folder path is enough.
+  if (dir) await $.command.run({ command: 'shot', args: dir }).catch(() => $.ui.toast(`e2e screenshots: ${dir}`))
+  else $.ui.toast('No screenshots in the e2e artifacts')
 }
 
 const ask = ($: EngineInterface, text: string) => () => void $.prompt.submit({ text, asUser: true })
@@ -77,7 +77,7 @@ async function openPeek($: EngineInterface, ref: string) {
   if (ran?.exitCode !== 0) return false
   await update($, peek, () => summarizePeek(JSON.parse(ran.stdout), names))
   const opened = await $.ui.open({ id: PEEK, title: 'PR' })
-  if (!opened.isPlaced) $.ui.toast('Podgląd PR-a gotowy: /pr-peek go otwiera')
+  if (!opened.isPlaced) $.ui.toast('PR peek ready: /pr-peek opens it')
   pinned = false
   peekTimer?.cancel()
   peekTimer = $.clock.after(PEEK_CLOSE_MS, () => void $.ui.close({ id: PEEK }).catch(() => {}))
@@ -100,7 +100,7 @@ export const register: Register = on => {
       .catch(() => {})
     // Full names, never logins: the work-people matrix, found by shape so no org name sits in this public repo.
     void $.process
-      .run(['find', '/Users/greg/Code/personal/bazgroly', '-maxdepth', '2', '-name', 'people.md'])
+      .run(['find', `${await $.env.get('HOME')}/Code/personal/bazgroly`, '-maxdepth', '2', '-name', 'people.md'])
       .then(found => found.stdout.split('\n').find(Boolean))
       .then(path => (path ? $.fs.read(path) : ''))
       .then(text => (names = namesFrom(text)))
@@ -122,7 +122,7 @@ export const register: Register = on => {
       if (before && now && before.number === now.number && before.pending > 0 && now.pending === 0) {
         const red = now.fail > 0
         // No sound: pr-watch already rings for the same CI result.
-        $.ui.toast(red ? `PR #${now.number}: ${now.fail} checków padło` : `PR #${now.number}: checki zielone`, { timeoutMs: 10_000 })
+        $.ui.toast(red ? `PR #${now.number}: ${now.fail} checks failed` : `PR #${now.number}: checks green`, { timeoutMs: 10_000 })
       }
     }
     void poll()
@@ -147,7 +147,7 @@ export const register: Register = on => {
   on('command.run', { command: 'pr-peek' }, async ($, e) => {
     const ref = e.args.trim() || String((await read($, pr))?.number ?? '')
     if (!ref) return { text: 'Podaj numer albo link PR-a.' }
-    return { text: (await openPeek($, ref)) ? `Podgląd PR-a ${ref} otwarty.` : `gh nie znalazł PR-a ${ref}.` }
+    return { text: (await openPeek($, ref)) ? `PR ${ref} peek opened.` : `gh found no PR ${ref}.` }
   })
 
   on('ui.render', { component: 'Pane', requestId: PEEK }, async ($, e) => {
@@ -165,7 +165,7 @@ export const register: Register = on => {
         </Text>
         <Text dimColor>
           {p.author}
-          {p.isDraft ? ' · draft' : ''} · +{p.additions} −{p.deletions} · {p.files} plików
+          {p.isDraft ? ' · draft' : ''} · +{p.additions} −{p.deletions} · {p.files} files
         </Text>
         <Box>
           <Text color={C.green}>✓{p.pass} </Text>
@@ -178,19 +178,19 @@ export const register: Register = on => {
         </Box>
         {p.failed.length > 0 && <Text color={C.red}>{p.failed.join(', ')}</Text>}
         <Box>
-          <Button key="open" plain hotkey="o" label="otwórz" onPress={() => openInBrowser($, p.url)} />
-          {p.e2eRun && <Button key="e2e" plain hotkey="e" label="screeny e2e" onPress={() => void showE2e($, p)} />}
+          <Button key="open" plain hotkey="o" label="open" onPress={() => openInBrowser($, p.url)} />
+          {p.e2eRun && <Button key="e2e" plain hotkey="e" label="e2e screenshots" onPress={() => void showE2e($, p)} />}
           {own && p.fail > 0 && (
             <Button
               key="log"
               plain
               hotkey="f"
               label="log-failed"
-              onPress={ask($, `Przeczytaj gh run view --log-failed dla padniętych checków PR #${p.number} (${checks}) i powiedz, co padło.`)}
+              onPress={ask($, `Read gh run view --log-failed for the failed checks of PR #${p.number} (${checks}) and tell me what failed.`)}
             />
           )}
           {own && needsRebase(p) && (
-            <Button key="rebase" plain hotkey="r" label="rebase" onPress={ask($, `Branch PR #${p.number} jest ${p.merge}: zrebase'uj go na bazę PR-a i uruchom lokalnie to, co CI.`)} />
+            <Button key="rebase" plain hotkey="r" label="rebase" onPress={ask($, `The branch of PR #${p.number} is ${p.merge}: rebase it onto the PR's base and run locally what CI runs.`)} />
           )}
         </Box>
       </Box>

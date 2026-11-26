@@ -3,16 +3,16 @@ import type { AgentInfo, EngineInterface, Register } from 'claude-code'
 
 import type { AgentState, Item, Link, Status } from '../types'
 
-const items = atom({ plugin: 'sprawy', key: 'items' } as const, [])
+const items = atom({ plugin: 'agenda', key: 'items' } as const, [])
 
-const TOOL = 'mcp__sprawy__sprawa'
+const TOOL = 'mcp__agenda__item'
 const STATUSES: readonly Status[] = ['queued', 'in_progress', 'done']
 const POLL_MS = 20_000
 const KEEP_MS = 7 * 24 * 3600_000 // a list untouched this long is dropped at session start
 
 const DESCRIPTION = `Keeps the list of separate things the user raised in this session (requests, complaints, ideas, feedback). The user sees it above the prompt, so nothing gets lost.
-When a user message raises something separate (often numbered: "2 sprawa ...", "3 ...", or slipped in while you work on something else), call action=add once per thing before you act on it. Title in the user's language, at most 6 words.
-New items join a queue. Finish the item you are on, then take queued items in queue order. Do not jump to a new item mid-work unless the user marks it urgent ("pilne", "najpierw", "teraz"): then add it with urgent=true and switch to it.
+When a user message raises something separate (often numbered: "2 ...", "item 3 ...", or slipped in while you work on something else), call action=add once per thing before you act on it. Title in the user's language, at most 6 words.
+New items join a queue. Finish the item you are on, then take queued items in queue order. Do not jump to a new item mid-work unless the user marks it urgent ("urgent", "first", "now", or the same in the user's language): then add it with urgent=true and switch to it.
 Call action=set with status=in_progress when you start an item, and status=done when it is finished.
 When you hand an item to an agent that keeps running (a background Agent call, or a tuios agent started with workctl or tuios start-agent), call set with agent=<the agentId the Agent result gave, or the tuios window id>. The list then follows that agent and ticks the item done when the agent finishes.
 Do not add your own sub-steps. action=list returns the items with their ids and queue order.`
@@ -87,7 +87,7 @@ async function linkFor($: EngineInterface, id: string): Promise<Link | null> {
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.tool.register({
-      name: 'sprawa',
+      name: 'item',
       description: DESCRIPTION,
       isDeferred: false,
       inputSchema: {
