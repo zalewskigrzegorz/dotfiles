@@ -225,7 +225,19 @@ if [ -n "$TUIOS_SESSION" ] && command -v tuios >/dev/null 2>&1; then
       | jq -r --arg s "$TUIOS_SESSION" 'map(.name) | index($s) // empty | . + 1' 2>/dev/null)
     [ -n "$sess_num" ] && printf '%s' "$sess_num" > "$num_cache" 2>/dev/null
   fi
-  [ -n "$sess_num" ] && num_seg="${sess_c}${B}▸${sess_num}${N} "
+  # g-orch marks its pane with `tuios set-agent-meta role=orch`; cached like the number.
+  role_seg=""
+  if [ -n "$TUIOS_PANE_ID" ]; then
+    role_cache="$cache_dir/role-${TUIOS_PANE_ID//[^A-Za-z0-9]/_}"
+    if [ -f "$role_cache" ]; then
+      rmtime=$(stat -f %m "$role_cache" 2>/dev/null || stat -c %Y "$role_cache" 2>/dev/null || echo 0)
+      [ $(( now_ts - rmtime )) -gt 30 ] && rm -f "$role_cache"
+    fi
+    [ -f "$role_cache" ] || tuios get-agent-state -s "$TUIOS_SESSION" -w "$TUIOS_PANE_ID" --json 2>/dev/null \
+      | jq -r '.meta.role // ""' > "$role_cache" 2>/dev/null
+    [ "$(cat "$role_cache" 2>/dev/null)" = "orch" ] && role_seg="orch"
+  fi
+  [ -n "$sess_num" ] && num_seg="${sess_c}${B}${role_seg}▸${sess_num}${N} "
 fi
 
 model_seg="${ACCENT}${B}${model}${N}"
