@@ -61,7 +61,7 @@ bind(f"{L}+Option+Tab", "switchWorkspace.previous")
 bind(f"{L}+Shift+Left Bracket", "moveWorkspaceToMonitor.left")
 bind(f"{L}+Shift+Right Bracket", "moveWorkspaceToMonitor.right")
 bind(f"{L}+Option+Space", "toggleOverview")
-bind("Control+Command+L", "openCommandPalette")  # Dygma "Windows" superkey
+bind("Unassigned", "openCommandPalette")  # Dygma "Windows" superkey (Ctrl+Cmd+L) is the Gzyms leader now
 bind(f"{L}+Quote", "toggleFocusedWindowFloating")
 bind(f"{L}+Option+Shift+F", "toggleFloatingFocus")
 bind(f"{L}+Option+M", "openMenuAnywhere")
