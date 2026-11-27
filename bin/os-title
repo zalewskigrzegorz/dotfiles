@@ -35,7 +35,12 @@ if [ "${TUIOS_ENV:-}" = "1" ] && [ -n "${TUIOS_PANE_ID:-}" ]; then
     if [ "$text" != "--clear" ]; then
       # Trim to keep the tab strip / rail scannable. Tune via CLAUDE_TUIOS_TITLE_MAX.
       max="${CLAUDE_TUIOS_TITLE_MAX:-30}"
-      t="$text"
+      t="${text#ORCH }"
+      # g-orch's pane (meta role=orch, bin/tuios-orch --mark) says so first in its tab and rail row.
+      # ORCH_MARK=1 from --mark: the meta it just wrote may not read back yet.
+      { [ "${ORCH_MARK:-}" = 1 ] ||
+        tuios get-agent-state -w "$TUIOS_PANE_ID" --json 2>/dev/null | jq -e '.meta.role == "orch"' >/dev/null 2>&1; } &&
+        t="ORCH $t"
       [ "${#t}" -gt "$max" ] && t="${t:0:$((max - 1))}…"
     fi
     # The rail's agent row draws the window name, which workctl set to "claude review".

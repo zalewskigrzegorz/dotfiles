@@ -13,8 +13,9 @@ before the first spawn. It is also enough on its own for one agent.
 
 ## 0. Mark yourself, check the `respond` grant
 
-`tuios set-agent-meta --source greg role=orch` first: the rail row shows it and
-`prefix+a` (`bin/tuios-orch`) jumps Greg here.
+`tuios-orch --mark` first: meta `role=orch`, a gold session accent, the session at the
+top of the list, and `ORCH` in front of the tab and rail-row title (Greg could not tell
+which pane he was talking to). `prefix+a` (`bin/tuios-orch`) jumps Greg here.
 
 Any pane can become the orchestrator, so check every time:
 `tuios pane-grants --json | jq -r '.grants | join(",")'`. No `respond` → you

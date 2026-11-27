@@ -6,9 +6,12 @@
 set -eu
 map="$HOME/.config/tuios/projects.tsv"
 [ -s "$map" ] || { echo "no $map: run bin/sync" >&2; exit 1; }
+orch=$("$(dirname "$0")/tuios-orch" --list 2>/dev/null | cut -f1 || true)
 
 tuios list-sessions --json | jq -r '.[] | [.name, (.dir // ""), (.global // false | tostring)] | @tsv' |
   while IFS=$'\t' read -r name dir global; do
+    # An orchestrator's session keeps the accent tuios-orch --mark gave it.
+    if printf '%s\n' "$orch" | grep -qxF "$name"; then echo "$name → orchestrator, accent kept"; continue; fi
     # Utility sessions go under one `apps` space; basti's folder would file it under the work repo.
     case "$name" in apps | basti)
       tuios set-session-space -s "$name" apps >/dev/null

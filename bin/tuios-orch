@@ -4,6 +4,20 @@
 # One → straight there; several → fzf. --list prints the candidates and exits.
 set -euo pipefail
 
+# --mark: run from the orchestrator's own pane. Marks it role=orch, gives its session a loud
+# accent and the top of the session list, and retitles it so tab and rail row start with ORCH.
+if [ "${1:-}" = "--mark" ]; then
+  : "${TUIOS_PANE_ID:?--mark runs inside the orchestrator pane}" "${TUIOS_SESSION:?}"
+  tuios set-agent-meta -w "$TUIOS_PANE_ID" --source greg role=orch >/dev/null
+  tuios set-session-accent -s "$TUIOS_SESSION" "${ORCH_ACCENT:-#FFD700}" >/dev/null
+  order=("$TUIOS_SESSION")
+  while IFS= read -r n; do order+=("$n"); done < <(tuios ls --json | jq -r --arg s "$TUIOS_SESSION" '.[].name | select(. != $s)')
+  tuios set-session-order "${order[@]}" >/dev/null
+  title=$(tuios get-window "$TUIOS_PANE_ID" --json | jq -r '.display_name // empty')
+  [ -z "$title" ] || ORCH_MARK=1 "$(dirname "$0")/os-title" "$title"
+  exit 0
+fi
+
 rows=$(tuios list-agents --all-sessions --json | jq -r '
   .agents as $a
   | $a[]
