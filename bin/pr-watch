@@ -1,8 +1,8 @@
 #!/usr/bin/env nu
 
-# pr-watch — poll GitHub for actionable PRs of mine, push state to the SketchyBar
-# `pr_watch` chip. Run by launchd every 60 s (com.greg.pr-watch). PUSH-driven:
-# ends with `sketchybar --set`.
+# pr-watch — poll GitHub for actionable PRs of mine, write the chip counts for the
+# Gzyms pr-watch plugin and ring new events on the Gzyms island. Run by launchd
+# every 60 s (com.greg.pr-watch).
 #
 # "Actionable" comes from the shared classifier (`work-pr actionable`) — a PR
 # needs MY action when it is ready to MERGE, has unresolved threads to resolve,
@@ -61,8 +61,6 @@ source $WORKPR_NU
 const ALERTS_NU = (path self "pr-watch-alerts.nu")
 source $ALERTS_NU
 const ALERTS_PATH = ($nu.home-dir | path join ".cache" "pr-watch-alerts.json")
-const SHOWN_PATH = ($nu.home-dir | path join ".cache" "pr-watch-alerts-shown.json")
-const SOUNDS_DIR = (path self "../assets/sounds")
 # The chip's counts for Gzyms: its pr-watch plugin (dot_config/gzyms/plugins/pr-watch) mirrors this file.
 const CHIP_PATH = ($nu.home-dir | path join ".cache" "pr-watch-chip.json")
 
@@ -80,26 +78,6 @@ def work-repo []: nothing -> string {
 const FIELDS = "number,title,isDraft,reviewDecision,mergeable,statusCheckRollup,headRefName,url,latestReviews"
 # My GitHub login — comments by me never count as "new" (self-clear on reply).
 const ME = "zalewskigrzegorz"
-
-# Nerd Font glyphs — picked to be self-explanatory AND visually distinct from each
-# other (the two git octicons looked alike at chip size).
-const G_FIX = "\u{f0ad}"     # wrench   — changes req / fix CI (needs your fix)
-const G_MERGE = "\u{f00c}"   # check    — ready to merge
-const G_COMMENT = "\u{f075}" # comment  — new unresolved thread since last poll
-const G_RUN = "\u{f017}"     # clock    — CI run in progress (e2e / pipeline)
-const G_BELL = "\u{f0f3}"    # bell     — unseen event, nothing else to show
-
-# State colors — dynamic. Mirror docs/mocha-neon-palette.md.
-const C_FIX = "0xffff8c42"   # peach — needs your fix (urgent, but not agents' red)
-const C_MERGE = "0xff50fa7b" # green — ready to merge
-const C_NEW = "0xff8be9fd"   # sky   — new comment
-const C_RUN = "0xffffd700"   # gold  — CI in progress
-
-def set-chip [args: list<string>] {
-    if (which sketchybar | is-not-empty) {
-        ^sketchybar --set pr_watch ...$args | ignore
-    }
-}
 
 # Helper: is this comment author someone OTHER than me and not a bot?
 def is-foreign [c: any]: nothing -> bool {
@@ -167,34 +145,15 @@ def merge-rights [repos: list<string>, prev: record]: nothing -> record {
     }
 }
 
-# Diff this poll against the previous cache, ring once, and queue the events for
-# the popup unless Greg is already looking at it. Returns the unseen events.
-def raise-alerts [prev: record, cur: record]: nothing -> record {
-    let unseen = (try { open $ALERTS_PATH } catch { {} })
+# Diff this poll against the previous cache and queue the events for the Gzyms
+# plugin. Each goes to the island as a banner with its own sound: a separate
+# afplay rang with nothing on screen (gzyms marks of 2026-11-26).
+def raise-alerts [prev: record, cur: record]: nothing -> nothing {
     let events = (pr-alert diff $prev $cur (date now | format date "%+"))
-    if ($events | is-empty) { return $unseen }
-    # Installed is not running: only a live SketchyBar shows the blink, else the
-    # Gzyms island shows each event with its own sound (no afplay, no double ring).
-    if (do { ^pgrep -x sketchybar } | complete).exit_code != 0 {
-        for a in (pr-alert notify-args $events) { try { ^gzyms notify ...$a | ignore } }
-        let merged = (pr-alert merge $unseen $events)
-        $merged | to json | save -f $ALERTS_PATH
-        return $merged
-    }
-    let sound = ($SOUNDS_DIR | path join $"pr-(pr-alert sound $events).mp3")
-    # in the foreground: launchd kills a finished job's children, so a backgrounded afplay never sounded
-    if ($sound | path exists) { try { ^afplay $sound } }
-    let popup = (try { ^sketchybar --query pr_watch | from json | get -o popup.drawing } catch { "off" })
-    if $popup == "on" {
-        # Greg is looking: no blink, but the rows must still reach the open popup's rebuild
-        let shown = (try { open $SHOWN_PATH } catch { {} })
-        pr-alert merge $shown $events | to json | save -f $SHOWN_PATH
-        return $unseen
-    }
-    let merged = (pr-alert merge $unseen $events)
-    $merged | to json | save -f $ALERTS_PATH
-    ^sketchybar --trigger pr_watch_alert | ignore
-    $merged
+    if ($events | is-empty) { return }
+    for a in (pr-alert notify-args $events) { try { ^gzyms notify ...$a | ignore } }
+    let unseen = (try { open $ALERTS_PATH } catch { {} })
+    pr-alert merge $unseen $events | to json | save -f $ALERTS_PATH
 }
 
 def main [] {
@@ -278,7 +237,7 @@ def main [] {
     mkdir ($cache_path | path dirname)
     $cache | to json | save -f $cache_path
 
-    let unseen = (raise-alerts $prev $cache)
+    raise-alerts $prev $cache
 
     # Outstanding comments surface on ANY PR; fix/merge counters only from
     # actionable PRs. n_comments = total comments still awaiting my reply/resolve.
@@ -291,23 +250,4 @@ def main [] {
     let n_fix = ($act | where {|r| (work-pr bucket $r.action) == "fix"} | length)
     let n_merge = ($act | where {|r| (work-pr bucket $r.action) == "merge"} | length)
     {fix: $n_fix, merge: $n_merge, comments: $n_comments, run: $n_run, prs: ($enriched | length)} | to json | save -f $CHIP_PATH
-    if ($act | is-empty) and ($n_comments == 0) and ($n_run == 0) and ($unseen | is-empty) {
-        set-chip ["drawing=off"]
-        return
-    }
-
-    mut parts = []
-    if $n_fix > 0   { $parts = ($parts | append $"($G_FIX) ($n_fix)") }
-    if $n_merge > 0 { $parts = ($parts | append $"($G_MERGE) ($n_merge)") }
-    if $n_comments > 0 { $parts = ($parts | append $"($G_COMMENT) ($n_comments)") }
-    if $n_run > 0   { $parts = ($parts | append $"($G_RUN) ($n_run)") }
-    # only an unseen event keeps the chip up: show a bell so it has something to blink
-    let label = (if ($parts | is-empty) { $G_BELL } else { $parts | str join "   " })
-
-    # Urgency color drives BOTH border and label text (single label can't color
-    # per-segment): peach (needs fix) > sky (unanswered comment) > gold (CI
-    # running) > green (merge).
-    let bcolor = (if $n_fix > 0 { $C_FIX } else if $n_comments > 0 { $C_NEW } else if $n_run > 0 { $C_RUN } else { $C_MERGE })
-
-    set-chip ["drawing=on" $"label=($label)" $"label.color=($bcolor)" $"background.border_color=($bcolor)"]
 }

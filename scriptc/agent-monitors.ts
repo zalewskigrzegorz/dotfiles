@@ -89,6 +89,10 @@ interface Pane {
   agent_state?: string;
 }
 
+// The chip is the whole output: with no SketchyBar running, skip the tuios reads
+// and the `--set` calls (~5 dead CLI runs every 15 s that also fooled pr-watch).
+if (spawnSync("pgrep", ["-x", "sketchybar"]).status !== 0) process.exit(0);
+
 // `tuios ls` exits 3 without a daemon and never starts one; every other
 // command would start a daemon from this launchd job every 15 s.
 let panes: Pane[] = [];
