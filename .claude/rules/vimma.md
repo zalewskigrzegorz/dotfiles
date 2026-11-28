@@ -48,6 +48,8 @@ paths:
   `youtube-vim` uses the same hidden box on `/watch` (h/l/b/w seek, j/k speed,
   `-` `=` volume, space); speed goes out as a synthetic ctrl+wheel because
   Enhancer for YouTube keeps its own copy of the rate and reapplies it.
+  `opentubex-vim` is the same keymap for the self-hosted OpenTubeX
+  (`opentubex.mrglaszki.com`, hash route `#/watch/…`), driving `<video>` directly.
 - **A userscript change works only after Update in Tampermonkey**, and raw
   GitHub can serve the old version for ~5 min. A change to a script that shares
   a key with another bumps the version of both, and the report says which
