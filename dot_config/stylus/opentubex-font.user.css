@@ -1,0 +1,15 @@
+/* ==UserStyle==
+@name           OpenTubeX — Atkinson Hyperlegible font
+@namespace      github.com/zalewskigrzegorz
+@version        1.0.0
+@description    Self-hosted OpenTubeX (opentubex.mrglaszki.com) in Atkinson Hyperlegible Next, like github-mocha-neon-override. The app's own font picker lists only bundled fonts in Firefox/Vimma (no Local Font Access API), so the font goes in through its --app-font-family variable.
+@author         Grzegorz Zalewski
+@updateURL      https://raw.githubusercontent.com/zalewskigrzegorz/dotfiles/master/dot_config/stylus/opentubex-font.user.css
+==/UserStyle== */
+
+@-moz-document domain("opentubex.mrglaszki.com") {
+  :root,
+  body {
+    --app-font-family: "Atkinson Hyperlegible Next", -apple-system, BlinkMacSystemFont, sans-serif !important;
+  }
+}
