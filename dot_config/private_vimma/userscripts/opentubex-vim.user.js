@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OpenTubeX vim keys
 // @namespace    https://github.com/zalewskigrzegorz/dotfiles
-// @version      1.0
+// @version      1.1
 // @description  Vim keys on an OpenTubeX (opentubex.mrglaszki.com) video page, same as youtube-vim: h/l seek 5 s, b/w seek 30 s, j/k speed, - = volume, space play and pause. Esc hands the keys back to Vimma.
 // @match        https://opentubex.mrglaszki.com/*
 // @run-at       document-idle
@@ -88,12 +88,17 @@ for (const type of ["keydown", "keypress", "keyup"]) {
   );
 }
 
-// a click on the video moves the focus into the player: take it back so the keys keep working
-document.addEventListener("focusin", (e) => {
-  if (onWatch() && e.target !== box && !typing(e.target) && e.target.closest?.("video, .ftVideoPlayer, .videoPlayer")) {
-    box.focus({ preventScroll: true });
-  }
-});
+// one click on the video (or its controls) hands the keys back, no i + Tab needed
+document.addEventListener(
+  "pointerup",
+  (e) => {
+    const v = video();
+    const player = v?.parentElement?.parentElement;
+    if (!onWatch() || !v || typing(e.target) || !(e.target === v || player?.contains(e.target))) return;
+    setTimeout(() => box.focus({ preventScroll: true }), 0);
+  },
+  true,
+);
 
 let lastUrl = "";
 setInterval(() => {
